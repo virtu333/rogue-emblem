@@ -494,6 +494,11 @@ for (const size of SIZES) {
       page,
     }, info) => {
       await bootEvent(page, query('seed=7&as=colosseum'), { tap });
+      // The route preview says what a hire costs before the party arrives (First Light, Act I).
+      const knot = page.getByRole('button', { name: /^Colosseum · (Available|You are here)/ });
+      await press(knot.first(), tap);
+      await expect(page.locator('.re-loom-card')).toContainText('Mercenaries 700–2000 G');
+      await page.screenshot({ path: info.outputPath('colosseum-card.png') });
       await enterNode(page, 'Colosseum', { tap });
       const menu = page.getByRole('dialog', { name: 'Colosseum', exact: true });
       await expect(menu.locator('.arena-bouts-left')).toHaveText('Bouts left here: 5');

@@ -103,9 +103,12 @@ Unlike standard RECRUIT nodes (where you get a free unit from the act pool), the
 
 | Act | Base Hire Cost | Notes |
 |-----|---------------|-------|
-| Act 1 | 300-500G | Steep early — this is a luxury, not a necessity |
-| Act 2 | 500-800G | Competing with church promotions (3000G) and forge costs |
-| Act 3 | 800-1200G | Premium promoted units available |
+| Act 1 | 700-1000G | About the purse at an Act I colosseum on First Light (rows 2-4): a real choice |
+| Act 2 | 1200-1700G | Competing with church promotions (2000G recruit, 3500G lord) and Master Seals (2500G) |
+| Act 3 | 1800-2500G | Every Act III class is promoted, so x1.5: 2700-3750G |
+| Act 4 | 2300-3100G | Promoted: 3450-4650G |
+
+Retuned 2026-10-12: the old ranges (Act I 400-650G) cost under one battle's gold, less than reviving a level-3 ally (1400G). Each rung multiplies the price (`difficulty.<id>.mercenaryPriceMultiplier`): Dusk 1.25, Nightfall 1.5, Black Sun 1.7, because battle income climbs the ladder (more and stronger foes) far faster than its `goldMultiplier` takes away: a scripted player's Act I income was about 3,300G on First Light, 4,400G on Dusk, 5,600G on Nightfall and 6,200G on Black Sun.
 
 Price is randomized within the range per mercenary. Promoted-class mercenaries cost 1.5× the base range.
 
@@ -128,8 +131,8 @@ Price is randomized within the range per mercenary. Promoted-class mercenaries c
 - **Cannot replace** SHOP, CHURCH, or BOSS nodes — only competes with BATTLE/REST/RECRUIT slots
 
 ### Difficulty Scaling
-- On **Hard:** Challenger level offsets increase by +1 across all tiers. Mercenary prices increase 20%.
-- On **Lunatic:** Challengers always have 1 skill. Platinum tier challengers may have 2 skills. Mercenary prices increase 40%. Arena fight limit reduced to 2 per unit.
+- On **Hard:** Challenger level offsets increase by +1 across all tiers. Mercenary prices increase 50% (Dusk: 25%).
+- On **Lunatic:** Challengers always have 1 skill. Platinum tier challengers may have 2 skills. Mercenary prices increase 70%. Arena fight limit reduced to 2 per unit.
 
 ---
 
@@ -200,26 +203,27 @@ A unit winning 3 Silver-tier fights gains roughly the equivalent of 1.5-2 standa
     "skillChance": 0.5,
     "weaponTierBonus": 1,
     "pricing": {
-      "act1": [300, 500],
-      "act2": [500, 800],
-      "act3": [800, 1200]
+      "act1": [700, 1000],
+      "act2": [1200, 1700],
+      "act3": [1800, 2500],
+      "act4": [2300, 3100]
     },
     "promotedMultiplier": 1.5,
     "crossActPoolAccess": true
   },
   "difficulty": {
     "normal": { "maxFightsPerVisit": 5 },
-    "dusk": { "maxFightsPerVisit": 4 },
+    "dusk": { "mercenaryPriceMultiplier": 1.25, "maxFightsPerVisit": 4 },
     "hard": {
       "challengerLevelBonus": 1,
-      "mercenaryPriceMultiplier": 1.2,
+      "mercenaryPriceMultiplier": 1.5,
       "maxFightsPerVisit": 4
     },
     "lunatic": {
       "challengerLevelBonus": 2,
       "challengerMinSkills": 1,
       "platinumMaxSkills": 2,
-      "mercenaryPriceMultiplier": 1.4,
+      "mercenaryPriceMultiplier": 1.7,
       "maxFightsPerUnit": 2,
       "maxFightsPerVisit": 3
     }

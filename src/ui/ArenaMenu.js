@@ -34,18 +34,24 @@ function mercLabel(u, hireCost) {
   return `${u.name} · ${u.className} · Lv ${getDisplayLevel(u)} · ${hireCost} G${u._hired ? ' · Hired' : ''}`;
 }
 
-// "Win about 60% · Lose about 40%": the estimate rounded to 5%, never shown as a
-// certainty it isn't: an estimate never says 0% or 100%.
-export function arenaOddsText(odds) {
-  const pct = (p) => {
-    const v = Math.round((p * 100) / 5) * 5;
-    if (v < 5) return 'under 5%';
-    if (v > 95) return 'over 95%';
-    return `about ${v}%`;
-  };
-  const parts = [`Win ${pct(odds.win)}`, `Lose ${pct(odds.lose)}`];
-  if (odds.draw >= 0.025) parts.push(`Draw ${pct(odds.draw)}`);
-  return `If fought to the end: ${parts.join(' · ')}`;
+// The arena never shows the odds as a percentage (a number makes the bout a sum, not a
+// call): the fighter says how the bout feels, with a rough range of wins in ten. The bands
+// are wide on purpose, and an estimate never claims a certainty it isn't.
+const ARENA_ODDS_FEELINGS = [
+  { atLeast: 0.9, line: 'This one is mine.', range: '9 or more wins in 10' },
+  { atLeast: 0.7, line: 'I like my chances.', range: '7 to 9 wins in 10' },
+  { atLeast: 0.5, line: 'I can take this, I think.', range: '5 to 7 wins in 10' },
+  { atLeast: 0.3, line: 'It could go either way.', range: '3 to 5 wins in 10' },
+  { atLeast: 0.1, line: 'This will be hard. I might not walk out.', range: '1 to 3 wins in 10' },
+  { atLeast: 0, line: "I don't like this at all.", range: 'fewer than 1 win in 10' },
+];
+
+/** `Edric: "I like my chances." Maybe 7 to 9 wins in 10.` (plus a draw warning when likely). */
+export function arenaOddsText(odds, name = 'Your fighter') {
+  const win = Number(odds?.win) || 0;
+  const feeling = ARENA_ODDS_FEELINGS.find((f) => win >= f.atLeast);
+  const draw = odds?.draw >= 0.25 ? ' It may go the distance.' : '';
+  return `${name}: "${feeling.line}" Maybe ${feeling.range}.${draw}`;
 }
 
 // Responsive presentation only. The controller remains responsible for rolling
@@ -199,7 +205,9 @@ export class ArenaMenu {
       grid.append(card);
     }
     m.surface.body.append(grid);
-    if (odds) m.surface.body.append(el('p', arenaOddsText(odds), 'arena-odds'));
+    if (odds) {
+      m.surface.body.append(el('p', arenaOddsText(odds, c._selectedUnit?.name), 'arena-odds'));
+    }
     m.boutsLeft();
     const tier = c._selectedTier;
     const rounds = arenaMaxRounds(c._colosseumData);
