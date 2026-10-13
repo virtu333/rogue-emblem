@@ -32,6 +32,9 @@ import { assignCasterGear, mulberry32 } from '../src/engine/CasterGear.js';
 import { buildReinforcementSpawnSpec } from '../src/engine/ReinforcementSpawns.js';
 import { statusStaffGearLine } from '../src/ui/MobileBattleHUD.js';
 import { UnitDetailOverlay } from '../src/ui/UnitDetailOverlay.js';
+import { MobileRosterSheet } from '../src/ui/MobileRosterSheet.js';
+import { installFakeDom } from './helpers/fakeDom.js';
+import { _resetInputFocus } from '../src/utils/inputFocus.js';
 import { UI_PALETTE } from '../src/utils/uiStyles.js';
 import { loadGameData } from './testData.js';
 
@@ -253,6 +256,60 @@ describe('every place that lists a foe’s gear names its staff', () => {
     });
     const plain = { ...caster('Plain', 1, 1, null), inventory: [] };
     expect(gear(plain).some((l) => /Staff/.test(l.text))).toBe(false);
+  });
+
+  // Playtest (2026-10-13): a Mage's Unit Details named its Silence Staff on the Stats tab,
+  // but the Equipment tab listed only Wildfire, "Equipment · 1/5".
+  it('the phone Unit Details Equipment tab lists and counts it: uses and range, then "spent"', () => {
+    installFakeDom(vi);
+    _resetInputFocus();
+    const gearTab = (unit) => {
+      const scene = {
+        gameData,
+        events: { once() {}, on() {}, off() {}, emit() {} },
+        registry: { get: () => null },
+        textures: { exists: () => false },
+        sys: { settings: { key: 'Battle' } },
+      };
+      const sheet = new MobileRosterSheet({ scene, units: [unit], gameData, onClose: vi.fn() });
+      sheet.tab = 'gear';
+      sheet.render();
+      const heading = sheet.root
+        .querySelectorAll('h3')
+        .map((h) => h.textContent)
+        .find((t) => t.startsWith('Equipment'));
+      const cards = sheet.root
+        .querySelectorAll('h4')
+        .map((h) => [
+          h.textContent,
+          h.parentNode?.parentNode?.querySelectorAll('p').map((p) => p.textContent),
+        ]);
+      sheet.destroy();
+      return { heading, cards };
+    };
+    try {
+      const mage = armed(caster('Mage', 6, 4, 'Silence Staff'));
+      let tab = gearTab(mage);
+      expect(tab.heading).toBe('Equipment · 2/5');
+      expect(tab.cards.map(([name]) => name)).toEqual(
+        expect.arrayContaining([expect.stringContaining('Wildfire'), 'Silence Staff']),
+      );
+      expect(tab.cards.find(([name]) => name === 'Silence Staff')[1]).toContain(
+        'Status staff · Range 3-7 · 2/2 uses',
+      );
+      spendStaffUse(mage.statusStaff);
+      spendStaffUse(mage.statusStaff);
+      tab = gearTab(mage);
+      expect(tab.cards.find(([name]) => name === 'Silence Staff')[1]).toContain(
+        'Status staff · Range 3-7 · spent',
+      );
+      tab = gearTab(armed(caster('Plain', 1, 1, null)));
+      expect(tab.heading).toBe('Equipment · 1/5');
+      expect(tab.cards.some(([name]) => /Staff/.test(name))).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+      _resetInputFocus();
+    }
   });
 
   it('the detail overlay, the inspection panel, the phone HUD and the roster read one line', () => {
