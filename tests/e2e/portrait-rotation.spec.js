@@ -1023,11 +1023,14 @@ test('UI-only actions never advance the gameplay RNG', async ({ page }) => {
       await summary.tap();
       await expect(page.locator('.mb-more-content')).toBeHidden();
     },
-    'Danger on and off': async () => {
+    'Danger on, outline and off': async () => {
       const danger = rail.getByRole('button', { name: 'Danger', exact: true });
+      const outline = rail.getByRole('button', { name: 'Danger · outline', exact: true });
       await danger.tap();
       await expect(danger).toHaveAttribute('aria-pressed', 'true');
       await danger.tap();
+      await expect(outline).toHaveAttribute('aria-pressed', 'true');
+      await outline.tap();
       await expect(danger).toHaveAttribute('aria-pressed', 'false');
     },
     Overview: async () => {
