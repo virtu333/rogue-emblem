@@ -31,11 +31,11 @@
 // Pure of Phaser and the DOM; the draws are seeded and the builder never reads the caller's
 // Math.random.
 
-import { createSeededRng } from './BlessingEngine.js';
+import { createSeededRng } from './SeededRng.js';
 import { everFallenUnits } from './LaidToRest.js';
 import { isPromotedRecruitSource } from './RecruitPromotion.js';
 import { buildRecruitNodeUnit } from './RecruitNodeSystem.js';
-import { serializeUnit } from './RunManager.js';
+import { serializeUnit } from './UnitSerialization.js';
 import { isPromotionClassBlocked, ENEMY_ONLY_CLASS_NAMES } from './UnitManager.js';
 import { eclipseHash } from './EclipseSystem.js';
 import { runSeedOf } from './EventSystem.js';

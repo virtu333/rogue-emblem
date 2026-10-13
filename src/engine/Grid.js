@@ -8,6 +8,7 @@ import {
   ATTACK_RANGE_COLOR,
   ATTACK_RANGE_ALPHA,
   VISION_RANGES,
+  VISION_TERRAIN_BONUS,
 } from '../utils/constants.js';
 import { parseRange } from './Combat.js';
 import { createBoardTransform } from '../utils/boardOrientation.js';
@@ -24,6 +25,16 @@ const DIRECTIONS = [
   { dc: -1, dr: 0 },
   { dc: 1, dr: 0 },
 ];
+
+/**
+ * A player unit's fog vision radius: its move type's range plus the bonus of the terrain it
+ * stands on (a Mountain sees 2 further). `terrain` is the tile's terrain.json entry (or null).
+ * The one rule Grid and the harness grid read, so the two never drift.
+ */
+export function unitVisionRange(unit, terrain) {
+  const base = VISION_RANGES[unit?.moveType] || 3;
+  return base + (VISION_TERRAIN_BONUS[terrain?.name] || 0);
+}
 
 /**
  * The open set of computePath and computeMovementRange: a binary min-heap that pops entries
@@ -1067,7 +1078,7 @@ export class Grid {
     // Calculate vision union, plus the tiles a move ran into this phase
     const newVisible = new Set(this.contactSet || []);
     for (const unit of playerUnits) {
-      const range = VISION_RANGES[unit.moveType] || 3;
+      const range = unitVisionRange(unit, this.getTerrainAt(unit.col, unit.row));
       const tiles = this.getVisionRange(unit.col, unit.row, range);
       for (const key of tiles) newVisible.add(key);
     }
