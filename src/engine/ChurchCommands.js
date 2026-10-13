@@ -1,5 +1,5 @@
 import { specialCharacterRefusalText } from './SpecialCharacterDialogue.js';
-import { revivalCatchUpPlan } from './RevivalCatchUp.js';
+import { revivalCatchUpPlan, REVIVAL_LEVELS_BEHIND } from './RevivalCatchUp.js';
 import {
   canPromote,
   resolvePromotionTargets,
@@ -15,7 +15,11 @@ import {
 } from './RosterCommands.js';
 import { getReviveCost } from './RunManager.js';
 import { applyPromotionOath, oathBenchedNote } from './DeedSystem.js';
-import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
+import {
+  CHURCH_PROMOTE_COST_LORD,
+  CHURCH_PROMOTE_COST_RECRUIT,
+  CHURCH_REVIVE_LIMIT,
+} from '../utils/constants.js';
 import { kindleBlock } from './EclipseSystem.js';
 import { churchVowBlock, commitChurchVow } from './ChurchVow.js';
 import { endWoundByHealing, injuryPhrase } from './Burdens.js';
@@ -94,39 +98,62 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
 /**
  * Heal everyone, free: every unit to full HP. A Lingering Injury burden (engine/Burdens.js, id `wounded`) whose unit
  * the heal reaches mends with it: "Heal all" counts. Shared by the church and the sanctuary's
- * Rest, so an injury ends the same way at either.
+ * Rest, so an injury ends the same way at either; one taken at `nodeId` itself (the Ruins'
+ * revival) stays.
  * @returns {{ ok: true, mended: object|null, message: string }}
  */
-export function healRosterAtChurch(run) {
+export function healRosterAtChurch(run, { nodeId = null } = {}) {
   for (const unit of run.roster || []) {
     if (!unit?.stats) continue;
     healUnitFully(unit);
   }
-  const mended = endWoundByHealing(run, run.roster);
+  const mended = endWoundByHealing(run, run.roster, { nodeId });
   return {
     ok: true,
     mended,
     message: mended ? `All units healed. ${injuryPhrase(mended)} mends.` : 'All units healed.',
   };
 }
-export function churchReviveBlock(run, unit) {
+/** How many of the fallen this church has revived (saved per node: `churchRevivesByNodeId`). */
+export function churchRevivesAt(run, nodeId) {
+  const map = run?.churchRevivesByNodeId;
+  if (!nodeId || !map || typeof map !== 'object' || !Object.hasOwn(map, nodeId)) return 0;
+  return Math.max(0, Math.trunc(Number(map[nodeId])) || 0);
+}
+/** How many more of the fallen this church will revive. */
+export function churchRevivesLeft(run, nodeId) {
+  return Math.max(0, CHURCH_REVIVE_LIMIT - churchRevivesAt(run, nodeId));
+}
+export const CHURCH_REVIVE_LIMIT_LINE = `This church has revived all it can (${CHURCH_REVIVE_LIMIT}).`;
+/**
+ * Why this unit cannot be revived ('' when it can). `nodeId` is the church's: it holds the
+ * church's limit (CHURCH_REVIVE_LIMIT). The Ruins pass none and keep their own limit
+ * (RuinsCommands).
+ */
+export function churchReviveBlock(run, unit, nodeId = null) {
   if (!run.fallenUnits.includes(unit)) return 'Unit is no longer awaiting revival.';
   // Forbidden Tome's pact (docs/specs/blessings-v3.md §4): the dead stay dead.
   if (run.isChurchReviveDisabled?.()) return 'Your pact forbids it: the fallen stay fallen.';
+  if (nodeId && churchRevivesLeft(run, nodeId) <= 0) return CHURCH_REVIVE_LIMIT_LINE;
   return run.gold < getReviveCost(unit) ? 'Not enough gold.' : '';
 }
-export function reviveAtChurch(run, unit) {
-  const reason = churchReviveBlock(run, unit);
+export function reviveAtChurch(run, unit, nodeId = null) {
+  const reason = churchReviveBlock(run, unit, nodeId);
   if (reason) return { ok: false, reason };
   const catchUp = revivalCatchUpPlan(unit, run.roster);
   if (!run.reviveFallenUnit(unit, getReviveCost(unit)))
     return { ok: false, reason: 'Revival unavailable.' };
+  if (nodeId) {
+    if (!run.churchRevivesByNodeId || typeof run.churchRevivesByNodeId !== 'object')
+      run.churchRevivesByNodeId = {};
+    run.churchRevivesByNodeId[nodeId] = churchRevivesAt(run, nodeId) + 1;
+  }
   run.markDialogueShown('revive_convoy_hint');
   const learned = getSkillDisplayNames(run.lastRevivalResult?.learnedSkills, run.gameData.skills);
   const dropped = getSkillDisplayNames(run.lastRevivalResult?.droppedSkills, run.gameData.skills);
   return {
     ok: true,
-    message: `${unit.name} revived at level ${unit.level} with 1 HP.${catchUp.levels ? ` Gained ${catchUp.levels} catch-up levels at growths minus 10 percentage points; future growths are unchanged.` : ''}${run.lastRevivalResult?.starterWeapon ? ` Carries ${withIndefiniteArticle(run.lastRevivalResult.starterWeapon)}.` : ''} Use Heal all, then Roster to re-equip from the convoy.${learned.length ? ` Learned: ${learned.join(', ')}.` : ''}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}`,
+    message: `${unit.name} revived at level ${unit.level} with 1 HP.${catchUp.levels ? ` Gained ${catchUp.levels} catch-up levels (to ${REVIVAL_LEVELS_BEHIND} below the army average) at growths minus 10 percentage points; future growths are unchanged.` : ''}${run.lastRevivalResult?.starterWeapon ? ` Carries ${withIndefiniteArticle(run.lastRevivalResult.starterWeapon)}.` : ''} Use Heal all, then Roster to re-equip from the convoy.${learned.length ? ` Learned: ${learned.join(', ')}.` : ''}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}`,
   };
 }
 // Kindle: pay gold to lift the Eclipse's shadow, once per church node.
