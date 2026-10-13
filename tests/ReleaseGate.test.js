@@ -81,6 +81,20 @@ describe('release gate', () => {
     },
   );
 
+  it('of two runs started in the same second, judges the newer one, not the one it cancelled', () => {
+    // Seen on #394: one push started two runs at 19:38:02 and the newer cancelled the older.
+    const runs = [
+      run(38456384099, '2026-10-13T19:38:02Z', 'queued'),
+      run(38456383936, '2026-10-13T19:38:02Z', 'completed', 'cancelled'),
+    ];
+    for (const order of [runs, [...runs].reverse()]) {
+      expect(judgeCommit({ runs: order, requireBrowserLanes: true })).toMatchObject({
+        state: 'wait',
+        url: 'https://example.test/runs/38456384099',
+      });
+    }
+  });
+
   it('refuses a run whose lane job passed but no browser lane ran', () => {
     const verdict = judgeCommit({
       runs: [run(1, '2026-10-13T06:00:00Z', 'completed', 'success')],

@@ -18,11 +18,18 @@ import { pathToFileURL } from 'node:url';
 export const LANES_JOB = 'e2e-lanes';
 const E2E_JOB_PREFIX = 'e2e (';
 
-/** The newest run for the commit; a re-run updates the same run. */
+/**
+ * The newest run for the commit; a re-run updates the same run. Two runs can share a
+ * created_at to the second (one push can start two, and the newer cancels the older
+ * through CI's concurrency group), so the run id, which only grows, breaks the tie.
+ */
 export function newestRun(runs) {
   return (
     [...(runs || [])]
-      .sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
+      .sort(
+        (a, b) =>
+          String(a.created_at).localeCompare(String(b.created_at)) || Number(a.id) - Number(b.id),
+      )
       .pop() || null
   );
 }
