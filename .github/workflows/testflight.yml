@@ -73,54 +73,29 @@ jobs:
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     # CI's own jobs take about 20 minutes, but with many pull requests open they can queue
-    # for hours behind each other; waiting here only polls.
+    # for hours behind each other; waiting here only polls (tools/releaseGate.js gives up
+    # after 4 hours).
     timeout-minutes: 250
     permissions:
       actions: read
+      contents: read
     env:
       GH_TOKEN: ${{ github.token }}
       # A pull request run checks out the merge commit; CI ran on the branch head.
       COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
+      # Only tools/releaseGate.js is needed: the gate reads CI through the API.
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/releaseGate.js
+          sparse-checkout-cone-mode: false
+      # The newest CI run for this exact commit must finish successfully (a commit just
+      # merged to main has its push run still going, so the gate waits for it). An upload
+      # also needs that run's browser lanes to have run and passed: a draft pull request's
+      # CI skips them, which is development CI, not release validation. A pull request's
+      # own validate check (no upload) accepts a draft's run.
       - name: Wait for CI on ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -euo pipefail
-          # The newest CI run for this exact commit (a re-run updates the same run) must
-          # finish successfully. A commit just merged to main has its push run still going,
-          # so wait for it; give GitHub a few minutes to create one before giving up.
-          started=$SECONDS
-          while :; do
-            run="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$COMMIT&per_page=50" \
-              --jq '.workflow_runs | sort_by(.created_at) | last // empty | [.status, (.conclusion // ""), .html_url] | @tsv')"
-            elapsed=$((SECONDS - started))
-            if [ -z "$run" ]; then
-              if [ "$elapsed" -ge 300 ]; then
-                echo "::error::No CI run exists for $COMMIT. Build a commit CI has run on (main, or a branch with an open pull request)."
-                exit 1
-              fi
-              echo "No CI run for $COMMIT yet; waiting."
-            else
-              IFS=$'\t' read -r status conclusion url <<< "$run"
-              if [ "$status" = completed ]; then
-                if [ "$conclusion" = success ]; then
-                  echo "CI passed on $COMMIT: $url"
-                  exit 0
-                fi
-                if [ "$conclusion" = cancelled ]; then
-                  echo "::error::CI on $COMMIT was cancelled (a newer push replaced it before it ran): $url. Build the newest commit on the branch."
-                  exit 1
-                fi
-                echo "::error::CI on $COMMIT finished '$conclusion': $url"
-                exit 1
-              fi
-              echo "CI on $COMMIT is $status: $url"
-            fi
-            if [ "$elapsed" -ge 14400 ]; then
-              echo "::error::CI on $COMMIT did not finish within 4 hours."
-              exit 1
-            fi
-            sleep 60
-          done
+        run: node tools/releaseGate.js ${{ github.event_name != 'pull_request' && '--require-browser-lanes' || '' }}
 
   # The app bundles every track; a lighter encode keeps its download under Apple's 200 MB
   # cellular limit (tools/ios/compactMusic.mjs). The web game keeps the build's encode.
