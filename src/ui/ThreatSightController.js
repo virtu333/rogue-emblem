@@ -6,7 +6,14 @@
 // phase gets a small crimson eye above its head and a thin red line from it to
 // the tile (Fortune's Weave-style intent: who, not how much — no damage numbers;
 // the forecast shows numbers when you actually attack). The HUDs print the count
-// ("2 foes can reach"); nothing else is drawn on the tile.
+// ("2 foes can reach · 1 targets you"); nothing else is drawn on the tile.
+//
+// Reach is not intent: a foe that can reach the tile may still go for someone else. Each
+// visible foe's pick comes from the AI itself (EnemyIntent: its decision run on copies of the
+// board with the mover set down on the tile, in phase order, no RNG). The eye stays on every
+// foe that can reach; the bright line (and a bright eye) only on the ones that would attack
+// the mover there; a foe that would go for someone else draws a faint line to that unit and a
+// dimmed eye, one that would do nothing (holding, asleep) a dimmed eye and no line.
 //
 // Correctness: answers come from ThreatForecast.threatsOnTile — the Danger
 // overlay's own computation, evaluated with the mover set down on the tile.
@@ -30,6 +37,7 @@ import {
   threatWorldSignature,
 } from '../engine/ThreatForecast.js';
 import { ensureThreatSigilTexture } from '../art/threatSigil.js';
+import { enemyIntentSignature, predictEnemyIntents } from '../engine/EnemyIntent.js';
 
 // World depths (below SCREEN_UI so the phone's pinned UI camera leaves them alone).
 export const THREAT_SIGHT_DEPTHS = Object.freeze({
@@ -54,6 +62,9 @@ function previewRange(s) {
   return null;
 }
 const MAX_LINES = 8;
+// A foe that can reach but would not go for the mover: a quieter thread and eye.
+const ASIDE_LINE_ALPHA = 0.45;
+const ASIDE_SIGIL_ALPHA = 0.5;
 
 let nextUnitId = 1;
 const unitIds = new WeakMap();
@@ -112,20 +123,62 @@ export class ThreatSightController {
     return { unit, col: unit.col, row: unit.row, hovering: false };
   }
 
-  /** Memoized threat answer for `unit` standing on (col, row). */
+  /** Memoized threat answer for `unit` standing on (col, row), with the foes' intents. */
   query(unit, col, row) {
     const s = this.scene;
     if (!s.grid || typeof s.threatContext !== 'function') return null;
     const ctx = s.threatContext();
     const units = [...(s.playerUnits || []), ...(s.enemyUnits || []), ...(s.npcUnits || [])];
-    const signature = threatWorldSignature(ctx, units);
+    const turn = s.turnManager?.turnNumber ?? null;
+    const flags = s.aiController ? s.nextEnemyPhaseAiFlags?.() || {} : {};
+    const signature = `${threatWorldSignature(ctx, units)}#${
+      s.aiController ? enemyIntentSignature(units, { turn, ...flags }) : ''
+    }`;
     if (signature !== this._signature) {
       this._signature = signature;
       this._memo.clear();
     }
     const key = `${idOf(unit)}@${col},${row}`;
-    if (!this._memo.has(key)) this._memo.set(key, threatsOnTile(ctx, col, row, { mover: unit }));
+    if (!this._memo.has(key)) {
+      const result = threatsOnTile(ctx, col, row, { mover: unit });
+      this._memo.set(key, this._withIntents(result, ctx, unit, col, row, turn, flags));
+    }
     return this._memo.get(key);
+  }
+
+  /**
+   * The AI's pick for each visible foe (EnemyIntent), folded into the reach answer:
+   * `intents` (Map foe -> { kind, target }) and `aimed`, how many would go for the mover.
+   * Without the battle's AI the answer is reach alone, as before.
+   */
+  _withIntents(result, ctx, mover, col, row, turn, flags) {
+    const ai = this.scene.aiController;
+    if (!ai || !result) return result;
+    const intents = predictEnemyIntents({
+      ai,
+      ctx,
+      playerUnits: this.scene.playerUnits || [],
+      npcUnits: this.scene.npcUnits || [],
+      mover,
+      col,
+      row,
+      turn,
+      ...flags,
+    });
+    const aimsAtMover = (intent) =>
+      intent?.target === mover && (intent.kind === 'attack' || intent.kind === 'status');
+    let aimed = 0;
+    for (const intent of intents.values()) if (aimsAtMover(intent)) aimed++;
+    // A foe the AI sends at the mover is a threat to it whatever the reach check said.
+    const listed = new Set([...result.damage, ...result.status]);
+    const damage = [...result.damage];
+    const status = [...result.status];
+    for (const [foe, intent] of intents) {
+      if (!aimsAtMover(intent) || listed.has(foe)) continue;
+      (intent.kind === 'status' ? status : damage).push(foe);
+    }
+    const added = damage.length - result.damage.length;
+    return { ...result, damage, status, count: result.count + added, intents, aimed };
   }
 
   /** HUD line for a tile: "2 foes can reach" (null when the tile is not a move preview). */
@@ -201,18 +254,45 @@ export class ThreatSightController {
     return { x: p.x, y: p.y, top };
   }
 
+  /**
+   * Where a foe's thread goes: 'mover' (it would attack the mover there, or no intent is known),
+   * 'aside' with the unit it would go for instead, or 'none' (it would not attack at all).
+   */
+  aimOf(result, unit, mover) {
+    const intent = result.intents?.get(unit);
+    if (!intent) return { aim: 'mover' };
+    if (intent.target === mover && (intent.kind === 'attack' || intent.kind === 'status'))
+      return { aim: 'mover' };
+    if (intent.target && (intent.kind === 'attack' || intent.kind === 'status'))
+      return { aim: 'aside', target: intent.target };
+    return { aim: 'none' };
+  }
+
   render(current) {
     const s = this.scene;
-    const { result } = current;
+    const { result, unit: mover } = current;
     const sources = [
-      ...result.damage.map((unit) => ({ unit, kind: 'damage' })),
-      ...result.ballistas.map((unit) => ({ unit, kind: 'damage', ballista: true })),
-      ...result.status.map((unit) => ({ unit, kind: 'status' })),
+      ...result.damage.map((unit) => ({
+        unit,
+        kind: 'damage',
+        ...this.aimOf(result, unit, mover),
+      })),
+      ...result.ballistas.map((unit) => ({ unit, kind: 'damage', ballista: true, aim: 'mover' })),
+      ...result.status.map((unit) => ({
+        unit,
+        kind: 'status',
+        ...this.aimOf(result, unit, mover),
+      })),
       // The Entity cannot strike this tile but would answer a blow from it: a fainter thread, no eye.
-      ...(result.counter || []).map((unit) => ({ unit, kind: 'counter' })),
+      ...(result.counter || []).map((unit) => ({ unit, kind: 'counter', aim: 'mover' })),
     ];
     const drawnKey = `${current.col},${current.row}|${sources
-      .map((src) => `${idOf(src.unit)}:${src.kind}:${src.unit.col},${src.unit.row}`)
+      .map(
+        (src) =>
+          `${idOf(src.unit)}:${src.kind}:${src.unit.col},${src.unit.row}:${src.aim}:${
+            src.target ? `${idOf(src.target)}@${src.target.col},${src.target.row}` : ''
+          }`,
+      )
       .join(';')}`;
     if (drawnKey === this._drawnKey) return;
     this.clear();
@@ -230,18 +310,26 @@ export class ThreatSightController {
     g.clear();
     g.setVisible(true);
 
-    sources.slice(0, MAX_LINES).forEach(({ unit, kind }) => {
+    // The threads that point at the mover first: they are what the cap must keep.
+    const threads = [
+      ...sources.filter((src) => src.aim === 'mover'),
+      ...sources.filter((src) => src.aim === 'aside'),
+    ];
+    threads.slice(0, MAX_LINES).forEach(({ unit, kind, aim, target: other }) => {
       const from = this.sourcePoint(unit);
-      this._drawLine(g, from, target, kind);
+      if (aim === 'aside') {
+        const to = s.grid.gridToPixel(other.col, other.row);
+        this._drawLine(g, from, to, kind, ASIDE_LINE_ALPHA);
+      } else this._drawLine(g, from, target, kind);
     });
-    for (const { unit, kind } of sources) {
+    for (const { unit, kind, aim } of sources) {
       if (kind === 'counter') continue;
       const from = this.sourcePoint(unit);
-      this._placeSigil(from, kind, reduce);
+      this._placeSigil(from, kind, reduce, aim === 'mover' ? 1 : ASIDE_SIGIL_ALPHA);
     }
   }
 
-  _drawLine(g, from, to, kind) {
+  _drawLine(g, from, to, kind, alpha = 1) {
     const edge =
       kind === 'status'
         ? UI_HEX.threatStatus
@@ -264,11 +352,11 @@ export class ThreatSightController {
     const end = length - exit;
     if (end - start < 6) return;
     // A thin red thread over a faint ink shadow so it reads on every grade.
-    for (const [width, color, alpha] of [
+    for (const [width, color, strength] of [
       [3, UI_HEX.threatInk, 0.55],
       [1, edge, 0.95],
     ]) {
-      g.lineStyle(width, color, alpha);
+      g.lineStyle(width, color, strength * alpha);
       g.lineBetween(from.x + ux * start, from.y + uy * start, from.x + ux * end, from.y + uy * end);
     }
     // A small arrowhead at the tile edge says which way the threat points.
@@ -276,18 +364,20 @@ export class ThreatSightController {
     const back = { x: tip.x - ux * 4, y: tip.y - uy * 4 };
     const px = -uy * 2.5;
     const py = ux * 2.5;
-    g.fillStyle(edge, 0.95);
+    g.fillStyle(edge, 0.95 * alpha);
     g.fillTriangle(tip.x, tip.y, back.x + px, back.y + py, back.x - px, back.y - py);
   }
 
-  _placeSigil(from, kind, reduce) {
+  _placeSigil(from, kind, reduce, alpha = 1) {
     const s = this.scene;
     const key = ensureThreatSigilTexture(s, kind);
     if (!key || typeof s.add.image !== 'function') return;
     const y = Math.max(Math.round(from.top - 4), 7);
     const sigil = s.add.image(Math.round(from.x), y, key).setDepth(THREAT_SIGHT_DEPTHS.SIGILS);
     sigil.setName?.('threat-sigil');
+    if (alpha < 1) sigil.setAlpha?.(alpha);
     sigil.threatKind = kind;
+    sigil.threatAim = alpha < 1 ? 'aside' : 'mover';
     this.sigils.push(sigil);
     // A slow 2-art-pixel bob: movement draws the eye without resampling the art.
     if (!reduce && s.tweens?.add) {

@@ -3183,6 +3183,20 @@ export class BattleScene extends Phaser.Scene {
     this._bossPresence?.sync();
   }
 
+  /**
+   * The anti-turtle flags the next enemy phase will run with (its start advances the clock),
+   * read without advancing it: threat sight's intent preview (EnemyIntent).
+   */
+  nextEnemyPhaseAiFlags() {
+    if (!this.antiTurtleState) return {};
+    const step = advanceTurnPressure(this.antiTurtleState, this._measureTurnPressure(), {
+      turn: this.getCurrentTurnNumber(),
+      par: this.turnPar,
+      turnBonusConfig: this.turnBonusConfig,
+    });
+    return { aggressiveMode: step.aggressiveMode, bossEnraged: step.turnEnrageActive };
+  }
+
   /** Flame aura on living bosses the moment turn-pressure enrage kicks in. */
   _playBossEnrageFx() {
     this._musicCtrl?.onBossEnrage();
