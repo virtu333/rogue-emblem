@@ -348,6 +348,7 @@ it('popup checkpoint contains applied XP/skills and resumes the final action, no
   });
   expect(scene.finishUnitAction).toHaveBeenCalledWith(scene.playerUnits[0], {
     skipCanto: false,
+    afterCombat: true,
     session: scene._battleSession,
   });
   expect(scene.playerUnits[0].level).toBe(15);

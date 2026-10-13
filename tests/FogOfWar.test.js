@@ -328,4 +328,63 @@ describe('Fog of War', () => {
       }
     });
   });
+  describe('Class vision', () => {
+    // A 15x15 plain with one Mountain (from terrain.json) at the centre.
+    const gameData = loadGameData();
+    const mountainIdx = gameData.terrain.findIndex((t) => t.name === 'Mountain');
+    const plainIdx = gameData.terrain.findIndex((t) => t.name === 'Plain');
+    function layout() {
+      const rows = Array.from({ length: 15 }, () => Array(15).fill(plainIdx));
+      rows[7][7] = mountainIdx;
+      return rows;
+    }
+    const makeGrids = () => [
+      new Grid(makeMockScene(), 15, 15, gameData.terrain, layout(), true),
+      new HeadlessGrid(15, 15, gameData.terrain, layout(), true),
+    ];
+    const moveTypeOf = (name) => gameData.classes.find((c) => c.name === name).moveType;
+
+    it('Thieves, Archers and every promotion of theirs see 1 tile past their move type', () => {
+      // Failure: vision reads only the move type, so a scout sees what a Fighter sees.
+      for (const className of [
+        'Thief',
+        'Assassin',
+        'Trickster',
+        'Archer',
+        'Sniper',
+        'Bow Knight',
+      ]) {
+        const moveType = moveTypeOf(className);
+        const base = VISION_RANGES[moveType];
+        for (const grid of makeGrids()) {
+          grid.updateFogOfWar([{ col: 7, row: 8, moveType, className }]);
+          expect(grid.isVisible(7, 8 - (base + 1)), className).toBe(true);
+          expect(grid.isVisible(7, 8 - (base + 2)), className).toBe(false);
+        }
+      }
+    });
+
+    it('other classes keep their move type range', () => {
+      // Failure: the bonus leaks to every unit.
+      for (const className of ['Fighter', 'Paladin', 'Myrmidon']) {
+        const moveType = moveTypeOf(className);
+        const base = VISION_RANGES[moveType];
+        for (const grid of makeGrids()) {
+          grid.updateFogOfWar([{ col: 7, row: 8, moveType, className }]);
+          expect(grid.isVisible(7, 8 - base), className).toBe(true);
+          expect(grid.isVisible(7, 8 - (base + 1)), className).toBe(false);
+        }
+      }
+    });
+
+    it('an Archer on a Mountain stacks both bonuses (3 + 1 + 2)', () => {
+      for (const grid of makeGrids()) {
+        grid.updateFogOfWar([{ col: 7, row: 7, moveType: 'Infantry', className: 'Archer' }]);
+        expect(grid.isVisible(7, 1)).toBe(true); // 6 north
+        expect(grid.isVisible(7, 0)).toBe(false); // 7 north
+        // A diamond of radius 6: 2*6*7 + 1 tiles.
+        expect(grid.visibleSet.size).toBe(85);
+      }
+    });
+  });
 });

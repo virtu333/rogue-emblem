@@ -232,6 +232,8 @@ export const CHURCH_PROMOTE_COST_RECRUIT = 2000;
 export const REVIVE_BASE_COST = 500;
 export const REVIVE_COST_PER_LEVEL = 300;
 export const REVIVE_PROMOTION_MULTIPLIER = 2.5;
+// A church revives at most this many of the fallen (ChurchCommands; the Ruins allow one).
+export const CHURCH_REVIVE_LIMIT = 2;
 export const LOOT_CHOICES = 3;
 export const ELITE_LOOT_CHOICES = 4; // Elite battles offer 4 loot choices
 export const ELITE_MAX_PICKS = 2; // Pick 2 from elite loot
@@ -495,6 +497,16 @@ export const ENTITY_WEAPON_NAMES = ['Eldritch Grasp', 'Twisting Vortex'];
 export const VISION_RANGES = { Infantry: 3, Armored: 3, Cavalry: 4, Flying: 5 };
 // Extra fog vision for a player unit standing on this terrain (by terrain.json name).
 export const VISION_TERRAIN_BONUS = { Mountain: 2 };
+// Extra fog vision for a player unit of this class (by classes.json name): scouts and archers.
+// Stacks with the move type's range and the terrain bonus.
+export const VISION_CLASS_BONUS = {
+  Thief: 1,
+  Assassin: 1,
+  Trickster: 1,
+  Archer: 1,
+  Sniper: 1,
+  'Bow Knight': 1,
+};
 export const FOG_CHANCE_BY_ACT = { act1: 0.1, act2: 0.25, act3: 0.35, act4: 0.45, finalBoss: 0 };
 
 // Merchant Caravan (rare escort micro-objective, BATTLE/ELITE nodes act2+ only)

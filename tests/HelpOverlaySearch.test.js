@@ -75,12 +75,12 @@ function makeScene() {
 }
 
 describe('HelpOverlay search', () => {
-  it('querying "Par" jumps to a matching section and highlights the matched term', () => {
+  it('querying "Par:" jumps to a matching section and highlights the matched term', () => {
     const overlay = new HelpOverlay(makeScene(), vi.fn());
     overlay.show();
 
     overlay.searchInputActive = true;
-    overlay._setSearchQuery('Par');
+    overlay._setSearchQuery('Par:');
 
     expect(overlay.searchResults.length).toBeGreaterThan(0);
     expect(overlay.activeTabIndex).toBe(overlay.searchResults[0].tabIndex);

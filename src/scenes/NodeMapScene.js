@@ -1962,7 +1962,11 @@ export class NodeMapScene extends Phaser.Scene {
     let label;
     // A set piece's defeat map is not the rout its params' legacy string says (ObjectivePreview).
     const kind = node.battleParams
-      ? paramsObjectiveKind(node.battleParams, this.gameData?.setPieces)
+      ? paramsObjectiveKind(
+          node.battleParams,
+          this.gameData?.setPieces,
+          this.gameData?.mapTemplates,
+        )
       : null;
     if (node.type === NODE_TYPES.BOSS) {
       label = `Boss Battle (${kind === 'defeat' ? 'Defeat' : 'Seize'})`;

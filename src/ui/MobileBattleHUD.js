@@ -97,6 +97,7 @@ const HINTS = {
   COMBAT_RESOLVING: 'Resolving combat…',
   TURN_START_RESOLVING: 'Applying turn-start effects…',
   SHOWING_FORECAST: 'Review the forecast before committing.',
+  END_TURN_DISMISS: 'Tap the map or Back to keep playing.',
 };
 
 // Warp/Rescue: step 1 names the ally to pick, step 2 where the chosen ally lands.
@@ -457,6 +458,19 @@ export class MobileBattleHUD {
     return true;
   }
 
+  /**
+   * Close the end-turn confirm without ending the turn. Back, Escape, a tap on the
+   * board or off it all reach here (BattleScene.requestCancel, InputController.onClick),
+   * so the confirm needs no Keep playing button of its own.
+   */
+  cancelEndTurn() {
+    if (!this.endTurnPending) return false;
+    this.endTurnPending = null;
+    this.lastSnapshot = '';
+    this.sync();
+    return true;
+  }
+
   showMenu(items, objects) {
     this.menu = { items, objects, unit: this.scene.selectedUnit };
     this.expandedItem = null; // a new menu opens with every row brief
@@ -772,7 +786,13 @@ export class MobileBattleHUD {
       );
     }
     if (attacking && config.weaponArt) {
-      side.append(el('p', 'mb-detail', formatWeaponArtEffects(config.weaponArt)));
+      side.append(
+        el(
+          'p',
+          'mb-detail',
+          formatWeaponArtEffects(config.weaponArt, { weapon: forecastWeapon(config) }),
+        ),
+      );
       side.append(
         el(
           'p',
@@ -1288,15 +1308,10 @@ export class MobileBattleHUD {
         el(
           'p',
           'mb-hint',
-          `End your turn? ${remaining} ${remaining === 1 ? 'unit still has' : 'units still have'} actions.`,
+          `End your turn? ${remaining} ${remaining === 1 ? 'unit still has' : 'units still have'} actions. ${HINTS.END_TURN_DISMISS}`,
         ),
       );
       const token = this.endTurnPending;
-      this.body.append(
-        this.button('Keep playing', () => {
-          this.endTurnPending = null;
-        }),
-      );
       // One locator that walks the ready units in reading order: it names who
       // it will show, brings them into view, selects them and marks the tile.
       const readyList = readyUnits(s);

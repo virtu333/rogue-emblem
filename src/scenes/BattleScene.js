@@ -1,5 +1,5 @@
 import { MovementActionController } from '../ui/MovementActionController.js';
-import { cantoRuleFor } from '../engine/CantoRule.js';
+import { cantoAllowance } from '../engine/CantoRule.js';
 import {
   specialCharacterRefusalText,
   speakSpecialCharacterRefusal,
@@ -3428,7 +3428,9 @@ export class BattleScene extends Phaser.Scene {
     const stones = revivalStoneCount(unit).remaining;
     const carries = Boolean(carriedItemInfo(unit));
     const staff = (statusStaffInfo(unit)?.uses || 0) > 0;
-    const count = affixIds.length + stones + (carries ? 1 : 0) + (staff ? 1 : 0);
+    // A defeat objective's named target (a captain, a Voice) leads the row with a pale diamond.
+    const target = !unit.isBoss && isObjectiveTarget(this.battleConfig, unit);
+    const count = affixIds.length + stones + (carries ? 1 : 0) + (staff ? 1 : 0) + (target ? 1 : 0);
     if (count === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -3438,6 +3440,17 @@ export class BattleScene extends Phaser.Scene {
     const totalW = pipSize * count + gap * (count - 1);
     let startX = pos.x - totalW / 2 + pipSize / 2;
     const inView = canInspectUnit(this.grid, unit);
+    if (target) {
+      unit.affixPips.push(
+        this.add
+          .rectangle(startX, pipY, pipSize + 1, pipSize + 1, UI_HEX.parchment)
+          .setStrokeStyle(1, UI_HEX.void)
+          .setAngle(45)
+          .setDepth(14)
+          .setVisible(inView),
+      );
+      startX += pipSize + gap;
+    }
 
     for (let i = 0; i < stones; i++) {
       const gem = this.add
@@ -4115,6 +4128,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleState === FORMATION_STATE && this._formation?.ready) return true;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
     if (this.visionDialog) return true;
+    if (this._mobileBattleHud?.endTurnPending) return true;
     if (this.unitDetailOverlay?.visible) return true;
     if (this.inspectionPanel?.visible) return true;
     if (this.isMobileInput && this.inspectMode) return true;
@@ -4148,6 +4162,8 @@ export class BattleScene extends Phaser.Scene {
       }
       return true;
     }
+    // The phone's end-turn confirm closes first (it has no button of its own to keep playing).
+    if (this._mobileBattleHud?.cancelEndTurn?.()) return true;
     // The Entity rally's card takes an explicit Cancel only when nothing else has something to
     // close: a menu, forecast, selection, overlay or panel keeps its Back, and Pause waits one press.
     if (
@@ -5282,7 +5298,7 @@ export class BattleScene extends Phaser.Scene {
     return targets;
   }
 
-  finishUnitAction(unit, { skipCanto = false, session } = {}) {
+  finishUnitAction(unit, { skipCanto = false, afterCombat = false, session } = {}) {
     if (!isCurrentBattleSession(this, session)) return false;
     // Level-up cards and EXP gauges still to show (gauges alone present too; only the
     // cards make the boundary a recovery).
@@ -5296,6 +5312,7 @@ export class BattleScene extends Phaser.Scene {
         unitName: unit.name,
         ...(unit.battleEntityId ? { unitId: unit.battleEntityId } : {}),
         skipCanto,
+        ...(afterCombat ? { afterCombat: true } : {}),
       };
       return presentQueuedProgress(this, continuation, { session })
         .then(() => {
@@ -5326,11 +5343,15 @@ export class BattleScene extends Phaser.Scene {
     // Check for Canto: use remaining movement after acting
     if (!skipCanto) {
       // Rooted units cannot use Canto (root may land mid-action via counter-art)
-      const hasCanto = Boolean(cantoRuleFor(unit));
       const movSpent = unit._movementSpent || 0;
-      // The same MOV the unit's move range read (selectUnit), less the terrain cost spent.
-      const remaining = (Number(unit.mov ?? unit.stats?.MOV) || 0) - movSpent;
-      if (hasCanto && remaining > 0 && unit.faction === 'player') {
+      // The same MOV the unit's move range read (selectUnit), less the terrain cost spent,
+      // scaled by the unit's Canto skill (Parting Step: half of it, rounded down).
+      const remaining = cantoAllowance(
+        unit,
+        (Number(unit.mov ?? unit.stats?.MOV) || 0) - movSpent,
+        { afterCombat },
+      );
+      if (remaining > 0 && unit.faction === 'player') {
         unit.hasActed = true;
         this.selectedUnit = unit;
         this.preMoveLoc = null;

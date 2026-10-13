@@ -471,7 +471,7 @@
       "hpCost": 4,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Guard behind the shaft; the next blow finds you harder.",
+      "description": "Brace behind the shaft: the answering blow finds you harder to hurt.",
       "combatMods": {
         "defBonus": 5,
         "activated": [
@@ -522,10 +522,11 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Vault into the point so weight and reach add to it.",
+      "description": "Vault over brush and stone: cover shields no one from the point.",
       "combatMods": {
-        "atkBonus": 5,
-        "hitBonus": 5,
+        "atkBonus": 2,
+        "hitBonus": 25,
+        "ignoreTerrainAvoid": true,
         "activated": [
           {
             "id": "weapon_art",
@@ -684,7 +685,7 @@
       "hpCost": 6,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Bowls the target back a full tile on impact.",
+      "description": "Runs the target through and charges on to the tile behind it.",
       "allowedFactions": [
         "player"
       ],
@@ -692,13 +693,13 @@
         "afterCombat": [
           {
             "type": "move",
-            "mode": "push",
+            "mode": "dash",
             "distance": 1
           }
         ]
       },
       "combatMods": {
-        "atkBonus": 5,
+        "atkBonus": 3,
         "hitBonus": 10,
         "activated": [
           {
@@ -742,10 +743,11 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A reckless overhead swing that rarely misses its mark.",
+      "description": "A heavy overhead swing that cover cannot hide from.",
       "combatMods": {
-        "hitBonus": 20,
-        "critBonus": 20,
+        "hitBonus": 25,
+        "critBonus": 10,
+        "ignoreTerrainAvoid": true,
         "activated": [
           {
             "id": "weapon_art",
@@ -1101,18 +1103,26 @@
       "name": "Hunter's Focus",
       "weaponType": "Bow",
       "tierAffinity": "Steel",
-      "legacy": true,
       "unlockAct": "act2",
       "requiredRank": "Prof",
       "hpCost": 4,
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "One steadied breath sharpens aim, edge, and speed.",
+      "description": "Draw one steady breath and hold it: this shot and the next fly true.",
+      "effects": {
+        "allyBuff": {
+          "range": 1,
+          "durationPhases": 2,
+          "stats": {
+            "HIT": 15,
+            "SPD": 2
+          },
+          "selfOnly": true
+        }
+      },
       "combatMods": {
-        "hitBonus": 18,
-        "critBonus": 10,
-        "spdBonus": 2,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",
@@ -1375,10 +1385,11 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Narrow the cast to a point for more force and aim.",
+      "description": "Narrow the cast to a needle: it finds the foe through any cover.",
       "combatMods": {
-        "atkBonus": 5,
-        "hitBonus": 10,
+        "atkBonus": 2,
+        "hitBonus": 25,
+        "ignoreTerrainAvoid": true,
         "activated": [
           {
             "id": "weapon_art",
@@ -2401,6 +2412,8 @@
           "classNames": [
             "Dark Knight",
             "Warlock",
+            "Necromancer",
+            "Circle Adept",
             "Zombie",
             "Revenant",
             "Dragon",

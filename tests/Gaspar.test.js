@@ -185,7 +185,7 @@ describe('Gaspar scaling and combat completion', () => {
     const unit = veteran(run);
     assert.equal(
       revivalCatchUpPlan(unit, [{ level: 18, tier: 'base', currentHP: 10 }]).targetLevel,
-      6,
+      4,
     );
   });
 

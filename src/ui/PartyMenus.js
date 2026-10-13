@@ -222,8 +222,8 @@ export function showArrivalMenu(
  * piece's kind and targets come from its data (ObjectivePreview), the params' legacy string being
  * only its family; any kind without words here reads as the rout it started as.
  */
-export function deployObjectiveLine(battleParams, setPieces) {
-  const preview = previewObjectives(battleParams, setPieces);
+export function deployObjectiveLine(battleParams, setPieces, mapTemplates = null) {
+  const preview = previewObjectives(battleParams, setPieces, mapTemplates);
   const words = {
     rout: 'Rout: defeat all enemies',
     seize: 'Seize: defeat the boss, then capture the throne with a Lord',
@@ -291,7 +291,11 @@ export function showDeploymentMenu(owner, roster, limits, onConfirm, initialName
   if (runManager) surface.header.append(rosterButton);
   const status = element('p');
   status.setAttribute('role', 'status');
-  const objectiveLine = deployObjectiveLine(scene.battleParams, gameData?.setPieces);
+  const objectiveLine = deployObjectiveLine(
+    scene.battleParams,
+    gameData?.setPieces,
+    gameData?.mapTemplates,
+  );
   const list = element('div', null, 're-scroll re-party-list');
   const confirm = button(
     'Deploy',

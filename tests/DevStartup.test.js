@@ -425,6 +425,50 @@ describe('the set-piece review route', () => {
   });
 });
 
+describe('the map-template review route', () => {
+  const battleRoute = (query) =>
+    buildDevStartupRoute(
+      loadGameData(),
+      createRegistry(),
+      parseDevStartupConfig(`?devScene=battle&preset=battle_smoke&seed=7&${query}`, {
+        devMode: true,
+      }),
+    );
+
+  it('fights on the named template, switched off or not, with its pool objective', () => {
+    expect(battleRoute('template=corner_camp&act=2').data.battleParams).toMatchObject({
+      act: 'act2',
+      templateId: 'corner_camp',
+      objective: 'rout',
+    });
+    expect(battleRoute('template=three_roads_keep&act=3').data.battleParams).toMatchObject({
+      act: 'act3',
+      templateId: 'three_roads_keep',
+      objective: 'seize',
+    });
+  });
+
+  it("reaches the template's first act when no act is named, with the act's whole pool", () => {
+    // The smoke preset's battle is its run's first, which draws Fighters only; a template review
+    // shows the act's whole pool (the owner's Corner Camp review met six Fighters).
+    const bare = battleRoute('template=corner_camp').data.battleParams;
+    expect(bare).toMatchObject({ act: 'act2', templateId: 'corner_camp' });
+    expect(bare.firstBattleFightersOnly).toBe(false);
+    // Snowbound Woods is Act IV only: a bare link on a rung with an Act IV is an Act IV battle.
+    expect(battleRoute('template=snowbound_woods&difficulty=hard').data.battleParams.act).toBe(
+      'act4',
+    );
+    // A named act still wins.
+    expect(battleRoute('template=snowbound_woods&act=3').data.battleParams.act).toBe('act3');
+  });
+
+  it('ignores an unknown template id: the node keeps the template it drew', () => {
+    expect(battleRoute('template=nowhere').data.battleParams.templateId).toBe(
+      battleRoute('').data.battleParams.templateId,
+    );
+  });
+});
+
 describe('the Act V review route (&descent=1)', () => {
   const route = (query, source = loadGameData()) => {
     const config = parseDevStartupConfig(`?devScene=nodemap&preset=fresh&${query}`, {
