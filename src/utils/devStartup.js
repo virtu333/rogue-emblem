@@ -54,6 +54,8 @@ const DEV_PRESETS = new Set([
   // Phone review setups (playtest 2026-09-28): see docs/playtest-triage-2026-09-28.md.
   'fog_ambush',
   'roster_checks',
+  // The Roster overview review (PR #385): a full, varied army on the route map.
+  'roster_review',
   // Playtest 2026-09-29 #11: Zombie remains, the countdown and Smash (devScenarios.js).
   'zombie_remains',
   'ladder',
@@ -221,6 +223,7 @@ function createRunPreset(gameData, meta, config) {
   if (
     config.preset === 'late_act' ||
     config.preset === 'battle_smoke' ||
+    config.preset === 'roster_review' ||
     config.preset === 'eclipse'
   ) {
     if (runManager.actIndex < runManager.actSequence.length - 1) runManager.advanceAct();
@@ -228,7 +231,11 @@ function createRunPreset(gameData, meta, config) {
     addTeamWeaponArtScrolls(runManager, gameData, 2);
   }
 
-  if (config.preset === 'battle_smoke' || config.preset === 'eclipse') {
+  if (
+    config.preset === 'battle_smoke' ||
+    config.preset === 'roster_review' ||
+    config.preset === 'eclipse'
+  ) {
     const firstNode = runManager.getAvailableNodes()[0];
     if (firstNode) runManager.markNodeComplete(firstNode.id);
   }
@@ -325,6 +332,7 @@ function createRunPreset(gameData, meta, config) {
   }
 
   if (config.preset === 'roster_checks') addRosterChecks(runManager, gameData);
+  if (config.preset === 'roster_review') addRosterReview(runManager, gameData);
 
   if (config.preset === 'event') applyEventPreset(runManager, config);
   // Any other review route (a battle, the route map) may carry the contract too: `&contract=` on
@@ -505,6 +513,50 @@ function addRosterChecks(runManager, gameData) {
   runManager.ensurePortraitVariants();
 }
 
+/**
+ * The Roster overview review: ten units of mixed classes and levels, some hurt, one near a
+ * level, one ready to promote, one with a Lingering Injury, one unarmed, and one fallen.
+ */
+function addRosterReview(runManager, gameData) {
+  const cls = (name) => gameData.classes.find((c) => c.name === name);
+  const recruits = [
+    ['Bramwell', 'Fighter', 10, { hp: 0.6, xp: 15 }],
+    ['Daska', 'Archer', 6, { xp: 85 }],
+    ['Oriane', 'Cavalier', 7, { hp: 0.4, xp: 30 }],
+    ['Kip', 'Thief', 5, { unarmed: true, xp: 50 }],
+    ['Ilse', 'Cleric', 4, { xp: 40 }],
+    ['Thessaly', 'Knight', 9, { hp: 0.25, xp: 5 }],
+    ['Morrow', 'Mage', 8, { xp: 70 }],
+    ['Corwin', 'Mercenary', 3, { hp: 0.8 }],
+  ];
+  for (const [name, className, level, opts] of recruits) {
+    const classData = cls(className);
+    if (!classData) continue;
+    const unit = createUnit(classData, level, gameData.weapons, { name });
+    unit.faction = 'player';
+    unit.xp = opts.xp || 0;
+    if (opts.hp) unit.currentHP = Math.max(1, Math.round(unit.stats.HP * opts.hp));
+    if (opts.unarmed) unit.inventory = [];
+    runManager.roster.push(unit);
+  }
+  const soldier = cls('Soldier');
+  if (soldier) {
+    const fallen = createUnit(soldier, 5, gameData.weapons, { name: 'Garrow' });
+    fallen.faction = 'player';
+    fallen.currentHP = 0;
+    runManager.fallenUnits.push(fallen);
+  }
+  runManager.ensureUnitUids();
+  runManager.ensurePortraitVariants();
+  const oriane = runManager.roster.find((u) => u.name === 'Oriane');
+  if (oriane)
+    addBurden(runManager, 'wounded', {
+      unitUid: oriane.unitUid,
+      unitName: oriane.name,
+      stat: 'STR',
+    });
+}
+
 /** A won run for the run-complete review: the ending follows `route`'s road. */
 function createVictoryRun(gameData, meta, config) {
   const road = DEV_VICTORY_ROUTES[config.route] || DEV_VICTORY_ROUTES.lieutenant;
@@ -675,6 +727,7 @@ export function buildDevStartupRoute(sourceGameData, registry, config) {
   if (
     COMBAT_LOADOUT_PRESETS.has(config.preset) ||
     config.preset === 'roster_checks' ||
+    config.preset === 'roster_review' ||
     config.sceneKey === 'RunComplete'
   )
     registry.set('activeSlot', null);
