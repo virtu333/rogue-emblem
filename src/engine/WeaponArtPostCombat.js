@@ -364,6 +364,7 @@ export function getPostCombatPipelineSteps({
         durationPhases: buff.durationPhases,
         stats: { ...buff.stats },
         includeSelf: buff.includeSelf === true,
+        selfOnly: buff.selfOnly === true,
       });
     }
   }

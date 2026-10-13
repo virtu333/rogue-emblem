@@ -2834,6 +2834,24 @@
     "price": 2000
   },
   {
+    "name": "Hunter's Focus Scroll",
+    "lore": "A hunter's breathing count, pencilled in the margin: in on four, hold on four, loose.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Hunter's Focus (Weapon Art)",
+    "teachesWeaponArtId": "bow_hunters_focus",
+    "allowedWeaponTypes": [
+      "Bow"
+    ],
+    "price": 2000
+  },
+  {
     "name": "Purifying Light Scroll",
     "lore": "Temple homily on gathered light, read aloud before battle.",
     "type": "Scroll",
