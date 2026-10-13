@@ -11,6 +11,8 @@
 // strike but would answer a blow from, EntityReach.js) is a fainter pale-ember fill with a
 // dashed outer edge and no hatching, so it never reads as the strike zone beside it. Variants: 'global' (the Danger
 // toggle), 'pinned' (per-enemy pins) and 'focus' (the one enemy being inspected).
+// Outline mode (the global toggle's second press, `setOutline`) drops the fill and the hatching
+// and keeps every edge: the crimson border, the status staff's violet and the counter band's dashes.
 // Presentation only: never reads RNG or game state beyond the tiles it is given.
 
 import { TILE_SIZE } from '../utils/constants.js';
@@ -32,6 +34,13 @@ export const DANGER_VARIANTS = Object.freeze({
   pinned: { fill: true, hatch: false, edgeWidth: 2, fillScale: 1.2 },
   focus: { fill: true, hatch: false, edgeWidth: 3, fillScale: 1 },
 });
+
+/** The Danger button's cycle: Off, then Filled, then Outline, then Off again. */
+export const DANGER_MODES = Object.freeze(['off', 'filled', 'outline']);
+export function nextDangerMode(mode) {
+  const at = DANGER_MODES.indexOf(mode);
+  return DANGER_MODES[(at < 0 ? 0 : at + 1) % DANGER_MODES.length];
+}
 
 /** 0 = status-only or counter-only, 1, 2, 3 (three or more damage sources). */
 export function dangerTier({ count = 1, damageThreat, statusThreat, counterThreat } = {}) {
@@ -109,12 +118,28 @@ export class DangerZoneOverlay {
     this.depth = depth;
     this.variant = DANGER_VARIANTS[variant] ? variant : 'global';
     this.style = DANGER_VARIANTS[this.variant];
+    // Edges only (no fill, no hatching); kept across hide/show until changed.
+    this.outline = false;
     // Plain descriptors of what is drawn ({col,row,count,tier,fillAlpha}); tests and
     // the HUD read these instead of display objects.
     this.tiles = [];
     this.visible = false;
     this.fillLayer = null;
     this.edgeLayer = null;
+  }
+
+  /** 'off' | 'filled' | 'outline': what the player sees now. */
+  get mode() {
+    if (!this.visible) return 'off';
+    return this.outline ? 'outline' : 'filled';
+  }
+
+  /** Switch between the filled zone and its outline; redraws in place when shown. */
+  setOutline(outline) {
+    const next = Boolean(outline);
+    if (next === this.outline) return;
+    this.outline = next;
+    if (this.visible) this.show(this._shownTiles);
   }
 
   _layers() {
@@ -156,17 +181,17 @@ export class DangerZoneOverlay {
   show(dangerTiles) {
     this.hide();
     this.visible = true;
+    this._shownTiles = dangerTiles;
     const layers = this._layers();
     const S = TILE_SIZE;
+    const style = this.outline ? { ...this.style, fill: false, hatch: false } : this.style;
     const damage = [];
     const counter = [];
     for (const tile of dangerTiles || []) {
       const tier = dangerTier(tile);
       // The Entity's counter-only band: tiles no one strikes that a blow from would be answered.
       const counterBand = Boolean(tile.counterThreat) && !tile.damageThreat;
-      const fillAlpha = this.style.fill
-        ? Math.min(0.6, DANGER_FILL_ALPHA[tier] * this.style.fillScale)
-        : 0;
+      const fillAlpha = style.fill ? Math.min(0.6, DANGER_FILL_ALPHA[tier] * style.fillScale) : 0;
       this.tiles.push({
         col: tile.col,
         row: tile.row,
@@ -185,14 +210,14 @@ export class DangerZoneOverlay {
       if (fillAlpha > 0) {
         layers.fill.fillStyle(this.color, fillAlpha);
         layers.fill.fillRect(x0, y0, S, S);
-      } else if (counterBand && this.style.fill) {
+      } else if (counterBand && style.fill) {
         layers.fill.fillStyle(
           UI_HEX.threatCounter,
-          Math.min(0.3, DANGER_COUNTER_FILL_ALPHA * this.style.fillScale),
+          Math.min(0.3, DANGER_COUNTER_FILL_ALPHA * style.fillScale),
         );
         layers.fill.fillRect(x0, y0, S, S);
       }
-      if (this.style.hatch && tier > 0) {
+      if (style.hatch && tier > 0) {
         layers.fill.lineStyle(1, UI_HEX.threatEdge, DANGER_HATCH_ALPHA[tier]);
         for (const seg of hatchSegments(x0, y0, S, tier))
           layers.fill.lineBetween(seg.x1, seg.y1, seg.x2, seg.y2);
@@ -215,7 +240,7 @@ export class DangerZoneOverlay {
     const oy = anchor.y - S / 2 - anchorCell.row * S;
     const damageEdges = dangerEdges(damage.map(cellOf));
     // Outer edge of the damage zone: ink under-stroke, then the crimson line.
-    const w = this.style.edgeWidth;
+    const w = style.edgeWidth;
     const stroke = (edges, width, color, alpha) => {
       layers.edge.lineStyle(width, color, alpha);
       const ext = width / 2;
@@ -273,6 +298,7 @@ export class DangerZoneOverlay {
     if (this.fillRT?.active !== false) this.fillRT?.clear?.();
     if (this.edgeRT?.active !== false) this.edgeRT?.clear?.();
     this.tiles = [];
+    this._shownTiles = null;
     this.visible = false;
   }
 

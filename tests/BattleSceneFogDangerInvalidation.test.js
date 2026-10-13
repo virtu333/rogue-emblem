@@ -43,7 +43,7 @@ describe('BattleScene fog danger invalidation', () => {
     scene.showActionMenu = vi.fn(() => {
       scene.battleState = 'UNIT_ACTION_MENU';
     });
-    scene.dangerZone = { toggle: vi.fn() };
+    scene.dangerZone = { visible: false, show: vi.fn(), hide: vi.fn(), setOutline: vi.fn() };
     scene.dangerZoneCache = [{ col: 0, row: 0 }];
     scene.dangerZoneStale = false;
     scene.battleState = 'PLAYER_IDLE';
@@ -67,7 +67,7 @@ describe('BattleScene fog danger invalidation', () => {
 
     BattleScene.prototype._onDangerClick.call(scene);
 
-    expect(scene.dangerZone.toggle).toHaveBeenCalledWith([
+    expect(scene.dangerZone.show).toHaveBeenCalledWith([
       { col: 3, row: 3, count: 1, damageThreat: true, statusThreat: false },
     ]);
     expect(scene.dangerZoneStale).toBe(false);

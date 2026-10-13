@@ -997,6 +997,7 @@ export class MobileBattleHUD {
       s.dangerZone?.visible &&
         `${(s.dangerZone.tiles || []).reduce((a, t) => (a * 33 + t.col * 97 + t.row * 13 + t.tier) % 1e9, 7)}:${(s.playerUnits || []).map((u) => `${u.col},${u.row},${u.currentHP > 0}`).join(';')}`,
       Boolean(s.keepDangerVisible),
+      s.dangerZone?.mode,
       Boolean(s.isThreatPinned?.(unit)),
       s.pinnedThreatEnemies?.size,
       Boolean(this.menu),
@@ -1254,7 +1255,15 @@ export class MobileBattleHUD {
     const contractLine = s._contractHud?.model?.();
     if (contractLine) detailContent.append(el('p', 'mb-contract-detail', contractLine.title));
     if (s.dangerZone?.visible)
-      detailContent.append(el('p', '', 'Darker: more enemies · Purple outline: status staff'));
+      detailContent.append(
+        el(
+          'p',
+          '',
+          s.dangerZone.outline
+            ? 'Red outline: enemy reach · Purple outline: status staff'
+            : 'Darker: more enemies · Purple outline: status staff',
+        ),
+      );
     if (s.dangerZone?.tiles?.some((t) => t.counterThreat))
       detailContent.append(
         el('p', '', 'Dashed band: the Entity cannot strike there, but it counters a blow from it'),
@@ -1277,7 +1286,7 @@ export class MobileBattleHUD {
         el(
           'p',
           '',
-          'You can also hold Danger to pin it. Tap Danger to hide it. Resets each battle.',
+          'Tap Danger once to show it, again for just its outline, a third time to hide it. Hold Danger to pin it. Resets each battle.',
         ),
       );
     }
@@ -1613,8 +1622,8 @@ export class MobileBattleHUD {
 
   /**
    * The Danger toggle: a crimson-hatched swatch, the command, and a state line that
-   * says what the overlay shows (allies in reach) or how to pin it. Tap toggles,
-   * hold pins/unpins — unchanged gestures; the name stays 'Danger' / 'Danger · pinned'.
+   * says what the overlay shows (allies in reach) or how to pin it. Tap steps Filled ->
+   * Outline -> Off, hold pins/unpins; the name reads 'Danger', '· outline', '· pinned'.
    */
   /** Top/bottom fades and a "more" cue when the command stack scrolls. */
   syncScrollCues() {
@@ -1764,11 +1773,12 @@ export class MobileBattleHUD {
     const s = this.scene;
     const pinned = Boolean(s.keepDangerVisible);
     const shown = Boolean(s.dangerZone?.visible);
-    const label = pinned ? 'Danger · pinned' : 'Danger';
+    const outline = shown && Boolean(s.dangerZone?.outline);
+    const label = ['Danger', outline && 'outline', pinned && 'pinned'].filter(Boolean).join(' · ');
     const button = this.button(
       '',
       () => (viaEvent ? s.game.events.emit('mobile:danger') : s._onDangerClick()),
-      `mb-danger-toggle${compact ? ' is-compact' : ''}${shown ? ' is-on' : ''}${pinned ? ' is-pinned' : ''}`,
+      `mb-danger-toggle${compact ? ' is-compact' : ''}${shown ? ' is-on' : ''}${outline ? ' is-outline' : ''}${pinned ? ' is-pinned' : ''}`,
       () => s.togglePersistentDanger(),
     );
     button.setAttribute('aria-label', label);

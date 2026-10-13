@@ -490,8 +490,16 @@ describe('Danger during Canto', () => {
         get visible() {
           return visible;
         },
-        toggle: vi.fn(() => {
-          visible = !visible;
+        outline: false,
+        get mode() {
+          if (!visible) return 'off';
+          return this.outline ? 'outline' : 'filled';
+        },
+        setOutline: vi.fn(function (outline) {
+          this.outline = outline;
+        }),
+        hide: vi.fn(() => {
+          visible = false;
         }),
         show: vi.fn(() => {
           visible = true;
@@ -508,6 +516,8 @@ describe('Danger during Canto', () => {
       const rng = vi.spyOn(Math, 'random');
       scene._onDangerClick();
       expect(visible).toBe(true);
+      scene._onDangerClick();
+      expect(scene.dangerZone.mode).toBe('outline');
       scene._onDangerClick();
       expect(visible).toBe(false);
       scene.togglePersistentDanger();
@@ -548,7 +558,7 @@ describe('Danger during Canto', () => {
   });
   it('suppresses Danger during target selection, forecast, story and tutorial gates', () => {
     const { scene } = setup();
-    scene.dangerZone = { toggle: vi.fn(), show: vi.fn() };
+    scene.dangerZone = { toggle: vi.fn(), show: vi.fn(), hide: vi.fn(), setOutline: vi.fn() };
     scene.calculateDangerZone = vi.fn();
     for (const state of ['SELECTING_TARGET', 'SELECTING_HEAL_TARGET', 'SHOWING_FORECAST']) {
       scene.battleState = state;
@@ -564,6 +574,8 @@ describe('Danger during Canto', () => {
     expect(scene.calculateDangerZone).not.toHaveBeenCalled();
     expect(scene.dangerZone.toggle).not.toHaveBeenCalled();
     expect(scene.dangerZone.show).not.toHaveBeenCalled();
+    expect(scene.dangerZone.hide).not.toHaveBeenCalled();
+    expect(scene.dangerZone.setOutline).not.toHaveBeenCalled();
   });
 });
 
