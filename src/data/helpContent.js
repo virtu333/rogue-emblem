@@ -261,7 +261,7 @@ const STATIC_HELP_TABS = [
           { text: '' },
           { text: 'MAG bonus uses:', color: CYAN },
           { text: '  MAG 8+: +1 use   MAG 14+: +2 uses' },
-          { text: '  MAG 20+: +3 uses' },
+          { text: '  MAG 20+: +3 uses   Warp: 16/22, max 3' },
           { text: '' },
           { text: 'Heal amount = MAG + staff heal base.', color: GRAY },
           { text: 'When uses run out, unit auto-switches', color: GRAY },
