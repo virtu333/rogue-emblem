@@ -10,6 +10,7 @@ import {
   showPortraitBattleSetting,
 } from '../utils/portraitBattle.js';
 import { trackScrollEdges } from './scrollEdgeCue.js';
+import { buildInfoSection } from './BuildInfoSection.js';
 export class SettingsMenu {
   constructor(scene, onClose) {
     this.surface = new MenuSurface(scene, 'Settings', onClose, { modal: true });
@@ -203,12 +204,16 @@ export class SettingsMenu {
         };
       }
     }
+    // Last: what a bug report needs (commit, platform, app build, where the run stands).
+    this.buildInfo = buildInfoSection(scene);
+    list.append(this.buildInfo.element);
     this.surface.body.append(list);
     // The long list fades the edge that has more to scroll.
     this.edges = trackScrollEdges(list);
     this.surface.focusContent();
   }
   destroy() {
+    this.buildInfo?.destroy();
     this.edges?.destroy();
     this.surface.destroy();
   }

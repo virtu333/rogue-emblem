@@ -506,7 +506,37 @@
             { "col": 7, "row": 6, "classes": ["Warrior"] },
             { "col": 11, "row": 6, "classes": ["Hero"], "minRung": "dusk" },
             { "col": 6, "row": 3, "classes": ["Wyvern Lord"], "minRung": "hard" },
-            { "col": 6, "row": 10, "classes": ["Swordmaster"], "minRung": "lunatic" }
+            { "col": 6, "row": 10, "classes": ["Swordmaster"], "minRung": "lunatic" },
+            {
+              "col": 14,
+              "row": 5,
+              "classes": ["General"],
+              "aiMode": "post",
+              "level": 2,
+              "minRung": "hard"
+            },
+            {
+              "col": 14,
+              "row": 7,
+              "classes": ["General"],
+              "aiMode": "post",
+              "level": 2,
+              "minRung": "hard"
+            },
+            { "col": 14, "row": 3, "classes": ["Sniper"], "level": 2, "minRung": "hard" },
+            { "col": 14, "row": 9, "classes": ["Sniper"], "level": 2, "minRung": "hard" }
+          ],
+          "waves": [
+            {
+              "turn": 2,
+              "spawns": [
+                { "col": 6, "row": 1, "classes": ["Swordmaster"], "level": 2, "minRung": "hard" },
+                { "col": 6, "row": 12, "classes": ["Hero"], "level": 2, "minRung": "hard" },
+                { "col": 7, "row": 1, "classes": ["Sniper"], "level": 2, "minRung": "hard" },
+                { "col": 7, "row": 12, "classes": ["Sage"], "level": 2, "minRung": "hard" },
+                { "col": 5, "row": 1, "classes": ["Hero"], "level": 2, "minRung": "lunatic" }
+              ]
+            }
           ]
         }
       ]
