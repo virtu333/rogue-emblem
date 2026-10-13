@@ -168,7 +168,12 @@ function getArtEffectivenessMultiplier(mods, defender) {
   return 1;
 }
 
-function getCombinedEffectivenessMultiplier(weapon, defender, mods = null) {
+/**
+ * The weapon's own effectiveness against `defender` combined with an art's (`mods`): the
+ * larger alone, or the product capped at 5x when both apply (Endword's Divine Flare,
+ * Firstwind's Tempest). The art display reads it too, so its multiplier is the one dealt.
+ */
+export function getCombinedEffectivenessMultiplier(weapon, defender, mods = null) {
   if (defender?.accessory?.combatEffects?.negateEffectiveness) return 1;
   const weaponMult = getEffectivenessMultiplier(weapon, defender);
   const artMult = getArtEffectivenessMultiplier(mods, defender);

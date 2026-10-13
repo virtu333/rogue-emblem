@@ -78,7 +78,7 @@ emblem-rogue/
 │                          #   uiDepths, uiStyles, escPriority, MobileControls, musicConfig, etc.
 ├── tests/                 # Vitest unit tests + harness/ + sim/, Playwright e2e/ (browser CI lanes: tests/e2e/lanes.json)
 ├── References/            # Source sprite sheets + raw assets (not deployed, .gitignored)
-├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 102 original music files + 151 ceremony stingers)
+├── assets/                # sprites/ (32x32), portraits/ (128x128), audio/ (sfx, 108 original music files + 151 ceremony stingers)
 ├── sim/                   # Balance sim scripts (progression, matchups, economy, fullrun)
 └── tools/                 # Build/asset processing scripts (sprite splitting, resize, bg removal)
 ```
@@ -174,7 +174,7 @@ Phases 1-9 complete ✅, Phase 10 (Deploy) live. (Grid → Combat → Units → 
 - Player units = blue palette, enemies = red palette, NPCs = green palette
 
 ## Music (composed in code)
-All music is original: 56 loop scores in `tools/music/scores/` and 31 ceremony cues (stingers) in `tools/music/stingers/`, rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/` and `assets/audio/stingers/`. Read `tools/music/SCORE.md` (leitmotifs, the Entity's finale, cue list, boss cards and enrage layers, device budget) and `tools/music/README.md` (setup, build, lint/analyze/pitchcheck tools).
+All music is original: 59 loop scores in `tools/music/scores/` and 31 ceremony cues (stingers) in `tools/music/stingers/`, rendered by `tools/music/engine/` (sampler + mixer) to `assets/audio/music/` and `assets/audio/stingers/`. Read `tools/music/SCORE.md` (leitmotifs, the Entity's finale, cue list, boss cards and enrage layers, device budget) and `tools/music/README.md` (setup, build, lint/analyze/pitchcheck tools).
 - **Rebuild:** `python3 tools/music/build.py <score>` (or `--all`; `--stingers [names]` for cues), then `npm run sync-assets`. The build regenerates `src/utils/musicLoops.js` (loop points + each track's `tonic`) and `src/utils/musicStingers.js`, so never hand-edit them. A form check refuses any score with a bar where nothing sounds (declare intended silence in `score.silent_ok`).
 - **The palette:** `tools/music/engine/palette.py` picks each instrument's library at render time. The game ships `HOUSE` (the sound lab's blind-A/B verdicts): Sonatina Symphonic Orchestra 4 for string sections, solo violin (the performer's `clean` style), oboe, celesta, choir and oohs; Virtual Playing Orchestra 3 for horns/trumpets/trombones; the legacy registry (VSCO 2 CE, GeneralUser GS) for the rest. A score may change one for itself (`s.palette`). Any other `--palette` is an audition and never writes game assets. Those licences need credit: the help overlay's Meta › Music Credits page and `docs/music-credits.md` (the soundtrack is CC BY-SA 4.0; `tests/MusicCredits.test.js` holds the credit to the palette). `bash tools/music/fetch_libraries.sh` fetches every library; VPO3 comes from the unofficial studiorack SFZ mirror (no version, other branches), so its clone is pinned to `VPO3_COMMIT` (a full SHA, credited as an unofficial mirror in both credit pages and held by `tests/MusicCredits.test.js`).
 - **Seamless loops:** each file is an intro plus a loop region. `AudioManager` plays it through `LoopedMusic` (Web Audio `loopStart`/`loopEnd`) and falls back to a whole-file loop without Web Audio. A layer that can't share the primary's timeline (stale cache) is dropped, never mis-looped.

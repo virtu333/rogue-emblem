@@ -1614,7 +1614,7 @@ export class RosterOverlay {
           '9px',
         );
         const desc = art?.description || '';
-        const mods = summarizeWeaponArtEffect(art);
+        const mods = summarizeWeaponArtEffect(art, { weapon });
         const modsLine = mods && mods !== desc ? `\n${mods}` : '';
         const tooltipText = `${art.name} [${weaponName}]\n${desc}${modsLine}`;
         this._wireTooltipTarget(row, () => this._showSkillTooltip(row, tooltipText));
