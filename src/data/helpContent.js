@@ -128,6 +128,23 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        title: 'Who Will Attack',
+        lines: [
+          { text: 'While you move a unit, an eye marks', color: GOLD },
+          { text: 'each foe that could strike its tile.', color: GOLD },
+          { text: '' },
+          { text: 'Bright line: that foe would attack', color: RED },
+          { text: 'this unit there.', color: RED },
+          { text: 'Faint line: it would go for the unit', color: GRAY },
+          { text: 'the line points to instead.', color: GRAY },
+          { text: 'Dim eye, no line: it would hold.', color: GRAY },
+          { text: '' },
+          { text: 'It reads the foes you can see before', color: GRAY },
+          { text: 'any blow lands: a miss, a kill or a', color: GRAY },
+          { text: 'hidden foe can still change it.', color: GRAY },
+        ],
+      },
+      {
         title: 'Status Conditions',
         lines: [
           { text: 'Sleep (Nightfall/Black Sun only):', color: GOLD },
