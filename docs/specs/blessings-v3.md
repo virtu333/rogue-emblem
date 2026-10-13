@@ -574,7 +574,7 @@ under their own heading.
 |---|---|---|
 | Second Dawn (dark) | +1 Vision each act, and +1 now | +8 shadow now; the Eclipse fills 25% faster |
 | Blood Covenant | every unit, recruits included, +1 to all stats | Ill Omen never ends (+2 shadow each victory; +1 before the October 2026 retune) |
-| Kingmaker's Oath | promotions are free and add +2 to the class's two best stats | Master Seals can't be used: promote only at a church, with its vow |
+| Kingmaker's Oath | promotions are free and add +2 to the class's best stat | Master Seals can't be used: promote only at a church, with its vow |
 | Hollow Sun's Favor | +50% battle gold and loot gold | Hunted until Act 3 (waves of 2) |
 
 Fact checks from review:
@@ -833,7 +833,7 @@ a burden that does not count down (`BlessingTerms` reads the price's effects).
 |---|---|---|
 | Darkened Dawn (§6.2's "Second Dawn (dark)") | `vision_delta { 1 }` now and `act_start_vision_delta { 1 }` (a `vision` act-start grant from the next act) | `eclipse_shadow_delta { 8 }` and `eclipse_gain_multiplier_delta { 0.25 }` |
 | Blood Covenant | `army_stat_bonus { 1 }` | `burden { id: 'ill_omen', permanent: true, extraShadow: 1 }` |
-| Kingmaker's Oath | `kingmaker_promotion { bonus: 2, stats: 2 }` | `master_seals_forbidden {}` |
+| Kingmaker's Oath | `kingmaker_promotion { bonus: 2, stats: 1 }` | `master_seals_forbidden {}` |
 | Hollow Sun's Favor (tag `gold`) | `battle_gold_multiplier_delta { 0.5 }` and `loot_gold_multiplier_delta { 0.5 }` | `burden { id: 'hunted', actsAhead: 1, wave: { turn: 3, count: [2, 2], xpMultiplier: 0.5 } }` |
 
 The new effect types live in `engine/TwistedBoons.js` (one parser per type for the validator, the

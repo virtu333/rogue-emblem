@@ -540,7 +540,10 @@ describe('a twist burden is never cleansable (one rule: Burdens.isCleansable)', 
 
 // ── Kingmaker's Oath ──────────────────────────────────────────────────────
 
-describe("Kingmaker's Oath: free church promotions +2 to the class's best two; no Master Seal", () => {
+const oathStats = () =>
+  card('kingmakers_oath').boons.find((b) => b.type === 'kingmaker_promotion').params.stats;
+
+describe("Kingmaker's Oath: free church promotions +2 to the class's best stat; no Master Seal", () => {
   const seal = (effect = 'promote', name = 'Master Seal') => ({
     name,
     type: 'Consumable',
@@ -571,8 +574,10 @@ describe("Kingmaker's Oath: free church promotions +2 to the class's best two; n
     const result = promoteAtChurch(rm, unit, 'church-x', target, data);
     expect(result.ok).toBe(true);
     expect(rm.gold).toBe(0);
-    const best = kingmakerBonusStats(target.promotionBonuses, 2);
-    expect(best).toHaveLength(2);
+    const best = kingmakerBonusStats(target.promotionBonuses, oathStats());
+    // Tuned to one stat (#388, was two).
+    expect(oathStats()).toBe(1);
+    expect(best).toHaveLength(1);
     expect(best).not.toContain('MOV');
     for (const stat of [...XP_STAT_NAMES, 'MOV']) {
       const extra = best.includes(stat) ? 2 : 0;
@@ -661,7 +666,7 @@ describe("Kingmaker's Oath: what the player is shown is what the altar does", ()
     const target = resolvePromotionTargets(unit, data.classes, data.lords)[0];
     const before = { ...unit.stats };
     expect(promoteAtChurch(loaded, unit, 'church-x', target, data).ok).toBe(true);
-    const best = kingmakerBonusStats(target.promotionBonuses, 2);
+    const best = kingmakerBonusStats(target.promotionBonuses, oathStats());
     for (const stat of best)
       expect(unit.stats[stat], stat).toBe(before[stat] + (target.promotionBonuses[stat] || 0) + 2);
     expect(
@@ -692,7 +697,7 @@ describe("Kingmaker's Oath: what the player is shown is what the altar does", ()
         }
         // Without the church's run (a Master Seal's path), no oath bonus is shown.
         const sealed = promotionPathContent(unit, target, data);
-        const best = kingmakerBonusStats(target.promotionBonuses, 2);
+        const best = kingmakerBonusStats(target.promotionBonuses, oathStats());
         for (const stat of best)
           expect(sealed.stats.find((r) => r.stat === stat)?.after).toBe(
             preview.stats.find((r) => r.stat === stat).after - 2,
