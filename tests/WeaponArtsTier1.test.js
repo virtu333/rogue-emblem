@@ -57,11 +57,11 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     const legendaryArts = allArts.filter((a) => a.tierAffinity === 'Legendary');
 
     it('iron tier has correct count', () => {
-      expect(ironArts.length).toBe(18);
+      expect(ironArts.length).toBe(23); // + the five stat-debuff arts from Steel
     });
 
     it('steel tier has correct count', () => {
-      expect(steelArts.length).toBe(27); // + Sweeping Cleave, Skewer, Lunar Brace
+      expect(steelArts.length).toBe(22); // + Sweeping Cleave, Skewer, Lunar Brace; - five debuff arts to Iron
     });
 
     it('silver tier has correct count', () => {
@@ -341,12 +341,12 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       }
     });
 
-    it('active Iron pool has 17 arts (18 minus 1 legacy)', () => {
-      expect(allArts.filter((a) => a.tierAffinity === 'Iron' && !a.legacy).length).toBe(17);
+    it('active Iron pool has 22 arts (23 minus 1 legacy)', () => {
+      expect(allArts.filter((a) => a.tierAffinity === 'Iron' && !a.legacy).length).toBe(22);
     });
 
-    it('active Steel pool has 24 arts (27 minus 3 legacy)', () => {
-      expect(allArts.filter((a) => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(24);
+    it('active Steel pool has 19 arts (22 minus 3 legacy)', () => {
+      expect(allArts.filter((a) => a.tierAffinity === 'Steel' && !a.legacy).length).toBe(19);
     });
   });
 
@@ -379,7 +379,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       expect(act2Pool).toContain('Seraphim Scroll');
       expect(act2Pool).toContain('Precise Cut Scroll');
       expect(act2Pool).not.toContain('Comet Edge Scroll');
-      expect(act2Pool.length).toBe(2 + 15 + 24); // listed + Iron + Steel
+      expect(act2Pool.length).toBe(2 + 20 + 19); // listed + Iron + Steel
     });
 
     it('loot tables have updated act3 weapon art scroll pool', () => {
