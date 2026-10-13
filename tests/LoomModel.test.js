@@ -652,3 +652,29 @@ it('explains recruit hunters and captains without guessing encounter details', (
     ]),
   );
 });
+
+describe('the colosseum card names what a mercenary costs', () => {
+  const node = { id: 'act1_3_0', type: 'colosseum' };
+  const tag = (opts) =>
+    describeLoomNode(node, { state: 'live', ...opts }).tags.find((t) =>
+      t.text.startsWith('Mercenaries'),
+    );
+
+  it('shows the range ahead of arrival', () => {
+    expect(tag({ mercPrices: { min: 1050, max: 3000 } })?.text).toBe('Mercenaries 1050–3000 G');
+    expect(tag({ state: 'future', mercPrices: { min: 700, max: 2000 } })?.text).toBe(
+      'Mercenaries 700–2000 G',
+    );
+  });
+
+  it('says nothing once walked, eclipsed, or without a range', () => {
+    expect(tag({ state: 'done', mercPrices: { min: 700, max: 2000 } })).toBeUndefined();
+    expect(tag({})).toBeUndefined();
+    expect(
+      describeLoomNode(
+        { ...node, eclipse: { fromType: 'colosseum', label: 'Eclipsed' } },
+        { state: 'live', mercPrices: { min: 700, max: 2000 } },
+      ).tags.some((t) => t.text.startsWith('Mercenaries')),
+    ).toBe(false);
+  });
+});
