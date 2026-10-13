@@ -267,6 +267,39 @@ describe('revived legacy arts', () => {
     );
   });
 
+  it('Smash, Vaulting Thrust and Focused Bolt are the sure strikes against dodgy foes', () => {
+    // Each adds 25 hit over a plain strike and ignores the foe's cover (owner, 2026-10-13).
+    const foeFast = { SPD: 20 };
+    const mageStrike = (artId, foeTerrain) => {
+      const attacker = unit('Fire', 'player', { MAG: 8 });
+      attacker.proficiencies.push({ type: 'Tome', rank: 'Prof' });
+      const foe = unit('Iron Sword', 'enemy', foeFast);
+      const mods = artId ? { atkWeaponArtMods: getWeaponArtCombatMods(art(artId)) } : null;
+      return getCombatForecast(
+        attacker,
+        attacker.weapon,
+        foe,
+        foe.weapon,
+        1,
+        terrain('Plain'),
+        terrain(foeTerrain),
+        mods,
+      ).attacker;
+    };
+    for (const [id, weapon] of [
+      ['axe_smash', 'Iron Axe'],
+      ['lance_vaulting_thrust', 'Iron Lance'],
+    ]) {
+      const plain = strike(null, weapon, 'Iron Sword', 'Plain');
+      const open = strike(id, weapon, 'Iron Sword', 'Plain');
+      expect(open.hit - plain.hit, id).toBe(25);
+      expect(strike(id, weapon, 'Iron Sword', 'Forest').hit, id).toBe(open.hit);
+    }
+    const bolt = mageStrike('magic_focused_bolt', 'Plain');
+    expect(bolt.hit - mageStrike(null, 'Plain').hit).toBe(25);
+    expect(mageStrike('magic_focused_bolt', 'Forest').hit).toBe(bolt.hit);
+  });
+
   it('Piercing Drive takes no triangle penalty against an axe', () => {
     // Plain: a lance hits an axe-wielder for 1 less than a bow-wielder (triangle disadvantage).
     const vsAxe = strike(null, 'Iron Lance', 'Iron Axe', 'Plain');

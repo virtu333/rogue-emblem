@@ -522,10 +522,11 @@
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "Vault into the point so weight and reach add to it.",
+      "description": "Vault over brush and stone: cover shields no one from the point.",
       "combatMods": {
-        "atkBonus": 5,
-        "hitBonus": 5,
+        "atkBonus": 2,
+        "hitBonus": 25,
+        "ignoreTerrainAvoid": true,
         "activated": [
           {
             "id": "weapon_art",
@@ -742,10 +743,11 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "A reckless overhead swing that rarely misses its mark.",
+      "description": "A heavy overhead swing that cover cannot hide from.",
       "combatMods": {
-        "hitBonus": 20,
-        "critBonus": 20,
+        "hitBonus": 25,
+        "critBonus": 10,
+        "ignoreTerrainAvoid": true,
         "activated": [
           {
             "id": "weapon_art",
@@ -1375,10 +1377,11 @@
       "hpCost": 3,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Narrow the cast to a point for more force and aim.",
+      "description": "Narrow the cast to a needle: it finds the foe through any cover.",
       "combatMods": {
-        "atkBonus": 5,
-        "hitBonus": 10,
+        "atkBonus": 2,
+        "hitBonus": 25,
+        "ignoreTerrainAvoid": true,
         "activated": [
           {
             "id": "weapon_art",
