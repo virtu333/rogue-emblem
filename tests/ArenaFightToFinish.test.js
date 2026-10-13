@@ -175,13 +175,24 @@ describe('arena bout engine', () => {
     expect(estimateArenaOdds(a, brute(), gameData, { trials: 5 })).toBeNull();
   });
 
-  it('odds read as estimates, never certainties', () => {
-    expect(arenaOddsText({ win: 1, lose: 0, draw: 0 })).toBe(
-      'If fought to the end: Win over 95% · Lose under 5%',
+  it("odds read as the fighter's feeling and a wide range, never a percentage", () => {
+    expect(arenaOddsText({ win: 1, lose: 0, draw: 0 }, 'Edric')).toBe(
+      'Edric: "This one is mine." Maybe 9 or more wins in 10.',
     );
-    expect(arenaOddsText({ win: 0.62, lose: 0.35, draw: 0.03 })).toBe(
-      'If fought to the end: Win about 60% · Lose about 35% · Draw about 5%',
+    expect(arenaOddsText({ win: 0.62, lose: 0.35, draw: 0.03 }, 'Sera')).toBe(
+      'Sera: "I can take this, I think." Maybe 5 to 7 wins in 10.',
     );
+    expect(arenaOddsText({ win: 0.7, lose: 0.3, draw: 0 }, 'Sera')).toContain('7 to 9 wins');
+    expect(arenaOddsText({ win: 0.3, lose: 0.3, draw: 0.4 }, 'Kai')).toBe(
+      'Kai: "It could go either way." Maybe 3 to 5 wins in 10. It may go the distance.',
+    );
+    expect(arenaOddsText({ win: 0.12, lose: 0.88, draw: 0 }, 'Kai')).toContain('1 to 3 wins in 10');
+    expect(arenaOddsText({ win: 0, lose: 1, draw: 0 }, 'Kai')).toBe(
+      'Kai: "I don\'t like this at all." Maybe fewer than 1 win in 10.',
+    );
+    for (const win of [0, 0.05, 0.33, 0.5, 0.77, 0.95, 1]) {
+      expect(arenaOddsText({ win, lose: 1 - win, draw: 0 }, 'Kai')).not.toMatch(/%/);
+    }
   });
 
   it('a yield forfeits the fee and earns nothing, like a loss', () => {
