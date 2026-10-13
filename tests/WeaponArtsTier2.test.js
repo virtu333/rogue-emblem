@@ -15,7 +15,8 @@ describe('Tier 2 weapon arts', () => {
       sword_advancing_strike: { postCombatMove: [{ mode: 'advance', distance: 1 }] },
       sword_lunge: { postCombatMove: [{ mode: 'swap', distance: 1 }] },
       lance_hit_and_run: { postCombatMove: [{ mode: 'retreat', distance: 1 }] },
-      lance_overrun: { postCombatMove: [{ mode: 'push', distance: 1 }] },
+      // Overrun became the lance's dash (owner, 2026-10-13): one tile past the target.
+      lance_overrun: { postCombatMove: [{ mode: 'dash', distance: 1 }] },
       axe_rushing_blow: { postCombatMove: [{ mode: 'through', distance: 1 }] },
       sword_seal_speed: { afterCombatDebuff: [{ stat: 'SPD', amount: -4 }] },
       lance_shatter_slash: { afterCombatDebuff: [{ stat: 'DEF', amount: -3 }] },

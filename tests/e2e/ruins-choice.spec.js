@@ -11,7 +11,7 @@ const SIZES = [
   { name: 'phone 844x390', viewport: { width: 844, height: 390 }, mobile: true },
   { name: 'phone 667x375', viewport: { width: 667, height: 375 }, mobile: true },
 ];
-const REST = 'Rest — heal everyone, revive the fallen';
+const REST = 'Rest — heal everyone, revive one fallen';
 const SCAVENGE = "Scavenge — the ruins' wares (+25%)";
 
 // No horizontal overflow, and the whole box inside the viewport's width.

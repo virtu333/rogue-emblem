@@ -19,6 +19,7 @@ import { regionName } from './placeDisplay.js';
 import { ACT_CONFIG, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS } from '../utils/constants.js';
 import { portraitListLayout } from './portraitListLayout.js';
 import { riteNodeModel, riteNodeNotes } from './riteModel.js';
+import { reviveNodeNotes } from '../engine/RevivePreview.js';
 import { riteCardBlock } from './RiteView.js';
 import { getMercenaryPriceRange } from '../engine/ColosseumEngine.js';
 
@@ -387,6 +388,10 @@ export function renderLoomCard(card, node, ctx = {}) {
   if (rm)
     for (const note of riteNodeNotes(rm, node))
       card.append(element('p', note, 're-loom-text re-loom-rite-note-line'));
+  // What reviving the fallen costs here, so a player can plan for it on the road.
+  if (rm)
+    for (const note of reviveNodeNotes(rm, node))
+      card.append(element('p', note, 're-loom-text re-loom-revive-note'));
   if (info.warning) card.append(element('p', info.warning, 're-loom-eclipse-warn'));
   if (info.flavor) card.append(element('p', `“${info.flavor}”`, 're-loom-flavor'));
   card.append(

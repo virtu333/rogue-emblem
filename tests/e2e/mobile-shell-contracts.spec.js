@@ -50,9 +50,15 @@ test('HUD drag cancels; rail End turn shares the safe two-step prompt and singul
   });
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
   await expect(hud).toContainText('1 unit still has actions.');
-  await expect(hud.getByRole('button', { name: 'Keep playing' })).toBeFocused();
+  // The confirm leads with the unit still to act; there is no Keep playing button.
+  await expect(hud.locator('button.mb-locate')).toBeFocused();
+  await expect(hud.locator('button.mb-locate')).toHaveText(/^Show /);
+  await expect(hud.getByRole('button', { name: 'Keep playing' })).toHaveCount(0);
   expect(await page.evaluate(() => window.__ended)).toBe(0);
-  await hud.getByRole('button', { name: 'Keep playing' }).tap();
+  // Back (Android Back, the pad's B) closes it without ending the turn.
+  await page.evaluate(() => window.__emblemRogueGame.events.emit('mobile:cancel'));
+  await expect(hud.getByRole('button', { name: 'End turn now', exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => window.__ended)).toBe(0);
   await hud.getByRole('button', { name: 'End turn…', exact: true }).tap();
   await hud.getByRole('button', { name: 'End turn now', exact: true }).tap();
   expect(await page.evaluate(() => window.__ended)).toBe(1);

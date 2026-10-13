@@ -4115,6 +4115,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleState === FORMATION_STATE && this._formation?.ready) return true;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
     if (this.visionDialog) return true;
+    if (this._mobileBattleHud?.endTurnPending) return true;
     if (this.unitDetailOverlay?.visible) return true;
     if (this.inspectionPanel?.visible) return true;
     if (this.isMobileInput && this.inspectMode) return true;
@@ -4148,6 +4149,8 @@ export class BattleScene extends Phaser.Scene {
       }
       return true;
     }
+    // The phone's end-turn confirm closes first (it has no button of its own to keep playing).
+    if (this._mobileBattleHud?.cancelEndTurn?.()) return true;
     // The Entity rally's card takes an explicit Cancel only when nothing else has something to
     // close: a menu, forecast, selection, overlay or panel keeps its Back, and Pause waits one press.
     if (

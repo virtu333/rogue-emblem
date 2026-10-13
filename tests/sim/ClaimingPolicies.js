@@ -505,11 +505,11 @@ export function playChurch(run, node, data) {
   healRosterAtChurch(run);
   for (let guard = 0; guard < 8; guard++) {
     const affordable = (run.fallenUnits || [])
-      .filter((u) => !churchReviveBlock(run, u))
+      .filter((u) => !churchReviveBlock(run, u, nodeId))
       .sort((a, b) => getReviveCost(a) - getReviveCost(b));
     if (!affordable.length) break;
     const unit = affordable[0];
-    if (!reviveAtChurch(run, unit).ok) break;
+    if (!reviveAtChurch(run, unit, nodeId).ok) break;
     out.revived.push(unit.name);
   }
   if (out.revived.length) healRosterAtChurch(run);
