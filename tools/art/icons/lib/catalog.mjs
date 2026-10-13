@@ -103,7 +103,7 @@ export function iconEntries(data) {
         spec: G.weaponSpec(w, ctx),
         source: w,
       });
-  for (const w of byType.Scroll || [])
+  for (const w of (byType.Scroll || []).filter((w) => !G.WEAPON_ICON_REUSE[w.name]))
     add({
       id: slug(w.name),
       group: 'Scroll',
@@ -233,12 +233,16 @@ export function iconAliases(data) {
   return [
     ...data.weapons
       .filter((w) => G.WEAPON_ICON_REUSE[w.name])
-      .map((w) => ({
-        id: slug(w.name),
-        of: G.WEAPON_ICON_REUSE[w.name],
-        socket: 'weapon',
-        rim: TIER_RANK[w.tier] != null ? w.tier : 'Iron',
-      })),
+      .map((w) =>
+        w.type === 'Scroll'
+          ? { id: slug(w.name), of: G.WEAPON_ICON_REUSE[w.name], socket: 'scroll', rim: 'Rare' }
+          : {
+              id: slug(w.name),
+              of: G.WEAPON_ICON_REUSE[w.name],
+              socket: 'weapon',
+              rim: TIER_RANK[w.tier] != null ? w.tier : 'Iron',
+            },
+      ),
     ...upgrades
       .filter((u) => G.UPGRADE_ICON_REUSE[u.id])
       .map((u) => ({

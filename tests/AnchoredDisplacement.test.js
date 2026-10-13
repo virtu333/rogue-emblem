@@ -53,9 +53,16 @@ describe('Anchored resists weapon-art displacement', () => {
     expect(isDisplacementImmune({ affixes: ['anchored'] }, null)).toBe(false);
   });
 
-  it('a push (Overrun) moves a plain foe one tile but not an Anchored one', () => {
-    expect(run('lance_overrun', []).defender).toMatchObject({ col: 3, row: 1 });
-    expect(run('lance_overrun', ['anchored']).defender).toMatchObject({ col: 2, row: 1 });
+  it('a ram (Battering Ram) drives a plain foe two tiles but not an Anchored one', () => {
+    expect(run('lance_battering_ram', []).defender).toMatchObject({ col: 4, row: 1 });
+    expect(run('lance_battering_ram', ['anchored']).defender).toMatchObject({ col: 2, row: 1 });
+  });
+
+  it('a dash (Overrun) carries the user past an Anchored foe, which stays put', () => {
+    // Overrun moves only its user: to the tile just behind the target.
+    const { attacker, defender } = run('lance_overrun', ['anchored']);
+    expect(attacker).toMatchObject({ col: 3, row: 1 });
+    expect(defender).toMatchObject({ col: 2, row: 1 });
   });
 
   it('a swap (Lunge) trades places with a plain foe but not with an Anchored one', () => {

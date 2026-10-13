@@ -685,7 +685,7 @@
       "hpCost": 6,
       "perMapLimit": 3,
       "targeting": "normal_attack",
-      "description": "Bowls the target back a full tile on impact.",
+      "description": "Runs the target through and charges on to the tile behind it.",
       "allowedFactions": [
         "player"
       ],
@@ -693,13 +693,13 @@
         "afterCombat": [
           {
             "type": "move",
-            "mode": "push",
+            "mode": "dash",
             "distance": 1
           }
         ]
       },
       "combatMods": {
-        "atkBonus": 5,
+        "atkBonus": 3,
         "hitBonus": 10,
         "activated": [
           {
@@ -1103,18 +1103,26 @@
       "name": "Hunter's Focus",
       "weaponType": "Bow",
       "tierAffinity": "Steel",
-      "legacy": true,
       "unlockAct": "act2",
       "requiredRank": "Prof",
       "hpCost": 4,
       "perTurnLimit": 1,
       "perMapLimit": 2,
       "targeting": "normal_attack",
-      "description": "One steadied breath sharpens aim, edge, and speed.",
+      "description": "Draw one steady breath and hold it: this shot and the next fly true.",
+      "effects": {
+        "allyBuff": {
+          "range": 1,
+          "durationPhases": 2,
+          "stats": {
+            "HIT": 15,
+            "SPD": 2
+          },
+          "selfOnly": true
+        }
+      },
       "combatMods": {
-        "hitBonus": 18,
-        "critBonus": 10,
-        "spdBonus": 2,
+        "hitBonus": 10,
         "activated": [
           {
             "id": "weapon_art",

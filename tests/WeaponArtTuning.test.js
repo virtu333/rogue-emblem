@@ -230,20 +230,16 @@ describe('revived legacy arts', () => {
     ).attacker;
   };
 
-  it('spawn again, and the four that duplicate live arts stay retired', () => {
+  it('spawn again, and the three that duplicate live arts stay retired', () => {
     for (const id of [
       'sword_precise_cut',
       'lance_piercing_drive',
       'lance_vaulting_thrust',
       'bow_longshot',
-    ])
-      expect(art(id).legacy, id).toBeUndefined();
-    for (const id of [
-      'sword_comet_edge',
-      'axe_wild_swing',
-      'axe_rending_cleave',
       'bow_hunters_focus',
     ])
+      expect(art(id).legacy, id).toBeUndefined();
+    for (const id of ['sword_comet_edge', 'axe_wild_swing', 'axe_rending_cleave'])
       expect(art(id).legacy, id).toBe(true);
   });
 
@@ -324,7 +320,7 @@ describe('Iron and Steel arts without Iron Arms or Steel Arms', () => {
     const live = arts.filter(
       (a) => ['Iron', 'Steel'].includes(a.tierAffinity) && !a.legacy && !a.scrollOnly,
     );
-    expect(live.length).toBe(41);
+    expect(live.length).toBe(42);
     for (const a of live) {
       const scroll = data.weapons.find((w) => w.teachesWeaponArtId === a.id);
       expect(scroll?.name, a.name).toBe(`${a.name} Scroll`);
