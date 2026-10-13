@@ -661,6 +661,22 @@ function templateObjective(mapTemplates, id) {
   return null;
 }
 
+/**
+ * The act a template review reaches with no `&act=`: the run's first act the template lists
+ * (`acts`, e.g. Snowbound Woods' act4 on a rung that has an Act IV), as a 1-based act number;
+ * null when it lists none, the run has none of them, or the id is unknown.
+ */
+function templateReviewAct(mapTemplates, id, actSequence) {
+  for (const list of Object.values(mapTemplates || {})) {
+    const template = Array.isArray(list) ? list.find((t) => t?.id === id) : null;
+    if (!template) continue;
+    if (!Array.isArray(template.acts) || !template.acts.length) return null;
+    const index = (actSequence || []).findIndex((act) => template.acts.includes(act));
+    return index >= 0 ? index + 1 : null;
+  }
+  return null;
+}
+
 export function buildDevStartupRoute(sourceGameData, registry, config) {
   if (!sourceGameData || !registry || !config?.enabled) return null;
   // `&setPiece=dev_vigil`: a review-only set piece (utils/devSetPieceFixtures.js) joins this
@@ -730,9 +746,15 @@ export function buildDevStartupRoute(sourceGameData, registry, config) {
   }
 
   // The set-piece and template reviews fight in Act N with `&act=N` (that act's map; never back).
-  if ((config.setPiece || config.template) && config.eventAct) {
+  // A template review with no `&act=` reaches at least the template's first act.
+  const reviewAct =
+    config.eventAct ||
+    (config.template && !config.setPiece
+      ? templateReviewAct(gameData.mapTemplates, config.template, runManager.actSequence)
+      : null);
+  if ((config.setPiece || config.template) && reviewAct) {
     const last = runManager.actSequence.length - 1;
-    while (runManager.actIndex < Math.min(config.eventAct - 1, last)) runManager.advanceAct();
+    while (runManager.actIndex < Math.min(reviewAct - 1, last)) runManager.advanceAct();
   }
   const battleNode = pickBattleNode(runManager, config.nodeType);
   const battleParams = (battleNode && runManager.getBattleParams(battleNode)) || {
@@ -770,6 +792,9 @@ export function buildDevStartupRoute(sourceGameData, registry, config) {
   if (templatePool && !setPiece) {
     battleParams.templateId = config.template;
     battleParams.objective = templatePool;
+    // The act's whole pool, never the opening battle's Fighters-only draw: the review shows the
+    // shape with the foes it meets in a run.
+    battleParams.firstBattleFightersOnly = false;
   }
   // The remains review: a Rout down to one weak Zombie beside Edric (devScenarios.js).
   if (config.preset === 'zombie_remains') {
