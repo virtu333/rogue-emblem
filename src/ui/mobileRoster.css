@@ -815,3 +815,185 @@
 .mr-lesson-actions button {
   margin: 4px 8px 0 0;
 }
+
+/* ───────── The Roster's overview (rosterOverviewModel): every unit at once ─────────
+   A grid of small cards under a header with the unit count and the deploy cap; a card
+   opens that unit's detail (Stats, Skills, Equipment, Convoy), whose Back returns here.
+   Sized so a typical roster (8-12) fits a phone's screen without scrolling: two columns
+   upright, four or five on a landscape phone, and the desktop's 960px column. */
+.mr-overview {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 2px 12px;
+}
+.mr-ov-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 10px;
+  font-size: 13px;
+  line-height: 1.2;
+  color: var(--re-muted);
+}
+.mr-ov-count {
+  color: var(--re-text);
+  white-space: nowrap;
+}
+.mr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
+  gap: 8px;
+}
+.mr-grid > p {
+  margin: 0;
+  color: var(--re-muted);
+}
+.mr-sheet .mr-ov-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  min-height: var(--re-tap-row);
+  padding: 6px 8px;
+  text-align: left;
+  line-height: 1.25;
+}
+div.mr-ov-card {
+  border: 1px solid var(--re-line-soft);
+  background: var(--re-panel);
+}
+.mr-ov-card.is-fallen {
+  opacity: 0.62;
+}
+.mr-ov-card.is-fallen .mr-ov-face {
+  filter: grayscale(1);
+}
+.mr-ov-face {
+  width: 32px;
+  height: 38px;
+  flex: none;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: var(--re-bg);
+  border: 1px solid var(--re-line);
+}
+.mr-ov-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.mr-ov-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.mr-ov-name strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+.mr-ov-name em {
+  margin-left: auto;
+  flex: none;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--re-gold);
+}
+.mr-ov-class {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--re-muted);
+}
+.mr-ov-meter {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+}
+.mr-ov-meter-label {
+  font: var(--re-t-micro);
+  color: var(--re-muted);
+  letter-spacing: 0.5px;
+}
+.mr-ov-meter.is-xp .mr-ov-meter-label {
+  color: var(--re-blue);
+}
+.mr-ov-meter .re-health,
+.mr-ov-meter .re-xp {
+  margin: 0;
+  min-width: 0;
+}
+.mr-ov-meter .re-xp {
+  height: 4px;
+}
+.mr-ov-meter small {
+  min-width: 34px;
+  text-align: right;
+  color: var(--re-muted);
+  font: var(--re-t-micro);
+  font-variant-numeric: tabular-nums;
+}
+.mr-ov-marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 1px;
+}
+.mr-mark {
+  padding: 0 4px;
+  border: 1px solid var(--re-line);
+  font: var(--re-t-micro);
+  line-height: 1.5;
+  white-space: nowrap;
+  color: var(--re-muted);
+}
+.mr-mark.is-gold {
+  color: var(--re-accent-text);
+  border-color: var(--re-gold);
+}
+.mr-mark.is-good {
+  color: var(--re-good);
+  border-color: var(--re-good);
+}
+.mr-mark.is-bad {
+  color: var(--re-bad);
+  border-color: var(--re-bad);
+}
+.mr-sheet h3.mr-ov-fallen-head {
+  margin-top: 16px;
+}
+@media (min-width: 1000px) and (min-height: 600px) {
+  .mr-sheet.is-overview > header,
+  .mr-sheet > .mr-overview {
+    width: 100%;
+    max-width: 960px;
+    margin-inline: auto;
+  }
+  .mr-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+}
+/* Upright phones: two columns, a smaller face, so a dozen units fit one screen. */
+@media (orientation: portrait) {
+  html.portrait-ui .mr-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 6px;
+  }
+  html.portrait-ui .mr-sheet .mr-ov-card {
+    gap: 6px;
+    padding: 5px 6px;
+  }
+  html.portrait-ui .mr-ov-face {
+    width: 28px;
+    height: 33px;
+  }
+}

@@ -148,6 +148,10 @@ export function openFormationRoster(scene, unit = null, { tries = 0 } = {}) {
     units: rm.roster,
     index: Math.max(0, index),
     run: rm,
+    // Opened on a unit: its detail first, the overview behind Back.
+    overview: true,
+    startInDetail: index >= 0,
+    isDeployed: (u) => memory.deployed.includes(unitIdentityKey(u)),
     // Where Close leads: placement, with everyone where they stood.
     closeLabel: 'Back to formation',
     onClose: () => {

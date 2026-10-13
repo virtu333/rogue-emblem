@@ -198,6 +198,7 @@ export class RosterOverlay {
         gameData: this.gameData,
         portraitKey: (unit) => this._getPortraitKey(unit),
         run: this.runManager,
+        overview: true,
         onClose: () => this.hide(),
       });
       return;

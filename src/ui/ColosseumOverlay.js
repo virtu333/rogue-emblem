@@ -176,6 +176,7 @@ export class ColosseumOverlay {
       run,
       units,
       index: Math.max(0, units.indexOf(unit)),
+      overview: Boolean(run) && !unit,
       gameData: this.gameData,
       onClose: () => {
         this._sheet?.destroy();
