@@ -61,8 +61,11 @@ test('commands have readable targets, toggle feedback and reversible end-turn co
   await hud.getByRole('button', { name: 'End turn…', exact: true }).tap();
   await expect(hud.getByRole('button', { name: 'End turn now' })).toBeVisible();
   expect(await page.evaluate(() => window.__sceneState.battle.state)).toBe('PLAYER_IDLE');
-  await hud.getByRole('button', { name: 'Keep playing' }).tap();
+  // No Keep playing button: Back (Escape) closes the confirm without ending the turn.
+  await expect(hud.getByRole('button', { name: 'Keep playing' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
   await expect(hud.getByRole('button', { name: 'End turn…', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => window.__sceneState.battle.state)).toBe('PLAYER_IDLE');
   // Compact sidebar contract (docs/battle-sidebar-2026-09-22.md): main commands keep a 38px
   // minimum so End turn stays visible at 667x375; bottom navigation keeps 44px.
   const heights = (loc) =>

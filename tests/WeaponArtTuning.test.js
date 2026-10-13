@@ -230,20 +230,16 @@ describe('revived legacy arts', () => {
     ).attacker;
   };
 
-  it('spawn again, and the four that duplicate live arts stay retired', () => {
+  it('spawn again, and the three that duplicate live arts stay retired', () => {
     for (const id of [
       'sword_precise_cut',
       'lance_piercing_drive',
       'lance_vaulting_thrust',
       'bow_longshot',
-    ])
-      expect(art(id).legacy, id).toBeUndefined();
-    for (const id of [
-      'sword_comet_edge',
-      'axe_wild_swing',
-      'axe_rending_cleave',
       'bow_hunters_focus',
     ])
+      expect(art(id).legacy, id).toBeUndefined();
+    for (const id of ['sword_comet_edge', 'axe_wild_swing', 'axe_rending_cleave'])
       expect(art(id).legacy, id).toBe(true);
   });
 
@@ -265,6 +261,39 @@ describe('revived legacy arts', () => {
     expect(strike('bow_longshot', 'Iron Bow', 'Iron Sword', 'Plain', 2).damage).toBe(
       strike(null, 'Iron Bow', 'Iron Sword', 'Plain', 2).damage + 4,
     );
+  });
+
+  it('Smash, Vaulting Thrust and Focused Bolt are the sure strikes against dodgy foes', () => {
+    // Each adds 25 hit over a plain strike and ignores the foe's cover (owner, 2026-10-13).
+    const foeFast = { SPD: 20 };
+    const mageStrike = (artId, foeTerrain) => {
+      const attacker = unit('Fire', 'player', { MAG: 8 });
+      attacker.proficiencies.push({ type: 'Tome', rank: 'Prof' });
+      const foe = unit('Iron Sword', 'enemy', foeFast);
+      const mods = artId ? { atkWeaponArtMods: getWeaponArtCombatMods(art(artId)) } : null;
+      return getCombatForecast(
+        attacker,
+        attacker.weapon,
+        foe,
+        foe.weapon,
+        1,
+        terrain('Plain'),
+        terrain(foeTerrain),
+        mods,
+      ).attacker;
+    };
+    for (const [id, weapon] of [
+      ['axe_smash', 'Iron Axe'],
+      ['lance_vaulting_thrust', 'Iron Lance'],
+    ]) {
+      const plain = strike(null, weapon, 'Iron Sword', 'Plain');
+      const open = strike(id, weapon, 'Iron Sword', 'Plain');
+      expect(open.hit - plain.hit, id).toBe(25);
+      expect(strike(id, weapon, 'Iron Sword', 'Forest').hit, id).toBe(open.hit);
+    }
+    const bolt = mageStrike('magic_focused_bolt', 'Plain');
+    expect(bolt.hit - mageStrike(null, 'Plain').hit).toBe(25);
+    expect(mageStrike('magic_focused_bolt', 'Forest').hit).toBe(bolt.hit);
   });
 
   it('Piercing Drive takes no triangle penalty against an axe', () => {
@@ -291,7 +320,7 @@ describe('Iron and Steel arts without Iron Arms or Steel Arms', () => {
     const live = arts.filter(
       (a) => ['Iron', 'Steel'].includes(a.tierAffinity) && !a.legacy && !a.scrollOnly,
     );
-    expect(live.length).toBe(41);
+    expect(live.length).toBe(42);
     for (const a of live) {
       const scroll = data.weapons.find((w) => w.teachesWeaponArtId === a.id);
       expect(scroll?.name, a.name).toBe(`${a.name} Scroll`);
