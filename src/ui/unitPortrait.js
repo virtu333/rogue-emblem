@@ -15,6 +15,8 @@ import { promotedFromName } from '../engine/ClassLineage.js';
 export const ROSTER_DESKTOP_QUERY = '(min-width: 1000px) and (min-height: 600px)';
 const PC98_SLOTS = Object.freeze({
   'mr-unit-face': { size: 32 },
+  // The Roster overview's cards (rosterOverviewModel): 32px, 28px upright.
+  'mr-ov-face': { size: 32 },
   'mr-portrait': { size: 40, media: [[ROSTER_DESKTOP_QUERY, 64]] },
   // The Entity rally's speaker card (rallyCard.css): 64px, 96px on a large desktop.
   'rc-face': { size: 64, media: [[ROSTER_DESKTOP_QUERY, 96]] },

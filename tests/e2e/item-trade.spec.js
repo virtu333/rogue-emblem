@@ -9,7 +9,14 @@
 // to slot 0; an accessory swap unequips both, then equips crosswise (unequipping
 // keeps missing HP, equipping adds the HP bonus to current HP).
 import { test, expect } from '@playwright/test';
-import { waitForBattleState, waitForScene, installSimPad, padTap } from './helpers.js';
+import {
+  waitForBattleState,
+  waitForScene,
+  installSimPad,
+  padTap,
+  openRosterUnit,
+  closeRoster,
+} from './helpers.js';
 
 const VIEWPORTS = [
   { name: 'desktop-1280x800', width: 1280, height: 800, phone: false },
@@ -130,9 +137,10 @@ async function expectSaved(page, sceneKey, expected) {
 
 const withUid = (names, prefix, order) => order.map((i) => `${names[i - 1]}#${prefix}${i}`);
 
-/** Open the roster sheet on Edric's Equipment tab (the sheet opens on the first unit). */
+/** Open the roster sheet on Edric's Equipment tab (the overview's first card is Edric). */
 async function equipmentTab(page, vp, sheet) {
   await expect(sheet).toBeVisible();
+  await openRosterUnit(sheet, 'Edric', { tap: vp.phone });
   await press(vp, sheet.getByRole('button', { name: 'Equipment', exact: true }));
   await expect(sheet.getByRole('heading', { name: /^Equipment · 5\/5/ })).toBeVisible();
 }
@@ -348,6 +356,7 @@ for (const vp of VIEWPORTS) {
       );
       const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
       await expect(sheet).toBeVisible();
+      await openRosterUnit(sheet, 'Edric', { tap: vp.phone });
       await press(vp, sheet.getByRole('button', { name: 'Convoy', exact: true }));
       const card = itemCard(sheet, 'Convoy Blade 2');
       await card.scrollIntoViewIfNeeded();
@@ -465,7 +474,7 @@ for (const vp of VIEWPORTS) {
       });
       await page.screenshot({ path: info.outputPath(`${vp.name}-shop-trade.png`) });
       await press(vp, menu.getByRole('button', { name: 'Done', exact: true }));
-      await press(vp, sheet.getByRole('button', { name: 'Close', exact: true }));
+      await closeRoster(sheet, 'Close', { tap: vp.phone });
       await expect(sheet).toHaveCount(0);
       await expect(shop).toBeVisible();
     });
@@ -526,7 +535,7 @@ for (const vp of VIEWPORTS) {
       });
       await page.screenshot({ path: info.outputPath(`${vp.name}-rewards-trade.png`) });
       await press(vp, menu.getByRole('button', { name: 'Done', exact: true }));
-      await press(vp, sheet.getByRole('button', { name: 'Close', exact: true }));
+      await closeRoster(sheet, 'Close', { tap: vp.phone });
       await expect(rewards).toBeVisible();
     });
 
@@ -551,6 +560,7 @@ for (const vp of VIEWPORTS) {
       );
       const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
       await expect(sheet).toBeVisible();
+      await openRosterUnit(sheet, 'Edric', { tap: vp.phone });
       await press(vp, sheet.getByRole('button', { name: 'Equipment', exact: true }));
       await expect(sheet.getByRole('heading', { name: /^Equipment · 1\/5/ })).toBeVisible();
 
@@ -617,7 +627,9 @@ for (const vp of VIEWPORTS) {
       });
       const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
       await expect(sheet).toBeVisible();
-      // Stats → Skills → Equipment, then down to Trade with….
+      // The overview's first card is focused: A opens Edric. Stats → Skills → Equipment,
+      // then down to Trade with….
+      await padTap(page, BTN.A);
       await padTap(page, BTN.RIGHT);
       await padTap(page, BTN.RIGHT);
       await expect(sheet.getByRole('heading', { name: /^Equipment · 5\/5/ })).toBeVisible();
@@ -683,7 +695,9 @@ for (const vp of VIEWPORTS) {
       await padTap(page, BTN.B);
       await expect(menu).toHaveCount(0);
       await expect(sheet).toBeVisible();
-      // The sheet has input again: B now closes it.
+      // The sheet has input again: B steps back to the overview, then closes it.
+      await padTap(page, BTN.B);
+      await expect(sheet.locator('nav.mr-grid')).toBeVisible();
       await padTap(page, BTN.B);
       await expect(sheet).toHaveCount(0);
     });

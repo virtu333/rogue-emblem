@@ -14,7 +14,7 @@
 //   - the unit strip loses the selected card off its edge;
 //   - any of it leaks into landscape: boxes move at 844x390 or 640x480.
 import { test, expect, devices } from '@playwright/test';
-import { waitForGame, waitForScene } from './helpers.js';
+import { waitForGame, waitForScene, openRosterUnit, closeRoster } from './helpers.js';
 
 // A phone: touch, coarse pointer, mobile layout. Each group sets its own viewport.
 test.use({ ...devices['iPhone 13'] });
@@ -391,9 +391,14 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
 
     test('roster: unit strip over a full-width detail, readable stats', async ({ page }) => {
       const sheet = await openRoster(page);
+      // The overview first: a card per unit, its Close in reach, nothing sideways.
+      await expect(sheet.locator('nav.mr-grid button.mr-ov-card')).toHaveCount(3);
+      await expectNoSidewaysScroll(page, '.mr-sheet');
+      await expectReachable(sheet.getByRole('button', { name: 'Close', exact: true }));
+      await openRosterUnit(sheet, null, { tap: true });
       await expectNoSidewaysScroll(page, '.mr-sheet');
       await expectTabsOnOneLineAndVisible(page, '.mr-tabs button', 4);
-      await expectReachable(sheet.getByRole('button', { name: 'Close', exact: true }));
+      await expectReachable(sheet.getByRole('button', { name: 'Back', exact: true }));
       await expectStacked(page, '.mr-units', '.mr-content');
       await expectStatGridReadable(page);
       await expectExpRows(page);
@@ -410,7 +415,7 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
       await expect(sheet.getByRole('heading', { name: /^Equipment/ })).toBeVisible();
       await expectNoSidewaysScroll(page, '.mr-sheet');
       await page.screenshot({ path: test.info().outputPath(`roster-${size}.png`) });
-      await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
+      await closeRoster(sheet, 'Close', { tap: true });
       await expect(sheet).toHaveCount(0);
     });
 
@@ -422,10 +427,9 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
         const first = units[0];
         for (let i = 0; i < 14; i++)
           units.push({ ...first, name: `A very long traveling companion name ${i}` });
-        overlay._mobileSheet.index = units.findIndex(
-          (unit) => unit.name === 'A very long traveling companion name 10',
+        overlay._mobileSheet.openUnit(
+          units.findIndex((unit) => unit.name === 'A very long traveling companion name 10'),
         );
-        overlay._mobileSheet.render();
       });
       const strip = sheet.locator('.mr-units');
       const layout = await measure(page, () => {
@@ -603,10 +607,12 @@ for (const viewport of PORTRAIT_VIEWPORTS) {
       await rewards.locator('[data-focus="Roster"]').tap();
       const sheet = page.getByRole('dialog', { name: 'Manage roster' });
       await expect(sheet).toBeVisible();
+      await expectNoSidewaysScroll(page, '.mr-sheet');
+      await openRosterUnit(sheet, null, { tap: true });
       await expectTabsOnOneLineAndVisible(page, '.mr-tabs button', 4);
       await expectStatGridReadable(page);
       await expectNoSidewaysScroll(page, '.mr-sheet');
-      await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
+      await closeRoster(sheet, 'Close', { tap: true });
       await expect(sheet).toHaveCount(0);
       await expect(rewards).toBeVisible();
     });
@@ -775,7 +781,9 @@ for (const [width, height] of [
     });
 
     test('roster', async ({ page }) => {
-      await openRoster(page);
+      const sheet = await openRoster(page);
+      // The overview first; its first card opens the detail whose columns are pinned.
+      await openRosterUnit(sheet, null, { tap: true });
       await expectPins(page, size, 'roster');
       await expectClassInert(page, 'roster');
       // Three pairs per row keep Fire Emblem order (only the upright grid swaps).

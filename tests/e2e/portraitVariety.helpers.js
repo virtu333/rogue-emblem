@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { waitForGame, waitForScene } from './helpers.js';
+import { waitForGame, waitForScene, openRosterUnit, closeRoster } from './helpers.js';
 
 // Portrait variety (src/engine/PortraitVariants.js): two recruits of the same
 // class wear different faces in the roster, on a phone and on desktop; every
@@ -41,6 +41,23 @@ export async function openRosterWithTwoFighters(page) {
   });
   const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
   await expect(sheet).toBeVisible();
+  // The Roster opens on its overview, whose cards wear the two faces too; a card then
+  // opens the detail, whose unit strip and summary the callers read.
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('.mr-ov-card img')].every((i) => i.complete),
+  );
+  const cards = await page.evaluate(() =>
+    [...document.querySelectorAll('.mr-ov-card')].map((c) => ({
+      name: c.getAttribute('aria-label'),
+      id: c.querySelector('img[data-portrait-id]')?.dataset.portraitId || null,
+    })),
+  );
+  const bram = cards.find((c) => c.name.startsWith('Bram'));
+  const roderick = cards.find((c) => c.name.startsWith('Roderick'));
+  expect(bram?.id).toBeTruthy();
+  expect(roderick?.id).toBeTruthy();
+  expect(bram.id).not.toBe(roderick.id);
+  await openRosterUnit(sheet, 'Bram');
   return { sheet, faces };
 }
 
@@ -78,11 +95,8 @@ export async function expectDistinctFighters(page, faces) {
 
 /** Colosseum merc board and church lists show each unit's face; screenshots per viewport. */
 export async function servicesShowFaces(page, suffix) {
-  await openRosterWithTwoFighters(page);
-  await page
-    .getByRole('dialog', { name: 'Manage roster', exact: true })
-    .getByRole('button', { name: 'Close', exact: true })
-    .click();
+  const { sheet } = await openRosterWithTwoFighters(page);
+  await closeRoster(sheet);
   await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
     s.runManager.gold = 10000;

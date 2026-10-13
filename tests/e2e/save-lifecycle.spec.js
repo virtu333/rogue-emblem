@@ -3,7 +3,7 @@
 // it intact. The native-mirror case fakes the Capacitor bridge + Filesystem
 // plugin and then evicts localStorage the way iOS can under storage pressure.
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene, openRosterUnit } from './helpers.js';
 
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
 test.setTimeout(120_000);
@@ -142,6 +142,7 @@ test('roster sheet: an accessory change is saved before the sheet closes', async
   });
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
   const roster = page.locator('.mr-sheet');
+  await openRosterUnit(roster, null, { tap: true });
   await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
   await roster.getByRole('button', { name: 'Equip accessory', exact: true }).first().tap();
   // Saved as it applied — the sheet is still open.
