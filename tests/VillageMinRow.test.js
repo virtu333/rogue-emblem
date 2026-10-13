@@ -1,9 +1,11 @@
 // First Light keeps villages out of Act 1's first three node rows (difficulty.json
 // `villageMinRow`), so a new player's opening fights never open with a scripted bandit
-// wave that reads as reinforcements. Ways it can go wrong, one test each:
+// wave that reads as reinforcements. Dusk, Nightfall and Black Sun keep them off the
+// opening map only (row 0): its bandits arrived on turn 2 (owner, 2026-10-12). Ways it
+// can go wrong, one test each:
 //   - the gate is missing, or covers the wrong rows (a village at row 0-2 on First Light,
-//     or none at all from row 3 on);
-//   - the gate leaks to Dusk / Nightfall / Black Sun, or to another act;
+//     or at row 0 on a harder rung, or none at all past the gate);
+//   - the gate leaks to another act;
 //   - the gate skips the village roll instead of discarding it, shifting the node-map
 //     stream and changing the whole map;
 //   - RunManager does not hand the rung's rule to either generateNodeMap call site;
@@ -13,12 +15,20 @@ import { generateNodeMap, villageMinRowFor } from '../src/engine/NodeMapGenerato
 import { resolveDifficultyMode, validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
 import { createSeededRng } from '../src/engine/BlessingEngine.js';
 import { RunManager } from '../src/engine/RunManager.js';
+import {
+  applyGenerationFields,
+  battleGenerationSeed,
+  generateSeededBattle,
+} from '../src/engine/BattleScout.js';
 import { ACT_CONFIG, NODE_TYPES } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 const SEEDS = 300;
 const GATED_ROWS = 3;
+// Dusk, Nightfall and Black Sun: the opening map only.
+const HARDER_RUNGS = ['dusk', 'hard', 'lunatic'];
+const HARDER_GATED_ROWS = 1;
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -44,10 +54,10 @@ function villageRows(act, rule) {
 }
 
 describe('villageMinRow data', () => {
-  it('only First Light carries the rule, and it covers Act 1 rows 0-2', () => {
+  it('First Light covers Act 1 rows 0-2; the harder rungs Act 1 row 0', () => {
     expect(data.difficulty.modes.normal.villageMinRow).toEqual({ act1: GATED_ROWS });
-    for (const id of ['dusk', 'hard', 'lunatic']) {
-      expect(ruleOf(id), id).toBeNull();
+    for (const id of HARDER_RUNGS) {
+      expect(ruleOf(id), id).toEqual({ act1: HARDER_GATED_ROWS });
     }
   });
 
@@ -85,9 +95,15 @@ describe('node maps', () => {
     expect(Math.min(...rows)).toBe(GATED_ROWS);
   });
 
-  it.each(['dusk', 'hard', 'lunatic'])('%s Act 1 rows 0-2 can still roll villages', (id) => {
+  it.each(HARDER_RUNGS)('%s Act 1: no village on row 0, rows 1-2 still roll them', (id) => {
     const rows = villageRows('act1', ruleOf(id));
-    expect(rows.filter((r) => r < GATED_ROWS).length).toBeGreaterThan(20);
+    expect(rows.filter((r) => r < HARDER_GATED_ROWS)).toEqual([]);
+    expect(rows.filter((r) => r >= HARDER_GATED_ROWS && r < GATED_ROWS).length).toBeGreaterThan(20);
+  });
+
+  it.each(HARDER_RUNGS)('%s Act 2 row 0 can still roll villages', (id) => {
+    const rows = villageRows('act2', ruleOf(id));
+    expect(rows.filter((r) => r < HARDER_GATED_ROWS).length).toBeGreaterThan(5);
   });
 
   it('First Light Act 2 and Act 3 rows 0-2 can still roll villages', () => {
@@ -147,13 +163,39 @@ describe('RunManager hands the rung rule to the node map', () => {
     expect(later).toBeGreaterThan(0);
   });
 
-  it('a Dusk run does not get the gate', () => {
+  it.each(HARDER_RUNGS)('a %s run gates only the opening map', (id) => {
     let early = 0;
     for (let seed = 1; seed <= 120; seed++) {
-      early += rowsWithVillage(startRun('dusk', seed)).filter((r) => r < GATED_ROWS).length;
+      const rows = rowsWithVillage(startRun(id, seed));
+      expect(
+        rows.filter((r) => r < HARDER_GATED_ROWS),
+        `seed ${seed}`,
+      ).toEqual([]);
+      early += rows.filter((r) => r < GATED_ROWS).length;
     }
     expect(early).toBeGreaterThan(0);
   });
+
+  it.each(HARDER_RUNGS)(
+    'a %s run opens on a map with no turn-1 bandit wave (nothing arrives before the ladder)',
+    (id) => {
+      for (let seed = 1; seed <= 120; seed++) {
+        const rm = startRun(id, seed);
+        for (const node of rm.nodeMap.nodes.filter((n) => n.row === 0 && n.battleParams)) {
+          const params = rm.getBattleParams(node);
+          applyGenerationFields(params, { deployCount: 2, isBoss: false });
+          const seedFor = battleGenerationSeed(params, { runSeed: rm.runSeed, nodeId: node.id });
+          const config = generateSeededBattle(params, data, seedFor);
+          expect(config.villageTile ?? null, `seed ${seed}`).toBeNull();
+          expect(config.reinforcements?.scriptedWaves ?? [], `seed ${seed}`).toEqual([]);
+          const firstWave = Math.min(
+            ...(config.reinforcements?.ladder?.waves ?? []).map((w) => w.turn),
+          );
+          expect(firstWave, `seed ${seed}`).toBeGreaterThanOrEqual(4);
+        }
+      }
+    },
+  );
 
   it('advancing into Act 2 on First Light lifts the gate', () => {
     let early = 0;
@@ -186,7 +228,7 @@ describe('RunManager hands the rung rule to the node map', () => {
 
   it('a saved run keeps its saved node map, villages and all (no migration)', () => {
     for (let seed = 1; seed <= 60; seed++) {
-      const rm = startRun('hard', seed); // Act 1 rows 0-2 may hold villages here
+      const rm = startRun('hard', seed); // Act 1 rows 1-2 may hold villages here
       const saved = JSON.parse(JSON.stringify(rm.toJSON()));
       const loaded = RunManager.fromJSON(saved, data);
       expect(loaded.nodeMap).toEqual(rm.nodeMap);
