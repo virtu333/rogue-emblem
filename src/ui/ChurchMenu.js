@@ -1,5 +1,5 @@
 import { specialCharacterEntries } from '../engine/SpecialCharacterDialogue.js';
-import { revivalCatchUpPlan } from '../engine/RevivalCatchUp.js';
+import { revivalCatchUpPlan, REVIVAL_LEVELS_BEHIND } from '../engine/RevivalCatchUp.js';
 import { PromotionPathChooser } from './PromotionPathChooser.js';
 import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
@@ -21,6 +21,8 @@ import {
   churchPromotionBlock,
   promoteAtChurch,
   churchReviveBlock,
+  churchRevivesLeft,
+  CHURCH_REVIVE_LIMIT_LINE,
   reviveAtChurch,
   churchKindleBlock,
   healRosterAtChurch,
@@ -34,6 +36,9 @@ import {
   healAtRuins,
   ruinsReviveBlock,
   reviveAtRuins,
+  ruinsReviveInjury,
+  ruinsReviveSpent,
+  RUINS_REVIVE_SPENT_LINE,
 } from '../engine/RuinsCommands.js';
 import { eclipsePhase, kindlePrice } from '../engine/EclipseSystem.js';
 import {
@@ -59,6 +64,7 @@ import { createEclipseSunCanvas } from '../art/eclipse/eclipseSun.js';
 import {
   CHURCH_PROMOTE_COST_LORD,
   CHURCH_PROMOTE_COST_RECRUIT,
+  CHURCH_REVIVE_LIMIT,
   RUINS_SHOP_MARKUP,
   INVENTORY_MAX,
 } from '../utils/constants.js';
@@ -78,6 +84,13 @@ const ruinsMarkupPct = () => Math.round((RUINS_SHOP_MARKUP - 1) * 100);
 // The Old Sanctum (engine/SanctumPass.js): a church whose vow offers an earned blessing.
 export const SANCTUM_TITLE = 'Old Sanctum';
 export const SANCTUM_BLESSING_HEADING = 'Earned blessing · Free';
+/** What a Ruins revival costs besides gold: one revival here, and an injury. */
+function ruinsInjuryLine(run, unit) {
+  const injury = ruinsReviveInjury(run, unit);
+  const battles = `${injury.battles} ${injury.battles === 1 ? 'battle' : 'battles'}`;
+  return `The only revival these ruins allow. Returns with a lingering injury: ${injury.value} ${injury.stat} for ${battles}, until a church heals it. `;
+}
+
 /** The title a church's menu wears: the Ruins', the Old Sanctum's or a church's. */
 function serviceTitle(scene) {
   if (scene._churchRuinsMode) return 'Ruins sanctuary';
@@ -110,7 +123,7 @@ export function churchPromoteNote(unit, run) {
 
 export function ruinsPathLabel(path) {
   return path === 'rest'
-    ? 'Rest — heal everyone, revive the fallen'
+    ? 'Rest — heal everyone, revive one fallen'
     : `Scavenge — the ruins' wares (+${ruinsMarkupPct()}%)`;
 }
 export class ChurchMenu {
@@ -193,13 +206,35 @@ export class ChurchMenu {
       }),
     );
     // A lingering injury is mended by this heal, with no vow: say so where the player looks for a cure.
-    const woundLine = woundHealLine(run);
+    const woundLine = woundHealLine(run, { nodeId: ruins ? nodeId : null });
     if (woundLine) body.append(el('p', woundLine, 'church-wound-line'));
     if (!ruins) this.renderKindle(body, run);
     const reviveBlock = (u) =>
-      ruins ? ruinsReviveBlock(run, nodeId, u) : churchReviveBlock(run, u);
+      ruins ? ruinsReviveBlock(run, nodeId, u) : churchReviveBlock(run, u, nodeId);
     body.append(el('h3', 'Revive fallen ally'));
     if (!run.fallenUnits.length) body.append(el('p', 'No fallen allies.'));
+    else if (ruins)
+      body.append(
+        el(
+          'p',
+          ruinsReviveSpent(run, nodeId)
+            ? RUINS_REVIVE_SPENT_LINE
+            : 'The ruins give back only one of the fallen, and they return injured.',
+          'ruins-revive-rule',
+        ),
+      );
+    else {
+      const left = churchRevivesLeft(run, nodeId);
+      body.append(
+        el(
+          'p',
+          left > 0
+            ? `This church revives up to ${CHURCH_REVIVE_LIMIT} of the fallen · ${left} left.`
+            : CHURCH_REVIVE_LIMIT_LINE,
+          'church-revive-rule',
+        ),
+      );
+    }
     for (const unit of run.fallenUnits) {
       const reason = reviveBlock(unit);
       const catchUp = revivalCatchUpPlan(unit, run.roster);
@@ -210,10 +245,10 @@ export class ChurchMenu {
           confirmation: true,
           label: (u) => u.name,
           describe: () =>
-            `${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels toward the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'}${starterLine(unit, this.scene.gameData)} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
+            `${ruins ? ruinsInjuryLine(run, unit) : ''}${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels, to ${REVIVAL_LEVELS_BEHIND} below the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'}${starterLine(unit, this.scene.gameData)} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
           blocked: (u) => reviveBlock(u),
           apply: (u) => {
-            const result = ruins ? reviveAtRuins(run, nodeId, u) : reviveAtChurch(run, u);
+            const result = ruins ? reviveAtRuins(run, nodeId, u) : reviveAtChurch(run, u, nodeId);
             const line = specialCharacterEntries(this.scene.gameData, u, 'revival')[0]?.line;
             return this.finish(
               result.ok && line
@@ -421,12 +456,14 @@ export class ChurchMenu {
         path: 'rest',
         title: 'Rest here?',
         confirmLabel: 'Rest',
-        describe: `Every unit is healed now, free.${fallen ? ` You can then revive the fallen for gold (${fallen} waiting).` : ''} The wares stay buried. This cannot be undone.`,
+        describe: `Every unit is healed now, free.${fallen ? ` You can then revive one of the fallen for gold (${fallen} waiting); they return with a lingering injury.` : ''} The wares stay buried. This cannot be undone.`,
         // What each path gives and costs, a line each (shown on upright phones; the
         // button's description everywhere).
         effects: [
           'Heal every unit now · Free',
-          fallen ? `Revive the fallen for gold · ${fallen} waiting` : 'No fallen allies to revive',
+          fallen
+            ? `Revive one fallen ally for gold · ${fallen} waiting`
+            : 'No fallen allies to revive',
           'The wares stay buried',
         ],
       },

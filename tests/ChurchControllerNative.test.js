@@ -57,7 +57,7 @@ const bodyText = () =>
     .all()
     .map((n) => n.textContent)
     .join(' | ');
-const REST = 'Rest — heal everyone, revive the fallen';
+const REST = 'Rest — heal everyone, revive one fallen';
 const SCAVENGE = "Scavenge — the ruins' wares (+25%)";
 const savedChoice = (id) => loadRun(d.data, 1).ruinsChoiceByNodeId[id] ?? null;
 

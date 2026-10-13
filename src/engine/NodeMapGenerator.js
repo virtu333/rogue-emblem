@@ -7,6 +7,7 @@ import { rollBiome, getTemplateBiome } from './MapGenerator.js';
 import { rollCaravanSpawn, templateAllowsCaravan } from './CaravanSystem.js';
 import { rollVillageSpawn } from './VillageSystem.js';
 import { createScopedLogger } from '../utils/logger.js';
+import { isTemplateDrawable } from './TemplateLayout.js';
 
 const DEBUG_MAP_GEN = false;
 const nodeMapLog = createScopedLogger('NodeMapGen', { debug: DEBUG_MAP_GEN });
@@ -688,9 +689,10 @@ export function pickTemplateForNode(
   { caravan = false } = {},
 ) {
   if (!mapTemplates) return null;
-  const pool = mapTemplates[objective];
-  if (!pool || pool.length === 0) {
-    const routPool = mapTemplates.rout || [];
+  // A template switched off (`enabled: false`, TemplateLayout.js) is never drawn for a node.
+  const pool = (mapTemplates[objective] || []).filter(isTemplateDrawable);
+  if (pool.length === 0) {
+    const routPool = (mapTemplates.rout || []).filter(isTemplateDrawable);
     const actFilteredRout = actId
       ? routPool.filter((t) => !Array.isArray(t.acts) || t.acts.includes(actId))
       : routPool;
