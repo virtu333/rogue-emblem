@@ -2,6 +2,7 @@
 
 import { DIFFICULTY_IDS } from './DifficultyEngine.js';
 import { ENTITY_FOOTPRINT } from '../utils/constants.js';
+import { validateTemplateLayout } from './TemplateLayout.js';
 
 export const REINFORCEMENT_CONTRACT_VERSION = 1;
 
@@ -512,7 +513,7 @@ function validateZone(path, zone, errors) {
     return;
   }
 
-  const knownZoneKeys = new Set(['rect', 'terrain', 'role', 'priority']);
+  const knownZoneKeys = new Set(['rect', 'terrain', 'role', 'priority', 'group']);
   if (!hasOnlyKnownKeys(zone, knownZoneKeys)) {
     errors.push(`${path} contains unknown keys`);
   }
@@ -984,6 +985,17 @@ function validateTerrainNameReferences(path, template, terrainNames, errors) {
       }
     });
   }
+  // A choice's options add zones of their own (TemplateLayout.js).
+  (Array.isArray(template.choices) ? template.choices : []).forEach((choice, ci) => {
+    (Array.isArray(choice?.options) ? choice.options : []).forEach((option, oi) => {
+      (Array.isArray(option?.zones) ? option.zones : []).forEach((zone, zi) => {
+        if (!isObject(zone?.terrain)) return;
+        for (const name of Object.keys(zone.terrain)) {
+          check(name, `${path}.choices[${ci}].options[${oi}].zones[${zi}].terrain`);
+        }
+      });
+    });
+  });
   if (Array.isArray(template.structures)) {
     template.structures.forEach((s, i) => {
       if (!isObject(s)) return;
@@ -1105,6 +1117,10 @@ export function validateMapTemplatesConfig(config, options = {}) {
         'minBridgesByAct',
         'fixedSize',
         'entitySpawn',
+        'enabled',
+        'extraEnemies',
+        'mirror',
+        'choices',
       ]);
       if (!hasOnlyKnownKeys(template, knownTemplateKeys)) {
         errors.push(`${path} contains unknown keys`);
@@ -1254,6 +1270,8 @@ export function validateMapTemplatesConfig(config, options = {}) {
         validateAnchors(`${path}.anchors`, template.anchors, errors);
       }
       validateBridges(path, template, errors);
+      // Per-battle shape and enemy groups (TemplateLayout.js).
+      validateTemplateLayout(path, template, objective, errors, { validateZone, validateFeatures });
       if (template.caravan !== undefined && typeof template.caravan !== 'boolean') {
         errors.push(`${path}.caravan must be a boolean when provided`);
       }

@@ -535,6 +535,7 @@
     "generic-blessing": [358, 5, 7],
     "generic-upgrade": [359, 6, 5],
     "greycord": [62, 0, 1],
+    "hunters-focus-scroll": [130, 1, 3],
     "upgrade-branching_threads": [262, 6, 5],
     "blessing-slow_fuse": [246, 5, 8],
     "blessing-gamblers_toss": [218, 5, 9],
@@ -575,6 +576,7 @@
   },
   "aliases": {
     "greycord": "gravesong",
+    "hunters-focus-scroll": "encloser-scroll",
     "upgrade-branching_threads": "blessing-focused_curriculum",
     "blessing-slow_fuse": "blessing-scout_blessing",
     "blessing-gamblers_toss": "gamblers-coin",

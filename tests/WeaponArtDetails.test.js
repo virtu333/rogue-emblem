@@ -26,13 +26,25 @@ it('explains area amounts, radius, lines and target picks', () => {
   expect(details('Piercing Charge')).toContain(
     'Area: a 100% blow to each enemy up to 1 tile behind the target, per hit',
   );
-  // A push needs its user next to the target (Overrun).
-  expect(details('Overrun')).toContain('push the target back 1 tile (only when next to it)');
+  // A dash needs its user next to the target; Overrun's is one tile (owner, 2026-10-13).
+  expect(details('Overrun')).toContain(
+    'On hit: dash on through the target, landing on the tile behind it (only when next to it)',
+  );
+  expect(details('Phantom Rush')).toContain(
+    'dash on through the target and the 2 tiles behind it, landing as far as 3 tiles past it',
+  );
   // Doomblade's leap (docs/specs/legendary-arts-rework.md §5).
   expect(details('Lionheart Thrust')).toContain(
     'Leap: jump to a free tile 1-2 away, over units: an 80% blow to each enemy next to where you land; no counter',
   );
 });
+it("explains a self-only buff (Hunter's Focus) without naming allies", () => {
+  expect(details("Hunter's Focus")).toContain(
+    'On hit: you get +15 HIT, +2 SPD until the end of your next turn',
+  );
+  expect(details("Hunter's Focus")).not.toContain('allies');
+});
+
 it('explains ally buffs, exclusions and duration', () => {
   // The user is left out unless the data says includeSelf.
   expect(details('Rallying Blow')).toContain(
