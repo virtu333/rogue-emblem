@@ -1519,6 +1519,7 @@ describe('RunManager', () => {
         defeatedBy: 'Warchief',
         wasBossDefeat: true,
         lordFalls: ['Sera'],
+        narrativeSeen: {},
       });
       expect(rm.endRunRewards.firstClear).toBe(false);
     });
