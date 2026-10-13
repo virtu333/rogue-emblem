@@ -2,7 +2,13 @@
 // icons from the atlases, painted heroes in detail panes, service vignettes (desktop
 // band / phone backdrop), the upgrade purchase moment, and no legacy icon textures.
 import { test, expect } from '@playwright/test';
-import { waitForBattleState, waitForGame, waitForScene, collectErrors } from './helpers.js';
+import {
+  waitForBattleState,
+  waitForGame,
+  waitForScene,
+  collectErrors,
+  openRosterUnit,
+} from './helpers.js';
 
 const VIEWS = [
   { name: 'phone', width: 844, height: 390, query: '&mobilePreview=1', desktop: false },
@@ -385,6 +391,7 @@ for (const view of VIEWS) {
       const shop = await openShop(page, ['Iron Sword']);
       await shop.getByRole('button', { name: 'Roster', exact: true }).click();
       const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+      await openRosterUnit(roster);
       await roster.getByRole('button', { name: 'Equipment', exact: true }).click();
       const card = roster.locator('.mr-item-card').first();
       await expect(card.locator('.mr-card-head .ia-icon')).toBeVisible();
@@ -408,6 +415,7 @@ for (const view of VIEWS) {
       const shop = await openShop(page, ['Iron Sword']);
       await shop.getByRole('button', { name: 'Roster', exact: true }).click();
       const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+      await openRosterUnit(roster);
       await roster.getByRole('button', { name: 'Equipment', exact: true }).click();
       await expect(roster.getByText('Equipped accessory', { exact: true })).toHaveCount(0);
       const charm = roster.locator('.mr-item-card', {

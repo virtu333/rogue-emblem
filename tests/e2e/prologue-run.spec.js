@@ -13,7 +13,7 @@
 // today's fast path. A refresh mid-chapter resumes the chapter or re-opens it from the
 // map. Every wait is on state, never on time.
 import { test, expect } from '@playwright/test';
-import { waitForScene as waitForSceneQuick } from './helpers.js';
+import { waitForScene as waitForSceneQuick, closeRoster } from './helpers.js';
 
 test.setTimeout(480000);
 
@@ -257,10 +257,11 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
   const lesson = roster.getByRole('region', { name: 'Roster lesson', exact: true });
   await expect(lesson).toContainText('Roster lesson · 1 of 2 · Withdraw');
   await expect(lesson).toContainText('Give Tamsin the Iron Bow from the convoy');
+  // Open Roster names Tamsin: the sheet opens on her detail, whose unit strip says why.
+  await expect(roster.locator('.mr-summary h3')).toContainText('Tamsin');
   await expect(roster.locator('.mr-unit-card', { hasText: 'Tamsin' })).toContainText(
     'No weapon. A bow is in the convoy.',
   );
-  await roster.locator('.mr-unit-card', { hasText: 'Tamsin' }).click();
   await roster.getByRole('button', { name: 'Convoy', exact: true }).click();
   await roster
     .locator('.mr-item-card', { has: page.locator('h4', { hasText: 'Iron Bow' }) })
@@ -277,7 +278,7 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
   await lesson.getByRole('button', { name: 'Skip lesson', exact: true }).click();
   await expect(lesson).toHaveCount(0);
   expect((await slotRun(page)).prologueRosterLesson).toMatchObject({ dismissed: true });
-  await roster.getByRole('button', { name: 'Close', exact: true }).first().click();
+  await closeRoster(roster);
   await expect(roster).toHaveCount(0);
 
   // P3: the seer on the road. Tamsin armed, Travel asks nothing. Sera green beside a

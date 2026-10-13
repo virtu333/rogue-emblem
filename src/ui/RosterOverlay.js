@@ -148,6 +148,8 @@ export class RosterOverlay {
         ? identityIndex
         : roster.findIndex((u) => unitUidOf(initial) && unitUidOf(u) === unitUidOf(initial));
     this.selection = { kind: 'unit', index: Math.max(0, index) };
+    // A lord chip names its unit: the Roster opens on that unit, the overview behind Back.
+    this._openOnUnit = index >= 0;
     this._activeTab = 'stats'; // 'stats' | 'gear'
     this._rosterScrollOffset = 0;
     this._rosterScrollMax = 0;
@@ -198,6 +200,8 @@ export class RosterOverlay {
         gameData: this.gameData,
         portraitKey: (unit) => this._getPortraitKey(unit),
         run: this.runManager,
+        overview: true,
+        startInDetail: this._openOnUnit,
         onClose: () => this.hide(),
       });
       return;

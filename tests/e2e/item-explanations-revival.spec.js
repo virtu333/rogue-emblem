@@ -1,5 +1,11 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForGame, waitForScene, collectErrors } from './helpers.js';
+import {
+  waitForGame,
+  waitForScene,
+  collectErrors,
+  openRosterUnit,
+  closeRoster,
+} from './helpers.js';
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
 test('Mire details are tappable in shop and roster; revival previews and saves catch-up', async ({
   page,
@@ -50,10 +56,11 @@ test('Mire details are tappable in shop and roster; revival previews and saves c
   await page.screenshot({ path: info.outputPath('vanguard-description.png') });
   await shop.getByRole('button', { name: 'Roster', exact: true }).tap();
   const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+  await openRosterUnit(roster, null, { tap: true });
   await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
   await roster.getByText('Weapon art: Mire', { exact: true }).tap();
   await expect(roster.locator('.item-art-details')).toContainText('Cost 5 HP');
-  await roster.getByRole('button', { name: 'Close', exact: true }).tap();
+  await closeRoster(roster, 'Close', { tap: true });
   await shop.getByRole('button', { name: 'Leave', exact: true }).tap();
   await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
@@ -152,6 +159,7 @@ test('roster Spirit Dust previews, cancels, applies once and saves immediately',
   });
   await page.getByRole('button', { name: 'Roster', exact: true }).tap();
   const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+  await openRosterUnit(roster, null, { tap: true });
   await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
   const card = roster
     .locator('.mr-card')

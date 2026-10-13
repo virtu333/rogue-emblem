@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene, collectErrors } from './helpers.js';
+import { waitForScene, collectErrors, closeRoster } from './helpers.js';
 import {
   PORTRAIT_PHONES,
   DESKTOPS,
@@ -698,7 +698,7 @@ test.describe('upright 390x844: keyboard order and lords', () => {
     const sheet = page.getByRole('dialog', { name: 'Manage roster' });
     await expect(sheet).toBeVisible();
     await expect(sheet.locator('.mr-unit-card[aria-pressed="true"]')).toContainText(second);
-    await sheet.getByRole('button', { name: 'Close', exact: true }).tap();
+    await closeRoster(sheet, 'Close', { tap: true });
     await expect(sheet).toHaveCount(0);
     await expect(route).toBeVisible();
     expect(errors).toEqual([]);
