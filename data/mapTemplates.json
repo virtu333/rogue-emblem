@@ -5224,7 +5224,7 @@
       "id": "three_roads_keep",
       "name": "Three Roads Keep",
       "enabled": false,
-      "parBonus": 2,
+      "parBonus": 1,
       "acts": [
         "act2",
         "act3",
@@ -5944,7 +5944,7 @@
       "id": "two_gates",
       "name": "Two Gates",
       "enabled": false,
-      "parBonus": 1,
+      "parBonus": 0,
       "acts": [
         "act2",
         "act3",
