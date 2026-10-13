@@ -1,6 +1,6 @@
 // The new procedural shapes (docs/specs/map-variety.md: Corner Camp, Three Roads, Three Roads
-// Keep, Caught in the Open, Two Camps) played to the end by the headless harness, beside the
-// ordinary route battle as control.
+// Keep, Caught in the Open, Two Camps, the Long Road, Two Gates, the Warband) played to the end
+// by the headless harness, beside the ordinary route battle as control.
 //
 // Each fight is a real run's fight. A RunSimulationDriver run is played with its own policies
 // (invincible, so the army is the one a run builds by then) up to the act's first ordinary route
@@ -224,6 +224,7 @@ const CELLS = [
       'two_camps',
       'long_road',
       'two_gates',
+      'warband',
     ],
   },
   { act: 'act2', difficultyId: 'dusk', seeds: 3, templates: ['corner_camp'] },

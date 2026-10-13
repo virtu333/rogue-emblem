@@ -15,14 +15,19 @@
 //   - `sizeByAct: { act2: [cols, rows], ... }`: the map's size in each act the template lists,
 //     in place of the act's size (a long, narrow road). No draw: the act's size roll is still
 //     taken and set aside.
-// An enemy-spawn zone may carry `group: { id, share, ai: chase | hold | guard, wakeTurn?, role? }`;
-// a `role` (front | ranged | flank, GROUP_ROLES) weighs the classes its foes are drawn from.
+// An enemy-spawn zone may carry `group: { id, share, ai: chase | hold | guard, wakeTurn?, role?,
+// captain? }`; a `role` (front | ranged | flank, GROUP_ROLES) weighs the classes its foes are drawn
+// from. A `captain: { name }` (rout templates, base zones only) names the group's strongest foe its
+// captain and the map a defeat of the captains (BattleObjectives.js): the rest need not fall.
 // A template with groups splits its filler enemies among them by share (largest remainder);
 // a `hold` group is one hold pack (engine/HoldActivation.js) that wakes when its Danger zone
 // is entered, one of it is hurt or falls, or on its `wakeTurn`; a `guard` group keeps its post.
 // The spawns record their group (`templateGroup`) and use only fields today's clients play.
 
 import { HOLD_AI_MODE } from './HoldDisturbance.js';
+import { captainLevelFor } from './CaptainLevel.js';
+import { OBJECTIVES_VERSION } from './BattleObjectives.js';
+import { ZOMBIE_CLASSES } from '../utils/constants.js';
 
 /** Hold packs of template groups are numbered from here, clear of HoldActivation's packs (0..). */
 export const TEMPLATE_GROUP_PACK_BASE = 100;
@@ -252,6 +257,20 @@ export function planGroupCounts(groups, total) {
     .map((v, i) => ({ i, frac: v - Math.floor(v) }))
     .sort((a, b) => b.frac - a.frac || a.i - b.i);
   for (let k = 0; left > 0; k = (k + 1) % order.length, left--) counts[order[k].i]++;
+  // A captain's group always fields its captain (a hold group a pack of two), taken from the
+  // largest group that can spare one, while the total allows.
+  groups.forEach((g, i) => {
+    const floor = captainSlotFloor(g);
+    while (counts[i] < floor) {
+      const donor = counts
+        .map((c, j) => ({ c, j, spare: c - captainSlotFloor(groups[j]) }))
+        .filter(({ j, spare }) => j !== i && spare > 0)
+        .sort((a, b) => b.c - a.c || a.j - b.j)[0]?.j;
+      if (donor === undefined) break;
+      counts[donor]--;
+      counts[i]++;
+    }
+  });
   const sink = counts
     .map((c, i) => ({ c, i }))
     .filter(({ i }) => groups[i].ai !== 'hold')
@@ -274,6 +293,83 @@ export function planGroupSlots(groups, total) {
 
 // A Cleric heals and a Necromancer raises from its post: neither is told to hold or guard.
 const KEEPS_OWN_ROLE = new Set(['Cleric', 'Necromancer']);
+
+/** The fewest slots a group takes so its captain stands (a hold pack needs two): 0 without one. */
+function captainSlotFloor(group) {
+  if (!hasTemplateCaptain(group)) return 0;
+  return group.ai === 'hold' ? MIN_HOLD_GROUP : 1;
+}
+
+/** A captain's authored id (BattleObjectives' ref): `captain_<group id>`. */
+export const TEMPLATE_CAPTAIN_PREFIX = 'captain_';
+/** The strip's name for two or more captains ("Defeat · the captains (1/2)"). */
+export const TEMPLATE_CAPTAINS_LABEL = 'the captains';
+/** A captain's name, as long as a class name the HUD already fits. */
+export const TEMPLATE_CAPTAIN_NAME_MAX = 18;
+
+/** Whether a group names a captain. */
+export function hasTemplateCaptain(group) {
+  return typeof group?.captain?.name === 'string' && group.captain.name.trim().length > 0;
+}
+
+/**
+ * Name each captain group's captain (mutates the spawns; no draw): its strongest member, the
+ * earlier on a tie, passing over a healer, a Necromancer and a Zombie (which would rise nameless)
+ * while the group has anyone else. The captain takes the group's captain name, an authored id
+ * (`captain_<group id>`) and the elite captain's level rule (CaptainLevel.js) when that is higher
+ * than its own; it keeps its group's orders. Returns the captains' ids in group order.
+ * @param {object[]} spawns
+ * @param {object[]} groups the template's groups (TemplateLayout.enemyGroupZones)
+ * @param {{ act: string, levelTop: number }} ctx the act and the battle's level range top
+ */
+export function appointTemplateCaptains(spawns, groups, { act, levelTop }) {
+  const ids = [];
+  for (const group of groups || []) {
+    if (!hasTemplateCaptain(group)) continue;
+    const members = (spawns || []).filter(
+      (s) => s?.templateGroup === group.id && !s.isBoss && !s.authoredId,
+    );
+    const plain = members.filter(
+      (s) => !KEEPS_OWN_ROLE.has(s.className) && !ZOMBIE_CLASSES.has(s.className),
+    );
+    const pool = plain.length > 0 ? plain : members;
+    let captain = null;
+    for (const s of pool) if (!captain || s.level > captain.level) captain = s;
+    if (!captain) continue;
+    const id = `${TEMPLATE_CAPTAIN_PREFIX}${group.id}`;
+    captain.authoredId = id;
+    captain.name = group.captain.name.trim();
+    captain.level = Math.max(captain.level, captainLevelFor(act, levelTop));
+    ids.push(id);
+  }
+  return ids;
+}
+
+/**
+ * The objectives model of a captains map (BattleObjectives.js): defeat every captain named,
+ * "the captains" when there are two or more. Null when no captain stands (a plain rout).
+ */
+export function templateCaptainObjectives(captainIds) {
+  if (!Array.isArray(captainIds) || captainIds.length === 0) return null;
+  return {
+    version: OBJECTIVES_VERSION,
+    primary: [
+      {
+        id: 'captains',
+        kind: 'defeat',
+        targets: [...captainIds],
+        ...(captainIds.length > 1 ? { label: TEMPLATE_CAPTAINS_LABEL } : {}),
+      },
+    ],
+  };
+}
+
+/** The captain groups a template names (base zones: an option never adds one). */
+export function templateCaptainGroups(template) {
+  return enemyGroupZones(template)
+    .map((z) => z.group)
+    .filter(hasTemplateCaptain);
+}
 
 /**
  * Give each grouped spawn its group's orders (mutates them): a `hold` group's members one hold
@@ -309,7 +405,7 @@ export function isTemplateGroupSpawn(spawn) {
 
 // --- Validation (MapTemplateEngine.validateMapTemplatesConfig calls this) ---
 
-const KNOWN_GROUP_KEYS = new Set(['id', 'share', 'ai', 'wakeTurn', 'role']);
+const KNOWN_GROUP_KEYS = new Set(['id', 'share', 'ai', 'wakeTurn', 'role', 'captain']);
 const KNOWN_CHOICE_KEYS = new Set(['id', 'options']);
 const KNOWN_OPTION_KEYS = new Set(['weight', 'zones', 'features']);
 
@@ -384,7 +480,7 @@ export function validateTemplateLayout(
     }
   }
   const baseGroupIds = new Set();
-  const checkGroups = (zones, where, groupIds) => {
+  const checkGroups = (zones, where, groupIds, inOption = false) => {
     (zones || []).forEach((zone, i) => {
       if (!zone || zone.group === undefined) return;
       const gp = `${where}[${i}].group`;
@@ -413,6 +509,28 @@ export function validateTemplateLayout(
         errors.push(`${gp}.wakeTurn must be an integer in [2,12]`);
       if (g.wakeTurn !== undefined && g.ai !== 'hold')
         errors.push(`${gp}.wakeTurn is only for a hold group`);
+      if (g.captain !== undefined) {
+        const c = g.captain;
+        if (
+          !c ||
+          typeof c !== 'object' ||
+          Array.isArray(c) ||
+          Object.keys(c).some((k) => k !== 'name')
+        )
+          errors.push(`${gp}.captain must be { name }`);
+        else if (
+          typeof c.name !== 'string' ||
+          !c.name.trim() ||
+          c.name.trim().length > TEMPLATE_CAPTAIN_NAME_MAX
+        )
+          errors.push(`${gp}.captain.name must be 1-${TEMPLATE_CAPTAIN_NAME_MAX} characters`);
+        // A defeat of the captains is a rout's family (BattleObjectives' legacy `rout`).
+        if (objective !== 'rout') errors.push(`${gp}.captain is only for a rout template`);
+        // The route map names the captains from the template before the battle: never a maybe.
+        if (inOption) errors.push(`${gp}.captain may not be on a choice's zone`);
+        if (typeof g.id === 'string' && !/^[a-z0-9_]{1,16}$/.test(g.id))
+          errors.push(`${gp}.id must match [a-z0-9_]{1,16} for a captain's id`);
+      }
       // On a rout map every foe must fall: a pack that never wakes could be waited out forever.
       if (g.ai === 'hold' && objective === 'rout' && g.wakeTurn === undefined)
         errors.push(`${gp}.wakeTurn is required for a hold group on a rout map`);
@@ -460,7 +578,7 @@ export function validateTemplateLayout(
                 errors.push(`${op}.zones[${zi}] may only add an enemySpawn zone with a group`);
               else optionAddsEnemyZone = true;
             });
-            checkGroups(option.zones, `${op}.zones`, new Set(baseGroupIds));
+            checkGroups(option.zones, `${op}.zones`, new Set(baseGroupIds), true);
           }
           if (option.features !== undefined) {
             validateFeatures(`${op}.features`, option.features, errors);

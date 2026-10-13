@@ -52,7 +52,7 @@ emblem-rogue/
 │   ├── lootTables.json    # Per-act loot pools with weighted categories, plus the top-level `accessorySkills` block (not an act)
 │   ├── marks.json         # 5 Marks (recruit procs): Forge, Hunt, Ember, Veil, Road (docs/specs/phase3.md 3C)
 │   ├── mapSizes.json      # 10 map size templates by act/phase
-│   ├── mapTemplates.json  # 32 zone-based templates (17 rout, 11 seize, 4 escape) incl. tundra/volcanic/castle; 7 ship `enabled: false` (Corner Camp, Three Roads, Three Roads Keep, Caught in the Open, Two Camps, the Long Road, Two Gates: enemy groups, seeded choices, mirroring; docs/specs/map-variety.md, review `&template=<id>`)
+│   ├── mapTemplates.json  # 33 zone-based templates (18 rout, 11 seize, 4 escape) incl. tundra/volcanic/castle; 8 ship `enabled: false` (Corner Camp, Three Roads, Three Roads Keep, Caught in the Open, Two Camps, the Long Road, Two Gates, the Warband: enemy groups, seeded choices, mirroring; a group's `captain` makes a rout map a defeat of its captains (`BattleObjectives`, the `defeatObjective` run-format capability); docs/specs/map-variety.md, review `&template=<id>`)
 │   ├── mechanicsReference.json # In-game help: combat formulas, weapon ranks
 │   ├── metaUpgrades.json  # 82 tiered upgrades in 6 categories
 │   ├── prologue.json      # The prologue: authored units (Edric, Sera, Tamsin), chapters (P1–P4), beats, route (row-2 fork, the watchtower), joins, Varro (`boss`), the ending's scenes, grant; engine/Prologue.js documents and validates it (docs/specs/prologue-chapter.md)

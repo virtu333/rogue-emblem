@@ -55,6 +55,8 @@ import {
   playerSpawnZones,
   planPlayerSplit,
   interleaveSpawns,
+  appointTemplateCaptains,
+  templateCaptainObjectives,
 } from './TemplateLayout.js';
 
 const DEBUG_MAP_GEN = false;
@@ -292,6 +294,19 @@ export function generateBattleLayout(params, deps) {
       enemies,
     },
   );
+  // A captains map (TemplateLayout.js): each captain group's strongest foe is named its captain
+  // before dressing (an authored foe never carries), and the map becomes a defeat of the
+  // captains, its family the rout it was drawn for. No draw; never a boss's map.
+  const captainObjectives =
+    objective === 'rout' && !isBoss
+      ? templateCaptainObjectives(
+          appointTemplateCaptains(
+            enemySpawns,
+            enemyGroupZones(template).map((z) => z.group),
+            { act, levelTop: adjustedLevelRange[1] },
+          ),
+        )
+      : null;
   enemySpawns = dressEnemySpawns(enemySpawns, { params, deps, act, templateId: template?.id });
 
   // 7. NPC spawn for recruit battles
@@ -550,6 +565,8 @@ export function generateBattleLayout(params, deps) {
     cols,
     rows,
     objective,
+    // A captains map's model (BattleObjectives.js), locked with the map; `objective` is its family.
+    ...(captainObjectives ? { objectives: captainObjectives } : {}),
     biome: template.biome || null,
     playerSpawns: npcSpawn
       ? orderSpawnsTowardTarget(mapLayout, cols, rows, terrain, playerSpawns, npcSpawn)
@@ -574,7 +591,7 @@ export function generateBattleLayout(params, deps) {
       : {}),
     // The rung's par offset for this objective and act, locked with the map, and on
     // seize the floor that keeps an S reachable under it (SeizeParFloor.js).
-    ...parOffsetConfig(params, objective, {
+    ...parOffsetConfig(params, captainObjectives ? 'defeat' : objective, {
       mapLayout,
       cols,
       rows,

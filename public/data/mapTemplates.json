@@ -2946,6 +2946,222 @@
       "lore": "Two warbands, one ridge between them, and no love lost: the one that charges hopes the other is watching."
     },
     {
+      "id": "warband",
+      "name": "The Warband",
+      "enabled": false,
+      "acts": [
+        "act2",
+        "act3",
+        "act4"
+      ],
+      "extraEnemies": 1,
+      "mirror": "y",
+      "fogChance": 0.1,
+      "zones": [
+        {
+          "rect": [
+            0,
+            0,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 62,
+            "Forest": 26,
+            "Sand": 6,
+            "Mountain": 6
+          },
+          "priority": 0
+        },
+        {
+          "rect": [
+            0.7,
+            0.42,
+            1,
+            0.58
+          ],
+          "terrain": {
+            "Mountain": 70,
+            "Forest": 20,
+            "Wall": 10
+          },
+          "priority": 2
+        },
+        {
+          "rect": [
+            0,
+            0.28,
+            0.2,
+            0.72
+          ],
+          "terrain": {
+            "Plain": 65,
+            "Forest": 30,
+            "Fort": 5
+          },
+          "priority": 2,
+          "role": "playerSpawn"
+        },
+        {
+          "rect": [
+            0.38,
+            0.25,
+            0.6,
+            0.75
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 35,
+            "Fort": 5
+          },
+          "priority": 2,
+          "role": "enemySpawn",
+          "group": {
+            "id": "screen",
+            "share": 0.4,
+            "ai": "chase",
+            "role": "front"
+          }
+        },
+        {
+          "rect": [
+            0.74,
+            0,
+            1,
+            0.38
+          ],
+          "terrain": {
+            "Plain": 60,
+            "Forest": 30,
+            "Fort": 10
+          },
+          "priority": 2,
+          "role": "enemySpawn",
+          "group": {
+            "id": "riders",
+            "share": 0.3,
+            "ai": "hold",
+            "wakeTurn": 4,
+            "role": "flank",
+            "captain": {
+              "name": "Rider Captain"
+            }
+          }
+        },
+        {
+          "rect": [
+            0.74,
+            0.62,
+            1,
+            1
+          ],
+          "terrain": {
+            "Plain": 45,
+            "Forest": 25,
+            "Fort": 30
+          },
+          "priority": 2,
+          "role": "enemySpawn",
+          "group": {
+            "id": "camp",
+            "share": 0.3,
+            "ai": "guard",
+            "role": "ranged",
+            "captain": {
+              "name": "Camp Captain"
+            }
+          }
+        }
+      ],
+      "features": [],
+      "anchors": [],
+      "reinforcementContractVersion": 1,
+      "reinforcements": {
+        "spawnEdges": [
+          "right",
+          "top"
+        ],
+        "waves": [
+          {
+            "turn": 5,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "right"
+            ]
+          },
+          {
+            "turn": 8,
+            "count": [
+              2,
+              3
+            ],
+            "edges": [
+              "top",
+              "right"
+            ]
+          }
+        ],
+        "difficultyScaling": true,
+        "turnOffsetByDifficulty": {
+          "normal": 0,
+          "dusk": 0,
+          "hard": -1,
+          "lunatic": -3
+        },
+        "turnJitter": [
+          -1,
+          1
+        ],
+        "xpDecay": [
+          1,
+          0.75,
+          0.5,
+          0.25
+        ],
+        "minActByDifficulty": {
+          "normal": "never",
+          "dusk": "act3",
+          "hard": "act2",
+          "lunatic": "act2"
+        },
+        "actTurnOffset": {
+          "hard": {
+            "act3": -1,
+            "act4": -1
+          }
+        },
+        "extraWavesByDifficulty": {
+          "lunatic": [
+            {
+              "turn": 11,
+              "count": [
+                2,
+                3
+              ],
+              "edges": [
+                "right"
+              ]
+            },
+            {
+              "turn": 14,
+              "count": [
+                3,
+                4
+              ],
+              "edges": [
+                "top",
+                "right"
+              ]
+            }
+          ]
+        }
+      },
+      "lore": "A warband holds together by two hands on its collar. Cut both, and the rest go home."
+    },
+    {
       "id": "three_roads",
       "name": "Three Roads",
       "enabled": false,

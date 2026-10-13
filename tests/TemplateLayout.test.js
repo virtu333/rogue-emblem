@@ -50,6 +50,7 @@ const NEW_TEMPLATES = [
   'two_camps',
   'long_road',
   'two_gates',
+  'warband',
 ];
 const allTemplates = () => Object.values(data.mapTemplates).flat();
 const byId = (id) => allTemplates().find((t) => t.id === id);

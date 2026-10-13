@@ -3428,7 +3428,9 @@ export class BattleScene extends Phaser.Scene {
     const stones = revivalStoneCount(unit).remaining;
     const carries = Boolean(carriedItemInfo(unit));
     const staff = (statusStaffInfo(unit)?.uses || 0) > 0;
-    const count = affixIds.length + stones + (carries ? 1 : 0) + (staff ? 1 : 0);
+    // A defeat objective's named target (a captain, a Voice) leads the row with a pale diamond.
+    const target = !unit.isBoss && isObjectiveTarget(this.battleConfig, unit);
+    const count = affixIds.length + stones + (carries ? 1 : 0) + (staff ? 1 : 0) + (target ? 1 : 0);
     if (count === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -3438,6 +3440,17 @@ export class BattleScene extends Phaser.Scene {
     const totalW = pipSize * count + gap * (count - 1);
     let startX = pos.x - totalW / 2 + pipSize / 2;
     const inView = canInspectUnit(this.grid, unit);
+    if (target) {
+      unit.affixPips.push(
+        this.add
+          .rectangle(startX, pipY, pipSize + 1, pipSize + 1, UI_HEX.parchment)
+          .setStrokeStyle(1, UI_HEX.void)
+          .setAngle(45)
+          .setDepth(14)
+          .setVisible(inView),
+      );
+      startX += pipSize + gap;
+    }
 
     for (let i = 0; i < stones; i++) {
       const gem = this.add
