@@ -4339,10 +4339,18 @@ export class RunManager {
       }
     }
 
-    // The Unbroken Banner's price: the survivor it held this battle (UnitHealth.absorbLethal
-    // stamps it) carries a Lingering Injury, taken below once this victory's burdens settled.
+    // The Unbroken Banner's price: the survivor it held this battle carries a Lingering Injury,
+    // taken below once this victory's burdens settled. UnitHealth.absorbLethal stamps the battle
+    // unit; the scene serializes its survivors (which drops the stamp) before this commit, so it
+    // names the held unit by uid (`options.bannerHeldUid`, BattleBlessings.bannerHeldUidOf).
+    const bannerHeldUid =
+      typeof options.bannerHeldUid === 'string' && options.bannerHeldUid
+        ? options.bannerHeldUid
+        : null;
     const bannerHeldIndex = survivingUnits.findIndex(
-      (u) => u?._bannerHeld === true && Number(u.currentHP) > 0,
+      (u) =>
+        Number(u?.currentHP) > 0 &&
+        (u?._bannerHeld === true || (bannerHeldUid !== null && unitUidOf(u) === bannerHeldUid)),
     );
     this.roster = survivingUnits.map((u) => {
       const data = serializeUnit(u);

@@ -23,6 +23,7 @@
 // Pure: no Phaser, no RNG, no unit state but what the callers hand over.
 
 import { isScriptedBattle } from './ScriptedBattle.js';
+import { unitUidOf } from './UnitIdentity.js';
 
 export const BANNER = 'banner';
 export const LANTERN = 'lantern';
@@ -74,6 +75,17 @@ function spentCount(state, key) {
 export function bannerReadyFor(state, unit) {
   if (!state || unit?.faction !== 'player') return false;
   return count(state.lastStand) > spentCount(state, BANNER);
+}
+
+/**
+ * The uid of the living unit the banner held this battle (`_bannerHeld`, stamped by
+ * UnitHealth.absorbLethal), or null. Read from the battle units before they are serialized:
+ * serializeUnit drops the stamp, so the victory flow hands this to RunManager.completeBattle
+ * (`options.bannerHeldUid`), which gives that survivor the banner's Lingering Injury.
+ */
+export function bannerHeldUidOf(units) {
+  const held = (units || []).find((u) => u?._bannerHeld === true && Number(u.currentHP) > 0);
+  return unitUidOf(held) || null;
 }
 
 /** The lantern has not been lit by a kill this battle. */

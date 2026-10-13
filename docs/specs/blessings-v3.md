@@ -709,7 +709,8 @@ checkpoint and the Vision rewind):
   teaching hint never calls a held counter lethal.
   **Its price (October 2026):** the hold stamps the
   battle unit `_bannerHeld` (a battle-unit field: a suspend keeps it, a Vision rewind to before
-  the hold takes it back, Continue from Map never sees it; `serializeUnit` drops it). The victory
+  the hold takes it back, Continue from Map never sees it; `serializeUnit` drops it, so the victory flow reads it
+  before serializing, `BattleBlessings.bannerHeldUidOf`, and passes `bannerHeldUid`). The victory
   commit (`RunManager._takeBannerWound`, after the burdens settle) gives that survivor a Lingering
   Injury through `Burdens.addBurden` (the catalog's numbers: -2, 3 battles, 2 on First Light; the
   stat keyed to the run seed and node; a fresh injury replaces any already carried, one unit at a

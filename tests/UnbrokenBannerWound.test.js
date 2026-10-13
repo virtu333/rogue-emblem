@@ -1,14 +1,15 @@
 // The Unbroken Banner's price (docs/specs/blessings-v3.md §6, "6.4 As built"): the unit the
 // banner held carries a Lingering Injury (the `wounded` burden) from that battle's victory on.
-// The hold stamps the battle unit (`_bannerHeld`, UnitHealth.absorbLethal); the victory commit
-// (RunManager.completeBattle) reads the stamp, takes the injury and drops the stamp.
+// The hold stamps the battle unit (`_bannerHeld`, UnitHealth.absorbLethal); the victory flow reads
+// it before serializing (BattleBlessings.bannerHeldUidOf) and hands the uid to the commit
+// (RunManager.completeBattle `bannerHeldUid`), which takes the injury.
 //
 // Realistic failures each test catches are named in it. Expected numbers come from the data
 // (events.json `burdens.wounded`: -2, 3 battles, 2 on First Light), never from the code under test.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RunManager, serializeUnit } from '../src/engine/RunManager.js';
 import { absorbLethal } from '../src/engine/UnitHealth.js';
-import { BANNER, createBattleBlessings } from '../src/engine/BattleBlessings.js';
+import { BANNER, bannerHeldUidOf, createBattleBlessings } from '../src/engine/BattleBlessings.js';
 import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
 import { WOUND_STATS, settlementLines } from '../src/engine/Burdens.js';
 import { loadGameData } from './testData.js';
@@ -107,6 +108,23 @@ describe('the victory commit takes the injury', () => {
       const back = RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), data);
       expect(back.burdens).toEqual(rm.burdens);
     }
+  });
+
+  it('survivors already serialized (as the scene hands them) are named by bannerHeldUid', () => {
+    // Failure: the commit reads only the stamp, which serializeUnit drops, so the injury never
+    // lands in play (PostCombatController serializes its survivors before completeBattle).
+    const rm = bannerRun();
+    const node = firstBattle(rm);
+    const { units, held } = survivorsWithHold(rm);
+    const uid = bannerHeldUidOf(units);
+    expect(uid).toBe(held.unitUid);
+    const serialized = units.map((u) => serializeUnit(u));
+    expect(serialized.some((u) => '_bannerHeld' in u)).toBe(false);
+    rm.completeBattle(serialized, node.id, 0, { turnCount: 3, turnPar: 9, bannerHeldUid: uid });
+    expect(rm.burdens.map((b) => [b.id, b.unitUid])).toEqual([['wounded', held.unitUid]]);
+    // A held unit at 0 HP names nobody.
+    held.currentHP = 0;
+    expect(bannerHeldUidOf(units)).toBeNull();
   });
 
   it('the stat is keyed to the run and the node, never Math.random', () => {
