@@ -72,7 +72,9 @@ jobs:
       (github.event_name != 'pull_request' && inputs.mode != 'status') ||
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    # CI's own jobs take about 20 minutes, but with many pull requests open they can queue
+    # for hours behind each other; waiting here only polls.
+    timeout-minutes: 250
     permissions:
       actions: read
     env:
@@ -104,16 +106,20 @@ jobs:
                   echo "CI passed on $COMMIT: $url"
                   exit 0
                 fi
+                if [ "$conclusion" = cancelled ]; then
+                  echo "::error::CI on $COMMIT was cancelled (a newer push replaced it before it ran): $url. Build the newest commit on the branch."
+                  exit 1
+                fi
                 echo "::error::CI on $COMMIT finished '$conclusion': $url"
                 exit 1
               fi
               echo "CI on $COMMIT is $status: $url"
             fi
-            if [ "$elapsed" -ge 2700 ]; then
-              echo "::error::CI on $COMMIT did not finish within 45 minutes."
+            if [ "$elapsed" -ge 14400 ]; then
+              echo "::error::CI on $COMMIT did not finish within 4 hours."
               exit 1
             fi
-            sleep 30
+            sleep 60
           done
 
   # The app bundles every track; a lighter encode keeps its download under Apple's 200 MB
