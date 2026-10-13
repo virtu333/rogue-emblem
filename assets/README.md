@@ -1,8 +1,8 @@
 # assets/
 
 The game's art and audio. This folder is the source: `npm run sync-assets` (and every
-`npm run build`) copies it to `public/assets/`, which is what the game serves, so edit
-here, never in `public/assets/`.
+`npm run build`) copies it, all but this README, to `public/assets/`, which is what the
+game serves, so edit here, never in `public/assets/`.
 
 Several generations of art sit side by side. The live art is in subfolders; the loose
 files at the top of `portraits/` and the `characters/` and `enemies/` sprite folders are
