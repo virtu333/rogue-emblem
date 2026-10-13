@@ -78,25 +78,25 @@ const plan = (g, enemy, players, origin, extra = {}) =>
 const end = (p) => p && p.path[p.path.length - 1];
 
 describe('planEnemyCanto', () => {
-  // Edric (0,1) walks 2 and strikes 1: he reaches every tile within 3 of him.
-  it('Canto: steps out of reach by the shortest step, first in reading order', () => {
-    const g = grid(STRIP);
-    const e = rider();
-    // Walked 2 of 7 (from (3,1)): 5 left. (3,0) is 4 from Edric, 3 steps away.
-    const p = plan(g, e, [soldier()], { col: 3, row: 1 });
-    expect(p.allowance).toBe(5);
-    expect(end(p)).toEqual({ col: 3, row: 0 });
-  });
+  // Edric (0,1) walks 1 and strikes 1: he reaches every tile within 2 of him.
+  const slow = () => [soldier({ mov: 1, stats: { ...STATS, MOV: 1 } })];
 
-  it('Parting Step: half of what is left, rounded down', () => {
+  it('steps half of what is left out of reach, by the shortest step, first in reading order', () => {
     const g = grid(STRIP);
-    // Edric now walks 1: he reaches tiles within 2.
-    const players = [soldier({ mov: 1, stats: { ...STATS, MOV: 1 } })];
-    const p = plan(g, rider({ skills: ['half_canto'] }), players, { col: 3, row: 1 });
+    // Walked 2 of 7 (from (3,1)): 5 left, half is 2. (2,0) is 3 from Edric, 2 steps away.
+    const p = plan(g, rider(), slow(), { col: 3, row: 1 });
     expect(p.allowance).toBe(2);
     expect(end(p)).toEqual({ col: 2, row: 0 });
-    // 3 left halves to 1: every tile in one step is still in his reach, so it stays.
-    expect(plan(g, rider({ skills: ['half_canto'] }), players, { col: 5, row: 1 })).toBe(null);
+  });
+
+  it('Canto and Parting Step agree for a foe; 3 left halves to 1', () => {
+    const g = grid(STRIP);
+    const half = plan(g, rider({ skills: ['half_canto'] }), slow(), { col: 3, row: 1 });
+    expect(half.allowance).toBe(2);
+    expect(end(half)).toEqual({ col: 2, row: 0 });
+    // 3 left: one step, and every tile one step away is still in his reach, so it stays.
+    expect(plan(g, rider(), slow(), { col: 5, row: 1 })).toBe(null);
+    expect(plan(g, rider({ skills: ['half_canto'] }), slow(), { col: 5, row: 1 })).toBe(null);
   });
 
   it('no Canto skill, a boss, a guard or a holder never steps', () => {
@@ -114,8 +114,8 @@ describe('planEnemyCanto', () => {
   });
 
   it('never stops on lava, and prefers cover when the reach is the same', () => {
-    const g = grid(['...L........', '............', '............']);
-    expect(end(plan(g, rider(), [soldier()], { col: 3, row: 1 }))).toEqual({ col: 4, row: 1 });
+    const g = grid(['..L.........', '............', '............']);
+    expect(end(plan(g, rider(), slow(), { col: 3, row: 1 }))).toEqual({ col: 3, row: 1 });
     // Out of reach everywhere it can go: a forest beats open ground at the same reach.
     const far = grid(['............', '.....F......', '............']);
     const e = rider({ col: 4, row: 1 });
@@ -131,7 +131,7 @@ describe('enemy phase', () => {
   async function runPhase(skills) {
     const g = grid(STRIP);
     const e = rider({ col: 6, row: 1, skills });
-    const edric = soldier({ col: 2, row: 1 });
+    const edric = soldier({ col: 2, row: 1, mov: 1, stats: { ...STATS, MOV: 1 } });
     const ai = new AIController(g, gameData);
     const moves = [];
     await ai.processEnemyPhase([e], [edric], [], {
@@ -154,7 +154,7 @@ describe('enemy phase', () => {
     const { e, edric, moves } = await runPhase(['canto']);
     expect(moves).toHaveLength(2);
     const dist = Math.abs(e.col - edric.col) + Math.abs(e.row - edric.row);
-    expect(dist).toBeGreaterThan(3);
+    expect(dist).toBeGreaterThan(2);
     expect(e._lastAiDecision.cantoPath.at(-1)).toEqual({ col: e.col, row: e.row });
   });
 

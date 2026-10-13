@@ -1,6 +1,6 @@
-// EnemyCanto — an enemy with Canto (or Parting Step) steps away after it acts, by the
-// same budget a player unit gets (CantoRule.cantoAllowance: what is left of its move, the
-// whole of it for Canto, half for Parting Step). Pure, no Phaser, no RNG: the scene and
+// EnemyCanto — an enemy with Canto (or Parting Step) steps away after it acts, over half
+// of what is left of its move, rounded down (ENEMY_CANTO_SHARE; a player's Canto takes all
+// of it). Pure, no Phaser, no RNG: the scene and
 // the harness both reach it through AIController, so a replayed enemy phase steps the same.
 //
 // Where it goes: the tile in that budget the fewest player-side units (the army and its
@@ -23,6 +23,9 @@ import { isRooted, isSleeping, willRemainRootedNextPhase } from './StatusConditi
 import { isHazardTerrainIndex } from './TerrainHazards.js';
 
 const tileKey = (col, row) => `${col},${row}`;
+
+/** The share of its remaining move an enemy may step after acting (rounded down). */
+export const ENEMY_CANTO_SHARE = 0.5;
 
 /** May this enemy take a Canto step at all (before its budget is counted)? */
 export function enemyMayCanto(enemy) {
@@ -147,7 +150,13 @@ export function planEnemyCanto({
     // A landing the range cannot account for (a slide, a cut) leaves nothing to spend.
     spent = entry ? Number(entry.cost) || 0 : mov;
   }
-  const allowance = cantoAllowance(enemy, mov - spent, { afterCombat }, skillsData);
+  // Enemies step at most half of what is left (Dave, Oct 2026: Canto's hit and run, with
+  // Act IV battles kept short), so full Canto and Parting Step agree for a foe.
+  const left = mov - spent;
+  const allowance = Math.min(
+    cantoAllowance(enemy, left, { afterCombat }, skillsData),
+    Math.floor(Math.max(0, left) * ENEMY_CANTO_SHARE),
+  );
   if (allowance <= 0) return null;
 
   const range = grid.getMovementRange(
