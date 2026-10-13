@@ -1488,6 +1488,12 @@ export class MobileRosterSheet {
     });
   }
   itemDescription(item, unit) {
+    // A foe's status staff: the uses and range every other surface shows for it.
+    if (item && item === unit?.statusStaff) {
+      const info = statusStaffInfo(unit);
+      if (info)
+        return `Status staff · Range ${item.range} · ${info.uses > 0 ? `${info.uses}/${item.uses} uses` : 'spent'}`;
+    }
     if (item.type === 'Accessory')
       return formatAccessoryDetail(item, { skills: this.gameData.skills });
     if (item.type === 'Consumable')
@@ -1671,7 +1677,12 @@ export class MobileRosterSheet {
     });
   }
   gear(unit) {
-    const heading = el('h3', `Equipment · ${unit.inventory?.length || 0}/5`);
+    // A foe's status staff rides beside its weapon, outside `inventory` (the AI casts it on
+    // its own and never strikes with it), but it is still an item the unit carries: it is
+    // listed and counted here like the rest.
+    const statusStaff = statusStaffInfo(unit);
+    const carried = (unit.inventory?.length || 0) + (statusStaff ? 1 : 0);
+    const heading = el('h3', `Equipment · ${carried}/5`);
     if (this.run) {
       // Trade with… opens the trade menu with nothing held (after picking a partner).
       const row = el('div', null, 'mr-heading-row');
@@ -1707,6 +1718,7 @@ export class MobileRosterSheet {
         this.discardButton(c, unit, item, 'bag');
       }
     }
+    if (statusStaff) this.itemCard(statusStaff.staff, unit);
     if (!unit.inventory?.length)
       this.card(
         'No equipment',

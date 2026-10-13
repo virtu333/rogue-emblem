@@ -33,6 +33,9 @@ Rogue Dawn (formerly Emblem Rogue) is a browser tactical RPG that combines Fire 
 ## Architecture Guardrails
 - Keep gameplay rules in `src/engine/` when possible; avoid embedding rule logic in scene UI code.
 - `src/scenes/BattleScene.js` is a hot spot. Prefer extracting controllers/modules over adding multi-step inline flows.
+- New gameplay rules go in `src/engine/` as pure functions that the scene and `tests/harness/HeadlessBattle.js` both import, never as a BattleScene method the harness has to copy. When a rule moves to `engine/`, delete the harness's copy.
+- `src/engine/` never imports `src/ui/`, `src/scenes/` or Phaser (`eslint.config.js`; two older files are allow-listed until their UI calls move out).
+- Guardrails run in `npm run test:unit`: `tests/FileSizeBudget.test.js` (BattleScene, RunManager, NodeMapScene and HeadlessBattle only shrink) and `tests/ImportCycles.test.js` (no new import cycle; `npm run check:cycles -- --write` after breaking one).
 - For overlays and menu stacks, use `src/utils/uiDepths.js` and `src/utils/escPriority.js` instead of ad hoc values.
 - For scene transitions, preserve existing guards/locks and cleanup patterns.
 
