@@ -1,20 +1,22 @@
 """Act I battle V — "Double Time".
 
-Quick time is 132 paces a minute and double time is 198: the march breaks into
+Quick time is 116 paces a minute and double time is 174: the march breaks into
 a run without anyone calling it. The piece changes speed by **metric
 modulation**, never by a jump. In A2 the strings and the snare fall into
 triplet eighths under the march; at B those triplets are simply eighths, and
-the beat they belong to is half as fast again (132 -> 198). The same tune comes
+the beat they belong to is half as fast again (116 -> 174). The same tune comes
 back at the new speed, note for note. Coming home, the run's accents gather in
 dotted quarters across the bar line (three bars, eight strokes), and at C a
-dotted quarter of the run is a beat of the march again (198 -> 132). Nothing
+dotted quarter of the run is a beat of the march again (174 -> 116). Nothing
 ever slows or speeds by degrees; the pulse is handed over intact both ways.
 
-It is a fighting march, not a parade. The tune is this piece's own, in A minor
-with the raised seventh only on the dominant: a falling call (E C A, then up),
-a scale run down to B, the call again leaping to A, a held G over the flat
-seventh chord, the call on D, a run down from G-sharp over E7 with its flat
-ninth, and a plain cadence home. In B it is the same eight bars at 198.
+It is a fighting march, not a parade. The tune is this piece's own, in A minor,
+and it is broad where everything under it is quick: each long note is struck
+short on the downbeat and held from beat two across the bar line, and the next
+is reached by two pickups that leap (E up to A, F down to E, E up to A). The
+held notes climb C, G, A, fall through D minor and land on B over the
+dominant, the C above it leaning down a half step over a six-four. At quick time the tune
+stands over the marching snare; at the run the held notes ride the motor.
 
 What drives it, borrowed in kind (never in notes) from the Kanazaki battle
 scores Dave pointed at:
@@ -33,10 +35,10 @@ C is a broad strain at quick time that climbs F G A (bVI bVII I) into A
 *major*, the piece's only daylight, turns to D minor and comes back to the
 dominant, so the loop's return to the tune is the one perfect cadence.
 
-Form: intro 1-2 (toms and snare) | A 3-10 at 132 | A2 11-18 at 132 (the
-triplets creep in from bar 15) | B 19-26 at 198 (the tune at the run) |
-B2 27-34 at 198 (the call on horns, then a run-out; bars 32-34 in
-dotted-quarter strokes, D minor, B-flat, E) | C 35-42 at 132.
+Form: intro 1-2 (toms and snare) | A 3-10 at 116 | A2 11-18 at 116 (the
+triplets creep in from bar 15) | B 19-26 at 174 (the tune at the run) |
+B2 27-34 at 174 (the tune's first half on horns, then a run-out; bars 32-34 in
+dotted-quarter strokes, D minor, B-flat, E) | C 35-42 at 116.
 
   calm  one solo voice per strain (flute, solo violin, oboe, clarinet, solo
         violin) over the calm bed; the triplets and the strokes are in the calm
@@ -52,27 +54,31 @@ from scores._battle import Battle
 
 KEY = 'music_battle_act1_5'
 
-QUICK, DOUBLE = 132, 198
+QUICK, DOUBLE = 116, 174
 INTRO, A0, A2, B0, B2, C0 = 1, 3, 11, 19, 27, 35
 
+# the tune: broad held notes over the motor, each struck short on the downbeat
+# and held from beat two across the bar line, the next one reached by two
+# pickups that leap. It climbs C, G, A and falls to B over the dominant.
 TUNE = """
-E5q. C5e A4q E5q | F5e E5e D5e C5e B4h | E5q. C5e A4q A5q | G5h. F5e E5e |
-F5q. D5e A4q F5q | G#5e F5e E5e D5e C5h | D5q B4q E5q. D5e | C5h A4h |
+rh E4q A4q | D5q C5h.~ | C5h F5q E5q | D5q G5h.~ |
+G5h E5q A5q | G5q A5h.~ | A5h F5q D5q | C5q B4h. |
 """
-CH_A = 'Am F:2 G:2 Am G Dm E7:2 Am/C:2 Dm:2 E7:2 Am'
-# B2: the call on horns, then the run-out; the last three bars in dotted quarters
+CH_A = 'Am Am F:3 C:1 G C F Dm Am/E:1 E:3'
+# B2: the tune's first half, then the run-out; the last three bars in dotted quarters
 B2_TUNE = """
-E5q. C5e A4q E5q | F5e E5e D5e C5e B4h | E5q. C5e A4q A5q | G5h. F5e E5e |
+rh E4q A4q | D5q C5h.~ | C5h F5q E5q | D5q G5h. |
 F5e G5e A5e G5e F5e E5e D5e E5e | D5q. D5q. D5q~ | D5e F5q. F5q. E5e~ | E5q E5q. E5q. |
 """
-CH_B2 = 'Am F:2 G:2 Am G Dm Dm:4.5 Bb:3 E:4.5'
+CH_B2 = 'Am Am F:3 C:1 G Dm Dm:4.5 Bb:3 E:4.5'
 STROKES_CH = 'Dm:3/2 Dm:3/2 Dm:3/2 Bb:3/2 Bb:3/2 E:3/2 E:3/2 E:3/2'
-# C: broad, at quick time: F G A climbing by step, into A major, then the minor iv
+# C: the same held-note shape at quick time, F G A by step into A major, the
+# top A held a whole bar, then D minor and home to the dominant
 C_TUNE = """
-A5h. C6q | B5h. D6q | C#6h. E6q | E6h C#6h |
-D6h. A5q | C6h. A5q | B5h E5h | E5w |
+rh A4q C5q | B4q D5h.~ | D5h C#5q E5q | A5w |
+rh D5q F5q | E5q C5h.~ | C5h B4q D5q | E5w |
 """
-CH_C = 'F G A A Dm Am/C Dm:2 E:2 E'
+CH_C = 'F G Asus4:2 A:2 A Dm Am/C Dm:2 E:2 E'
 
 # the low end's one rhythm: 1 . 2 . 3 . . a (the "a" anticipates the next bar)
 LOW = 'X...x...x..X..x.'
@@ -160,8 +166,8 @@ def build():
     tpt = b.part('tpt_mel', 'trumpets', role='lead2', layer='full', gain=-2)
     tpt.at(A2).play('@f ' + TUNE)
     tpt.at(B0).play('@ff ' + TUNE)
-    # (the violins answer the horns' call an octave up, then take the run-out)
-    vn.at(B2).play('@f %spic ' + 'rh A5q C6q | rw | rh A5q E6q | rw |')
+    # (the violins answer the horns' held notes, then take the run-out)
+    vn.at(B2).play('@f %spic ' + 'rw | rh E6q C6q | rw | rh D6q B5q |')
     vn.at(B2 + 4).play('@ff %sus ' + ' '.join(B2_TUNE.split('|')[4:]).replace('\n', ' '))
 
     # calm: one solo voice per strain
@@ -179,7 +185,10 @@ def build():
     # second violins: 3+3+2 eighths from A2, through the triplets, into the run
     drv = b.part('drv_vn2', 'violins2', role='ostinato', layer='full', art='spic')
     trip_va = b.part('trip_va', 'violas', role='ostinato', layer='full', art='spic')
-    a2_head = chart('Am F:2 G:2 Am G')
+    a2_head = chart('Am Am F:3 C:1 G')
+    # the motor runs from the first strain, softer, under the held notes
+    ostinato(drv, A0, b.chart('A'), 'e e e e e e e e', '0 1 2 0 1 2 0 1', lo=64, hi=81,
+             vel=0.48, accents='> - - > - - > -')
     ostinato(drv, A2, a2_head, 'e e e e e e e e', '0 1 2 0 1 2 0 1', lo=64, hi=81, vel=0.56,
              accents='> - - > - - > -')
     ostinato(trip_va, A2, a2_head, 'e e e e e e e e', '0', lo=52, hi=64, vel=0.5,
@@ -187,8 +196,8 @@ def build():
     # A2's last four bars: triplet eighths; at B they are plain eighths at the new beat
     # (in the last two bars the triplets are accented in twos: the new beat is
     # heard before it is the beat)
-    tail = chart('Dm E7:2 Am/C:2 Dm:2 E7:2 Am')
-    tail1, tail2 = tail[:3], tail[3:]
+    tail = chart('C F Dm Am/E:1 E:3')
+    tail1, tail2 = tail[:2], tail[2:]
     ostinato(drv, A2 + 4, tail1, 'e3', '0 1 2', lo=64, hi=81, vel=0.56, accents='> - -')
     ostinato(drv, A2 + 6, tail2, 'e3', '0 1', lo=64, hi=81, vel=0.56, accents='> -')
     ostinato(trip_va, A2 + 4, tail1, 'e3', '0 0 0', lo=52, hi=64, vel=0.52, accents='> - -')
@@ -294,8 +303,8 @@ def build():
         b.sub(sec)
 
     timp.at(1).play('@mf E2q E2q E2q E2q | %roll @mp E2h. %default @f E2q |')
-    for bar, root in ((A0, 'A2'), (A0 + 4, 'A2'), (A2, 'A2'), (A2 + 4, 'D3'),
-                      (B0, 'A2'), (B0 + 4, 'D3'), (C0, 'F2'), (C0 + 4, 'D3')):
+    for bar, root in ((A0, 'A2'), (A0 + 4, 'C3'), (A2, 'A2'), (A2 + 4, 'C3'),
+                      (B0, 'A2'), (B0 + 4, 'C3'), (C0, 'F2'), (C0 + 4, 'D3')):
         timp.at(bar).play(f'%default @ff {root}e re {root}e re {root}q rq |')
     timp.at(B2 + 5).play('@ff D3q. D3q. D3q~ | D3e Bb2q. Bb2q. E2e~ | E2q E2q. E2q. |')
     for bar in (A0, A2, B0, B2, C0):
