@@ -179,6 +179,8 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     bonusVisionActs: 'objectives',
     setPiecesOffered: 'setPiece',
     rite: 'rite',
+    // The Ruins' one revival per node (RuinsCommands): an older client allows a second.
+    ruinsRevivedByNodeId: 'inert',
   }),
   // The route map's top level.
   nodeMap: Object.freeze({

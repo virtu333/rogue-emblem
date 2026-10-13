@@ -92,15 +92,16 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
 /**
  * Heal everyone, free: every unit to full HP. A Lingering Injury burden (engine/Burdens.js, id `wounded`) whose unit
  * the heal reaches mends with it: "Heal all" counts. Shared by the church and the sanctuary's
- * Rest, so an injury ends the same way at either.
+ * Rest, so an injury ends the same way at either; one taken at `nodeId` itself (the Ruins'
+ * revival) stays.
  * @returns {{ ok: true, mended: object|null, message: string }}
  */
-export function healRosterAtChurch(run) {
+export function healRosterAtChurch(run, { nodeId = null } = {}) {
   for (const unit of run.roster || []) {
     if (!unit?.stats) continue;
     healUnitFully(unit);
   }
-  const mended = endWoundByHealing(run, run.roster);
+  const mended = endWoundByHealing(run, run.roster, { nodeId });
   return {
     ok: true,
     mended,

@@ -22,7 +22,9 @@
 //                                            start, `battleParams.battleDebuffs`); every victory counts
 //                                            one down whether or not the unit was deployed; a church heal
 //                                            (Heal all counts) ends it early, and so does the unit's
-//                                            fall or departure
+//                                            fall or departure. A unit revived at the Ruins
+//                                            returns with one (`takenAt`: that node, whose own
+//                                            Heal all leaves it be; RuinsCommands.reviveAtRuins)
 // The numbers live in data/events.json `burdens`; `onRung` holds the exact-rung overrides
 // (a burden is gentler on First Light only). They are resolved ONCE, when the burden is
 // taken, and stored on the record, so a later data change never moves a burden in flight.
@@ -207,6 +209,7 @@ export function normalizeBurdens(raw) {
           stat: entry.stat,
           value: -penalty,
           battles,
+          ...(typeof entry.takenAt === 'string' && entry.takenAt ? { takenAt: entry.takenAt } : {}),
         });
     }
   }
@@ -410,6 +413,7 @@ export function addBurden(run, id, params = {}, catalog = null) {
       stat: params.stat,
       value: -clamp(Math.abs(int(params.value ?? def.value, -2)), 1, WOUND_MAX_PENALTY),
       battles: Math.max(1, int(params.battles ?? def.battles, 1)),
+      ...(typeof params.takenAt === 'string' && params.takenAt ? { takenAt: params.takenAt } : {}),
     };
   }
   run.burdens = existing
@@ -487,9 +491,11 @@ export function injuryPhrase(burden, { capital = true } = {}) {
 }
 
 /** What the church says beside Heal all while an injury is carried ('' when none). */
-export function woundHealLine(run) {
+export function woundHealLine(run, { nodeId = null } = {}) {
   const wound = burdenOf(run, 'wounded');
   if (!wound) return '';
+  if (nodeId && wound.takenAt === nodeId)
+    return `${injuryPhrase(wound)} needs a church: Heal all here leaves it.`;
   return `Heal all also mends ${injuryPhrase(wound, { capital: false })}.`;
 }
 
@@ -527,11 +533,14 @@ export function removeBurden(run, id) {
 
 /**
  * A wound ends when its unit is healed at a church (Heal all heals everyone). `units` are the
- * healed roster units; returns the wound that ended (for a line), or null.
+ * healed roster units; returns the wound that ended (for a line), or null. A wound taken at the
+ * node doing the healing (`nodeId`: the Ruins' revival leaves one, `takenAt`) is not mended
+ * there: it waits for the next church.
  */
-export function endWoundByHealing(run, units) {
+export function endWoundByHealing(run, units, { nodeId = null } = {}) {
   const wound = burdenOf(run, 'wounded');
   if (!wound) return null;
+  if (nodeId && wound.takenAt === nodeId) return null;
   const healed = (Array.isArray(units) ? units : []).some(
     (unit) => unitUidOf(unit) === wound.unitUid,
   );
