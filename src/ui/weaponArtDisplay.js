@@ -7,7 +7,9 @@ import {
   getWeaponArtTier5Effects,
   getWeaponArtMissEffects,
   getWeaponArtKillEffects,
+  getWeaponArtCombatMods,
 } from '../engine/WeaponArtSystem.js';
+import { getCombinedEffectivenessMultiplier } from '../engine/Combat.js';
 
 const MOD_LABELS = {
   atkBonus: 'Attack',
@@ -189,8 +191,47 @@ export function weaponArtSecondaryDetails(art) {
   return weaponArtEffectRows(art).map((row) => `${row.label}: ${row.text}`);
 }
 
-/** The art's numbers: "+8 Attack · +10 Hit · 3 strikes at 60%". */
-export function weaponArtModsText(art) {
+const capitalized = (word) => word.charAt(0).toUpperCase() + word.slice(1);
+
+/**
+ * The art's effectiveness: "×3 weapon might against flying". With the `weapon` it is used
+ * from, the multiplier is the one Combat deals: a weapon already effective against the
+ * same foes stacks with the art (Firstwind's Tempest, Endword's Divine Flare: ×5), so
+ * those foes read "×5 ... (with the weapon's own)". Empty when the art has none.
+ */
+export function weaponArtEffectivenessText(art, weapon = null) {
+  const effectiveness = art?.combatMods?.effectiveness;
+  if (!effectiveness) return '';
+  const targets = [
+    ...(effectiveness.moveTypes || []).map((label) => ({
+      label,
+      defender: { moveType: capitalized(String(label)) },
+    })),
+    ...(effectiveness.classNames || []).map((label) => ({ label, defender: { className: label } })),
+  ];
+  if (!targets.length) return '';
+  const own = effectiveness.multiplier;
+  if (!weapon) return `×${own} weapon might against ${targets.map((t) => t.label).join(', ')}`;
+  const mods = getWeaponArtCombatMods(art);
+  const byMultiplier = new Map();
+  for (const target of targets) {
+    const multiplier = getCombinedEffectivenessMultiplier(weapon, target.defender, mods);
+    if (!byMultiplier.has(multiplier)) byMultiplier.set(multiplier, []);
+    byMultiplier.get(multiplier).push(target.label);
+  }
+  return [...byMultiplier]
+    .map(
+      ([multiplier, labels]) =>
+        `×${multiplier} weapon might against ${labels.join(', ')}${multiplier > own ? " (with the weapon's own)" : ''}`,
+    )
+    .join(' · ');
+}
+
+/**
+ * The art's numbers: "+8 Attack · +10 Hit · 3 strikes at 60%". `weapon`, when known, is
+ * the weapon the art is used from (its effectiveness stacks with the art's).
+ */
+export function weaponArtModsText(art, { weapon = null } = {}) {
   const mods = art?.combatMods || {};
   const parts = Object.entries(MOD_LABELS)
     .filter(([key]) => Number.isFinite(mods[key]) && mods[key] !== 0)
@@ -200,14 +241,8 @@ export function weaponArtModsText(art) {
     parts.push(
       `${mods.multiHit.count} strikes at ${Math.round(mods.multiHit.damageMultiplier * 100)}%`,
     );
-  if (mods.effectiveness) {
-    const targets = [
-      ...(mods.effectiveness.moveTypes || []),
-      ...(mods.effectiveness.classNames || []),
-    ];
-    if (targets.length)
-      parts.push(`×${mods.effectiveness.multiplier} weapon might against ${targets.join(', ')}`);
-  }
+  const effectiveness = weaponArtEffectivenessText(art, weapon);
+  if (effectiveness) parts.push(effectiveness);
   if (mods.rangeOverride) parts.push(`Range ${mods.rangeOverride.min}–${mods.rangeOverride.max}`);
   if (mods.statScaling)
     parts.push(`Adds ${mods.statScaling.stat} ÷ ${mods.statScaling.divisor} to Attack`);
@@ -235,9 +270,11 @@ export function weaponArtModsText(art) {
  * The art in one line for battle menus, the forecast and roster cards: its numbers,
  * then its effects. No flavour and no rules; those sit behind ⓘ.
  */
-export function formatWeaponArtEffects(art) {
+export function formatWeaponArtEffects(art, { weapon = null } = {}) {
   if (!art) return '';
-  return [weaponArtModsText(art), ...weaponArtSecondaryDetails(art)].filter(Boolean).join(' · ');
+  return [weaponArtModsText(art, { weapon }), ...weaponArtSecondaryDetails(art)]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 export function weaponArtCostText(unit, art, options = {}) {
@@ -283,14 +320,14 @@ const RANK_NAMES = { Prof: 'Proficient', Mast: 'Master rank' };
  * Static copy: never carries last battle's usage counters.
  * @returns {Array<{label:string, text:string}>}
  */
-export function weaponArtSheet(art) {
+export function weaponArtSheet(art, { weapon = null } = {}) {
   if (!art) return [{ label: '', text: 'Weapon art details unavailable.' }];
   const types = art.allowedTypes?.length ? art.allowedTypes : [art.weaponType].filter(Boolean);
   const cost = [`${Math.max(0, Number(art.hpCost) || 0)} HP`];
   if (art.perMapLimit) cost.push(`${art.perMapLimit} per battle`);
   if (art.perTurnLimit) cost.push(`${art.perTurnLimit} per turn`);
   const rows = [{ label: 'Cost', text: cost.join(' · ') }];
-  const mods = weaponArtModsText(art);
+  const mods = weaponArtModsText(art, { weapon });
   if (mods) rows.push({ label: 'Effect', text: mods });
   rows.push(...weaponArtEffectRows(art));
   rows.push({
@@ -302,8 +339,10 @@ export function weaponArtSheet(art) {
 }
 
 /** The sheet as plain lines ("Cost: 8 HP · 2 per battle"). */
-export function weaponArtDetailLines(art) {
-  return weaponArtSheet(art).map((row) => (row.label ? `${row.label}: ${row.text}` : row.text));
+export function weaponArtDetailLines(art, { weapon = null } = {}) {
+  return weaponArtSheet(art, { weapon }).map((row) =>
+    row.label ? `${row.label}: ${row.text}` : row.text,
+  );
 }
 
 /** Where a scroll is used, for its first lines. */
