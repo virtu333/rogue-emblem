@@ -545,6 +545,7 @@ export function describeLoomNode(
     ruinsChoice = null,
     eventChoice = null,
     sanctumStatus = null,
+    mercPrices = null,
   } = {},
 ) {
   if (!node) return null;
@@ -559,7 +560,7 @@ export function describeLoomNode(
   const elite = !!params?.isElite;
   // A node that names a set piece with an objectives model plays as its first kind (defeat), not
   // as the legacy family its params carry (rout), and its card names the targets.
-  const preview = params ? previewObjectives(params, setPieces) : null;
+  const preview = params ? previewObjectives(params, setPieces, mapTemplates) : null;
   const objectiveId = preview?.kind || params?.objective || (node.type === 'boss' ? 'seize' : null);
   const objective = preview
     ? [
@@ -610,6 +611,17 @@ export function describeLoomNode(
         text: captains > 1 ? `${captains} captains` : 'Captain',
         tone: 'bad',
         detail: `${captains === 1 ? 'One hunter carries' : `${captains} hunters carry`} an affix — inspect ${captains === 1 ? 'it' : 'them'} in battle.`,
+      });
+  }
+  // What a hire on the colosseum's mercenary board can cost (ColosseumEngine
+  // .getMercenaryPriceRange), so the party can bring the gold before it arrives.
+  if (node.type === 'colosseum' && !eclipsed && state !== 'done' && mercPrices) {
+    const { min, max } = mercPrices;
+    if (Number.isFinite(min) && Number.isFinite(max))
+      tags.push({
+        text: min === max ? `Mercenaries ${min} G` : `Mercenaries ${min}–${max} G`,
+        tone: 'plain',
+        detail: 'What a hire on its board can cost. Dancers and promoted classes cost the most.',
       });
   }
   // A locked encounter keeps its map: say that, not "locked" beside a usable Travel

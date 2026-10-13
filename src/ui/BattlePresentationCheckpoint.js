@@ -263,11 +263,12 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
     unit._movementSpent = 0;
     safeBattlePresentation('Galeforce tint', () => restUnitAppearance(scene, unit), { scene });
   } else if (unit) {
+    const afterCombat = continuation.kind === 'combat' || continuation.afterCombat === true;
     scene.finishUnitAction(unit, {
       session,
       skipCanto:
-        continuation.skipCanto === true ||
-        (continuation.kind === 'combat' && cantoRuleFor(unit) === 'noncombat'),
+        continuation.skipCanto === true || (afterCombat && cantoRuleFor(unit) === 'noncombat'),
+      ...(afterCombat ? { afterCombat: true } : {}),
     });
     return;
   }

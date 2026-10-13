@@ -392,6 +392,15 @@
     "cantoRule": "any"
   },
   {
+    "id": "half_canto",
+    "name": "Parting Step",
+    "description": "After acting, move up to half your remaining movement (rounded down)",
+    "trigger": "passive",
+    "classInnate": ["Bow Knight", "Wyvern Lord"],
+    "cantoRule": "any",
+    "cantoShare": 0.5
+  },
+  {
     "id": "commanders_gambit",
     "name": "Commander's Gambit",
     "description": "SKL/2%: Edric + allies within 1 tile act again this turn",

@@ -428,7 +428,10 @@ export function compendiumEntries(controller, tab, filter, tabKey = null) {
       for (const id of resolveWeaponArtIds(item, arts)) {
         const weaponArt = arts.find((entry) => entry.id === id);
         if (weaponArt)
-          lines.push(`Weapon art: ${weaponArt.name}`, ...weaponArtDetailLines(weaponArt));
+          lines.push(
+            `Weapon art: ${weaponArt.name}`,
+            ...weaponArtDetailLines(weaponArt, { weapon: item }),
+          );
       }
     // A legendary's art names the weapons that carry it, once they have been met.
     if (key === 'weaponArts') lines.push(...artCarrierLines(controller, view, item, arts));

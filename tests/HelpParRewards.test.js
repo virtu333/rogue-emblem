@@ -55,7 +55,11 @@ describe('More Info: Par & Turn Ratings', () => {
   it('names every map that adds par turns, and adds 1-2', () => {
     const templates = load('mapTemplates.json');
     const all = Object.values(templates).flat();
-    const added = all.filter((t) => t && t.parBonus).map((t) => [t.id, t.parBonus]);
+    // A switched-off template (`enabled: false`) is never met in a run, so the page leaves it out
+    // until it is turned on.
+    const added = all
+      .filter((t) => t && t.parBonus && t.enabled !== false)
+      .map((t) => [t.id, t.parBonus]);
     expect(added.sort()).toEqual([
       ['castle_ruins', 2],
       ['corridor_siege', 1],

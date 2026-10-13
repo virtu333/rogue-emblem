@@ -12,6 +12,9 @@ import {
 } from './UnitManager.js';
 
 export const REVIVAL_GROWTH_PENALTY = 10;
+// A revived unit catches up to this many levels below the living roster's average: coming
+// back costs something beyond gold, and never a level the unit already had.
+export const REVIVAL_LEVELS_BEHIND = 2;
 
 // Use the existing XP tier equivalence (promoted +12); never grant a free promotion.
 export function revivalCatchUpPlan(unit, roster = []) {
@@ -22,7 +25,8 @@ export function revivalCatchUpPlan(unit, roster = []) {
     : getXpEffectiveLevel(unit);
   const tierOffset = getXpEffectiveLevel(unit) - current;
   const cap = unit.tier === 'promoted' ? PROMOTED_CLASS_LEVEL_CAP : BASE_CLASS_LEVEL_CAP;
-  const targetLevel = Math.max(current, Math.min(cap, average - tierOffset));
+  const behind = living.length ? REVIVAL_LEVELS_BEHIND : 0;
+  const targetLevel = Math.max(current, Math.min(cap, average - tierOffset - behind));
   return { fromLevel: current, targetLevel, levels: targetLevel - current };
 }
 

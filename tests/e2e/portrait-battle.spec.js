@@ -270,10 +270,10 @@ for (const viewport of [
     });
     expect(stack).toEqual([true, true, true]);
     await expect(hud.locator('.mb-body .mb-end-turn')).toHaveCount(0);
-    // A real tap on the docked End turn asks to confirm; Keep playing returns to idle.
+    // A real tap on the docked End turn asks to confirm; Back returns to idle.
     await hud.getByRole('button', { name: 'End turn…', exact: true }).tap();
     await expect(hud.getByRole('button', { name: 'End turn now', exact: true })).toBeVisible();
-    await hud.getByRole('button', { name: 'Keep playing', exact: true }).tap();
+    await page.evaluate(() => window.__emblemRogueGame.events.emit('mobile:cancel'));
     await expect
       .poll(async () => (await bottomRow(page)).map((c) => c.name))
       .toEqual(['End turn…', 'Danger', ...tools]);

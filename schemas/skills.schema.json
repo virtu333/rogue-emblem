@@ -201,6 +201,11 @@
       },
       "cantoRule": {
         "enum": ["any", "noncombat"]
+      },
+      "cantoShare": {
+        "type": "number",
+        "exclusiveMinimum": 0,
+        "maximum": 1
       }
     },
     "required": ["id", "name", "description", "trigger"],

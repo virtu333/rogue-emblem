@@ -19,22 +19,27 @@ const fallen = () => ({
   skills: [],
 });
 describe('revival catch-up', () => {
-  it('averages only living allies, never downlevels, and preserves promotion gates', () => {
+  it('averages only living allies, stops 2 levels short, never downlevels, and preserves promotion gates', () => {
+    // Living average 9 (8 and 11; the dead 20 does not count), less REVIVAL_LEVELS_BEHIND (2).
     expect(
       revivalCatchUpPlan(fallen(), [ally(8), ally(11), { ...ally(20), currentHP: 0 }]).targetLevel,
-    ).toBe(9);
+    ).toBe(7);
+    // Already within 2 of the average: no catch-up, and never a level taken away.
+    expect(revivalCatchUpPlan({ ...fallen(), level: 8 }, [ally(9)]).levels).toBe(0);
+    expect(revivalCatchUpPlan({ ...fallen(), level: 8 }, [ally(9)]).targetLevel).toBe(8);
     expect(revivalCatchUpPlan({ ...fallen(), level: 15 }, [ally(3)]).levels).toBe(0);
     expect(revivalCatchUpPlan(fallen(), [ally(20, 'promoted')]).targetLevel).toBe(20);
+    // Effective average 18 (17 and 19), promoted offset 12, less 2.
     expect(
       revivalCatchUpPlan({ ...fallen(), tier: 'promoted' }, [ally(5, 'promoted'), ally(19)])
         .targetLevel,
-    ).toBe(6);
+    ).toBe(4);
     expect(revivalCatchUpPlan(fallen(), []).levels).toBe(0);
   });
   it('subtracts ten percentage points only for missed levels and preserves future growths, XP and MOV', () => {
     const u = fallen(),
       growths = u.growths;
-    applyRevivalCatchUp(u, [ally(5)], [], () => 0.52);
+    applyRevivalCatchUp(u, [ally(7)], [], () => 0.52);
     expect(u.level).toBe(5);
     expect(u.stats.HP).toBe(23);
     expect(u.stats.STR).toBe(5); // 60 - 10 = 50%, not 60 * .9 = 54% or normal 60%.
@@ -48,7 +53,7 @@ describe('revival catch-up', () => {
     const u = fallen();
     const result = applyRevivalCatchUp(
       u,
-      [ally(5)],
+      [ally(7)],
       [{ name: 'Mage', learnableSkills: [{ level: 4, skillId: 'test_skill' }] }],
       () => 0.999,
     );
@@ -75,7 +80,7 @@ describe('revival catch-up', () => {
     const initial = structuredClone(u),
       growths = structuredClone(u.growths);
     expect(reviveAtChurch(run, u).ok).toBe(true);
-    expect(u.level).toBe(10);
+    expect(u.level).toBe(8); // 2 below the lone living ally's 10.
     expect(u.currentHP).toBe(1);
     expect(u.growths).toEqual(growths);
     const gold = run.gold;
@@ -90,7 +95,7 @@ describe('revival catch-up', () => {
     expect(initial.stats).toEqual(u.stats);
     const restored = RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), data);
     const revived = restored.roster.find((a) => a.name === u.name);
-    expect(revived.level).toBe(10);
+    expect(revived.level).toBe(8);
     expect(revived.stats).toEqual(u.stats);
     expect(revived.growths).toEqual(growths);
   });
