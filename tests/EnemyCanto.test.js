@@ -1,0 +1,275 @@
+// Enemy Canto (Dave, Oct 2026): an enemy with Canto or Parting Step steps away after it
+// acts, on the player's budget (CantoRule.cantoAllowance), to the tile the fewest of the
+// army could strike next turn (EnemyCanto.js). Real Grid, real AIController.
+import { describe, expect, it } from 'vitest';
+import { Grid } from '../src/engine/Grid.js';
+import { AIController } from '../src/engine/AIController.js';
+import { enemyWalkCost, planEnemyCanto } from '../src/engine/EnemyCanto.js';
+import { loadGameData } from './testData.js';
+
+const gameData = loadGameData();
+const T = Object.fromEntries(gameData.terrain.map((t, i) => [t.name, i]));
+const SWORD = {
+  name: 'Iron Sword',
+  range: '1',
+  type: 'Sword',
+  might: 5,
+  hit: 90,
+  crit: 0,
+  weight: 5,
+};
+
+const stub = new Proxy({}, { get: (t, p) => (p in t ? t[p] : () => stub) });
+function grid(rows) {
+  const layout = rows.map((r) =>
+    r
+      .split('')
+      .map((ch) =>
+        ch === 'L' ? T['Lava Crack'] : ch === 'F' ? T.Forest : ch === 'W' ? T.Wall : T.Plain,
+      ),
+  );
+  return new Grid(
+    {
+      cameras: { main: { width: 640, height: 480 } },
+      add: { rectangle: () => stub, image: () => stub, text: () => stub, container: () => stub },
+      textures: { exists: () => false },
+    },
+    layout[0].length,
+    layout.length,
+    gameData.terrain,
+    layout,
+    false,
+  );
+}
+const STRIP = ['............', '............', '............'];
+const STATS = { HP: 30, STR: 10, MAG: 0, SKL: 8, SPD: 8, LCK: 5, DEF: 6, RES: 4, MOV: 7 };
+
+function rider(o = {}) {
+  return {
+    name: 'Rider',
+    faction: 'enemy',
+    col: 1,
+    row: 1,
+    mov: 7,
+    moveType: 'Infantry',
+    stats: { ...STATS },
+    currentHP: 30,
+    weapon: SWORD,
+    inventory: [SWORD],
+    skills: ['canto'],
+    ...o,
+  };
+}
+function soldier(o = {}) {
+  return {
+    name: 'Edric',
+    faction: 'player',
+    col: 0,
+    row: 1,
+    mov: 2,
+    moveType: 'Infantry',
+    stats: { ...STATS, MOV: 2 },
+    currentHP: 30,
+    weapon: SWORD,
+    inventory: [SWORD],
+    skills: [],
+    ...o,
+  };
+}
+// The walk is measured on the same board here (nothing in these cases changes it).
+const plan = (g, enemy, players, origin, extra = {}) =>
+  planEnemyCanto({
+    enemy,
+    spent: enemyWalkCost({ enemy, origin, grid: g, units: [enemy, ...players] }),
+    afterCombat: true,
+    grid: g,
+    units: [enemy, ...players],
+    playerUnits: players,
+    skillsData: gameData.skills,
+    ...extra,
+  });
+const end = (p) => p && p.path[p.path.length - 1];
+
+describe('planEnemyCanto', () => {
+  // Edric (0,1) walks 1 and strikes 1: he reaches every tile within 2 of him.
+  const slow = () => [soldier({ mov: 1, stats: { ...STATS, MOV: 1 } })];
+
+  it('steps half of what is left out of reach, by the shortest step, first in reading order', () => {
+    const g = grid(STRIP);
+    // Walked 2 of 7 (from (3,1)): 5 left, half is 2. (2,0) is 3 from Edric, 2 steps away.
+    const p = plan(g, rider(), slow(), { col: 3, row: 1 });
+    expect(p.allowance).toBe(2);
+    expect(end(p)).toEqual({ col: 2, row: 0 });
+  });
+
+  it('Canto and Parting Step agree for a foe; 3 left halves to 1', () => {
+    const g = grid(STRIP);
+    const half = plan(g, rider({ skills: ['half_canto'] }), slow(), { col: 3, row: 1 });
+    expect(half.allowance).toBe(2);
+    expect(end(half)).toEqual({ col: 2, row: 0 });
+    // 3 left: one step, and every tile one step away is still in his reach, so it stays.
+    expect(plan(g, rider(), slow(), { col: 5, row: 1 })).toBe(null);
+    expect(plan(g, rider({ skills: ['half_canto'] }), slow(), { col: 5, row: 1 })).toBe(null);
+  });
+
+  it('no Canto skill, a boss, a guard or a holder never steps', () => {
+    const g = grid(STRIP);
+    const origin = { col: 3, row: 1 };
+    expect(plan(g, rider({ skills: [] }), [soldier()], origin)).toBe(null);
+    expect(plan(g, rider({ isBoss: true }), [soldier()], origin)).toBe(null);
+    expect(plan(g, rider({ aiMode: 'guard' }), [soldier()], origin)).toBe(null);
+    expect(plan(g, rider({ aiMode: 'hold' }), [soldier()], origin)).toBe(null);
+  });
+
+  it('a unit that spent its whole move has nothing left', () => {
+    const g = grid(STRIP);
+    expect(plan(g, rider(), [soldier()], { col: 8, row: 1 })).toBe(null);
+  });
+
+  it('never stops on lava, and prefers cover when the reach is the same', () => {
+    const g = grid(['..L.........', '............', '............']);
+    expect(end(plan(g, rider(), slow(), { col: 3, row: 1 }))).toEqual({ col: 3, row: 1 });
+    // Out of reach everywhere it can go: a forest beats open ground at the same reach.
+    const far = grid(['............', '.....F......', '............']);
+    const e = rider({ col: 4, row: 1 });
+    const p = plan(far, e, [soldier({ col: 0, row: 1, mov: 0, stats: { ...STATS, MOV: 0 } })], {
+      col: 4,
+      row: 1,
+    });
+    expect(end(p)).toEqual({ col: 5, row: 1 });
+  });
+});
+
+describe('enemy phase', () => {
+  async function runPhase(skills) {
+    const g = grid(STRIP);
+    const e = rider({ col: 6, row: 1, skills });
+    const edric = soldier({ col: 2, row: 1, mov: 1, stats: { ...STATS, MOV: 1 } });
+    const ai = new AIController(g, gameData);
+    const moves = [];
+    await ai.processEnemyPhase([e], [edric], [], {
+      afterUnit: () => Promise.resolve(),
+      onMoveUnit: (unit, path) => {
+        moves.push(path[path.length - 1]);
+        unit.col = path[path.length - 1].col;
+        unit.row = path[path.length - 1].row;
+        return Promise.resolve();
+      },
+      onAttack: () => Promise.resolve(),
+      onUnitDone: (unit) => {
+        unit.hasActed = true;
+      },
+    });
+    return { e, edric, moves };
+  }
+
+  it('a Canto rider strikes, then steps out of reach in the same turn', async () => {
+    const { e, edric, moves } = await runPhase(['canto']);
+    expect(moves).toHaveLength(2);
+    const dist = Math.abs(e.col - edric.col) + Math.abs(e.row - edric.row);
+    expect(dist).toBeGreaterThan(2);
+    expect(e._lastAiDecision.cantoPath.at(-1)).toEqual({ col: e.col, row: e.row });
+  });
+
+  it('without Canto it stays beside its target', async () => {
+    const { e, edric, moves } = await runPhase([]);
+    expect(moves).toHaveLength(1);
+    expect(Math.abs(e.col - edric.col) + Math.abs(e.row - edric.row)).toBe(1);
+  });
+});
+
+// Review (Oct 2026): the walk's cost is measured on the board the enemy walked on, before it
+// acts. Re-pathing after the action let a kill (or a broken wall) open a shorter road and
+// hand back the detour as movement it never had.
+describe('the walk is paid for before the action changes the board', () => {
+  // Rider (0,1) MOV 6 walks round the blocker at (3,1) to (4,1): 6 tiles. With the blocker
+  // gone the straight road would be 4. Edric at (6,1) (MOV 1, a sword) reaches (4,1) but not
+  // (3,1) or (4,0), so a rider with any budget left would step off (4,1).
+  const DETOUR = [
+    { col: 0, row: 1 },
+    { col: 1, row: 1 },
+    { col: 2, row: 1 },
+    { col: 2, row: 0 },
+    { col: 3, row: 0 },
+    { col: 4, row: 0 },
+    { col: 4, row: 1 },
+  ];
+  const lane = () => soldier({ col: 6, row: 1, mov: 1, stats: { ...STATS, MOV: 1 } });
+
+  async function phase({ g, e, players, decision, kill = null, onBreak = null }) {
+    const ai = new AIController(g, gameData);
+    ai._decideAction = () => decision;
+    const moves = [];
+    await ai.processEnemyPhase([e], players, [], {
+      afterUnit: () => Promise.resolve(),
+      onMoveUnit: (unit, path) => {
+        moves.push(path);
+        unit.col = path[path.length - 1].col;
+        unit.row = path[path.length - 1].row;
+        return Promise.resolve();
+      },
+      onAttack: () => {
+        if (kill) kill.currentHP = 0;
+        return Promise.resolve();
+      },
+      onBreak: (unit, tile) => {
+        onBreak?.(tile);
+        return Promise.resolve();
+      },
+      onUnitDone: (unit) => {
+        unit.hasActed = true;
+      },
+    });
+    return moves;
+  }
+
+  it('a full-budget walk that kills its blocker takes no Canto step', async () => {
+    const g = grid(STRIP);
+    const blocker = soldier({ name: 'Gaspar', col: 3, row: 1 });
+    const e = rider({ col: 0, row: 1, mov: 6, stats: { ...STATS, MOV: 6 } });
+    const moves = await phase({
+      g,
+      e,
+      players: [blocker, lane()],
+      decision: { path: DETOUR, target: blocker },
+      kill: blocker,
+    });
+    expect(moves).toHaveLength(1);
+    expect({ col: e.col, row: e.row }).toEqual({ col: 4, row: 1 });
+    expect(e._lastAiDecision.cantoPath).toBeUndefined();
+  });
+
+  it('two points truly left over still give one step', async () => {
+    const g = grid(STRIP);
+    const blocker = soldier({ name: 'Gaspar', col: 3, row: 1 });
+    const e = rider({ col: 0, row: 1, mov: 8, stats: { ...STATS, MOV: 8 } });
+    const moves = await phase({
+      g,
+      e,
+      players: [blocker, lane()],
+      decision: { path: DETOUR, target: blocker },
+      kill: blocker,
+    });
+    expect(moves).toHaveLength(2);
+    expect(moves[1]).toHaveLength(2);
+    expect(Math.abs(e.col - 6) + Math.abs(e.row - 1)).toBeGreaterThan(2);
+  });
+
+  it('a wall it breaks after walking round it refunds nothing', async () => {
+    // Wall at (3,1): the same 6-tile detour; breaking it opens the 4-tile road.
+    const g = grid(['............', '...W........', '............']);
+    const e = rider({ col: 0, row: 1, mov: 6, stats: { ...STATS, MOV: 6 } });
+    const moves = await phase({
+      g,
+      e,
+      players: [lane()],
+      decision: { path: DETOUR, breakTile: { col: 3, row: 1 } },
+      onBreak: (tile) => {
+        g.mapLayout[tile.row][tile.col] = T.Plain;
+      },
+    });
+    expect(g.mapLayout[1][3]).toBe(T.Plain);
+    expect(moves).toHaveLength(1);
+    expect(e._lastAiDecision.cantoPath).toBeUndefined();
+  });
+});
