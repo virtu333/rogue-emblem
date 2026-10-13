@@ -1,5 +1,5 @@
 // The Roster's overview (playtest 2026-10-13): opening the Roster shows every unit as a
-// small card at once (count, deploy cap, level, class, HP and EXP, a few marks); a card
+// small card at once (count, deploy cap, level, class, HP and EXP, the equipped weapon); a card
 // opens that unit's detail and Back returns to the grid.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -9,7 +9,12 @@ vi.mock('../src/ui/serviceSave.js', () => ({ saveServiceRun: vi.fn(() => '') }))
 import { installFakeDom, FakeEvent } from './helpers/fakeDom.js';
 import { loadGameData } from './testData.js';
 import { MobileRosterSheet } from '../src/ui/MobileRosterSheet.js';
-import { rosterOverviewModel, unitMarks, isUnarmed } from '../src/ui/rosterOverviewModel.js';
+import {
+  rosterOverviewModel,
+  unitMarks,
+  isUnarmed,
+  equippedWeaponLine,
+} from '../src/ui/rosterOverviewModel.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { createRecruitUnit } from '../src/engine/UnitManager.js';
 import { _resetInputFocus, dispatchInputAction } from '../src/utils/inputFocus.js';
@@ -130,6 +135,20 @@ describe('roster overview model', () => {
     expect(model.cards.find((c) => c.name === 'Daska').marks.map((m) => m.id)).toContain('injured');
   });
 
+  it("a card's bottom line names the equipped weapon, else No weapon", () => {
+    const { run, archer } = makeRun();
+    const bow = archer.inventory.find((w) => w.type === 'Bow');
+    archer.weapon = bow;
+    const card = () =>
+      rosterOverviewModel({ units: run.roster, run }).cards.find((c) => c.name === 'Daska');
+    expect(card().weapon).toEqual({ name: bow.name, item: bow });
+    expect(card().label).toContain(`equipped ${bow.name}`);
+    archer.weapon = null;
+    expect(card().weapon).toEqual({ name: 'No weapon', item: null });
+    expect(card().label).toContain('no weapon equipped');
+    expect(equippedWeaponLine(null).name).toBe('No weapon');
+  });
+
   it('a staff-only healer is not unarmed', () => {
     const cleric = createRecruitUnit({ name: 'Ilse', level: 2 }, cls('Cleric'), gameData.weapons);
     expect(isUnarmed(cleric)).toBe(false);
@@ -152,6 +171,19 @@ describe('roster sheet overview', () => {
     expect(tabs(sheet)).toEqual([]);
     expect(sheet.root.querySelector('.mr-ov-count').textContent).toBe(`${run.roster.length} units`);
     expect(headerButton(sheet).textContent).toBe('Close');
+    sheet.destroy();
+  });
+
+  it("each card's bottom line is its weapon, with no tags", () => {
+    const { sheet, archer, fighter } = open({ overview: true });
+    fighter.weapon = null;
+    sheet.render();
+    const line = (unit) => cards(sheet)[sheet.units.indexOf(unit)].querySelector('.mr-ov-weapon');
+    expect(line(archer).textContent).toBe(archer.weapon.name);
+    expect(line(archer).querySelector('.ia-icon')).toBeTruthy();
+    expect(line(fighter).textContent).toBe('No weapon');
+    expect(line(fighter).classList.contains('is-none')).toBe(true);
+    expect(sheet.root.querySelectorAll('.mr-mark')).toHaveLength(0);
     sheet.destroy();
   });
 

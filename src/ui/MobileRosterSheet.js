@@ -676,7 +676,7 @@ export class MobileRosterSheet {
     });
     body.scrollTop = oldScroll;
   }
-  /** One overview card's face, name and level, class, HP and EXP bars, and marks. */
+  /** One overview card's face, name and level, class, HP and EXP bars, and equipped weapon. */
   overviewCardBody(card, view) {
     // A unit with no portrait keeps the face's slot, so every card's text lines up.
     card.append(this.portrait(view.unit, 'mr-ov-face') || el('span', null, 'mr-ov-face'));
@@ -701,16 +701,13 @@ export class MobileRosterSheet {
       xpRow.append(el('small', view.xp.capped ? 'MAX' : String(view.xp.xp)));
       info.append(xpRow);
     }
-    if (view.shownMarks.length) {
-      const marks = el('span', null, 'mr-ov-marks');
-      for (const mark of view.shownMarks)
-        marks.append(el('span', mark.label, `mr-mark is-${mark.tone} mark-${mark.id}`));
-      if (view.marks.length > view.shownMarks.length)
-        marks.append(
-          el('span', `+${view.marks.length - view.shownMarks.length}`, 'mr-mark is-more'),
-        );
-      info.append(marks);
-    }
+    // The bottom line: what the unit fights with (the marks ride the card's label).
+    const weaponLine = el('span', null, `mr-ov-weapon${view.weapon.item ? '' : ' is-none'}`);
+    if (view.weapon.item) weaponLine.append(itemIcon(view.weapon.item, { size: 16, marks: false }));
+    const weaponName = el('span', view.weapon.name);
+    weaponName.title = view.weapon.name;
+    weaponLine.append(weaponName);
+    info.append(weaponLine);
     for (const node of info.querySelectorAll('[role="meter"]'))
       node.setAttribute('aria-hidden', 'true');
     card.append(info);
