@@ -76,6 +76,28 @@
     "title": "The Oath at the Ford",
     "tonic": "E"
   },
+  "music_battle_act1_5": {
+    "duration": 77.933,
+    "loopEnd": 77.333333,
+    "loopStart": 8.0,
+    "lufs": -14.0,
+    "peakDb": -1.09,
+    "score": "battle_act1_5",
+    "seamDb": -63.7,
+    "title": "Double Time",
+    "tonic": "A"
+  },
+  "music_battle_act1_5_calm": {
+    "duration": 77.933,
+    "loopEnd": 77.333333,
+    "loopStart": 8.0,
+    "lufs": -17.0,
+    "peakDb": -5.73,
+    "score": "battle_act1_5",
+    "seamDb": -73.9,
+    "title": "Double Time",
+    "tonic": "A"
+  },
   "music_battle_act1_calm": {
     "duration": 80.389,
     "loopEnd": 79.789456,
@@ -142,6 +164,28 @@
     "title": "Old Kingdom Roads",
     "tonic": "G"
   },
+  "music_battle_act2_4": {
+    "duration": 71.8,
+    "loopEnd": 71.2,
+    "loopStart": 7.2,
+    "lufs": -14.0,
+    "peakDb": -1.12,
+    "score": "battle_act2_4",
+    "seamDb": -60.1,
+    "title": "Every Other Word",
+    "tonic": "B"
+  },
+  "music_battle_act2_4_calm": {
+    "duration": 71.8,
+    "loopEnd": 71.2,
+    "loopStart": 7.2,
+    "lufs": -17.0,
+    "peakDb": -3.7,
+    "score": "battle_act2_4",
+    "seamDb": -73.3,
+    "title": "Every Other Word",
+    "tonic": "B"
+  },
   "music_battle_act2_calm": {
     "duration": 76.6,
     "loopEnd": 76.0,
@@ -207,6 +251,28 @@
     "seamDb": -65.5,
     "title": "Petals on the Fen",
     "tonic": "B"
+  },
+  "music_battle_act3_4": {
+    "duration": 78.718,
+    "loopEnd": 78.117642,
+    "loopStart": 7.52941,
+    "lufs": -14.0,
+    "peakDb": -1.09,
+    "score": "battle_act3_4",
+    "seamDb": -54.5,
+    "title": "Dawn by Degrees",
+    "tonic": "Bb"
+  },
+  "music_battle_act3_4_calm": {
+    "duration": 78.718,
+    "loopEnd": 78.117642,
+    "loopStart": 7.52941,
+    "lufs": -17.0,
+    "peakDb": -4.29,
+    "score": "battle_act3_4",
+    "seamDb": -71.1,
+    "title": "Dawn by Degrees",
+    "tonic": "Bb"
   },
   "music_battle_act3_calm": {
     "duration": 71.683,
