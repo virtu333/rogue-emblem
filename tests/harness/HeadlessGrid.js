@@ -2,8 +2,12 @@
 // Extracted from src/engine/Grid.js for headless battle testing.
 
 import { parseRange } from '../../src/engine/Combat.js';
-import { computeMovementRange, computePath, reconstructRangePath } from '../../src/engine/Grid.js';
-import { VISION_RANGES } from '../../src/utils/constants.js';
+import {
+  computeMovementRange,
+  computePath,
+  reconstructRangePath,
+  unitVisionRange,
+} from '../../src/engine/Grid.js';
 
 export class HeadlessGrid {
   constructor(cols, rows, terrainData, mapLayout, fogEnabled = false) {
@@ -125,7 +129,7 @@ export class HeadlessGrid {
     if (!this.fogEnabled) return;
     const newVisible = new Set(this.contactSet || []);
     for (const unit of playerUnits) {
-      const range = VISION_RANGES[unit.moveType] || 3;
+      const range = unitVisionRange(unit, this.getTerrainAt(unit.col, unit.row));
       const tiles = this.getVisionRange(unit.col, unit.row, range);
       for (const key of tiles) newVisible.add(key);
     }
