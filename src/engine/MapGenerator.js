@@ -20,6 +20,7 @@ import {
 import { assignAffixesToEnemySpawns, assignSwornAffix } from './AffixEngine.js';
 import { withHuntedWave } from './HuntedWave.js';
 import { applyRiteBattleMods } from './RiteBattleMods.js';
+import { sanitizeEntityKit } from './EntityKitConfig.js';
 import { createSeededRng } from './ReinforcementScheduler.js';
 import { assignEnemyAreaArts } from './EnemyAreaArts.js';
 import { pickCaravanSpawnTile } from './CaravanSystem.js';
@@ -71,6 +72,15 @@ const TEMPLATE_OBJECTIVES = Object.freeze(['rout', 'seize', 'escape']);
 
 /** Extra layouts a caravan node may draw when the merchant finds no tile on the first. */
 export const CARAVAN_PLACEMENT_ATTEMPTS = 8;
+
+/**
+ * The rung's Entity kit (battleParams.entityKit, RunManager.getBattleParams) as the locked
+ * config's `entityKit`: only on a map that seats the Entity, so no other battle carries it.
+ */
+function entityKitConfig(params, enemySpawns) {
+  const kit = sanitizeEntityKit(params?.entityKit);
+  return kit && enemySpawns.some((spawn) => spawn?.isEntity) ? { entityKit: kit } : {};
+}
 
 /**
  * Generate a full battle configuration from params + game data.
@@ -577,6 +587,8 @@ export function generateBattleLayout(params, deps) {
       ? orderSpawnsTowardTarget(mapLayout, cols, rows, terrain, playerSpawns, npcSpawn)
       : playerSpawns,
     enemySpawns,
+    // The Entity's kit (EntityKitConfig.js), locked with the map that seats it.
+    ...entityKitConfig(params, enemySpawns),
     npcSpawn,
     caravanSpawn: caravanSpawn || undefined,
     villageTile: villageTile || undefined,

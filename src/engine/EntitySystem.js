@@ -2,12 +2,40 @@
 
 import {
   ENTITY_FOOTPRINT,
+  ENTITY_LIMB_REACH,
+  ENTITY_PRIMARY_ATTACK_RANGE,
   ENTITY_SPLASH_COUNT,
   ENTITY_SPLASH_COUNT_MAX,
   ENTITY_SPLASH_DAMAGE,
 } from '../utils/constants.js';
 import { gridDistance } from './CombatGeometry.js';
 import { damageUnitDetailed } from './UnitHealth.js';
+
+/** The `_summonedBy` of a Grasping Limb (EntityKit.js: a conjured unit, ConjuredUnits.js). */
+export const ENTITY_LIMB_SUMMONER = 'entity:limb';
+
+/** A Grasping Limb the Entity sprouted (Nightfall and Black Sun's kit). */
+export function isEntityLimb(unit) {
+  return unit?._summonedBy === ENTITY_LIMB_SUMMONER;
+}
+
+/** The Entity's living Grasping Limbs among `units` (a roster, or every enemy). */
+export function livingEntityLimbs(units) {
+  return (units || []).filter((u) => isEntityLimb(u) && u.currentHP > 0 && !u._removing);
+}
+
+/**
+ * Can the Entity strike `target` on its own turn? Within ENTITY_PRIMARY_ATTACK_RANGE of its
+ * body (combatDistance), or within ENTITY_LIMB_REACH of one of its living limbs among
+ * `enemyUnits`. The one rule the AI and the Danger zone read (EntityKit.js).
+ */
+export function canEntityStrike(entity, target, enemyUnits = []) {
+  if (!isEntity(entity) || !target) return false;
+  if (combatDistance(entity, target) <= ENTITY_PRIMARY_ATTACK_RANGE) return true;
+  return livingEntityLimbs(enemyUnits).some(
+    (limb) => gridDistance(limb.col, limb.row, target.col, target.row) <= ENTITY_LIMB_REACH,
+  );
+}
 
 /** Check if a unit is an Entity (multi-tile boss) */
 export function isEntity(unit) {

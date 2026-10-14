@@ -109,6 +109,8 @@ export const CLASS_CREST_SPECS = Object.freeze({
   Dragon: c('dragon', 'base', 'breath', { mount: 'wyvern' }),
   'Dragon Lord': c('dragon', 'promoted', 'breath', { twin: true, mount: 'wyvern' }),
   Entity: c('entity', 'boss', 'eclipse', { mark: 'ring' }),
+  // the Entity's Grasping Limb wears its master's eclipse (no heraldry of its own either)
+  'Grasping Limb': c('entity', 'boss', 'eclipse', { mark: 'ring' }),
 });
 
 export const CREST_LINE_IDS = Object.freeze([

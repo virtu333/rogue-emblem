@@ -30,6 +30,8 @@
 //   turnNumber
 //   skillsData?                        gameData.skills (the on-kill skills' catalog)
 //   marksData?                         gameData.marks (Mark of the Ember's catalog)
+//   entityKit?, entityKitState?        the Entity's kit and the battle's state (EntityKit.js:
+//                                      a strike's tile noted for a limb, the undertow's drag)
 //   battleBlessings?                   the battle's earned blessings (engine/BattleBlessings.js):
 //                                      the Unbroken Banner on every blow that can fell a unit,
 //                                      the Ember Lantern after the steps (absent: neither acts)
@@ -51,6 +53,7 @@ import { planAreaBlows } from './AreaDamage.js';
 import { planAreaPush } from './AreaPush.js';
 import { combatDistance, getFootprint } from './EntitySystem.js';
 import { recordEpicCombat } from './EpicWeapons.js';
+import { entityKitAfterCombat } from './EntityKit.js';
 import { applyCondition, isSilenced } from './StatusConditionSystem.js';
 import { damageUnit, damageUnitDetailed, healUnit, setUnitHP } from './UnitHealth.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
@@ -81,6 +84,8 @@ export function* postCombatEffects(
     marksData: world?.marksData ?? null,
   });
   const held = bannerHeldUnits(result, attacker, defender);
+  // Where the attacker struck from, before any art moves it (the Entity's limbs rise there).
+  const strikeTile = attacker ? { col: attacker.col, row: attacker.row } : null;
   for (const step of steps) {
     const sourceUnit = step.sourceSide === 'defender' ? defender : attacker;
     const targetUnit = step.targetSide
@@ -97,6 +102,7 @@ export function* postCombatEffects(
     );
   }
   yield* earnedOnKill({ attacker, defender, result }, world);
+  yield* entityKitAfterCombat({ attacker, defender, result, strikeTile }, world);
 }
 
 /** The units the Unbroken Banner held in the exchange itself (Combat's `bannerHeld`). */

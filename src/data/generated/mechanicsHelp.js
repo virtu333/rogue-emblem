@@ -52,7 +52,7 @@ export const GENERATED_HELP_TABS = [
             "color": "#66ddff"
           },
           {
-            "text": "Mast: 22 weapons (21 legendary)",
+            "text": "Mast: 23 weapons (22 legendary)",
             "color": "#66ddff"
           },
           {
@@ -142,12 +142,12 @@ export const GENERATED_MECHANICS_REFERENCE = {
       },
       {
         "rank": "Mast",
-        "totalWeapons": 22,
-        "legendaryWeapons": 21
+        "totalWeapons": 23,
+        "legendaryWeapons": 22
       }
     ],
     "legendaryRequires": "Mast",
-    "legendaryCount": 21
+    "legendaryCount": 22
   },
   "legendaryWeapons": [
     {
@@ -246,6 +246,13 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "type": "Sword",
       "rankRequired": "Mast",
       "range": "1-4",
+      "special": ""
+    },
+    {
+      "name": "Grasping Coil",
+      "type": "Sword",
+      "rankRequired": "Mast",
+      "range": "1",
       "special": ""
     },
     {

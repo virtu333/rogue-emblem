@@ -99,7 +99,7 @@ describe('pinned behaviour: threat tiles before the counter band', () => {
     expect(status.size).toBe(0);
   });
 
-  it('the Entity strikes within 2 of its body and the body tiles are part of it', () => {
+  it('the Entity strikes within 3 of its body and the body tiles are part of it', () => {
     const g = plainGrid(13, 13);
     const entity = entityAt(5, 5);
     const { damage } = enemyThreatTiles(ctxFor(g, [entity]), entity);
@@ -108,7 +108,7 @@ describe('pinned behaviour: threat tiles before the counter band', () => {
       for (let r = 0; r < 13; r++) {
         const dc = Math.max(5 - c, 0, c - 7);
         const dr = Math.max(5 - r, 0, r - 7);
-        if (dc + dr <= 2) expected.add(`${c},${r}`);
+        if (dc + dr <= 3) expected.add(`${c},${r}`);
       }
     expect(sorted(damage)).toEqual(sorted(expected));
   });
@@ -142,23 +142,20 @@ const keysWhere = (cols, rows, test) => {
 };
 
 describe('the Entity counter-only band', () => {
-  it('is exactly distance 3..4 from the body: edges, corners, never a body or strike tile', () => {
+  it('is exactly distance 4 from the body: edges, corners, never a body or strike tile', () => {
     const g = plainGrid(15, 15);
     const entity = entityAt(6, 6);
     const { damage, counter } = enemyThreatTiles(ctxFor(g, [entity]), entity);
-    const expected = keysWhere(15, 15, (c, r) => {
-      const d = gapToBody(6, 6, c, r);
-      return d === 3 || d === 4;
-    });
+    const expected = keysWhere(15, 15, (c, r) => gapToBody(6, 6, c, r) === 4);
     expect(sorted(counter)).toEqual(sorted(expected));
-    // Straight out from each side (3 and 4 away), and the diagonal corners of the band.
-    for (const key of ['3,6', '2,6', '11,7', '12,7', '6,3', '6,2', '8,11', '8,12'])
-      expect(counter.has(key), key).toBe(true);
+    // Straight out from each side (4 away), and the diagonal corners of the band.
+    for (const key of ['2,6', '12,7', '6,2', '8,12']) expect(counter.has(key), key).toBe(true);
     for (const key of ['4,4', '10,10', '4,10', '3,5', '10,4'])
       expect(counter.has(key), key).toBe(true);
-    // Five away, and one or two away (strike tiles): not in the band.
+    // Five away, and one to three away (strike tiles): not in the band.
     for (const key of ['1,6', '13,7', '6,1', '4,3', '8,4', '5,6', '4,6', '8,9', '5,5'])
       expect(counter.has(key), key).toBe(false);
+    for (const key of ['3,6', '11,7', '6,3', '8,11']) expect(counter.has(key), key).toBe(false);
     // Disjoint from the strike zone, and no body tile.
     for (const key of counter) expect(damage.has(key)).toBe(false);
     for (let c = 6; c <= 8; c++)
@@ -169,45 +166,46 @@ describe('the Entity counter-only band', () => {
     const g = plainGrid(15, 15);
     const entity = entityAt(6, 6);
     const { damage } = enemyThreatTiles(ctxFor(g, [entity]), entity);
-    expect(sorted(damage)).toEqual(sorted(keysWhere(15, 15, (c, r) => gapToBody(6, 6, c, r) <= 2)));
+    expect(sorted(damage)).toEqual(sorted(keysWhere(15, 15, (c, r) => gapToBody(6, 6, c, r) <= 3)));
   });
 
   it('is clipped to the map and does not fall off a corner', () => {
     const g = plainGrid(8, 8);
     const entity = entityAt(0, 0);
     const { counter } = enemyThreatTiles(ctxFor(g, [entity]), entity);
-    expect(sorted(counter)).toEqual(
-      sorted(keysWhere(8, 8, (c, r) => [3, 4].includes(gapToBody(0, 0, c, r)))),
-    );
-    expect(counter.has('5,0')).toBe(true); // three across from the body's right edge
-    expect(counter.has('6,1')).toBe(true); // four: three across, one down
+    expect(sorted(counter)).toEqual(sorted(keysWhere(8, 8, (c, r) => gapToBody(0, 0, c, r) === 4)));
+    expect(counter.has('6,0')).toBe(true); // four across from the body's right edge
+    expect(counter.has('5,3')).toBe(true); // four: three across, one below the body
+    expect(counter.has('5,0')).toBe(false); // three across: a strike tile
     expect(counter.size).toBeGreaterThan(0);
   });
 
   it('reads the reach from the weapon, through the rule counters use', () => {
     const w13 = { ...weapon('Eldritch Grasp'), range: '1-3' };
-    const w12 = { ...weapon('Eldritch Grasp'), range: '1-2' };
+    const w15 = { ...weapon('Eldritch Grasp'), range: '1-5' };
     const w25 = { ...weapon('Eldritch Grasp'), range: '2-5' };
     const staff = { name: 'Heal', type: 'Staff', range: '1-4' };
-    expect(entityCounterOnlyDistances(entityAt(2, 2, { weapon: w13 }))).toEqual([3]);
-    expect(entityCounterOnlyDistances(entityAt(2, 2, { weapon: w12 }))).toEqual([]);
-    expect(entityCounterOnlyDistances(entityAt(2, 2, { weapon: w25 }))).toEqual([3, 4, 5]);
+    expect(entityCounterOnlyDistances(entityAt(2, 2, { weapon: w13 }))).toEqual([]);
+    expect(entityCounterOnlyDistances(entityAt(2, 2, { weapon: w15 }))).toEqual([4, 5]);
+    expect(entityCounterOnlyDistances(entityAt(2, 2, { weapon: w25 }))).toEqual([4, 5]);
     expect(entityCounterOnlyDistances(entityAt(2, 2, { weapon: staff }))).toEqual([]);
     expect(entityCounterOnlyDistances(entityAt(2, 2, { weapon: null }))).toEqual([]);
     expect(entityCounterOnlyDistances(ordinary(2, 2, { weapon: weapon('Longbow') }))).toEqual([]);
     // A per-battle weapon with no uses left answers nothing (Combat.canCounter).
     const perBattle = { ...weapon('Eldritch Grasp'), perBattleUses: true, uses: 2 };
-    expect(entityCounterOnlyDistances(entityAt(2, 2, { weapon: perBattle }))).toEqual([3, 4]);
+    expect(entityCounterOnlyDistances(entityAt(2, 2, { weapon: perBattle }))).toEqual([4]);
     expect(
       entityCounterOnlyDistances(entityAt(2, 2, { weapon: { ...perBattle, _usesSpent: 2 } })),
     ).toEqual([]);
-    // A 1-3 weapon shows distance 3 only, on the map.
-    const g = plainGrid(13, 13);
-    const reach3 = entityAt(5, 5, { weapon: w13 });
-    const { counter } = enemyThreatTiles(ctxFor(g, [reach3]), reach3);
+    // A 1-5 weapon shows distances 4 and 5, on the map; a 1-3 one no band at all.
+    const g = plainGrid(15, 15);
+    const reach5 = entityAt(5, 5, { weapon: w15 });
+    const { counter } = enemyThreatTiles(ctxFor(g, [reach5]), reach5);
     expect(sorted(counter)).toEqual(
-      sorted(keysWhere(13, 13, (c, r) => gapToBody(5, 5, c, r) === 3)),
+      sorted(keysWhere(15, 15, (c, r) => [4, 5].includes(gapToBody(5, 5, c, r)))),
     );
+    const reach3 = entityAt(5, 5, { weapon: w13 });
+    expect(enemyThreatTiles(ctxFor(g, [reach3]), reach3).counter.size).toBe(0);
   });
 
   it('is empty for every ordinary unit, whatever its weapon', () => {
@@ -241,9 +239,7 @@ describe('computeDangerTiles with the counter band', () => {
     expect(threatOnly.every((t) => t.damageThreat)).toBe(true);
     const shown = computeDangerTiles(ctxFor(g, [entity]), { counter: true });
     const bandTiles = shown.filter((t) => t.counterThreat);
-    expect(bandTiles.length).toBe(
-      keysWhere(13, 13, (c, r) => [3, 4].includes(gapToBody(5, 5, c, r))).size,
-    );
+    expect(bandTiles.length).toBe(keysWhere(13, 13, (c, r) => gapToBody(5, 5, c, r) === 4).size);
     for (const t of bandTiles)
       expect(t).toEqual({
         col: t.col,
@@ -272,13 +268,13 @@ describe('computeDangerTiles with the counter band', () => {
     });
     const tiles = computeDangerTiles(ctxFor(g, [entity, archer]), { counter: true });
     const at = (c, r) => tiles.find((t) => t.col === c && t.row === r);
-    // (8, 6) is 3 from the body (band); the archer at (12, 6) is 4 away from it: no strike.
-    expect(at(8, 6)).toMatchObject({ counterThreat: true, damageThreat: false, count: 0 });
+    // (4, 1) is 4 from the body (band), far from the archer: no strike.
+    expect(at(4, 1)).toMatchObject({ counterThreat: true, damageThreat: false, count: 0 });
     // (9, 6) is 4 from the body (band) and 3 from the archer: a strike tile that is also band.
     expect(at(9, 6)).toMatchObject({ counterThreat: true, damageThreat: true, count: 1 });
-    // (7, 6) is 2 from the body: struck by the Entity only.
-    expect(at(7, 6)).toMatchObject({ damageThreat: true, count: 1 });
-    expect(at(7, 6).counterThreat).toBeUndefined();
+    // (8, 6) is 3 from the body, 4 from the archer: struck by the Entity only.
+    expect(at(8, 6)).toMatchObject({ damageThreat: true, count: 1 });
+    expect(at(8, 6).counterThreat).toBeUndefined();
   });
 
   it('shows nothing for an Entity the fog hides', () => {
@@ -304,7 +300,7 @@ describe('computeDangerTiles with the counter band', () => {
       damageThreat: false,
     });
     expect(scene._anyPlayerInDanger()).toBe(false);
-    scene.playerUnits[0].row = 9; // two below the body: struck
+    scene.playerUnits[0].row = 10; // three below the body: struck
     expect(scene._anyPlayerInDanger()).toBe(true);
   });
 });
@@ -314,26 +310,27 @@ describe('Threat Sight: the band under a mover', () => {
     const g = plainGrid(13, 13);
     const entity = entityAt(5, 5);
     const ctx = ctxFor(g, [entity]);
+    // A bow that reaches 4 (no catalog weapon does; a reach bonus can: WeaponReach.js).
     const bow = {
       name: 'Archer',
       faction: 'player',
       col: 1,
       row: 1,
-      weapon: weapon('Longbow'),
+      weapon: { ...weapon('Longbow'), range: '2-4' },
       inventory: [],
     };
     const sword = { ...bow, weapon: weapon('Iron Sword') };
-    // (10, 6) is three from the body.
-    const withBow = threatsOnTile(ctx, 10, 6, { mover: bow });
+    // (11, 6) is four from the body.
+    const withBow = threatsOnTile(ctx, 11, 6, { mover: bow });
     expect(withBow.counter).toEqual([entity]);
     expect(withBow.count).toBe(0);
     expect(threatSummaryText(withBow)).toBe('No foe can reach · The Entity counters from here');
     expect(threatSummaryTone(withBow)).toBe('counter');
-    expect(threatsOnTile(ctx, 10, 6, { mover: sword }).counter).toEqual([]);
+    expect(threatsOnTile(ctx, 11, 6, { mover: sword }).counter).toEqual([]);
     // No mover: the tile's answer is the Entity's.
-    expect(threatsOnTile(ctx, 10, 6).counter).toEqual([entity]);
+    expect(threatsOnTile(ctx, 11, 6).counter).toEqual([entity]);
     // A tile it strikes is a strike (never also a counter); five away is nothing.
-    expect(threatsOnTile(ctx, 9, 6, { mover: bow })).toMatchObject({ count: 1, counter: [] });
+    expect(threatsOnTile(ctx, 10, 6, { mover: bow })).toMatchObject({ count: 1, counter: [] });
     const far = threatsOnTile(ctx, 12, 6, { mover: bow });
     expect(far).toMatchObject({ count: 0, counter: [] });
     expect(threatSummaryText(far)).toBe('No foe can reach');
@@ -345,7 +342,7 @@ describe('Threat Sight: the memo key carries what the mover can reach with', () 
   const archer = (extra = {}) => ({
     name: 'Archer',
     faction: 'player',
-    col: 10,
+    col: 11,
     row: 6,
     currentHP: 18,
     weapon: weapon('Iron Sword'),
@@ -360,19 +357,19 @@ describe('Threat Sight: the memo key carries what the mover can reach with', () 
     const units = [mover, entity];
     const ctx = ctxFor(g, units);
     const sword = threatWorldSignature(ctx, units);
-    expect(threatsOnTile(ctx, 10, 6, { mover }).counter).toEqual([]);
-    // A Longbow comes into the bag and into the hand; the unit has not moved.
-    const bow = weapon('Longbow');
+    expect(threatsOnTile(ctx, 11, 6, { mover }).counter).toEqual([]);
+    // A bow that reaches 4 comes into the bag and into the hand; the unit has not moved.
+    const bow = { ...weapon('Longbow'), range: '2-4' };
     mover.inventory.push(bow);
     mover.weapon = bow;
     const armed = threatWorldSignature(ctx, units);
     expect(armed).not.toBe(sword);
-    expect(threatsOnTile(ctx, 10, 6, { mover }).counter).toEqual([entity]);
+    expect(threatsOnTile(ctx, 11, 6, { mover }).counter).toEqual([entity]);
     // It trades the bow away again: back to the first signature, back to the first answer.
     mover.inventory = [mover.inventory[0]];
     mover.weapon = mover.inventory[0];
     expect(threatWorldSignature(ctx, units)).toBe(sword);
-    expect(threatsOnTile(ctx, 10, 6, { mover }).counter).toEqual([]);
+    expect(threatsOnTile(ctx, 11, 6, { mover }).counter).toEqual([]);
   });
 
   it('keys on reach, not on which weapon is in hand or how the bag is ordered', () => {
@@ -429,11 +426,11 @@ describe('the forecast says when the Entity counters from beyond its strike', ()
   const counterLine = (forecast, attacking) =>
     forecastNotes(forecast, attacking, 60).find((n) => n.startsWith('Counters from'));
 
-  it('appears on the Entity side exactly when it counters at distance > 2', () => {
+  it('appears on the Entity side exactly when it counters at distance > 3', () => {
     for (const [distance, counters, noted] of [
       [1, true, false],
       [2, true, false],
-      [3, true, true],
+      [3, true, false],
       [4, true, true],
       [5, false, false],
     ]) {
@@ -466,12 +463,12 @@ describe('the forecast says when the Entity counters from beyond its strike', ()
     expect(counterLine(forecast, false)).toBeUndefined();
   });
 
-  it('is silent when the Entity cannot counter (a weapon that stops at 2)', () => {
+  it('is silent when the Entity cannot counter (a weapon that stops at 3)', () => {
     const short = entityAt(0, 0, {
       stats: bigStats,
-      weapon: { ...weapon('Eldritch Grasp'), range: '1-2' },
+      weapon: { ...weapon('Eldritch Grasp'), range: '1-3' },
     });
-    const forecast = forecastAt(3, short);
+    const forecast = forecastAt(4, short);
     expect(forecast.defender.canCounter).toBe(false);
     expect(entityCounterNote(forecast)).toBe('');
     expect(counterLine(forecast, false)).toBeUndefined();
@@ -481,13 +478,13 @@ describe('the forecast says when the Entity counters from beyond its strike', ()
 describe('the Entity info line', () => {
   it('reads both reaches, from the weapon', () => {
     expect(entityReachInfo(entityAt(0, 0))).toEqual({
-      strike: 2,
+      strike: 3,
       counter: 4,
-      text: 'Strikes within 2 · Counters within 4',
+      text: 'Strikes within 3 · Counters within 4',
     });
     const reaching = (range) => entityAt(0, 0, { weapon: { ...weapon('Eldritch Grasp'), range } });
-    expect(entityReachInfo(reaching('1-3')).text).toBe('Strikes within 2 · Counters within 3');
-    expect(entityReachInfo(reaching('1-2')).text).toBe('Strikes and counters within 2');
+    expect(entityReachInfo(reaching('1-5')).text).toBe('Strikes within 3 · Counters within 5');
+    expect(entityReachInfo(reaching('1-3')).text).toBe('Strikes and counters within 3');
     expect(entityReachInfo(ordinary(0, 0))).toBeNull();
     expect(entityReachInfo(null)).toBeNull();
   });
@@ -499,7 +496,7 @@ describe('the Entity info line', () => {
       (p) => p.title === "The Entity's Reach",
     );
     const text = page.lines.map((l) => l.text).join(' ');
-    expect(text).toMatch(/2 tiles/);
+    expect(text).toMatch(/3 tiles/);
     expect(text).toMatch(/from 4/);
   });
 });

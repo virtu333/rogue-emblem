@@ -2174,6 +2174,20 @@
     "price": 0
   },
   {
+    "name": "Grasping Coil",
+    "lore": "It closes on whatever stood where the blow came from. It does not need to see.",
+    "type": "Sword",
+    "tier": "Legend",
+    "rankRequired": "Mast",
+    "might": 5,
+    "hit": 80,
+    "crit": 0,
+    "weight": 0,
+    "range": "1",
+    "special": "",
+    "price": 0
+  },
+  {
     "name": "Courtbreaker Scroll",
     "lore": "Written for palace duels, where every guard hides behind a pillar. It does not help.",
     "type": "Scroll",

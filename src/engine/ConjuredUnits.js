@@ -1,6 +1,7 @@
 // ConjuredUnits — the one rule for a foe the battle made rather than placed: a Skeleton a
-// Necromancer raised (engine/Necromancy.js) or a Hollowed a summoning circle called
-// (engine/Vigil.js). Pure, and a leaf (no imports), so EnemyCarry, BattleXp and
+// Necromancer raised (engine/Necromancy.js), a Hollowed a summoning circle called
+// (engine/Vigil.js) or a Grasping Limb the Entity sprouted (engine/EntityKit.js, also
+// `_summonedBy`: half the XP). Pure, and a leaf (no imports), so EnemyCarry, BattleXp and
 // ReinforcementSpawns can all read it without an import cycle.
 //
 // A conjured unit repeats (a raise or a call comes back every enemy phase until its source
@@ -24,7 +25,7 @@ export function isRaisedUnit(unit) {
   return typeof unit?._raisedBy === 'string' && unit._raisedBy.length > 0;
 }
 
-/** A unit a summoning circle called (its `_summonedBy` is `circle:<id>`). */
+/** A unit a summoning circle called (`_summonedBy`: `circle:<id>`) or an Entity's limb (`entity:limb`). */
 export function isSummonedUnit(unit) {
   return typeof unit?._summonedBy === 'string' && unit._summonedBy.length > 0;
 }

@@ -496,7 +496,11 @@ export const ENTITY_CRIT_DMG_MULT = 1.5;
 export const ENTITY_SPLASH_COUNT = 2;
 export const ENTITY_SPLASH_COUNT_MAX = 4; // the orthogonal neighbours a splash can reach
 export const ENTITY_SPLASH_DAMAGE = [5, 10];
-export const ENTITY_PRIMARY_ATTACK_RANGE = 2;
+// How far the Entity strikes on its own turn, from the nearest tile of its body (its weapons
+// say 1-4, so it counters one tile farther: EntityReach.js).
+export const ENTITY_PRIMARY_ATTACK_RANGE = 3;
+// How far beyond one of its Grasping Limbs it also strikes (EntityKit.js; Nightfall and Black Sun).
+export const ENTITY_LIMB_REACH = 1;
 export const ENTITY_WEAPON_NAMES = ['Eldritch Grasp', 'Twisting Vortex'];
 
 // Fog of War
