@@ -24,8 +24,10 @@ import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js'
 import { getMetaKey } from '../src/engine/SlotManager.js';
 import { learnSkill } from '../src/engine/UnitManager.js';
 import { requiredRunFormat } from '../src/engine/RunFormat.js';
+import { INVENTORY_MAX } from '../src/utils/constants.js';
 import {
   BRING_LIMIT,
+  KEPT_ITEM_CAPS,
   NG_PLUS_COST,
   applyRidePicks,
   applyRunEnd,
@@ -43,6 +45,7 @@ import {
   candidateDetail,
   draftPicks,
   ngPlusResultNote,
+  openRideWarning,
   rideView,
   unlockView,
 } from '../src/ui/ngPlusModel.js';
@@ -358,6 +361,27 @@ describe('"Who rides again?"', () => {
     expect(state.barracks).toHaveLength(1);
   });
 
+  it('a full slot’s survivor can be opened but not added; Begin Run warns while the pick is open', () => {
+    // Failure: a full kind locks its survivors' loadouts out of view, or a player begins a run
+    // with slots unsent and loses them to the next win without a word.
+    const meta = unlockedMeta();
+    const rm = wonRun();
+    winRun(rm, meta);
+    const [edric, sera] = ['Edric', 'Sera'].map((n) => rm.roster.find((u) => u.name === n));
+    const view = rideView(meta.getNgPlus(), { [edric.unitUid]: {} });
+    const seraChip = view.candidates.find((c) => c.ref === sera.unitUid);
+    expect(seraChip).toMatchObject({ full: true, disabled: false });
+    expect(seraChip.fullText).toMatch(/lord slot is full/);
+    expect(openRideWarning(meta).text).toMatch(/still has 1 lord/);
+    expect(meta.chooseNgPlusRide([]).ok).toBe(true);
+    expect(openRideWarning(meta)).toBeNull();
+    // Not bought: no NG+ run can be begun, so nothing to warn about.
+    winRun(wonRun({ seed: 12 }), meta);
+    expect(openRideWarning(meta)).not.toBeNull();
+    vi.spyOn(meta, 'isNgPlusUnlocked').mockReturnValue(false);
+    expect(openRideWarning(meta)).toBeNull();
+  });
+
   it('warns about a pick that keeps no skill or item', () => {
     const meta = unlockedMeta();
     const rm = wonRun();
@@ -525,6 +549,40 @@ describe('an NG+ run starts with its veterans and kits', () => {
       ngPlus: runStartOf(state),
     });
     expect(rm.legendaryGrants).toContain(legend.name);
+  });
+
+  it('a lord’s kit stacks win over win, and a bag too full sends the rest to the convoy', () => {
+    // Failure: a second ride replaces the first's keeps, or a kept weapon past the bag's room
+    // is lost at the run's start instead of waiting in the convoy.
+    const meta = unlockedMeta();
+    const names = ['Iron Sword', 'Steel Sword', 'Iron Lance', 'Steel Lance', 'Iron Axe'];
+    for (const [i, name] of names.entries()) {
+      const rm = wonRun({ seed: 30 + i });
+      const edric = rm.roster.find((u) => u.name === 'Edric');
+      const kept = { ...weapon(name), uid: `itm_stack_${i}` };
+      edric.inventory = [kept];
+      winRun(rm, meta);
+      expect(meta.chooseNgPlusRide([{ ref: edric.unitUid, itemUid: kept.uid }]).ok).toBe(true);
+      if (meta.getNgPlus().pendingRide) expect(meta.chooseNgPlusRide([]).ok).toBe(true);
+    }
+    const record = meta.getNgPlus().barracks.find((r) => r.id === lordRecordId('Edric'));
+    expect(record.rides).toBe(KEPT_ITEM_CAPS.weapon);
+    expect(record.keptItems.map((i) => i.uid)).toEqual(names.map((_, i) => `itm_stack_${i}`));
+    const rm = new RunManager(data);
+    rm.startRun({
+      runSeed: 5,
+      applyBlessingsAtStart: false,
+      difficultyId: 'hard',
+      ngPlus: meta.ngPlusRunStart('hard'),
+    });
+    const edric = rm.roster.find((u) => u.name === 'Edric');
+    const held = new Set([
+      ...edric.inventory.map((i) => i.uid),
+      ...(rm.convoy.weapons || []).map((i) => i.uid),
+    ]);
+    for (const item of record.keptItems) expect(held.has(item.uid)).toBe(true);
+    expect(edric.inventory.length).toBe(INVENTORY_MAX);
+    expect((rm.convoy.weapons || []).some((i) => i.uid.startsWith('itm_stack_'))).toBe(true);
   });
 
   it('a third lord in the Barracks takes their kit when they join', () => {

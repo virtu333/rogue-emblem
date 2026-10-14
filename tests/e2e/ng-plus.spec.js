@@ -89,6 +89,26 @@ test('buy NG+, pick who rides again, bring a veteran, and start NG+ on Nightfall
     'aria-pressed',
     'true',
   );
+  // Opening Edric and back never drops Bjorn's choices; Edric leaves the pick by his button.
+  await page.locator('[data-focus="ride-u1"]').tap();
+  await expect(page.locator('[data-focus="keep-skill-sol"]')).toBeVisible();
+  await page.locator('[data-focus="ride-u4"]').tap();
+  await expect(page.locator('[data-focus="keep-skill-vantage"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.locator('[data-focus="ride-u1"]').tap();
+  await page.locator('[data-focus="unpick-u1"]').tap();
+  await expect(page.locator('[data-focus="ride-u1"]')).toHaveAttribute('aria-pressed', 'false');
+
+  // Begin Run asks once while the pick is open, and the warning says what is unsent.
+  await page.locator('[data-focus="begin"]').tap();
+  await expect(page.locator('.mu-status')).toContainText('Who rides again? still has');
+  await expect(page.locator('[data-focus="begin"]')).toHaveText('Begin anyway');
+  await page.locator('[data-focus="ngplus"]').tap();
+  await expect(page.locator('[data-focus="begin"]')).toHaveText('Begin Run');
+  await page.locator('[data-focus="ride-u4"]').tap();
+
   await page.locator('[data-focus="ng-commit"]').tap();
   // The pick stays open for the lord's slot; Bjorn is sent and cannot be sent again.
   await expect(page.locator('.mu-status')).toHaveText(

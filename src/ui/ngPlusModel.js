@@ -118,7 +118,11 @@ export function rideView(state, draft) {
         line: `${c.className} · Lv ${c.level}${record && !isSent ? ' · In the Barracks' : ''}`,
         picked: isPicked,
         sent: isSent,
-        disabled: isSent || (!isPicked && full),
+        // A full kind's survivor can still be opened to read their loadout; only one sent from
+        // this win is closed.
+        full: !isSent && !isPicked && full,
+        fullText: full ? `The ${c.kind} slot is full: remove someone from this pick first.` : '',
+        disabled: isSent,
       };
     }),
     canCommit: block === null,
@@ -211,6 +215,24 @@ export function barracksView(state, gameData = {}) {
       brought: bring.has(record.id),
       canBring: record.kind === 'recruit' && (bring.has(record.id) || bring.size < BRING_LIMIT),
     })),
+  };
+}
+
+/**
+ * Begin Run's warning while "Who rides again?" is still open on a bought NG+: the next
+ * Nightfall or Black Sun win replaces an open pick, so it asks once first. Null otherwise.
+ */
+export function openRideWarning(meta) {
+  const ride = meta?.getNgPlus?.()?.pendingRide;
+  if (!ride || !meta.isNgPlusUnlocked?.()) return null;
+  const left = rideSlotsLeft(ride);
+  const open = [
+    left.lord ? plural(left.lord, 'lord') : null,
+    left.recruit ? plural(left.recruit, 'recruit') : null,
+  ].filter(Boolean);
+  return {
+    text: `Who rides again? still has ${open.join(' and ') || 'room'} to send (NG+ tab). Your next Nightfall or Black Sun win replaces this pick.`,
+    confirmLabel: 'Begin anyway',
   };
 }
 

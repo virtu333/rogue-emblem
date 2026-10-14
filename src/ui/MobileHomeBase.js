@@ -13,7 +13,7 @@ import { hasPc98, pc98PortraitElement, usePc98 } from './portraitArt.js';
 import { metLords } from '../engine/LordsMet.js';
 import { BEGIN_RUN_CANCELLED } from '../engine/PrologueRouting.js';
 import { NgPlusPanel } from './NgPlusPanel.js';
-import { NG_PLUS_TAB_LABEL, ngPlusTabVisible } from './ngPlusModel.js';
+import { NG_PLUS_TAB_LABEL, ngPlusTabVisible, openRideWarning } from './ngPlusModel.js';
 const node = (tag, cls, text) => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -189,6 +189,7 @@ export class MobileHomeBase {
         label,
         () => {
           this.tab = key;
+          this.confirmBegin = false;
           this.render();
         },
         this.tab === key,
@@ -344,7 +345,20 @@ export class MobileHomeBase {
     actions.append(
       ngAction || node('span', 'mu-help', `${selection.commander} + ${selection.partner}`),
     );
-    const begin = this.button('Begin Run', () => void this.transition('BeginRun'));
+    // An open "Who rides again?" is lost to the next eligible win: Begin Run asks once.
+    const rideWarning = openRideWarning(this.meta);
+    const confirmingBegin = Boolean(rideWarning && this.confirmBegin);
+    const begin = this.button(confirmingBegin ? rideWarning.confirmLabel : 'Begin Run', () => {
+      if (rideWarning && !this.confirmBegin) {
+        this.confirmBegin = true;
+        this.message = rideWarning.text;
+        this.render();
+        this.root.querySelector('[data-focus="begin"]')?.focus();
+        return;
+      }
+      this.confirmBegin = false;
+      void this.transition('BeginRun');
+    });
     begin.className = 'mu-buy';
     begin.dataset.focus = 'begin';
     actions.append(begin);

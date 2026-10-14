@@ -61,13 +61,10 @@ export class NgPlusPanel {
         const b = this.button(
           '',
           () => {
-            if (this.draft[c.ref]) {
-              delete this.draft[c.ref];
-              this.focus = null;
-            } else {
-              this.draft[c.ref] = {};
-              this.focus = { kind: 'candidate', id: c.ref };
-            }
+            // Opening a survivor never drops another's choices: tap freely between them, and
+            // remove one from the pick with its own button.
+            if (!this.draft[c.ref] && !c.full) this.draft[c.ref] = {};
+            this.focus = { kind: 'candidate', id: c.ref };
             this.rerender(`ride-${c.ref}`);
           },
           { pressed: c.picked, focus: `ride-${c.ref}`, cls: 'mh-skill', disabled: c.disabled },
@@ -103,8 +100,10 @@ export class NgPlusPanel {
     }
     if (!barracks.records.length) list.append(node('p', 'mu-help', barracks.lead));
 
-    if (this.focus?.kind === 'candidate' && this.draft[this.focus.id])
-      this.renderCandidate(copy, state, this.focus.id);
+    const focusedCandidate =
+      this.focus?.kind === 'candidate' && ride?.candidates.find((c) => c.ref === this.focus.id);
+    if (focusedCandidate && !focusedCandidate.sent)
+      this.renderCandidate(copy, state, focusedCandidate);
     else if (this.focus?.kind === 'record') this.renderRecord(copy, barracks, this.focus.id);
     else {
       copy.append(node('h2', '', 'New Game+'));
@@ -135,15 +134,25 @@ export class NgPlusPanel {
     );
   }
 
-  renderCandidate(copy, state, ref) {
+  renderCandidate(copy, state, candidate) {
+    const { ref } = candidate;
     const pick = this.draft[ref];
     const view = candidateDetail(state, ref, pick, this.gameData);
     if (!view) return;
+    copy.append(node('h2', '', view.name), node('p', 'mu-help', `${view.line} · ${view.record}`));
+    if (!pick) {
+      // A full slot: their loadout to read, nothing to choose until someone is removed.
+      copy.append(node('p', 'mu-requirements', candidate.fullText));
+      const skills = view.skills.map((s) => s.label).join(', ');
+      const items = view.items.map((i) => i.label).join(', ');
+      copy.append(node('p', '', `Skills: ${skills || 'none to keep'}`));
+      copy.append(node('p', '', `Items: ${items || 'none to keep'}`));
+      return;
+    }
     const set = (patch, focus) => {
       Object.assign(pick, patch);
       this.rerender(focus);
     };
-    copy.append(node('h2', '', view.name), node('p', 'mu-help', `${view.line} · ${view.record}`));
     copy.append(node('h3', 'ng-heading', 'Keep one skill'));
     if (!view.skills.length) copy.append(node('p', 'mu-help', 'No skill of theirs to keep.'));
     for (const s of view.skills)
@@ -187,6 +196,17 @@ export class NgPlusPanel {
         );
     }
     copy.append(node('p', 'mu-help', view.caps));
+    copy.append(
+      this.button(
+        `Remove ${view.name} from this pick`,
+        () => {
+          delete this.draft[ref];
+          this.focus = null;
+          this.rerender(`ride-${ref}`);
+        },
+        { focus: `unpick-${ref}` },
+      ),
+    );
   }
 
   renderRecord(copy, barracks, id) {
