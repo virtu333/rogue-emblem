@@ -2,13 +2,14 @@
 
 The Warchief's open-fifth clan music squeezed into repeated marcato strikes
 (D D F E D A) on low brass and taiko, then again, harder. No corruption
-effect: he is unchanged, only more so. In the key of the Act III boss theme.
+effect: he is unchanged, only more so. In the key of his theme, Frightened
+Acclaim (A).
 """
 
 from stingers._common import cue
 
 KEYED = False
-TONIC = 'E'
+TONIC = 'A'
 
 
 def build(transpose=0):
