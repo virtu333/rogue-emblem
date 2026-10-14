@@ -1,0 +1,628 @@
+// NG+ phase 1 (docs/specs/ng-plus.md): the unlock, "Who rides again?", the Barracks, the NG+
+// run's start (veterans at a fresh level, lords' kits), the run's end and the save format.
+// Real RunManager and MetaProgressionManager on the shipped data; each test names the realistic
+// failure it catches.
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const store = {};
+Object.defineProperty(globalThis, 'localStorage', {
+  value: {
+    getItem: (k) => (Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null),
+    setItem: (k, v) => {
+      store[k] = String(v);
+    },
+    removeItem: (k) => {
+      delete store[k];
+    },
+  },
+  writable: true,
+});
+
+import { loadGameData } from './testData.js';
+import { RunManager } from '../src/engine/RunManager.js';
+import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
+import { getMetaKey } from '../src/engine/SlotManager.js';
+import { learnSkill } from '../src/engine/UnitManager.js';
+import { requiredRunFormat } from '../src/engine/RunFormat.js';
+import {
+  BRING_LIMIT,
+  NG_PLUS_COST,
+  applyRidePicks,
+  applyRunEnd,
+  defaultNgPlusState,
+  lordRecordId,
+  mergeNgPlusState,
+  normalizeNgPlusState,
+  ridePickBlock,
+  runStartOf,
+  setBring,
+} from '../src/engine/NgPlusState.js';
+import { isNgPlusRun, ngPlusRunEnd, rideCandidates } from '../src/engine/NgPlusRun.js';
+import {
+  barracksView,
+  candidateDetail,
+  draftPicks,
+  ngPlusResultNote,
+  rideView,
+  unlockView,
+} from '../src/ui/ngPlusModel.js';
+
+const data = loadGameData();
+const META_KEY = getMetaKey(1);
+const freshMeta = () => new MetaProgressionManager(data.metaUpgrades, META_KEY);
+
+beforeEach(() => {
+  for (const key of Object.keys(store)) delete store[key];
+});
+afterEach(() => vi.restoreAllMocks());
+
+const weapon = (name) => structuredClone(data.weapons.find((w) => w.name === name));
+const consumable = (name) => structuredClone(data.consumables.find((c) => c.name === name));
+
+/** A Nightfall run whose army holds a Fighter recruit with a learned skill and a kept axe. */
+function wonRun({ difficultyId = 'hard', seed = 11, ngPlus = null } = {}) {
+  const rm = new RunManager(data);
+  rm.startRun({ runSeed: seed, applyBlessingsAtStart: false, difficultyId, ngPlus });
+  return rm;
+}
+
+function addRecruit(rm, className = 'Fighter') {
+  const unit = rm._createExtraStartingUnit(className);
+  rm.roster.push(unit);
+  rm.ensureUnitUids();
+  return rm.roster.at(-1);
+}
+
+function winRun(rm, meta) {
+  rm.actIndex = rm.actSequence.length - 1;
+  rm.status = 'victory';
+  return rm.settleEndRunRewards(meta, 'victory');
+}
+
+const unlockedMeta = () => {
+  const meta = freshMeta();
+  meta.milestones.add('beatLunatic');
+  meta.addValor(NG_PLUS_COST.valor);
+  meta.addSupply(NG_PLUS_COST.supply);
+  expect(meta.unlockNgPlus()).toEqual({ ok: true });
+  return meta;
+};
+
+describe('the unlock', () => {
+  it('needs a Black Sun win and both currencies, and takes both in one save', () => {
+    // Failure: the unlock opens on a Nightfall win, or charges one currency only.
+    const meta = freshMeta();
+    meta.addValor(5000);
+    meta.addSupply(5000);
+    meta.milestones.add('beatHard');
+    expect(meta.unlockNgPlus()).toEqual({ ok: false, reason: 'milestone' });
+    meta.milestones.add('beatLunatic');
+    meta.totalSupply = NG_PLUS_COST.supply - 1;
+    expect(meta.unlockNgPlus()).toEqual({ ok: false, reason: 'supply' });
+    meta.totalSupply = 5000;
+    expect(meta.unlockNgPlus().ok).toBe(true);
+    const reloaded = freshMeta();
+    expect(reloaded.isNgPlusUnlocked()).toBe(true);
+    expect(reloaded.totalValor).toBe(5000 - NG_PLUS_COST.valor);
+    expect(reloaded.totalSupply).toBe(5000 - NG_PLUS_COST.supply);
+    expect(meta.unlockNgPlus()).toEqual({ ok: false, reason: 'unlocked' });
+  });
+
+  it('is never refunded by Home Base', () => {
+    // Failure: the refund path finds the unlock and hands the currencies back.
+    const meta = unlockedMeta();
+    expect(meta.canRefund('ng_plus').success).toBe(false);
+  });
+
+  it('a failed write leaves the currencies and the lock as they were', () => {
+    // Failure: memory says "unlocked" and charged while the disk never saw it.
+    const meta = freshMeta();
+    meta.milestones.add('beatLunatic');
+    meta.totalValor = 2000;
+    meta.totalSupply = 2000;
+    vi.spyOn(meta, '_save').mockReturnValue({ ok: false });
+    expect(meta.unlockNgPlus()).toEqual({ ok: false, reason: 'save_failed' });
+    expect(meta.totalValor).toBe(2000);
+    expect(meta.totalSupply).toBe(2000);
+    expect(meta.isNgPlusUnlocked()).toBe(false);
+  });
+
+  it('the unlock card says why it cannot be bought', () => {
+    const meta = freshMeta();
+    expect(unlockView(meta).blockText).toMatch(/Black Sun/);
+    expect(unlockView(meta).canBuy).toBe(false);
+  });
+});
+
+describe('a win leaves its survivors to pick from', () => {
+  it('a Nightfall win stores a pending ride with every army survivor but Gaspar', () => {
+    // Failure: the special veteran (Gaspar) becomes a Barracks veteran.
+    const meta = freshMeta();
+    const rm = wonRun();
+    const fighter = addRecruit(rm);
+    winRun(rm, meta);
+    const ride = freshMeta().getNgPlus().pendingRide;
+    expect(ride.runId).toBe(rm.runRecordId);
+    const names = ride.candidates.map((c) => c.name);
+    expect(names).toContain('Edric');
+    expect(names).toContain(fighter.name);
+    expect(names).not.toContain('Gaspar');
+    expect(ngPlusResultNote(freshMeta(), rm)).toMatch(/Black Sun/);
+  });
+
+  it('a First Light or Dusk win stores none, and a defeat stores none', () => {
+    // Failure: a lower rung farms the Barracks.
+    for (const difficultyId of ['normal', 'dusk']) {
+      const meta = freshMeta();
+      winRun(wonRun({ difficultyId }), meta);
+      expect(meta.getNgPlus().pendingRide).toBeNull();
+    }
+    const meta = freshMeta();
+    const rm = wonRun();
+    rm.failRun(null);
+    rm.settleEndRunRewards(meta, 'defeat');
+    expect(meta.getNgPlus().pendingRide).toBeNull();
+  });
+
+  it('pays the ride once however often the run is settled', () => {
+    // Failure: a reload on Run Complete re-records the ride over a pick already made.
+    const meta = unlockedMeta();
+    const rm = wonRun();
+    winRun(rm, meta);
+    expect(meta.passNgPlusRide().ok).toBe(true);
+    rm.settleEndRunRewards(meta, 'victory');
+    expect(meta.getNgPlus().pendingRide).toBeNull();
+  });
+
+  it('keepable skills leave out lord, class and curriculum skills, and keep learned ones', () => {
+    // Failure: a class innate or a level-taught skill fills a kept slot.
+    const rm = wonRun();
+    const fighter = addRecruit(rm);
+    learnSkill(fighter, 'vantage');
+    learnSkill(fighter, 'wrath'); // the Fighter line's curriculum
+    learnSkill(fighter, 'shove');
+    const candidate = rideCandidates(rm).find((c) => c.ref === fighter.unitUid);
+    expect(candidate.skills).toContain('vantage');
+    expect(candidate.skills).toContain('shove');
+    expect(candidate.skills).not.toContain('wrath');
+    expect(candidate.skillKinds.shove).toBe('ability');
+    const edric = rideCandidates(rm).find((c) => c.name === 'Edric');
+    expect(edric.skills).not.toContain('charisma');
+  });
+
+  it('a promoted recruit is kept on its base line, without the promotion’s growths', () => {
+    // Failure: a Warrior comes back with the Warrior's +5 STR growth added a second time.
+    const rm = wonRun();
+    const fighter = addRecruit(rm);
+    const baseStr = fighter.growths.STR;
+    fighter.className = 'Warrior';
+    fighter.tier = 'promoted';
+    fighter.baseClass = 'Fighter';
+    fighter.growths.STR += 5;
+    const candidate = rideCandidates(rm).find((c) => c.ref === fighter.unitUid);
+    expect(candidate.identity.className).toBe('Fighter');
+    expect(candidate.identity.growths.STR).toBe(baseStr);
+  });
+});
+
+/** Meta with a Barracks: Edric (a skill and a weapon) and a Fighter veteran brought. */
+function metaWithBarracks() {
+  const meta = unlockedMeta();
+  const rm = wonRun();
+  const fighter = addRecruit(rm);
+  learnSkill(fighter, 'vantage');
+  const axe = weapon('Steel Axe');
+  axe.uid = 'itm_kept_axe';
+  fighter.inventory.push(axe);
+  const edric = rm.roster.find((u) => u.name === 'Edric');
+  learnSkill(edric, 'sol');
+  const elixir = consumable('Elixir');
+  elixir.uid = 'itm_kept_elixir';
+  edric.consumables = [elixir];
+  winRun(rm, meta);
+  const picks = [
+    { ref: edric.unitUid, skillId: 'sol', itemUid: 'itm_kept_elixir' },
+    { ref: fighter.unitUid, skillId: 'vantage', itemUid: 'itm_kept_axe' },
+  ];
+  expect(meta.chooseNgPlusRide(picks)).toMatchObject({ ok: true });
+  const vet = meta.getNgPlus().barracks.find((r) => r.kind === 'recruit');
+  expect(meta.setNgPlusBring([vet.id]).ok).toBe(true);
+  return { meta, fighter, vet };
+}
+
+describe('"Who rides again?"', () => {
+  it('records 1 skill and 1 item per pick and clears the ride', () => {
+    const { meta, fighter, vet } = metaWithBarracks();
+    const state = meta.getNgPlus();
+    expect(state.pendingRide).toBeNull();
+    expect(vet.name).toBe(fighter.name);
+    expect(vet.className).toBe('Fighter');
+    expect(vet.keptSkills).toEqual(['vantage']);
+    expect(vet.keptItems.map((i) => i.uid)).toEqual(['itm_kept_axe']);
+    const edric = state.barracks.find((r) => r.id === lordRecordId('Edric'));
+    expect(edric.keptSkills).toEqual(['sol']);
+    expect(edric.rides).toBe(1);
+  });
+
+  it('refuses a second lord, a third recruit, or a skill the unit never had', () => {
+    // Failure: the pacing rule's limits are not enforced on commit.
+    const meta = unlockedMeta();
+    const rm = wonRun();
+    const a = addRecruit(rm);
+    const b = addRecruit(rm);
+    const c = addRecruit(rm);
+    winRun(rm, meta);
+    const [edric, sera] = ['Edric', 'Sera'].map((n) => rm.roster.find((u) => u.name === n));
+    const state = meta.getNgPlus();
+    expect(ridePickBlock(state, [{ ref: edric.unitUid }, { ref: sera.unitUid }])).toBe(
+      'too_many_lords',
+    );
+    expect(
+      ridePickBlock(
+        state,
+        [a, b, c].map((u) => ({ ref: u.unitUid })),
+      ),
+    ).toBe('too_many_recruits');
+    expect(ridePickBlock(state, [{ ref: a.unitUid, skillId: 'luna' }])).toBe('unknown_skill');
+    expect(meta.chooseNgPlusRide([{ ref: edric.unitUid }, { ref: sera.unitUid }]).ok).toBe(false);
+    expect(meta.getNgPlus().pendingRide).not.toBeNull();
+  });
+
+  it('a full kind needs a replacement and swaps exactly that one', () => {
+    // Failure: the 11th skill is added past the cap, or the wrong one is dropped.
+    const state = defaultNgPlusState();
+    const ids = ['vantage', 'wrath', 'sol', 'luna', 'astra', 'adept', 'miracle', 'guard'];
+    const extra = ['cancel', 'desperation', 'aether'];
+    state.barracks.push({
+      id: 'vet:r:1',
+      kind: 'recruit',
+      name: 'Bjorn',
+      keptSkills: [...ids, ...extra.slice(0, 2)],
+      skillKinds: {},
+      keptItems: [],
+      rides: 1,
+      className: 'Fighter',
+      growths: { HP: 70 },
+      traits: [],
+    });
+    state.pendingRide = {
+      runId: 'r2',
+      candidates: [
+        {
+          ref: 'u1',
+          kind: 'recruit',
+          name: 'Bjorn',
+          recordId: 'vet:r:1',
+          className: 'Fighter',
+          identity: null,
+          items: [],
+          skills: ['aether'],
+          skillKinds: { aether: 'skill' },
+        },
+      ],
+    };
+    const s = normalizeNgPlusState({ ...state, v: 1 });
+    expect(ridePickBlock(s, [{ ref: 'u1', skillId: 'aether' }])).toBe('skill_cap');
+    const done = applyRidePicks(s, [{ ref: 'u1', skillId: 'aether', replaceSkillId: 'wrath' }]);
+    expect(done.ok).toBe(true);
+    const record = s.barracks[0];
+    expect(record.keptSkills).toHaveLength(10);
+    expect(record.keptSkills).toContain('aether');
+    expect(record.keptSkills).not.toContain('wrath');
+  });
+
+  it('the model draws the ride and a picked survivor’s choices', () => {
+    const meta = unlockedMeta();
+    const rm = wonRun();
+    const fighter = addRecruit(rm);
+    learnSkill(fighter, 'vantage');
+    winRun(rm, meta);
+    const state = meta.getNgPlus();
+    const draft = { [fighter.unitUid]: { skillId: 'vantage' } };
+    const view = rideView(state, draft);
+    expect(view.counts).toBe('Lords 0/1 · Recruits 1/2');
+    expect(view.canCommit).toBe(true);
+    const detail = candidateDetail(state, fighter.unitUid, draft[fighter.unitUid], data);
+    expect(detail.skills.find((s) => s.id === 'vantage').chosen).toBe(true);
+    expect(draftPicks(draft)).toEqual([{ ref: fighter.unitUid, skillId: 'vantage' }]);
+    expect(ngPlusResultNote(meta, rm)).toMatch(/NG\+ tab/);
+  });
+});
+
+describe('an NG+ run starts with its veterans and kits', () => {
+  it('a brought veteran returns at level 1 in its base class with its own growths', () => {
+    // Failure: the veteran is re-rolled (new growths), keeps its level, or the trait's growth
+    // change lands twice.
+    const { meta, vet } = metaWithBarracks();
+    const start = meta.ngPlusRunStart('hard');
+    const rm = new RunManager(data);
+    rm.startRun({ runSeed: 21, applyBlessingsAtStart: false, difficultyId: 'hard', ngPlus: start });
+    const unit = rm.roster.find((u) => u.name === vet.name);
+    expect(unit).toBeTruthy();
+    expect(unit.level).toBe(1);
+    expect(unit.className).toBe('Fighter');
+    expect(unit.growths).toEqual(vet.growths);
+    expect(unit.traits).toEqual(vet.traits);
+    expect(unit.faction).toBe('player');
+    expect(unit.skills).toContain('vantage');
+    expect(unit.inventory.some((i) => i.uid === 'itm_kept_axe')).toBe(true);
+    const edric = rm.roster.find((u) => u.name === 'Edric');
+    expect(edric.skills).toContain('sol');
+    expect(edric.consumables.some((i) => i.uid === 'itm_kept_elixir')).toBe(true);
+    expect(isNgPlusRun(rm)).toBe(true);
+    expect(rm.ngPlus.members.map((m) => m.id).sort()).toEqual(
+      [lordRecordId('Edric'), vet.id].sort(),
+    );
+  });
+
+  it('rebuilds the veteran the same whatever Math.random returns', () => {
+    // Failure: a veteran is re-rolled (growths, traits, stats) on the run's stream, so the
+    // same Barracks record comes back as a different unit. Only item uids may differ.
+    const { meta, vet } = metaWithBarracks();
+    const start = runStartOf(meta.getNgPlus());
+    const build = (value) => {
+      vi.spyOn(Math, 'random').mockReturnValue(value);
+      const rm = new RunManager(data);
+      rm.startRun({
+        runSeed: 21,
+        applyBlessingsAtStart: false,
+        difficultyId: 'hard',
+        ngPlus: start,
+      });
+      vi.restoreAllMocks();
+      const unit = rm.roster.find((u) => u.name === vet.name);
+      return { stats: unit.stats, growths: unit.growths, traits: unit.traits, skills: unit.skills };
+    };
+    expect(build(0.01)).toEqual(build(0.97));
+  });
+
+  it('an NG+ run is saved with its capability and loads back the same', () => {
+    // Failure: the run's members are lost on reload (the end never settles the Barracks), or
+    // an older client opens the run.
+    const { meta } = metaWithBarracks();
+    const rm = new RunManager(data);
+    rm.startRun({
+      runSeed: 21,
+      applyBlessingsAtStart: false,
+      difficultyId: 'hard',
+      ngPlus: meta.ngPlusRunStart('hard'),
+    });
+    const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+    expect(saved.requiresCapabilities).toContain('ngPlus');
+    expect(requiredRunFormat(saved).capabilities).toContain('ngPlus');
+    const loaded = RunManager.fromJSON(saved, data);
+    expect(loaded.ngPlus).toEqual(rm.ngPlus);
+    const plain = new RunManager(data);
+    plain.startRun({ runSeed: 21, applyBlessingsAtStart: false, difficultyId: 'hard' });
+    expect(plain.toJSON().ngPlus).toBeUndefined();
+    expect(plain.toJSON().requiresCapabilities || []).not.toContain('ngPlus');
+  });
+
+  it('no NG+ start below Nightfall or before the unlock', () => {
+    const { meta } = metaWithBarracks();
+    expect(meta.ngPlusRunStart('dusk')).toBeNull();
+    expect(
+      new MetaProgressionManager(data.metaUpgrades, getMetaKey(2)).ngPlusRunStart('hard'),
+    ).toBeNull();
+  });
+
+  it('a trait gives its stat once and never a second helping of its growth', () => {
+    // Failure: the trait's +10 HP growth is added again on top of the saved growths (which
+    // already hold it), or its +3 HP is lost.
+    const growths = { HP: 80, STR: 50, MAG: 0, SKL: 40, SPD: 40, DEF: 30, RES: 10, LCK: 30 };
+    const record = (traits) => ({
+      id: 'vet:x:1',
+      kind: 'recruit',
+      name: 'Bjorn',
+      keptSkills: [],
+      skillKinds: {},
+      keptItems: [],
+      rides: 1,
+      className: 'Fighter',
+      growths,
+      traits,
+    });
+    const build = (traits) => {
+      const state = defaultNgPlusState();
+      state.barracks.push(record(traits));
+      state.bring = ['vet:x:1'];
+      const rm = new RunManager(data);
+      rm.startRun({
+        runSeed: 3,
+        applyBlessingsAtStart: false,
+        difficultyId: 'hard',
+        ngPlus: runStartOf(state),
+      });
+      return rm.roster.find((u) => u.name === 'Bjorn');
+    };
+    const plain = build([]);
+    const hardy = build(['hardy']);
+    expect(hardy.growths).toEqual(growths);
+    expect(plain.growths).toEqual(growths);
+    expect(hardy.stats.HP).toBe(plain.stats.HP + 3);
+    expect(hardy.currentHP).toBe(hardy.stats.HP);
+  });
+
+  it('a kept Legend weapon is written into the run’s ledger', () => {
+    // Failure: the run drops a second copy of a legendary the veteran already carries.
+    const state = defaultNgPlusState();
+    const legend = data.weapons.find((w) => w.tier === 'Legend' && w.type === 'Axe');
+    state.barracks.push({
+      id: 'vet:x:1',
+      kind: 'recruit',
+      name: 'Bjorn',
+      keptSkills: [],
+      skillKinds: {},
+      keptItems: [{ ...structuredClone(legend), uid: 'itm_legend' }],
+      rides: 1,
+      className: 'Fighter',
+      growths: { HP: 70, STR: 50, MAG: 0, SKL: 40, SPD: 40, DEF: 30, RES: 10, LCK: 30 },
+      traits: [],
+    });
+    state.bring = ['vet:x:1'];
+    const rm = new RunManager(data);
+    rm.startRun({
+      runSeed: 3,
+      applyBlessingsAtStart: false,
+      difficultyId: 'hard',
+      ngPlus: runStartOf(state),
+    });
+    expect(rm.legendaryGrants).toContain(legend.name);
+  });
+
+  it('a third lord in the Barracks takes their kit when they join', () => {
+    // Failure: only the starting pair's kits come back.
+    const state = defaultNgPlusState();
+    state.barracks.push({
+      id: lordRecordId('Kira'),
+      kind: 'lord',
+      name: 'Kira',
+      keptSkills: ['vantage'],
+      skillKinds: {},
+      keptItems: [],
+      rides: 1,
+    });
+    const rm = new RunManager(data);
+    rm.startRun({
+      runSeed: 3,
+      applyBlessingsAtStart: false,
+      difficultyId: 'hard',
+      ngPlus: runStartOf(state),
+    });
+    const lordDef = data.lords.find((l) => l.name === 'Kira');
+    expect(lordDef).toBeTruthy();
+    const unit = rm._buildStartingLord(lordDef, { isCommander: false });
+    rm.resolveThirdLord(unit);
+    const joined = rm.roster.find((u) => u.name === 'Kira');
+    expect(joined.skills).toContain('vantage');
+    expect(rm.ngPlus.members.some((m) => m.id === lordRecordId('Kira'))).toBe(true);
+    expect(rm.ngPlus.lordKits).toEqual([]);
+  });
+});
+
+describe('the run’s end settles the Barracks', () => {
+  function ngPlusRun(meta, seed = 21) {
+    const rm = new RunManager(data);
+    rm.startRun({
+      runSeed: seed,
+      applyBlessingsAtStart: false,
+      difficultyId: 'hard',
+      ngPlus: meta.ngPlusRunStart('hard'),
+    });
+    return rm;
+  }
+
+  it('a veteran who fell leaves the Barracks, even on a loss', () => {
+    // Failure: a fallen veteran comes back next run.
+    const { meta, vet } = metaWithBarracks();
+    const rm = ngPlusRun(meta);
+    const unit = rm.roster.find((u) => u.name === vet.name);
+    rm.roster = rm.roster.filter((u) => u !== unit);
+    rm.fallenUnits.push(unit);
+    rm.failRun(null);
+    rm.settleEndRunRewards(meta, 'defeat');
+    const state = freshMeta().getNgPlus();
+    expect(state.barracks.some((r) => r.id === vet.id)).toBe(false);
+    expect(state.bring).toEqual([]);
+    expect(state.barracks.some((r) => r.id === lordRecordId('Edric'))).toBe(true);
+  });
+
+  it('the commander the defeat took leaves the Barracks', () => {
+    // Failure: a lord's kit survives the battle that ended the run on their fall.
+    const { meta } = metaWithBarracks();
+    const rm = ngPlusRun(meta);
+    rm.failRun({ defeatedBy: 'Fighter', wasBoss: false });
+    rm.settleEndRunRewards(meta, 'defeat');
+    expect(
+      freshMeta()
+        .getNgPlus()
+        .barracks.some((r) => r.id === lordRecordId('Edric')),
+    ).toBe(false);
+  });
+
+  it('a win keeps a member’s items as they are now and drops one used up', () => {
+    // Failure: a forged kept weapon reverts to its old copy, or an Elixir drunk comes back.
+    const { meta, vet } = metaWithBarracks();
+    const rm = ngPlusRun(meta);
+    const unit = rm.roster.find((u) => u.name === vet.name);
+    const axe = unit.inventory.find((i) => i.uid === 'itm_kept_axe');
+    axe.might += 1;
+    axe.name = 'Steel Axe +1';
+    const edric = rm.roster.find((u) => u.name === 'Edric');
+    edric.consumables = edric.consumables.filter((i) => i.uid !== 'itm_kept_elixir');
+    winRun(rm, meta);
+    const state = freshMeta().getNgPlus();
+    const record = state.barracks.find((r) => r.id === vet.id);
+    expect(record.keptItems[0].name).toBe('Steel Axe +1');
+    expect(state.barracks.find((r) => r.id === lordRecordId('Edric')).keptItems).toEqual([]);
+    expect(state.wins).toBe(1);
+    expect(state.pendingRide.candidates.find((c) => c.name === vet.name).recordId).toBe(vet.id);
+  });
+
+  it('an ordinary run settles nothing for a Barracks it never brought', () => {
+    const { meta, vet } = metaWithBarracks();
+    const rm = wonRun({ seed: 30 });
+    rm.failRun({ defeatedBy: 'x' });
+    expect(ngPlusRunEnd(rm, { result: 'defeat' })).toBeNull();
+    rm.settleEndRunRewards(meta, 'defeat');
+    expect(meta.getNgPlus().barracks.some((r) => r.id === vet.id)).toBe(true);
+  });
+});
+
+describe('the Barracks state', () => {
+  it('bring holds at most two recruits that exist', () => {
+    const state = defaultNgPlusState();
+    for (const n of [1, 2, 3])
+      state.barracks.push({
+        id: `vet:r:${n}`,
+        kind: 'recruit',
+        name: `V${n}`,
+        keptSkills: [],
+        skillKinds: {},
+        keptItems: [],
+        rides: 1,
+        className: 'Fighter',
+        growths: { HP: 50 },
+        traits: [],
+      });
+    expect(setBring(state, ['vet:r:1', 'vet:r:2', 'vet:r:3'])).toEqual({
+      ok: false,
+      reason: 'too_many',
+    });
+    expect(setBring(state, ['lord:Edric'])).toEqual({ ok: false, reason: 'unknown' });
+    expect(setBring(state, ['vet:r:1', 'vet:r:2']).ok).toBe(true);
+    expect(state.bring).toHaveLength(BRING_LIMIT);
+    expect(barracksView(state, data).records[2].canBring).toBe(false);
+  });
+
+  it('the adopt-merge keeps the copy changed more recently, whole', () => {
+    // Failure: a veteran released on one copy is brought back by the other's list.
+    const a = defaultNgPlusState();
+    a.barracks.push({
+      id: lordRecordId('Edric'),
+      kind: 'lord',
+      name: 'Edric',
+      keptSkills: [],
+      skillKinds: {},
+      keptItems: [],
+      rides: 1,
+    });
+    a.rev = 2;
+    const b = defaultNgPlusState();
+    b.rev = 3;
+    expect(mergeNgPlusState(a, b).barracks).toEqual([]);
+    expect(mergeNgPlusState(b, a).rev).toBe(3);
+  });
+
+  it('a malformed record or a bad version reads as empty', () => {
+    expect(normalizeNgPlusState({ v: 9, barracks: [{}] })).toEqual(defaultNgPlusState());
+    const s = normalizeNgPlusState({ v: 1, barracks: [{ id: 'x', kind: 'recruit', name: 'A' }] });
+    expect(s.barracks).toEqual([]);
+  });
+
+  it('applyRunEnd with nothing changes nothing', () => {
+    const s = defaultNgPlusState();
+    applyRunEnd(s, { fallenIds: [], refresh: [], pendingRide: null, ngPlusWin: false });
+    expect(s.rev).toBe(0);
+  });
+});

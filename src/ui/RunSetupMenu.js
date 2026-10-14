@@ -4,6 +4,7 @@ import { MenuSurface, element, button } from './MenuSurface.js';
 import { blessingCardContent, difficultyBannerContent, giftCardContent } from './choiceContent.js';
 import { blessingTerms } from '../engine/BlessingTerms.js';
 import { ContextHelp } from './ContextHelp.js';
+import { ngPlusRunNote } from './ngPlusModel.js';
 import {
   blessingTarotCard,
   choiceButton,
@@ -80,6 +81,12 @@ export class RunSetupMenu {
       meta.dataset.focus = 'meta';
       meta.setAttribute('aria-pressed', String(!s._noMetaUpgrades));
       footer.append(meta);
+      if (s._ngPlusAvailable?.()) {
+        const ngPlus = button(`New Game+: ${s._ngPlus ? 'On' : 'Off'}`, () => s._toggleNgPlus());
+        ngPlus.dataset.focus = 'ngplus';
+        ngPlus.setAttribute('aria-pressed', String(s._ngPlus));
+        footer.append(ngPlus);
+      }
     }
     const chosen = blessing ? null : s.modes[s.selectedIndex];
     const confirm = button('Confirm', () => s._confirm(), 're-btn re-btn--primary');
@@ -294,6 +301,8 @@ export class RunSetupMenu {
       detail.append(
         element('p', `Commander: ${pair.commander} · Partner: ${pair.partner}`, 're-note'),
       );
+    if (s._ngPlusAvailable?.() && s._ngPlus)
+      detail.append(element('p', ngPlusRunNote(s.meta), 're-note'));
     appendDetailScrollControls(footer, detail);
     return [row, detail];
   }

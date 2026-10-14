@@ -12,6 +12,7 @@ import { rungModifierSummary } from '../engine/RevivalStoneRoad.js';
 import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { hasAnySlotMilestone } from '../engine/SlotManager.js';
 import { InputAction } from '../utils/InputActions.js';
+import { isNgPlusRung } from '../engine/NgPlusState.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 
 export class DifficultySelectScene extends Phaser.Scene {
@@ -23,6 +24,8 @@ export class DifficultySelectScene extends Phaser.Scene {
     this.gameData = data.gameData;
     this.isTransitioning = false;
     this._noMetaUpgrades = data.noMetaUpgrades === true;
+    // NG+ (docs/specs/ng-plus.md): on by default where it can be played.
+    this._ngPlus = data.ngPlusRun !== false;
   }
 
   create() {
@@ -151,6 +154,25 @@ export class DifficultySelectScene extends Phaser.Scene {
     this._draw();
   }
 
+  /** True when the chosen rung can be played as an NG+ run (bought, Nightfall up, army upgrades on). */
+  _ngPlusAvailable() {
+    const mode = this.modes?.[this.selectedIndex];
+    return Boolean(
+      mode &&
+      !mode.locked &&
+      !this._noMetaUpgrades &&
+      isNgPlusRung(mode.id) &&
+      this.meta?.isNgPlusUnlocked?.(),
+    );
+  }
+
+  _toggleNgPlus() {
+    if (!this._ngPlusAvailable()) return;
+    this._ngPlus = !this._ngPlus;
+    this.registry.get('audio')?.playSFX('sfx_cursor');
+    this._draw();
+  }
+
   _confirm() {
     const mode = this.modes[this.selectedIndex];
     if (!mode || mode.locked) {
@@ -169,6 +191,8 @@ export class DifficultySelectScene extends Phaser.Scene {
         gameData: this.gameData,
         difficultyId: mode.id,
         noMetaUpgrades: this._noMetaUpgrades || false,
+        ngPlusRun: this._ngPlusAvailable() && this._ngPlus,
+        ngPlusPreference: this._ngPlus,
       },
       { reason: TRANSITION_REASONS.BEGIN_RUN, retryBlocked: hasDOMHost() },
     ).then((ok) => {

@@ -80,10 +80,11 @@ const ids = (saved) => requiredRunFormat(saved).capabilities;
 const DESCENT_IDS = ['descent', 'rite', 'vigil', 'defeatObjective'];
 
 describe('the Descent’s capabilities', () => {
-  it('four ids at format 2, after the guard’s seven, and this build plays exactly them', () => {
-    expect(CAPABILITY_IDS.slice(-4)).toEqual(DESCENT_IDS);
+  it('four ids at format 2, after the guard’s seven, and this build plays them', () => {
+    expect(CAPABILITY_IDS.slice(7, 11)).toEqual(DESCENT_IDS);
     for (const id of DESCENT_IDS) expect(RUN_CAPABILITIES[id]).toBe(2);
-    expect([...CLIENT_CAPABILITIES]).toEqual(DESCENT_IDS);
+    // Then NG+'s one (NgPlusRunFormat.test.js).
+    expect([...CLIENT_CAPABILITIES]).toEqual([...DESCENT_IDS, 'ngPlus']);
     // Not the large-maps model: a written objectives model beyond `defeat` is still refused.
     expect(CLIENT_CAPABILITIES).not.toContain('objectives');
   });

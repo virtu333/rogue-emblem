@@ -72,6 +72,7 @@
         "mobile-battle-hud.spec.js",
         "contract-hud.spec.js",
         "mobile-home-base.spec.js",
+        "ng-plus.spec.js",
         "mobile-run-loop.spec.js"
       ]
     },

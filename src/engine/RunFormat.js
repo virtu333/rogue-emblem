@@ -70,6 +70,10 @@ export const RUN_CAPABILITIES = Object.freeze({
   // v2 set piece may name one). An older client would play the map as its legacy rout. Any other
   // model beyond the legacy derivation is `objectives` (spec 03), which this build does not play.
   defeatObjective: 2,
+  // NG+ (docs/specs/ng-plus.md): `run.ngPlus`, the Barracks members playing the run. An older
+  // client would drop it on load, so the run's end would never settle the Barracks (a fallen
+  // veteran kept, a win's items and ride never recorded).
+  ngPlus: 2,
 });
 
 export const CAPABILITY_IDS = Object.freeze(Object.keys(RUN_CAPABILITIES));
@@ -79,9 +83,15 @@ export const DESCENT_CAPABILITY = 'descent';
 
 /**
  * The capabilities this build plays: each writer's PR adds its id here. The guard shipped
- * before any; the Descent added its four.
+ * before any; the Descent added its four, NG+ its one.
  */
-export const CLIENT_CAPABILITIES = Object.freeze(['descent', 'rite', 'vigil', 'defeatObjective']);
+export const CLIENT_CAPABILITIES = Object.freeze([
+  'descent',
+  'rite',
+  'vigil',
+  'defeatObjective',
+  'ngPlus',
+]);
 
 /** The terrain index the Gate takes (03 §5.7): terrain.json holds 0..18 today. */
 export const GATE_TERRAIN_INDEX = 19;
@@ -192,6 +202,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     bonusVisionActs: 'objectives',
     setPiecesOffered: 'setPiece',
     rite: 'rite',
+    ngPlus: 'ngPlus',
     // The Ruins' one revival per node (RuinsCommands): an older client allows a second.
     ruinsRevivedByNodeId: 'inert',
     // Each church's revivals (ChurchCommands): an older client has no church limit.
@@ -508,6 +519,7 @@ function scanRunFields(saved, found) {
   if (present(saved, 'bonusVisionActs')) found.add('objectives');
   if (nonEmptyArray(saved.setPiecesOffered)) found.add('setPiece');
   if (present(saved, 'rite')) found.add('rite');
+  if (present(saved, 'ngPlus')) found.add('ngPlus');
 }
 
 /** Capability ids sorted in the table's order (a stable marker). */

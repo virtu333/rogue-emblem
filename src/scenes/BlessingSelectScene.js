@@ -60,6 +60,8 @@ export class BlessingSelectScene extends Phaser.Scene {
     this.gameData = data.gameData;
     this.difficultyId = data.difficultyId || 'normal';
     this.noMetaUpgrades = data.noMetaUpgrades === true;
+    this.ngPlusRun = data.ngPlusRun === true && !this.noMetaUpgrades;
+    this.ngPlusPreference = data.ngPlusPreference !== false;
     this.isTransitioning = false;
     this._blessingCommitted = false;
     this._blessingRunSeed =
@@ -143,6 +145,8 @@ export class BlessingSelectScene extends Phaser.Scene {
       // count only moves once a run begins, so backing out and returning offers the same gift.
       runsStarted: meta?.getRunsStarted?.() ?? 0,
       narrativeSeen: meta?.getNarrativeSeen?.() ?? null,
+      // NG+: the veterans brought and the Barracks lords' kits (NgPlusRun.js).
+      ngPlus: this.ngPlusRun ? (meta?.ngPlusRunStart?.(this.difficultyId) ?? null) : null,
     });
     if (!Number.isFinite(this._blessingRunSeed)) this._blessingRunSeed = this.runManager.runSeed;
     writePendingRunSeed(this.registry, this._blessingRunSeed, {
@@ -298,7 +302,11 @@ export class BlessingSelectScene extends Phaser.Scene {
     transitionToScene(
       this,
       'DifficultySelect',
-      { gameData: this.gameData, noMetaUpgrades: this.noMetaUpgrades === true },
+      {
+        gameData: this.gameData,
+        noMetaUpgrades: this.noMetaUpgrades === true,
+        ngPlusRun: this.ngPlusPreference,
+      },
       { reason: TRANSITION_REASONS.BACK, retryBlocked: hasDOMHost() },
     ).then((ok) => {
       if (!ok) this.isTransitioning = false;

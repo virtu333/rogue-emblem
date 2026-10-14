@@ -2,7 +2,14 @@ import { skipsClassProgression, normalizeSpecialCharacter } from './SpecialChara
 import { createVeteranKnight } from './SpecialCharacters.js';
 import { validateBattleState } from './BattleStateSnapshot.js';
 import { epicVictoryTerms, settleEpicVictory } from './EpicWeapons.js';
-import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
+import { migrateSavedItemNames } from './ItemNameMigration.js';
+import { serializeRun } from './RunSerialization.js';
+import {
+  applyNgPlusThirdLord,
+  ngPlusRunEnd,
+  sanitizeNgPlusRun,
+  startNgPlusRun,
+} from './NgPlusRun.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
 import {
   migrateSavedPerBattleWeapons,
@@ -724,6 +731,7 @@ export class RunManager {
     this.completedBattles = 0;
     this.gold = STARTING_GOLD + (metaEffects?.goldBonus || 0);
     this.accessories = []; // team accessory pool (unequipped accessories)
+    this.ngPlus = null; // an NG+ run's Barracks members (engine/NgPlusRun.js)
     this.scrolls = []; // team scroll pool (skill teaching items)
     this.convoy = { weapons: [], consumables: [] };
     this.activeBlessings = [];
@@ -929,6 +937,8 @@ export class RunManager {
       // The barks and flavour bags the save carried out of earlier runs
       // (MetaProgressionManager.getNarrativeSeen), so pools keep walking across runs.
       narrativeSeen = null,
+      // An NG+ start (NgPlusState.runStartOf: the veterans brought, the lords' kits), or null.
+      ngPlus = null,
     } = options;
     this.mode = STANDARD_RUN_MODE;
     this.narrativeSeen =
@@ -975,6 +985,8 @@ export class RunManager {
     this.earnedBlessingPicks = {};
     this.blessingBoonRevision = BLESSING_BOON_REVISION; // a new run follows the current rules
     this.battleConfigsByNodeId = {};
+    // Before the recruit previews, so no recruit node takes a veteran's name.
+    this.ngPlus = startNgPlusRun(this, ngPlus);
     this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
@@ -1088,6 +1100,7 @@ export class RunManager {
     this._runStartBlessingsApplied = false;
     this._blessingChosen = false;
     this.startGift = null; // the prologue is never offered a gift
+    this.ngPlus = null;
     this.initializeBlessingsAtRunStart({ blessingSeed: this.runSeed });
     this.chooseBlessing(null);
   }
@@ -2615,6 +2628,7 @@ export class RunManager {
       );
       this.grantRecruitBlessingConsumables(unit);
       this.assignUnitUid(unit);
+      applyNgPlusThirdLord(this, unit); // an NG+ run: a Barracks lord's kit comes back
       this.roster.push(unit);
     }
   }
@@ -5225,6 +5239,8 @@ export class RunManager {
       const ladderMilestone = difficultyVictoryMilestone(this.difficultyId);
       if (summary.result === 'victory' && ladderMilestone) m.recordMilestone(ladderMilestone);
       // Narrative memory flush — exactly-once under this guard, like currencies.
+      // NG+: who left the Barracks, the items its members kept, a ride to pick (NgPlusRun.js).
+      m.recordNgPlusRunEnd?.(ngPlusRunEnd(this, summary));
       m.recordRunEnd?.({
         result: summary.result,
         victoryRecord:
@@ -5317,35 +5333,7 @@ export class RunManager {
   }
 
   _serializeRun() {
-    return {
-      version: 1,
-      mode: this.mode === PROLOGUE_RUN_MODE ? PROLOGUE_RUN_MODE : STANDARD_RUN_MODE,
-      ...(this.mode === PROLOGUE_RUN_MODE
-        ? {
-            prologueVisionGranted: this.prologueVisionGranted === true,
-            prologueRosterLesson: this.prologueRosterLesson
-              ? structuredClone(this.prologueRosterLesson)
-              : null,
-          }
-        : {}),
-      status: this.status,
-      actIndex: this.actIndex,
-      roster: this.roster,
-      lastDeployment: normalizeDeploymentNames(this.lastDeployment),
-      fallenUnits: this.fallenUnits,
-      nextUnitUid: this.nextUnitUid,
-      lastBattleCasualtyNotices: this.lastBattleCasualtyNotices || [],
-      nodeMap: this.nodeMap,
-      currentNodeId: this.currentNodeId,
-      completedBattles: this.completedBattles,
-      winStreak: this.winStreak || 0,
-      maxWinStreak: this.maxWinStreak || 0,
-      gold: this.gold,
-      metaEffects: this.metaEffects,
-      accessories: this.accessories,
-      scrolls: this.scrolls,
-      convoy: this.convoy,
-      randomLegendary: this.randomLegendary || null,
+    return serializeRun(this, {
       activeBlessings: (this.activeBlessings || [])
         .map((entry) => {
           const id = getBlessingEntryId(entry);
@@ -5355,68 +5343,8 @@ export class RunManager {
           });
         })
         .filter(Boolean),
-      blessingHistory: this.blessingHistory || [],
-      blessingSelectionTelemetry: this.blessingSelectionTelemetry || null,
-      startGift: this.startGift || null,
       blessingRuntimeModifiers: this.blessingRuntimeModifiers || createBlessingRuntimeModifiers(),
-      runSeed: this.runSeed,
-      legendaryLordChance: this.legendaryLordChance,
-      runRecordId: this.runRecordId,
-      narrativeSeen: this.narrativeSeen,
-      totalTurns: this.totalTurns,
-      rngSeed: this.rngSeed,
-      visionChargesRemaining: this.visionChargesRemaining,
-      visionCount: this.visionCount,
-      usedRecruitNames: this.usedRecruitNames || {},
-      battleConfigsByNodeId: this.battleConfigsByNodeId || {},
-      shopStateByNodeId: this.shopStateByNodeId || {},
-      ruinsChoiceByNodeId: this.ruinsChoiceByNodeId || {},
-      ruinsRevivedByNodeId: this.ruinsRevivedByNodeId || {},
-      churchRevivesByNodeId: this.churchRevivesByNodeId || {},
-      churchVowByNodeId: this.churchVowByNodeId || {},
-      churchTitheByNodeId: this.churchTitheByNodeId || {},
-      eventStateByNodeId: this.eventStateByNodeId || {},
-      eventLog: this.eventLog || [],
-      storyFlags: this.storyFlags || {},
-      burdens: this.burdens || [],
-      contract: this.contract || null,
-      contractOwed: this.contractOwed || null,
-      laidToRest: this.laidToRest || [],
-      earnedBlessingPicks: this.earnedBlessingPicks || {},
-      difficultyId: this.difficultyId || 'normal',
-      difficultyModifiers: this.difficultyModifiers || {
-        ...DIFFICULTY_DEFAULTS,
-        actsIncluded: [...DIFFICULTY_DEFAULTS.actsIncluded],
-      },
-      actSequence: this.actSequence || [...ACT_SEQUENCE],
-      pendingAmbushNodeId: this.pendingAmbushNodeId || null,
-      pendingEventNodeId: this.pendingEventNodeId || null,
-      pendingCaravanShop: this.pendingCaravanShop || null,
-      pendingBattleReward: this.pendingBattleReward || null,
-      rewardRerollsSpent: Math.max(0, Math.trunc(Number(this.rewardRerollsSpent) || 0)),
-      legendaryGrants: sanitizeLegendaryGrants(this.legendaryGrants),
-      pendingBossRecruit: this.pendingBossRecruit || null,
-      pendingThirdLord: this.pendingThirdLord || null,
-      reachedFirstActBoss: this.reachedFirstActBoss === true,
-      activeCaravanShop: this.activeCaravanShop || null,
-      endRunRewards: this.endRunRewards || null,
-      metaUnlockedWeaponArts: this.metaUnlockedWeaponArts || [],
-      actUnlockedWeaponArts: this.actUnlockedWeaponArts || [],
-      unlockedWeaponArts: this.unlockedWeaponArts || [],
-      shownDialogueKeys: this.shownDialogueKeys || [],
-      defeatContext: this.defeatContext || null,
-      runLordFalls: this.runLordFalls || [],
-      churchPromotionTracker: this._churchPromotionTracker || null,
-      noMetaMode: this.noMetaMode || false,
-      thirdLordJoined: this.thirdLordJoined || false,
-      thirdLordRerolled: this.thirdLordRerolled || false,
-      battleInProgress: this.battleInProgress || null,
-      lastBattleReport: this.lastBattleReport || null,
-      eclipse: this.eclipse || createEclipseState(),
-      rite: sanitizeRite(this.rite),
-      itemNamesRevision: ITEM_NAMES_REVISION,
-      blessingBoonRevision: this.blessingBoonRevision,
-    };
+    });
   }
 
   /**
@@ -6122,6 +6050,7 @@ export class RunManager {
     rm.rewardRerollsSpent = Math.max(0, Math.trunc(Number(saved.rewardRerollsSpent) || 0));
     // Saves from before the ledger have none (what the army holds still counts).
     rm.legendaryGrants = sanitizeLegendaryGrants(saved.legendaryGrants);
+    rm.ngPlus = sanitizeNgPlusRun(saved.ngPlus);
     adoptHeldLegendaries(rm);
     rm.pendingBossRecruit = restorePendingBossRecruit(saved.pendingBossRecruit, {
       actId: rm.currentAct,

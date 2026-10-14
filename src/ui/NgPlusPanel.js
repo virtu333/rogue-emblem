@@ -1,0 +1,258 @@
+// NgPlusPanel.js - the Home Base NG+ tab (docs/specs/ng-plus.md): buy NG+, pick who rides
+// again after a Nightfall or Black Sun win, and choose which veterans to bring. Presentation
+// only: the words come from ui/ngPlusModel.js and every change is a meta command, saved there.
+import {
+  barracksView,
+  candidateDetail,
+  draftPicks,
+  ngPlusBlockText,
+  rideView,
+  unlockView,
+} from './ngPlusModel.js';
+
+const node = (tag, cls, text) => {
+  const el = document.createElement(tag);
+  el.className = cls;
+  if (text != null) el.textContent = text;
+  return el;
+};
+
+export class NgPlusPanel {
+  /** @param {import('./MobileHomeBase.js').MobileHomeBase} home */
+  constructor(home) {
+    this.home = home;
+    this.meta = home.meta;
+    this.draft = {}; // ref -> { skillId, itemUid, replaceSkillId, replaceItemUid }
+    this.focus = null; // { kind: 'candidate' | 'record', id }
+    this.confirmRelease = null;
+    this.confirmPass = false;
+  }
+
+  get gameData() {
+    return this.home.scene.gameData || {};
+  }
+
+  rerender(focus = null, message = null) {
+    if (message != null) this.home.message = message;
+    this.home.render(focus);
+  }
+
+  button(label, action, { pressed = null, focus = null, cls = null, disabled = false } = {}) {
+    const b = this.home.button(label, action, pressed);
+    if (cls) b.className = cls;
+    if (focus) b.dataset.focus = focus;
+    b.disabled = disabled;
+    return b;
+  }
+
+  /** Fill the tab's list and detail; returns the ride's commit button for the action bar, or null. */
+  render(list, copy) {
+    const unlock = unlockView(this.meta);
+    if (!unlock.unlocked) {
+      this.renderUnlock(copy, unlock);
+      return null;
+    }
+    const state = this.meta.getNgPlus();
+    const ride = rideView(state, this.draft);
+    if (!ride) this.draft = {};
+    if (ride) {
+      list.append(node('h3', 'ng-heading', ride.title));
+      for (const c of ride.candidates) {
+        const b = this.button(
+          '',
+          () => {
+            if (this.draft[c.ref]) {
+              delete this.draft[c.ref];
+              this.focus = null;
+            } else {
+              this.draft[c.ref] = {};
+              this.focus = { kind: 'candidate', id: c.ref };
+            }
+            this.rerender(`ride-${c.ref}`);
+          },
+          { pressed: c.picked, focus: `ride-${c.ref}`, cls: 'mh-skill', disabled: c.disabled },
+        );
+        b.append(
+          node('strong', '', `${c.name}${c.picked ? ' · Rides again' : ''}`),
+          node('span', '', c.line),
+        );
+        list.append(b);
+      }
+    }
+    const barracks = barracksView(state, this.gameData);
+    list.append(node('h3', 'ng-heading', `${barracks.title} · ${barracks.bringCount}`));
+    for (const r of barracks.records) {
+      const b = this.button(
+        '',
+        () => {
+          this.focus = { kind: 'record', id: r.id };
+          this.confirmRelease = null;
+          this.rerender(`vet-${r.id}`);
+        },
+        { pressed: this.focus?.id === r.id, focus: `vet-${r.id}`, cls: 'mh-skill' },
+      );
+      b.append(
+        node('strong', '', `${r.name}${r.brought ? ' · Bringing' : ''}`),
+        node('span', '', r.line),
+      );
+      list.append(b);
+    }
+    if (!barracks.records.length) list.append(node('p', 'mu-help', barracks.lead));
+
+    if (this.focus?.kind === 'candidate' && this.draft[this.focus.id])
+      this.renderCandidate(copy, state, this.focus.id);
+    else if (this.focus?.kind === 'record') this.renderRecord(copy, barracks, this.focus.id);
+    else {
+      copy.append(node('h2', '', 'New Game+'));
+      copy.append(node('p', 'mu-help', barracks.lead));
+    }
+    // The ride's commit sits beside Begin Run, always in reach (MobileHomeBase's actions).
+    return ride ? this.renderRideActions(copy, ride) : null;
+  }
+
+  renderUnlock(copy, unlock) {
+    copy.append(node('h2', '', unlock.title));
+    for (const line of unlock.lines) copy.append(node('p', 'mu-help', line));
+    copy.append(node('p', '', unlock.cost));
+    if (unlock.blockText) copy.append(node('p', 'mu-requirements', unlock.blockText));
+    // Not the action bar's: Begin Run stays the one primary there.
+    copy.append(
+      this.button(
+        unlock.buyLabel,
+        () => {
+          const result = this.meta.unlockNgPlus();
+          this.rerender(
+            'ng-unlock',
+            result.ok ? 'New Game+ unlocked.' : ngPlusBlockText(result.reason),
+          );
+        },
+        { focus: 'ng-unlock', cls: 'mu-buy', disabled: !unlock.canBuy },
+      ),
+    );
+  }
+
+  renderCandidate(copy, state, ref) {
+    const pick = this.draft[ref];
+    const view = candidateDetail(state, ref, pick, this.gameData);
+    if (!view) return;
+    const set = (patch, focus) => {
+      Object.assign(pick, patch);
+      this.rerender(focus);
+    };
+    copy.append(node('h2', '', view.name), node('p', 'mu-help', `${view.line} · ${view.record}`));
+    copy.append(node('h3', 'ng-heading', 'Keep one skill'));
+    if (!view.skills.length) copy.append(node('p', 'mu-help', 'No skill of theirs to keep.'));
+    for (const s of view.skills)
+      copy.append(
+        this.button(
+          `${s.label} · ${s.kind}`,
+          () =>
+            set({ skillId: s.chosen ? null : s.id, replaceSkillId: null }, `keep-skill-${s.id}`),
+          { pressed: s.chosen, focus: `keep-skill-${s.id}` },
+        ),
+      );
+    if (view.skillReplace) {
+      copy.append(node('p', 'mu-requirements', 'Kept skills are full. Replace:'));
+      for (const s of view.skillReplace)
+        copy.append(
+          this.button(s.label, () => set({ replaceSkillId: s.id }, `swap-skill-${s.id}`), {
+            pressed: s.chosen,
+            focus: `swap-skill-${s.id}`,
+          }),
+        );
+    }
+    copy.append(node('h3', 'ng-heading', 'Keep one item'));
+    if (!view.items.length) copy.append(node('p', 'mu-help', 'No item of theirs to keep.'));
+    for (const i of view.items)
+      copy.append(
+        this.button(
+          i.label,
+          () =>
+            set({ itemUid: i.chosen ? null : i.uid, replaceItemUid: null }, `keep-item-${i.uid}`),
+          { pressed: i.chosen, focus: `keep-item-${i.uid}` },
+        ),
+      );
+    if (view.itemReplace) {
+      copy.append(node('p', 'mu-requirements', 'Kept items of that kind are full. Replace:'));
+      for (const i of view.itemReplace)
+        copy.append(
+          this.button(i.label, () => set({ replaceItemUid: i.uid }, `swap-item-${i.uid}`), {
+            pressed: i.chosen,
+            focus: `swap-item-${i.uid}`,
+          }),
+        );
+    }
+    copy.append(node('p', 'mu-help', view.caps));
+  }
+
+  renderRecord(copy, barracks, id) {
+    const r = barracks.records.find((entry) => entry.id === id);
+    if (!r) return;
+    copy.append(node('h2', '', r.name), node('p', 'mu-help', r.line));
+    copy.append(node('p', '', `Skills: ${r.skills.join(', ') || 'none yet'}`));
+    copy.append(node('p', '', `Items: ${r.items.join(', ') || 'none yet'}`));
+    if (r.kind === 'recruit') {
+      copy.append(
+        this.button(
+          r.brought ? 'Bringing into the next NG+ run' : 'Bring into the next NG+ run',
+          () => {
+            const bring = this.meta.getNgPlus().bring.filter((other) => other !== r.id);
+            if (!r.brought) bring.push(r.id);
+            const result = this.meta.setNgPlusBring(bring);
+            this.rerender(`bring-${r.id}`, result.ok ? null : ngPlusBlockText(result.reason));
+          },
+          { pressed: r.brought, focus: `bring-${r.id}`, disabled: !r.canBring },
+        ),
+      );
+    } else copy.append(node('p', 'mu-help', 'Rides with their kit whenever they are in the run.'));
+    const confirming = this.confirmRelease === r.id;
+    copy.append(
+      this.button(
+        confirming ? `Release ${r.name} for good` : 'Release',
+        () => {
+          if (!confirming) {
+            this.confirmRelease = r.id;
+            return this.rerender(`release-${r.id}`);
+          }
+          const result = this.meta.releaseNgPlusVeteran(r.id);
+          this.focus = null;
+          this.confirmRelease = null;
+          this.rerender(
+            null,
+            result.ok ? `${r.name} left the Barracks.` : ngPlusBlockText(result.reason),
+          );
+        },
+        { focus: `release-${r.id}` },
+      ),
+    );
+  }
+
+  renderRideActions(copy, ride) {
+    copy.append(node('h3', 'ng-heading', ride.title), node('p', 'mu-help', ride.lead));
+    copy.append(node('p', '', ride.counts));
+    if (ride.blockText) copy.append(node('p', 'mu-requirements', ride.blockText));
+    const passing = !Object.keys(this.draft).length;
+    return this.button(
+      passing && this.confirmPass ? 'Confirm: nobody rides again' : ride.commitLabel,
+      () => {
+        if (passing && !this.confirmPass) {
+          this.confirmPass = true;
+          return this.rerender('ng-commit');
+        }
+        this.confirmPass = false;
+        const result = this.meta.chooseNgPlusRide(draftPicks(this.draft));
+        if (result.ok) {
+          this.draft = {};
+          this.focus = null;
+        }
+        this.rerender(
+          'ng-commit',
+          result.ok
+            ? 'The Barracks is ready for the next NG+ run.'
+            : ngPlusBlockText(result.reason),
+        );
+      },
+      { focus: 'ng-commit', cls: 'ng-commit', disabled: !ride.canCommit },
+    );
+  }
+}
