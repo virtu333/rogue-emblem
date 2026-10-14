@@ -668,6 +668,7 @@ export const WEAPON_ICON_REUSE = Object.freeze({
   // the Entity's Grasping Limbs (EntityKit.js) wield a coil of the Entity's own grasp
   'Grasping Coil': 'eldritch-grasp',
   "Hunter's Focus Scroll": 'encloser-scroll',
+  'Toppling Blow Scroll': 'lunge-scroll',
   // Epic weapons (docs/specs/epic-weapons.md) and the relic Daybreak: borrowed pictures until
   // they get art of their own; an Epic weapon wears the Rare rim (catalog.mjs weaponRim).
   'Prodding Spear': 'short-spear',

@@ -570,6 +570,10 @@ export function createEnemyUnit(
   applyEnemyDifficultyModifiers(unit, difficultyConfig);
   if (classData.tier !== 'boss') {
     assignEnemySkills(unit, classData, enemyLevel, skillsData, act, difficultyConfig);
+  } else {
+    // A boss-tier class (the Entity) rolls no skill but keeps its innate ones (Unfathomed),
+    // so its card names them. No draw is taken.
+    for (const sid of getClassInnateSkills(classData.name, skillsData)) learnSkill(unit, sid);
   }
 
   return unit;

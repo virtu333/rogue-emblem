@@ -493,6 +493,9 @@ export const TOXIC_COVERAGE_BY_ACT = {
 export const ENTITY_FOOTPRINT = { width: 3, height: 3 };
 export const ENTITY_CRIT_RATE_MULT = 0.5;
 export const ENTITY_CRIT_DMG_MULT = 1.5;
+// Unfathomed (the Entity's innate skill, shown on its card): a foe's skill procs in a combat
+// with the Entity trigger at this share of their usual odds ('always' skills are untouched).
+export const ENTITY_PROC_RATE_MULT = 0.5;
 export const ENTITY_SPLASH_COUNT = 2;
 export const ENTITY_SPLASH_COUNT_MAX = 4; // the orthogonal neighbours a splash can reach
 export const ENTITY_SPLASH_DAMAGE = [5, 10];
