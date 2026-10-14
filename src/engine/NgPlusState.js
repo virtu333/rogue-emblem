@@ -7,7 +7,8 @@
 //
 //   state = {
 //     v: 1,
-//     rev,          // bumped on every change: the adopt-merge keeps the copy with the higher one
+//     rev,          // bumped on every change (a change count; the adopt-merge takes the newer
+//                   //   write whole, adoptNgPlusState)
 //     barracks,     // records: a lord's ({ id: 'lord:<name>', kind: 'lord', name, keptSkills,
 //                   //   keptItems, rides, rideLog }) or a recruit's (also className (base),
 //                   //   growths, traits, traitAttackStat, markId, portraitVariant). `rideLog`
@@ -20,6 +21,11 @@
 //                   //   ride stays open until every slot is filled or the player is done)
 //     wins,         // NG+ runs won on this slot (the cycle, phase 2)
 //   }
+//
+// Invariant: a kept item's uid has exactly one owner across the Barracks. A pick refuses an
+// item another record keeps (`kept_by_other`), normalization drops a later record's copy and
+// a run start installs each uid once, so an heirloom traded to another veteran during a run
+// can never be kept twice.
 //
 // A candidate is what NgPlusRun.rideCandidates read off a surviving unit: { ref, kind, name,
 // className, level, tier, recordId, identity (a recruit's), items, skills, skillKinds }.
@@ -205,12 +211,21 @@ export function normalizeNgPlusState(raw) {
   if (!isRecord(raw) || raw.v !== NG_PLUS_STATE_VERSION) return state;
   state.rev = count(raw.rev);
   const seen = new Set();
+  const ownedUids = new Set();
   for (const entry of Array.isArray(raw.barracks) ? raw.barracks : []) {
     const record = sanitizeRecord(entry);
     if (!record || seen.has(record.id)) continue;
     seen.add(record.id);
+    // One owner per kept item: an earlier record keeps it, a later copy is dropped (with the
+    // ride-log entry that would bring it back).
+    record.keptItems = record.keptItems.filter((item) => !ownedUids.has(item.uid));
+    for (const item of record.keptItems) ownedUids.add(item.uid);
     state.barracks.push(record);
   }
+  for (const record of state.barracks)
+    for (const entry of record.rideLog || [])
+      if (entry.replacedItem && ownedElsewhere(state, record, entry.replacedItem.uid))
+        entry.replacedItem = null;
   const recruits = new Set(state.barracks.filter((r) => r.kind === 'recruit').map((r) => r.id));
   state.bring = [
     ...new Set((Array.isArray(raw.bring) ? raw.bring : []).filter((id) => recruits.has(id))),
@@ -221,14 +236,16 @@ export function normalizeNgPlusState(raw) {
 }
 
 /**
- * Two copies of a slot's state (the adopt-merge of a stale manager): the one changed more
- * recently by its own count wins whole, so a veteran released or fallen on one copy is never
- * brought back by the other's list. A tie keeps `local`.
+ * The adopt-merge of a stale manager (MetaProgressionManager._adoptForeignDiskStateIfNewer,
+ * only when the disk copy was written after this one): the newer write's state, whole. Every
+ * NG+ change adopts the disk before it applies, so the newer write already holds every change
+ * this copy made; taking it whole never brings back a veteran it released or a pick it spent,
+ * and a revision count can't outvote it. A disk payload without the key (a build that dropped
+ * it) keeps `local`.
  */
-export function mergeNgPlusState(local, disk) {
-  const a = normalizeNgPlusState(local);
-  const b = normalizeNgPlusState(disk);
-  return b.rev > a.rev ? b : a;
+export function adoptNgPlusState(local, disk) {
+  if (disk === undefined || disk === null) return normalizeNgPlusState(local);
+  return normalizeNgPlusState(disk);
 }
 
 export function lordRecordId(name) {
@@ -237,6 +254,18 @@ export function lordRecordId(name) {
 
 export function findRecord(state, id) {
   return (state?.barracks || []).find((record) => record.id === id) || null;
+}
+
+/** The record that keeps an item, by uid, or null. */
+export function keeperOf(state, uid) {
+  if (!isId(uid)) return null;
+  return (state?.barracks || []).find((r) => r.keptItems.some((i) => i.uid === uid)) || null;
+}
+
+/** True when a record other than `record` keeps the item. */
+function ownedElsewhere(state, record, uid) {
+  const keeper = keeperOf(state, uid);
+  return Boolean(keeper) && keeper !== record && keeper.id !== record?.id;
 }
 
 /** The record a lord's kit comes back from in an NG+ run, or null. */
@@ -294,7 +323,9 @@ export function applyRunEnd(state, end) {
   for (const refresh of Array.isArray(end.refresh) ? end.refresh : []) {
     const record = findRecord(state, refresh?.id);
     if (!record) continue;
-    record.keptItems = sanitizeItems(refresh.keptItems);
+    record.keptItems = sanitizeItems(refresh.keptItems).filter(
+      (item) => !ownedElsewhere(state, record, item.uid),
+    );
     changed = true;
   }
   const ride = sanitizePendingRide(end.pendingRide);
@@ -326,6 +357,7 @@ export function ridePickBlock(state, picks) {
   if (!ride) return 'no_ride';
   if (!Array.isArray(picks)) return 'bad_picks';
   const refs = new Set();
+  const itemUids = new Set();
   const picked = new Set(ride.picked || []);
   const pickedOf = (kind) =>
     ride.candidates.filter((c) => c.kind === kind && picked.has(c.ref)).length;
@@ -338,8 +370,12 @@ export function ridePickBlock(state, picks) {
     refs.add(pick.ref);
     if (candidate.kind === 'lord') lords += 1;
     else recruits += 1;
-    const reason = keepBlock(candidate, recordFor(state, candidate), pick);
+    const reason = keepBlock(state, candidate, recordFor(state, candidate), pick);
     if (reason) return reason;
+    if (pick.itemUid != null) {
+      if (itemUids.has(pick.itemUid)) return 'kept_by_other';
+      itemUids.add(pick.itemUid);
+    }
   }
   if (lords > RIDE_LORD_PICKS) return 'too_many_lords';
   if (recruits > RIDE_RECRUIT_PICKS) return 'too_many_recruits';
@@ -356,7 +392,7 @@ export function keptItemsOfKind(record, kind) {
   return (record?.keptItems || []).filter((item) => keptItemKind(item) === kind);
 }
 
-function keepBlock(candidate, record, pick) {
+function keepBlock(state, candidate, record, pick) {
   if (pick.skillId != null) {
     if (!candidate.skills.includes(pick.skillId)) return 'unknown_skill';
     if (record?.keptSkills.includes(pick.skillId)) return 'already_kept';
@@ -370,6 +406,7 @@ function keepBlock(candidate, record, pick) {
     const item = candidate.items.find((i) => i.uid === pick.itemUid);
     if (!item) return 'unknown_item';
     if (record?.keptItems.some((i) => i.uid === item.uid)) return 'already_kept';
+    if (ownedElsewhere(state, record, item.uid)) return 'kept_by_other';
     const kind = keptItemKind(item);
     const held = keptItemsOfKind(record, kind);
     if (held.length >= KEPT_ITEM_CAPS[kind]) {
@@ -474,7 +511,11 @@ export function undoLastRide(state, id) {
   }
   record.skillKinds = sanitizeKinds(record.skillKinds, record.keptSkills);
   if (entry.itemUid) record.keptItems = record.keptItems.filter((i) => i.uid !== entry.itemUid);
-  if (entry.replacedItem && !record.keptItems.some((i) => i.uid === entry.replacedItem.uid))
+  if (
+    entry.replacedItem &&
+    !record.keptItems.some((i) => i.uid === entry.replacedItem.uid) &&
+    !ownedElsewhere(state, record, entry.replacedItem.uid)
+  )
     record.keptItems.push(structuredClone(entry.replacedItem));
   record.rides = Math.max(0, count(record.rides) - 1);
   if (!record.rides && !record.keptSkills.length && !record.keptItems.length)

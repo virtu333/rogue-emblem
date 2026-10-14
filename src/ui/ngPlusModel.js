@@ -34,6 +34,7 @@ const PICK_BLOCK_TEXT = {
   item_cap: 'Their kept items of that kind are full: choose one to replace.',
   already_kept: 'They already keep that.',
   already_picked: 'They are already in the Barracks from this win.',
+  kept_by_other: 'Another Barracks veteran already keeps that item.',
   locked: 'Unlock New Game+ first.',
   save_failed: 'Could not save. Please try again.',
 };
@@ -150,6 +151,10 @@ export function candidateDetail(state, ref, pick, gameData = {}) {
   const record = recordFor(state, candidate);
   const kept = new Set(record?.keptSkills || []);
   const keptItems = new Set((record?.keptItems || []).map((i) => i.uid));
+  // An heirloom another record keeps (traded to this survivor during the run) is theirs.
+  const keptByOthers = new Map();
+  for (const other of state.barracks || [])
+    if (other !== record) for (const i of other.keptItems) keptByOthers.set(i.uid, other.name);
   const skillKind = pick?.skillId ? candidate.skillKinds[pick.skillId] || 'skill' : null;
   const skillFull = skillKind && keptOfKind(record, skillKind).length >= KEPT_SKILL_CAPS[skillKind];
   const item = pick?.itemUid ? candidate.items.find((i) => i.uid === pick.itemUid) : null;
@@ -170,12 +175,15 @@ export function candidateDetail(state, ref, pick, gameData = {}) {
         chosen: pick?.skillId === id,
       })),
     items: candidate.items
-      .filter((i) => !keptItems.has(i.uid))
+      .filter((i) => !keptItems.has(i.uid) && !keptByOthers.has(i.uid))
       .map((i) => ({
         uid: i.uid,
         label: itemDisplayName(i, skills),
         chosen: pick?.itemUid === i.uid,
       })),
+    heirlooms: candidate.items
+      .filter((i) => keptByOthers.has(i.uid))
+      .map((i) => `${itemDisplayName(i, skills)} (kept by ${keptByOthers.get(i.uid)})`),
     skillReplace: skillFull
       ? keptOfKind(record, skillKind).map((id) => ({
           id,

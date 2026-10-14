@@ -28,12 +28,12 @@ import { INVENTORY_MAX } from '../src/utils/constants.js';
 import {
   BRING_LIMIT,
   KEPT_ITEM_CAPS,
+  adoptNgPlusState,
   NG_PLUS_COST,
   applyRidePicks,
   applyRunEnd,
   defaultNgPlusState,
   lordRecordId,
-  mergeNgPlusState,
   normalizeNgPlusState,
   ridePickBlock,
   runStartOf,
@@ -803,8 +803,7 @@ describe('the Barracks state', () => {
     expect(barracksView(state, data).records[2].canBring).toBe(false);
   });
 
-  it('the adopt-merge keeps the copy changed more recently, whole', () => {
-    // Failure: a veteran released on one copy is brought back by the other's list.
+  it('the adopt-merge takes the newer write whole, and a payload without the key keeps ours', () => {
     const a = defaultNgPlusState();
     a.barracks.push({
       id: lordRecordId('Edric'),
@@ -815,11 +814,33 @@ describe('the Barracks state', () => {
       keptItems: [],
       rides: 1,
     });
-    a.rev = 2;
+    a.rev = 5;
     const b = defaultNgPlusState();
-    b.rev = 3;
-    expect(mergeNgPlusState(a, b).barracks).toEqual([]);
-    expect(mergeNgPlusState(b, a).rev).toBe(3);
+    b.rev = 1;
+    // A lower count does not outvote the newer write.
+    expect(adoptNgPlusState(a, b).barracks).toEqual([]);
+    expect(adoptNgPlusState(a, undefined).barracks).toHaveLength(1);
+  });
+
+  it('one kept item has one owner: a later record’s copy of the same uid is dropped', () => {
+    // Failure: a save holding the same heirloom on two records installs it twice.
+    const axe = { ...weapon('Steel Axe'), uid: 'itm_shared' };
+    const record = (id, name) => ({
+      id,
+      kind: 'lord',
+      name,
+      keptSkills: [],
+      skillKinds: {},
+      keptItems: [structuredClone(axe)],
+      rides: 1,
+    });
+    const s = normalizeNgPlusState({
+      v: 1,
+      barracks: [record(lordRecordId('Edric'), 'Edric'), record(lordRecordId('Sera'), 'Sera')],
+    });
+    expect(s.barracks[0].keptItems.map((i) => i.uid)).toEqual(['itm_shared']);
+    expect(s.barracks[1].keptItems).toEqual([]);
+    expect(runStartOf(s).lordKits.flatMap((r) => r.keptItems)).toHaveLength(1);
   });
 
   it('a malformed record or a bad version reads as empty', () => {
@@ -832,5 +853,166 @@ describe('the Barracks state', () => {
     const s = defaultNgPlusState();
     applyRunEnd(s, { fallenIds: [], refresh: [], pendingRide: null, ngPlusWin: false });
     expect(s.rev).toBe(0);
+  });
+});
+
+/** Every instance of an item uid the run's army holds: bags, belts, worn, convoy, stores. */
+function instancesOf(rm, uid) {
+  const all = [
+    ...rm.roster.flatMap((u) => [...(u.inventory || []), ...(u.consumables || []), u.accessory]),
+    ...(rm.convoy?.weapons || []),
+    ...(rm.convoy?.consumables || []),
+    ...(rm.accessories || []),
+  ];
+  return all.filter((item) => item?.uid === uid).length;
+}
+
+function startNgPlus(meta, seed = 21) {
+  const rm = new RunManager(data);
+  rm.startRun({
+    runSeed: seed,
+    applyBlessingsAtStart: false,
+    difficultyId: 'hard',
+    ngPlus: meta.ngPlusRunStart('hard'),
+  });
+  return rm;
+}
+
+describe('a kept item has exactly one owner across the Barracks', () => {
+  /** An NG+ run where the veteran's kept axe was traded to Edric before the win. */
+  function tradedHeirloom({ vetFalls = false, toConvoy = false } = {}) {
+    const { meta, vet } = metaWithBarracks();
+    const rm = startNgPlus(meta);
+    const vetUnit = rm.roster.find((u) => u.name === vet.name);
+    const edric = rm.roster.find((u) => u.name === 'Edric');
+    const axe = vetUnit.inventory.find((i) => i.uid === 'itm_kept_axe');
+    expect(axe).toBeTruthy();
+    vetUnit.inventory = vetUnit.inventory.filter((i) => i !== axe);
+    if (vetUnit.weapon === axe) vetUnit.weapon = null;
+    if (toConvoy) rm.convoy.weapons.push(axe);
+    else edric.inventory.push(axe);
+    if (vetFalls) {
+      rm.roster = rm.roster.filter((u) => u !== vetUnit);
+      rm.fallenUnits.push(vetUnit);
+    }
+    winRun(rm, meta);
+    return { meta, vet, edric };
+  }
+
+  it('a heirloom traded to another survivor cannot be kept by them too', () => {
+    // Failure (the review's P1): both records claim the axe and the next run holds two.
+    const { meta, vet, edric } = tradedHeirloom();
+    const state = meta.getNgPlus();
+    expect(state.barracks.find((r) => r.id === vet.id).keptItems.map((i) => i.uid)).toEqual([
+      'itm_kept_axe',
+    ]);
+    const pick = [{ ref: edric.unitUid, itemUid: 'itm_kept_axe' }];
+    expect(ridePickBlock(state, pick)).toBe('kept_by_other');
+    expect(meta.chooseNgPlusRide(pick)).toMatchObject({ ok: false, reason: 'kept_by_other' });
+    const detail = candidateDetail(state, edric.unitUid, {}, data);
+    expect(detail.items.some((i) => i.uid === 'itm_kept_axe')).toBe(false);
+    expect(detail.heirlooms.join()).toContain(vet.name);
+
+    // Reloaded and started again, with the veteran brought: one owner, one axe.
+    const reloaded = freshMeta();
+    expect(reloaded.chooseNgPlusRide([]).ok).toBe(true);
+    const owners = reloaded
+      .getNgPlus()
+      .barracks.filter((r) => r.keptItems.some((i) => i.uid === 'itm_kept_axe'));
+    expect(owners.map((r) => r.id)).toEqual([vet.id]);
+    expect(instancesOf(startNgPlus(reloaded, 22), 'itm_kept_axe')).toBe(1);
+  });
+
+  it('two picks in one commit cannot both keep the same item', () => {
+    const state = normalizeNgPlusState({
+      v: 1,
+      pendingRide: {
+        runId: 'r',
+        candidates: ['a', 'b'].map((ref) => ({
+          ref,
+          kind: 'lord',
+          name: ref === 'a' ? 'Edric' : 'Sera',
+          items: [{ ...weapon('Iron Sword'), uid: 'itm_dup' }],
+          skills: [],
+        })),
+      },
+    });
+    expect(
+      ridePickBlock(state, [
+        { ref: 'a', itemUid: 'itm_dup' },
+        { ref: 'b', itemUid: 'itm_dup' },
+      ]),
+    ).not.toBeNull();
+  });
+
+  it('once the original owner falls, the survivor holding it may keep it', () => {
+    // Failure: the fallen veteran's claim outlives them and the heirloom is lost for good.
+    const { meta, vet, edric } = tradedHeirloom({ vetFalls: true });
+    expect(meta.getNgPlus().barracks.some((r) => r.id === vet.id)).toBe(false);
+    expect(meta.chooseNgPlusRide([{ ref: edric.unitUid, itemUid: 'itm_kept_axe' }]).ok).toBe(true);
+    const owners = freshMeta()
+      .getNgPlus()
+      .barracks.filter((r) => r.keptItems.some((i) => i.uid === 'itm_kept_axe'));
+    expect(owners.map((r) => r.id)).toEqual([lordRecordId('Edric')]);
+  });
+
+  it('a heirloom left in the convoy stays its owner’s and comes back once', () => {
+    const { meta, vet } = tradedHeirloom({ toConvoy: true });
+    expect(meta.chooseNgPlusRide([]).ok).toBe(true);
+    const state = freshMeta().getNgPlus();
+    expect(state.barracks.find((r) => r.id === vet.id).keptItems.map((i) => i.uid)).toEqual([
+      'itm_kept_axe',
+    ]);
+    expect(instancesOf(startNgPlus(freshMeta(), 23), 'itm_kept_axe')).toBe(1);
+  });
+});
+
+describe('two managers on one slot never lose or undo each other’s NG+ changes', () => {
+  it('a release on one copy is not undone by a stale copy’s Bring change', () => {
+    // Failure (the review's P2): the stale copy's save restores the released veteran.
+    const { meta: a, vet } = metaWithBarracks();
+    const b = freshMeta();
+    expect(a.releaseNgPlusVeteran(vet.id).ok).toBe(true);
+    // B still thinks the veteran is there: bringing them is refused, not saved.
+    expect(b.setNgPlusBring([vet.id])).toMatchObject({ ok: false });
+    expect(b.setNgPlusBring([]).ok).toBe(true);
+    const state = freshMeta().getNgPlus();
+    expect(state.barracks.some((r) => r.id === vet.id)).toBe(false);
+  });
+
+  it('two foreign edits and one local edit all persist', () => {
+    // Failure: the copy with the higher count wins whole and drops the stale copy's
+    // successful edit (or the other way round).
+    const { meta: a, vet } = metaWithBarracks();
+    const b = freshMeta();
+    expect(a.releaseNgPlusVeteran(lordRecordId('Edric')).ok).toBe(true);
+    expect(a.setNgPlusBring([]).ok).toBe(true);
+    expect(b.setNgPlusBring([vet.id]).ok).toBe(true);
+    const state = freshMeta().getNgPlus();
+    expect(state.barracks.some((r) => r.id === lordRecordId('Edric'))).toBe(false);
+    expect(state.bring).toEqual([vet.id]);
+    expect(b.getNgPlus()).toEqual(state);
+  });
+
+  it('a survivor sent on one copy cannot be sent again from a stale copy', () => {
+    // Failure: the stale copy sends the same survivor a second time, or its own pick
+    // replaces the first copy's.
+    const a = unlockedMeta();
+    const rm = wonRun();
+    const [x, y] = [addRecruit(rm), addRecruit(rm)];
+    winRun(rm, a);
+    const b = freshMeta();
+    expect(a.chooseNgPlusRide([{ ref: x.unitUid }]).ok).toBe(true);
+    expect(b.chooseNgPlusRide([{ ref: x.unitUid }])).toMatchObject({
+      ok: false,
+      reason: 'already_picked',
+    });
+    expect(b.chooseNgPlusRide([{ ref: y.unitUid }]).ok).toBe(true);
+    const state = freshMeta().getNgPlus();
+    expect(state.pendingRide.picked).toEqual([x.unitUid, y.unitUid]);
+    expect(state.barracks.filter((r) => r.kind === 'recruit').map((r) => r.name)).toEqual([
+      x.name,
+      y.name,
+    ]);
   });
 });

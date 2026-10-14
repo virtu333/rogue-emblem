@@ -176,6 +176,8 @@ export class NgPlusPanel {
     }
     copy.append(node('h3', 'ng-heading', 'Keep one item'));
     if (!view.items.length) copy.append(node('p', 'mu-help', 'No item of theirs to keep.'));
+    if (view.heirlooms.length)
+      copy.append(node('p', 'mu-help', `Not theirs to keep: ${view.heirlooms.join(', ')}.`));
     for (const i of view.items)
       copy.append(
         this.button(

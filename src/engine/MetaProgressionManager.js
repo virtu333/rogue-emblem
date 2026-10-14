@@ -7,7 +7,7 @@ import {
   applyRunEnd,
   defaultNgPlusState,
   isNgPlusRung,
-  mergeNgPlusState,
+  adoptNgPlusState,
   normalizeNgPlusState,
   passRide,
   releaseRecord,
@@ -1143,8 +1143,12 @@ export class MetaProgressionManager {
   /**
    * Change the NG+ state (and anything else `change` touches) in one write: `change` gets the
    * state and returns `{ ok }`; a refusal or a failed write leaves everything as it was.
+   * A newer copy on disk (another tab or manager) is adopted first, so the change is checked
+   * and applied against the latest state, never a stale one that the write would then lose
+   * or that would bring back what the other copy removed.
    */
   _commitNgPlus(change) {
+    this._adoptForeignDiskStateIfNewer();
     const before = this._captureState();
     const result = change(this.ngPlus);
     if (!result?.ok) {
@@ -2079,8 +2083,10 @@ export class MetaProgressionManager {
     // this merge keeps both copies' economies (each currency and upgrade at its max):
     // a paid copy's grant is in the result, and an unpaid newer copy must not pay again.
     this.prologue = mergePrologueState(this.prologue, disk.prologue);
-    // NG+: the copy changed more recently by its own count wins whole (NgPlusState.js).
-    this.ngPlus = mergeNgPlusState(this.ngPlus, disk.ngPlus);
+    // NG+: the newer write wins whole (NgPlusState.adoptNgPlusState). Every NG+ change
+    // adopts before it applies (_commitNgPlus), so this copy holds no NG+ change the disk
+    // lacks, and a release or a pick the other copy made is never undone here.
+    this.ngPlus = adoptNgPlusState(this.ngPlus, disk.ngPlus);
     // A newer build's keys: the newer disk copy's values win, ours stay where it has none.
     this.unknownFields = { ...this.unknownFields, ...unknownMetaFields(disk) };
     this.savedAt = diskSavedAt;
