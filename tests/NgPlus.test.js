@@ -311,6 +311,63 @@ describe('"Who rides again?"', () => {
     expect(record.keptSkills).not.toContain('wrath');
   });
 
+  it('stays open after a partial pick until every slot is filled', () => {
+    // Failure: sending one survivor closes the whole pick (the owner's report), so the other
+    // slots are lost; or one already sent is offered again and fills a second slot.
+    const meta = unlockedMeta();
+    const rm = wonRun();
+    const [a, b, c] = [addRecruit(rm), addRecruit(rm), addRecruit(rm)];
+    winRun(rm, meta);
+    const edric = rm.roster.find((u) => u.name === 'Edric');
+    const first = meta.chooseNgPlusRide([{ ref: a.unitUid }]);
+    expect(first).toMatchObject({ ok: true, closed: false });
+    const reloaded = freshMeta().getNgPlus();
+    expect(reloaded.pendingRide.picked).toEqual([a.unitUid]);
+    expect(ridePickBlock(reloaded, [{ ref: a.unitUid }])).toBe('already_picked');
+    expect(ridePickBlock(reloaded, [{ ref: b.unitUid }, { ref: c.unitUid }])).toBe(
+      'too_many_recruits',
+    );
+    const view = rideView(reloaded, {});
+    expect(view.counts).toBe('Lords 0/1 · Recruits 1/2');
+    expect(view.candidates.find((x) => x.ref === a.unitUid)).toMatchObject({
+      sent: true,
+      disabled: true,
+    });
+    expect(view.commitLabel).toMatch(/^Done/);
+    expect(meta.chooseNgPlusRide([{ ref: b.unitUid }])).toMatchObject({ ok: true, closed: false });
+    expect(meta.chooseNgPlusRide([{ ref: edric.unitUid }])).toMatchObject({
+      ok: true,
+      closed: true,
+    });
+    const state = freshMeta().getNgPlus();
+    expect(state.pendingRide).toBeNull();
+    expect(state.barracks.map((r) => r.name).sort()).toEqual([a.name, b.name, 'Edric'].sort());
+  });
+
+  it('Done (an empty pick) closes a ride left part-filled', () => {
+    // Failure: a player who wants only one survivor can never close the pick.
+    const meta = unlockedMeta();
+    const rm = wonRun();
+    const a = addRecruit(rm);
+    addRecruit(rm);
+    winRun(rm, meta);
+    expect(meta.chooseNgPlusRide([{ ref: a.unitUid }]).closed).toBe(false);
+    expect(meta.chooseNgPlusRide([])).toMatchObject({ ok: true, closed: true });
+    const state = freshMeta().getNgPlus();
+    expect(state.pendingRide).toBeNull();
+    expect(state.barracks).toHaveLength(1);
+  });
+
+  it('warns about a pick that keeps no skill or item', () => {
+    const meta = unlockedMeta();
+    const rm = wonRun();
+    const fighter = addRecruit(rm);
+    winRun(rm, meta);
+    const view = rideView(meta.getNgPlus(), { [fighter.unitUid]: {} });
+    expect(view.warnText).toContain(fighter.name);
+    expect(rideView(meta.getNgPlus(), {}).warnText).toBe('');
+  });
+
   it('the model draws the ride and a picked survivor’s choices', () => {
     const meta = unlockedMeta();
     const rm = wonRun();

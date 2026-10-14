@@ -90,6 +90,17 @@ test('buy NG+, pick who rides again, bring a veteran, and start NG+ on Nightfall
     'true',
   );
   await page.locator('[data-focus="ng-commit"]').tap();
+  // The pick stays open for the lord's slot; Bjorn is sent and cannot be sent again.
+  await expect(page.locator('.mu-status')).toHaveText(
+    'Sent to the Barracks. Pick the rest, or tap Done.',
+  );
+  await expect(page.locator('[data-focus="ride-u4"]')).toBeDisabled();
+  await expect(page.locator('[data-focus="ride-u4"]')).toContainText('Sent to the Barracks');
+
+  // Edric then fills the lord's slot, which closes the pick.
+  await page.locator('[data-focus="ride-u1"]').tap();
+  await page.locator('[data-focus="keep-skill-sol"]').tap();
+  await page.locator('[data-focus="ng-commit"]').tap();
   await expect(page.locator('.mu-status')).toHaveText(
     'The Barracks is ready for the next NG+ run.',
   );

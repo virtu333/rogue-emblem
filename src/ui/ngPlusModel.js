@@ -14,6 +14,7 @@ import {
   keptOfKind,
   recordFor,
   ridePickBlock,
+  rideSlotsLeft,
 } from '../engine/NgPlusState.js';
 import { itemDisplayName } from '../utils/itemNames.js';
 
@@ -32,6 +33,7 @@ const PICK_BLOCK_TEXT = {
   skill_cap: 'Their kept skills are full: choose one to replace.',
   item_cap: 'Their kept items of that kind are full: choose one to replace.',
   already_kept: 'They already keep that.',
+  already_picked: 'They are already in the Barracks from this win.',
   locked: 'Unlock New Game+ first.',
   save_failed: 'Could not save. Please try again.',
 };
@@ -89,28 +91,46 @@ export function draftPicks(draft) {
 export function rideView(state, draft) {
   const ride = state?.pendingRide;
   if (!ride) return null;
-  const picked = (kind) => ride.candidates.filter((c) => c.kind === kind && draft?.[c.ref]).length;
-  const lords = picked('lord');
-  const recruits = picked('recruit');
+  const sent = new Set(ride.picked || []);
+  const count = (kind, set) => ride.candidates.filter((c) => c.kind === kind && set(c)).length;
+  const lords = count('lord', (c) => draft?.[c.ref] || sent.has(c.ref));
+  const recruits = count('recruit', (c) => draft?.[c.ref] || sent.has(c.ref));
+  const drafted = ride.candidates.filter((c) => draft?.[c.ref]);
+  const left = rideSlotsLeft(ride);
   const block = ridePickBlock(state, draftPicks(draft));
+  const keepsNothing = drafted
+    .filter((c) => draft[c.ref].skillId == null && draft[c.ref].itemUid == null)
+    .map((c) => c.name);
   return {
     title: 'Who rides again?',
-    lead: `Pick up to ${RIDE_LORD_PICKS} lord and ${RIDE_RECRUIT_PICKS} recruits. Each keeps 1 skill and 1 item.`,
+    lead: sent.size
+      ? `Still open: ${plural(left.lord, 'lord')} and ${plural(left.recruit, 'recruit')}. Each keeps 1 skill and 1 item.`
+      : `Pick up to ${RIDE_LORD_PICKS} lord and ${RIDE_RECRUIT_PICKS} recruits. Each keeps 1 skill and 1 item.`,
     counts: `Lords ${lords}/${RIDE_LORD_PICKS} · Recruits ${recruits}/${RIDE_RECRUIT_PICKS}`,
     candidates: ride.candidates.map((c) => {
+      const isSent = sent.has(c.ref);
       const isPicked = Boolean(draft?.[c.ref]);
       const full = c.kind === 'lord' ? lords >= RIDE_LORD_PICKS : recruits >= RIDE_RECRUIT_PICKS;
       const record = recordFor(state, c);
       return {
         ref: c.ref,
         name: c.name,
-        line: `${c.className} · Lv ${c.level}${record ? ' · In the Barracks' : ''}`,
+        line: `${c.className} · Lv ${c.level}${record && !isSent ? ' · In the Barracks' : ''}`,
         picked: isPicked,
-        disabled: !isPicked && full,
+        sent: isSent,
+        disabled: isSent || (!isPicked && full),
       };
     }),
     canCommit: block === null,
-    commitLabel: lords + recruits ? 'Send them to the Barracks' : 'Nobody rides again',
+    commitLabel: drafted.length
+      ? 'Send them to the Barracks'
+      : sent.size
+        ? 'Done: no one else rides again'
+        : 'Nobody rides again',
+    confirmLabel: sent.size ? 'Confirm: close this pick' : 'Confirm: nobody rides again',
+    warnText: keepsNothing.length
+      ? `${keepsNothing.join(' and ')} ${keepsNothing.length === 1 ? 'keeps' : 'keep'} no skill or item yet: tap them to choose.`
+      : '',
     blockText: block ? ngPlusBlockText(block) : '',
   };
 }

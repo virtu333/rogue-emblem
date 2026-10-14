@@ -73,7 +73,11 @@ export class NgPlusPanel {
           { pressed: c.picked, focus: `ride-${c.ref}`, cls: 'mh-skill', disabled: c.disabled },
         );
         b.append(
-          node('strong', '', `${c.name}${c.picked ? ' · Rides again' : ''}`),
+          node(
+            'strong',
+            '',
+            `${c.name}${c.sent ? ' · Sent to the Barracks' : c.picked ? ' · Rides again' : ''}`,
+          ),
           node('span', '', c.line),
         );
         list.append(b);
@@ -230,10 +234,11 @@ export class NgPlusPanel {
   renderRideActions(copy, ride) {
     copy.append(node('h3', 'ng-heading', ride.title), node('p', 'mu-help', ride.lead));
     copy.append(node('p', '', ride.counts));
+    if (ride.warnText) copy.append(node('p', 'mu-requirements', ride.warnText));
     if (ride.blockText) copy.append(node('p', 'mu-requirements', ride.blockText));
     const passing = !Object.keys(this.draft).length;
     return this.button(
-      passing && this.confirmPass ? 'Confirm: nobody rides again' : ride.commitLabel,
+      passing && this.confirmPass ? ride.confirmLabel : ride.commitLabel,
       () => {
         if (passing && !this.confirmPass) {
           this.confirmPass = true;
@@ -247,9 +252,11 @@ export class NgPlusPanel {
         }
         this.rerender(
           'ng-commit',
-          result.ok
-            ? 'The Barracks is ready for the next NG+ run.'
-            : ngPlusBlockText(result.reason),
+          !result.ok
+            ? ngPlusBlockText(result.reason)
+            : result.closed
+              ? 'The Barracks is ready for the next NG+ run.'
+              : 'Sent to the Barracks. Pick the rest, or tap Done.',
         );
       },
       { focus: 'ng-commit', cls: 'ng-commit', disabled: !ride.canCommit },

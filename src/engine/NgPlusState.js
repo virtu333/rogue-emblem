@@ -13,7 +13,9 @@
 //                   //   traits, traitAttackStat, markId, portraitVariant)
 //     bring,        // up to BRING_LIMIT recruit record ids taken into the next NG+ run
 //     pendingRide,  // the last eligible win's survivors, until picked or passed:
-//                   //   { runId, difficultyId, endedAt, candidates: [candidate] }
+//                   //   { runId, difficultyId, endedAt, candidates: [candidate], picked: [ref] }
+//                   //   (`picked`: the refs already sent to the Barracks from this ride; the
+//                   //   ride stays open until every slot is filled or the player is done)
 //     wins,         // NG+ runs won on this slot (the cycle, phase 2)
 //   }
 //
@@ -152,12 +154,26 @@ function sanitizePendingRide(raw) {
     .map(sanitizeCandidate)
     .filter(Boolean);
   if (!candidates.length) return null;
+  const refs = new Set(candidates.map((c) => c.ref));
   return {
     runId: raw.runId,
     difficultyId: isName(raw.difficultyId) ? raw.difficultyId : null,
     endedAt: count(raw.endedAt),
     candidates,
+    picked: [...new Set((Array.isArray(raw.picked) ? raw.picked : []).filter((r) => refs.has(r)))],
   };
+}
+
+/** How many of each kind a ride can still send: { lord, recruit } (never below 0). */
+export function rideSlotsLeft(ride) {
+  if (!ride) return { lord: 0, recruit: 0 };
+  const picked = new Set(ride.picked || []);
+  const left = (kind, limit) => {
+    const all = ride.candidates.filter((c) => c.kind === kind);
+    const taken = all.filter((c) => picked.has(c.ref)).length;
+    return Math.max(0, Math.min(limit, all.length) - taken);
+  };
+  return { lord: left('lord', RIDE_LORD_PICKS), recruit: left('recruit', RIDE_RECRUIT_PICKS) };
 }
 
 /** A saved state, or anything else, as a whole v1 state (unknown records dropped). */
@@ -282,11 +298,15 @@ export function ridePickBlock(state, picks) {
   if (!ride) return 'no_ride';
   if (!Array.isArray(picks)) return 'bad_picks';
   const refs = new Set();
-  let lords = 0;
-  let recruits = 0;
+  const picked = new Set(ride.picked || []);
+  const pickedOf = (kind) =>
+    ride.candidates.filter((c) => c.kind === kind && picked.has(c.ref)).length;
+  let lords = pickedOf('lord');
+  let recruits = pickedOf('recruit');
   for (const pick of picks) {
     const candidate = ride.candidates.find((c) => c.ref === pick?.ref);
     if (!candidate || refs.has(pick.ref)) return 'unknown_candidate';
+    if (picked.has(pick.ref)) return 'already_picked';
     refs.add(pick.ref);
     if (candidate.kind === 'lord') lords += 1;
     else recruits += 1;
@@ -349,8 +369,9 @@ function newRecord(candidate, runId) {
 
 /**
  * Commit "Who rides again?": each pick adds (or updates) its character's record with one
- * skill and one item from the run (a full kind replaces the one the player named). Clears the
- * pending ride. Refused whole (nothing changes) when any pick is invalid.
+ * skill and one item from the run (a full kind replaces the one the player named). The ride
+ * stays open, its picks remembered, until every slot it can fill is filled; an empty list is
+ * "Done" and closes it. Refused whole (nothing changes) when any pick is invalid.
  * @param {Array<{ ref, skillId?, itemUid?, replaceSkillId?, replaceItemUid? }>} picks
  */
 export function applyRidePicks(state, picks) {
@@ -358,6 +379,11 @@ export function applyRidePicks(state, picks) {
   if (block) return { ok: false, reason: block };
   const ride = state.pendingRide;
   const added = [];
+  if (!picks.length) {
+    state.pendingRide = null;
+    bump(state);
+    return { ok: true, added, closed: true };
+  }
   for (const pick of picks) {
     const candidate = ride.candidates.find((c) => c.ref === pick.ref);
     let record = recordFor(state, candidate);
@@ -383,9 +409,12 @@ export function applyRidePicks(state, picks) {
     record.rides += 1;
     added.push(record.id);
   }
-  state.pendingRide = null;
+  ride.picked = [...(ride.picked || []), ...picks.map((pick) => pick.ref)];
+  const left = rideSlotsLeft(ride);
+  const closed = left.lord === 0 && left.recruit === 0;
+  if (closed) state.pendingRide = null;
   bump(state);
-  return { ok: true, added };
+  return { ok: true, added, closed };
 }
 
 /** Pass on the pending ride (nobody new rides again). */

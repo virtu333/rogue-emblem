@@ -579,7 +579,7 @@ describe('the NG+ review route (?devScene=homebase&preset=ngplus)', () => {
     }
   });
 
-  it('a ride already chosen is not offered again when the route reloads', () => {
+  it('a ride already chosen (in part or whole) is not offered again when the route reloads', () => {
     const store = new Map();
     vi.stubGlobal('localStorage', {
       getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -592,6 +592,9 @@ describe('the NG+ review route (?devScene=homebase&preset=ngplus)', () => {
     const meta = registry.get('meta');
     expect(meta.unlockNgPlus()).toEqual({ ok: true });
     expect(meta.chooseNgPlusRide([{ ref: 'dev-bjorn', skillId: 'vantage' }]).ok).toBe(true);
+    buildDevStartupRoute(gameData, registry, config());
+    expect(meta.getNgPlus().pendingRide.picked).toEqual(['dev-bjorn']);
+    expect(meta.chooseNgPlusRide([]).ok).toBe(true);
     buildDevStartupRoute(gameData, registry, config());
     expect(meta.getNgPlus().pendingRide).toBeNull();
     expect(meta.getNgPlus().barracks.map((r) => r.name)).toEqual(['Bjorn']);
