@@ -82,6 +82,11 @@ const PAINTING_PENDING = [
   'featherweight',
   'reckless_edge',
   'shield_wall',
+  // Wave 2: Standard of the Sun with its cost, Oathbound Steel, Siegebreaker, Smith's Exile.
+  'standard_of_the_sun_ii',
+  'oathbound_steel',
+  'siegebreaker',
+  'smiths_exile',
 ];
 const paintedBlessings = data.blessings.blessings.filter((b) => !PAINTING_PENDING.includes(b.id));
 

@@ -10,8 +10,9 @@
 //     adjacentAllyDef: [{ perAlly, max }],    // Phalanx Rite
 //     isolated: [{ radius, avoidBonus, critBonus }],    // Duelist's Creed
 //     commanderAuras: [{ radius, hitBonus, avoidBonus }],   // Standard of the Sun
-//     trade: { deltas, damageScale, weightDelta, procMultiplier } | null }  // the act boss's
+//     trade: { deltas, damageScale, weightDelta, procMultiplier } | null,  // the act boss's
 //                                     // trade cards (engine/TradeBoons.js)
+//     triangleCounters: { advantage, disadvantage } | null }  // Oathbound Steel
 // Only player-faction units ever receive anything; enemies and NPC allies get zeros.
 
 import { adjacentAllyDefBonus, isolatedCombatBonus } from './FormationBlessings.js';
@@ -177,6 +178,13 @@ export function applyBlessingCombatMods(
   },
 ) {
   if (!profile) return;
+  // Oathbound Steel: flags on the raw mods Combat.triangleBlocksCounter reads (the exchange's own
+  // triangle decides; a player attacker's boon, a player defender's cost).
+  const triangle = profile.triangleCounters;
+  if (triangle?.advantage && attacker?.faction === 'player' && atkMods)
+    atkMods.triangleNoCounter = true;
+  if (triangle?.disadvantage && defender?.faction === 'player' && defMods)
+    defMods.triangleCannotCounter = true;
   addInto(
     atkMods,
     blessingCombatModsFor(profile, {

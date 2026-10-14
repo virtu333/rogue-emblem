@@ -13,6 +13,7 @@ import { setUnitHP } from './UnitHealth.js';
 import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
 import { getUnitMarkFor, markActivation, markProcs, roadBuffEntry } from './MarkSystem.js';
 import { combatDistance } from './EntitySystem.js';
+import { rangedReachBonusOf } from './WeaponReach.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -888,9 +889,11 @@ export function checkPhoenixBrooch(unit) {
  * Get bonus range for a weapon due to skills (e.g. Foresight: +1 Tome range).
  */
 export function getWeaponRangeBonus(unit, weapon, skillsData) {
-  if (!skillsData || !unit || !weapon) return 0;
+  if (!unit || !weapon) return 0;
+  // Siegebreaker (engine/WeaponReach.js): the battle's reach on a player unit's bow or tome.
+  let bonus = rangedReachBonusOf(unit, weapon);
+  if (!skillsData) return bonus;
 
-  let bonus = 0;
   // `weapon` is the one whose range is asked for, so its own grant counts, not the equipped one's.
   for (const skillId of effectiveSkills(unit, { weapon })) {
     const skill = getSkill(skillId, skillsData);

@@ -24,6 +24,7 @@ import { absorbLethal } from './UnitHealth.js';
 import { bannerReadyFor } from './BattleBlessings.js';
 import { revivalStoneCount } from './RevivalStones.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
+import { rangedReachBonusOf } from './WeaponReach.js';
 import {
   getImbueCombatMods,
   getImbuePostCombatPoison,
@@ -1225,8 +1226,34 @@ export function canCounter(defender, defenderWeapon, distance) {
   if (!defenderWeapon || isStaff(defenderWeapon)) return false;
   // A per-battle weapon with no uses left this battle cannot strike back.
   if (!hasPerBattleUsesLeft(defenderWeapon, defender)) return false;
+  // Siegebreaker: a player unit's bow or tome answers from as far as it strikes.
+  const reach = rangedReachBonusOf(defender, defenderWeapon);
+  if (reach > 0) {
+    const dist = Number(distance);
+    const { min, max } = parseRange(defenderWeapon.range);
+    return Number.isFinite(dist) && dist >= min && dist <= max + reach;
+  }
   return isInRange(defenderWeapon, distance);
 }
+
+/**
+ * Oathbound Steel (an act boss's trade card, engine/TradeBoons.js): the weapon triangle decides
+ * counters. A player attacker holding the boon (`triangleNoCounter` on its raw mods) is never
+ * countered while it has the advantage; a player defender holding the cost
+ * (`triangleCannotCounter`) cannot counter a foe that has the advantage over it. `atkTriangle` is
+ * the exchange's own triangle (an art that ignores it, a reaver, a weapon that ignores its
+ * disadvantage all count). Read from `skillCtx.atkMods` / `defMods` as built, never merged.
+ */
+export function triangleBlocksCounter(skillCtx, atkTriangle) {
+  if (!(Number(atkTriangle?.hit) > 0)) return false;
+  return (
+    skillCtx?.atkMods?.triangleNoCounter === true ||
+    skillCtx?.defMods?.triangleCannotCounter === true
+  );
+}
+
+/** The forecast's line for a counter Oathbound Steel stops. */
+export const TRIANGLE_COUNTER_REASON = 'Weapon triangle: no counter';
 
 // --- Combat Forecast (deterministic preview for UI) ---
 
@@ -1458,8 +1485,10 @@ export function getCombatForecast(
   // Silenced defenders cannot counter with magic weapons
   const fSilencedNoCounter =
     isSilenced(defender) && defWeapon && (isMagical(defWeapon) || isStaff(defWeapon));
+  const fTriangleNoCounter = triangleBlocksCounter(skillCtx, atkTriangle);
   const defCanCounter =
     !atkMods?.preventCounter &&
+    !fTriangleNoCounter &&
     !fSilencedNoCounter &&
     !isSleeping(defender) &&
     canCounter(defender, defWeapon, distance);
@@ -1597,9 +1626,11 @@ export function getCombatForecast(
             ? 'Silenced'
             : atkMods?.preventCounter
               ? 'Counter prevented by attack'
-              : !defWeapon || isStaff(defWeapon)
-                ? 'No combat weapon equipped'
-                : 'Target is outside weapon range',
+              : fTriangleNoCounter
+                ? TRIANGLE_COUNTER_REASON
+                : !defWeapon || isStaff(defWeapon)
+                  ? 'No combat weapon equipped'
+                  : 'Target is outside weapon range',
       // Conservative baseline: omit projections for exchanges with changing
       // HP, ordering or special effects rather than imply a guaranteed outcome.
       simpleExchange:
@@ -2113,6 +2144,7 @@ export function resolveCombat(
     isSilenced(defender) && defWeapon && (isMagical(defWeapon) || isStaff(defWeapon));
   const defCanCounter =
     !atkMods?.preventCounter &&
+    !triangleBlocksCounter(skillCtx, atkTriangle) &&
     !silencedNoCounter &&
     !isSleeping(defender) &&
     canCounter(defender, defWeapon, distance);

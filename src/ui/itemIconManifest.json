@@ -586,7 +586,11 @@
     "blessing-collectors_eye": [302, 5, 4],
     "blessing-featherweight": [184, 5, 4],
     "blessing-reckless_edge": [316, 5, 4],
-    "blessing-shield_wall": [198, 5, 4]
+    "blessing-shield_wall": [198, 5, 4],
+    "blessing-standard_of_the_sun_ii": [219, 5, 4],
+    "blessing-oathbound_steel": [12, 5, 4],
+    "blessing-siegebreaker": [49, 5, 4],
+    "blessing-smiths_exile": [37, 5, 4]
   },
   "aliases": {
     "greycord": "gravesong",
@@ -641,6 +645,10 @@
     "blessing-collectors_eye": "upgrade-trinket_collector",
     "blessing-featherweight": "speedwing",
     "blessing-reckless_edge": "upgrade-lethal_armory_killer",
-    "blessing-shield_wall": "barrier-ring"
+    "blessing-shield_wall": "barrier-ring",
+    "blessing-standard_of_the_sun_ii": "vanguard-crest",
+    "blessing-oathbound_steel": "oathblade",
+    "blessing-siegebreaker": "longbow",
+    "blessing-smiths_exile": "hammer"
   }
 }

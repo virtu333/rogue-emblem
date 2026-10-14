@@ -115,7 +115,7 @@ import {
   combatHpLost,
   scaledXp,
 } from '../engine/BattleXp.js';
-import { xpRoleMultiplierFor } from '../engine/TradeBoons.js';
+import { stampArmyBattleRules, xpRoleMultiplierFor } from '../engine/TradeBoons.js';
 import { postCombatEffects, allyBuff } from '../engine/PostCombatEffects.js';
 import {
   applyTimedBuffEntry,
@@ -141,6 +141,7 @@ import {
 import { applyEnemySpawnGear, applySpawnLoadout } from '../engine/EnemySpawnGear.js';
 import { resetFortHealStreak, settleTerrainHeal } from '../engine/TerrainHealing.js';
 import { spendCombatShots, swapSpentWeapons } from '../engine/PerBattleWeapons.js';
+import { weaponChangeBlocked } from '../engine/WeaponSwapLock.js';
 import {
   advanceTurnPressure,
   bestLordEscapeDistance,
@@ -1847,6 +1848,8 @@ export class BattleScene extends Phaser.Scene {
         const commander = stampCommanderFlag([...this.playerUnits, ...(this.escapedUnits || [])]);
         this._battleCommanderId = commander?.battleEntityId || null;
       }
+      // Siegebreaker's reach and Oathbound Steel's lock (TradeBoons), at a start and a resume.
+      stampArmyBattleRules(this.playerUnits, this.battleParams);
 
       // Create enemies from generated spawns
       if (!this._resumeCheckpoint) {
@@ -2031,6 +2034,8 @@ export class BattleScene extends Phaser.Scene {
       this.aiController = new AIController(this.grid, this.gameData, {
         objective: bc.objective,
         thronePos: bc.thronePos,
+        // Standard of the Sun's cost: foes go for the commander first (TradeBoons).
+        commanderPriority: this.battleParams?.foesTargetCommander === true,
       });
       // Holders wake on the Danger overlay's tiles: the board as the player knows it.
       this.aiController.setHoldContext?.(() => this.threatContext());
@@ -7095,12 +7100,14 @@ export class BattleScene extends Phaser.Scene {
     const rows = [
       ...displayWeapons.map((wpn, i) => {
         const isNonProficient = !hasProficiency(unit, wpn);
-        const canEquipNow = canEquip(unit, wpn);
+        // Oathbound Steel (engine/WeaponSwapLock.js): the weapon held is the one fought with.
+        const swapLocked = weaponChangeBlocked(unit, wpn);
+        const canEquipNow = canEquip(unit, wpn) && !swapLocked;
         const marker = wpn === unit.weapon ? EQUIPPED_MARKER : '  ';
         const artMarker = hasWeaponArt(wpn, this._getWeaponArtCatalog()) ? '*' : '';
         return menuRow({
           id: `weapon:${i}`,
-          label: `${marker}${wpn?.name || 'Weapon'}${artMarker}${isNonProficient ? ' (no prof)' : ''}`,
+          label: `${marker}${wpn?.name || 'Weapon'}${artMarker}${isNonProficient ? ' (no prof)' : swapLocked ? ' (locked)' : ''}`,
           item: wpn,
           disabled: !canEquipNow,
           color: isNonProficient

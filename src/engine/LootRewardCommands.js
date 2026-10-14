@@ -17,6 +17,7 @@ import {
 } from './ImbueSystem.js';
 import { isDuplicateLegendary, recordLegendaryGrant } from './LegendaryOwnership.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX } from '../utils/constants.js';
+import { forgeBlockReason } from './SmithsExile.js';
 
 export const REWARD_FORGE_STATS = [
   { key: 'might', label: '+1 Might' },
@@ -70,6 +71,9 @@ export function applyRewardTarget(run, item, target) {
 export function applyRewardForge(run, gameData, item, unit, weapon, selection) {
   if (!run.roster?.includes(unit) || !unit.inventory?.includes(weapon))
     return { ok: false, reason: 'Weapon is no longer carried by this unit.' };
+  // Smith's Exile: a whetstone forges nothing (an Imbuing Stone still imbues).
+  if (!isImbueStone(item) && forgeBlockReason(run))
+    return { ok: false, reason: forgeBlockReason(run) };
   if (!rewardWeaponEligible(item, weapon))
     return {
       ok: false,

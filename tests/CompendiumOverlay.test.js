@@ -218,7 +218,8 @@ describe('CompendiumOverlay', () => {
     const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
     const shown = overlay._getItemsForTab(6);
     const retired = gameData.blessings.blessings.filter((b) => b.earned === true && b.weight === 0);
-    // Ember Lantern, Captain's Whistle and the old Chronicle, Kingmaker's Oath, Hollow Sun's Favor.
+    // Ember Lantern, Captain's Whistle and the old Chronicle, Kingmaker's Oath, Hollow Sun's Favor
+    // and Standard of the Sun.
     expect(retired.map((b) => b.id).sort()).toEqual(
       [
         'captains_whistle',
@@ -226,6 +227,7 @@ describe('CompendiumOverlay', () => {
         'ember_lantern',
         'hollow_sun_favor',
         'kingmakers_oath',
+        'standard_of_the_sun',
       ].sort(),
     );
     expect(shown.length).toBe(gameData.blessings.blessings.length - retired.length);

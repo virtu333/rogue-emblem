@@ -24,6 +24,7 @@ import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { itemDisplayName } from '../utils/itemNames.js';
+import { forgeBlockReason } from '../engine/SmithsExile.js';
 
 const POST_LOOT_TRANSITION_TIMEOUT_MS = 8000;
 const POST_LOOT_TRANSITION_STORY_GRACE_MS = 30000;
@@ -240,7 +241,9 @@ export class LootFlowController {
       .setDepth(711);
     pickerGroup.push(title);
 
-    const forgeableWeapons = inventoryDisplayOrder(unit).filter((w) =>
+    // Smith's Exile (engine/SmithsExile.js): a whetstone forges nothing.
+    const exiled = !stoneIsImbue && Boolean(forgeBlockReason(scene.runManager));
+    const forgeableWeapons = (exiled ? [] : inventoryDisplayOrder(unit)).filter((w) =>
       stoneIsImbue
         ? canImbue(w)
         : whetstone.forgeStat !== 'choice'

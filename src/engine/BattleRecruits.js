@@ -19,6 +19,7 @@ import { isRecruitNpc } from './RecruitNpc.js';
 import { serializeUnit } from './UnitSerialization.js';
 import { stampTurnAnchors } from './BlessingCombatMods.js';
 import { applyBattleJoinBoons } from './BattleJoinBoons.js';
+import { applyTradeBattleParams, stampArmyBattleRules } from './TradeBoons.js';
 import { matchUnitsToSurvivors, unitUidOf } from './UnitIdentity.js';
 
 const MAX_BATTLE_RECRUITS = 32;
@@ -48,6 +49,8 @@ function copyWithoutBattleDeltas(unit) {
   delete data._battleDeltas;
   delete data._battleDeltaSources;
   delete data._speedtakerStacks;
+  delete data._rangedReachBonus;
+  delete data._weaponSwapLocked;
   // Status conditions are battle-scoped; structuredClone keeps weapon ===
   // inventory[i], which serializeUnit relies on to relink the equipped item.
   data._conditions = [];
@@ -184,6 +187,8 @@ export function settleRecruitJoin({
   // any unit anchored when the player phase began (a join is always a player-phase act).
   if (Number.isFinite(turn)) stampTurnAnchors([npc], turn);
   applyBattleJoinBoons(npc, { run: runManager || null, battleBlessings, turn });
+  // Siegebreaker's reach and Oathbound Steel's lock reach a joiner too (TradeBoons).
+  if (runManager) stampArmyBattleRules([npc], applyTradeBattleParams(runManager, {}));
   // The record is the unit as it joined the army: recordBattleRecruit takes the battle-scoped
   // deltas and buffs back out of its copy.
   return { npc, battleRecruits: recordBattleRecruit(battleRecruits, npc) };

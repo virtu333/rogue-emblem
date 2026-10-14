@@ -15,6 +15,7 @@ import { getWeaponRangeBonus } from './SkillSystem.js';
 import { isSilenced } from './StatusConditionSystem.js';
 import { getWeaponArtCombatMods } from './WeaponArtSystem.js';
 import { getCombatWeapons, inventoryDisplayOrder } from './UnitManager.js';
+import { weaponSwapLocked } from './WeaponSwapLock.js';
 
 /** Weapon types a Silenced unit cannot attack with. */
 export const SILENCE_BLOCKED_TYPES = new Set(['Tome', 'Light', 'Staff', 'Breath']);
@@ -42,7 +43,11 @@ export function canAttackWithWeapon(unit, weapon) {
  */
 export function getAttackWeapons(unit, { equipped = unit?.weapon } = {}) {
   const ordered = inventoryDisplayOrder({ ...unit, weapon: equipped }, unit?.inventory);
-  return ordered.filter((weapon) => canAttackWithWeapon(unit, weapon));
+  // Oathbound Steel (engine/WeaponSwapLock.js): a locked unit fights with the weapon it holds.
+  const locked = weaponSwapLocked(unit);
+  return ordered.filter(
+    (weapon) => canAttackWithWeapon(unit, weapon) && (!locked || weapon === unit.weapon),
+  );
 }
 
 /** Effective {min,max} attack range, matching combat resolution. */

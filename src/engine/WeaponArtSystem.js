@@ -5,6 +5,7 @@ import { isRooted, isSilenced } from './StatusConditionSystem.js';
 import { setUnitHP } from './UnitHealth.js';
 import { weaponCatalogNames } from '../utils/itemNames.js';
 import { getUnitMarkFor, markProcs } from './MarkSystem.js';
+import { weaponChangeBlocked } from './WeaponSwapLock.js';
 
 const RANK_ORDER = { Prof: 0, Mast: 1 };
 const VALID_FACTIONS = new Set(['player', 'enemy', 'npc']);
@@ -667,6 +668,8 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
   // A per-battle weapon with no shots left (Breachbolt) cannot strike, and
   // canAttackWithWeapon refuses it for an attack the same way, so its arts are out too.
   if (!hasPerBattleUsesLeft(weapon, unit)) return { ok: false, reason: 'no_shots' };
+  // Oathbound Steel (engine/WeaponSwapLock.js): an art carried by a weapon the unit may not take up.
+  if (weaponChangeBlocked(unit, weapon)) return { ok: false, reason: 'weapon_locked' };
 
   const unitRank = getUnitRankForType(unit, weapon.type);
   if (!unitRank) return { ok: false, reason: 'no_proficiency' };
