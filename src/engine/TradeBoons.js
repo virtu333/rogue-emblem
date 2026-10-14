@@ -38,12 +38,30 @@
 //                        BattleXp.scaledXp's `unitXpMultiplier`).
 //   church_promotion_terms  A church promotes only units of `minLevel` and up, and at most
 //                        `perVisit` units a visit (ChurchCommands.churchPromotionBlock).
+// Wave 2 (§6.8):
+//   foes_target_commander  Foes go for the army's commander first: the AI scores an attack on the
+//                        living flagged commander higher and chases them when it reaches no one
+//                        (`battleParams.foesTargetCommander`, AIController's `commanderPriority`).
+//   triangle_advantage_no_counter  A player unit attacking with the weapon triangle's advantage
+//                        is never countered (BlessingCombatMods, the attacker's `preventCounter`).
+//   triangle_disadvantage_no_counter  A player unit attacked by a foe with the triangle's
+//                        advantage over it cannot counter (the same reader, the foe's side).
+//   weapon_swap_locked   A player unit holding a combat weapon in battle cannot change it
+//                        (`battleParams.weaponSwapLocked`, engine/WeaponSwapLock.js).
+//   ranged_range_bonus   Player units' bows and tomes reach further (`battleParams.rangedRangeBonus`,
+//                        engine/WeaponReach.js).
+//   weapons_arrive_forged  Every weapon the army finds or buys arrives forged (+N Might,
+//                        ForgeSystem), engine/SmithsExile.js.
+//   forging_forbidden    No forge anywhere: shops, villages, events, whetstones
+//                        (engine/SmithsExile.js `forgeBlockReason`).
 
 import { ACT_SEQUENCE } from '../utils/constants.js';
 import { calculateEffectiveWeight } from './Combat.js';
 import { countAdjacentAllies, hasAllyWithin } from './SkillSystem.js';
 import { getXpEffectiveLevel } from './UnitManager.js';
 import { unitUidOf } from './UnitIdentity.js';
+import { RANGED_REACH_FIELD } from './WeaponReach.js';
+import { WEAPON_SWAP_LOCK_FIELD } from './WeaponSwapLock.js';
 
 /** Which side of a card each type may stand on: a boon, a cost (`twist`), or either. */
 export const TRADE_ROLES = Object.freeze({
@@ -58,6 +76,22 @@ export const TRADE_ROLES = Object.freeze({
   loot_choice_delta: Object.freeze(['twist']),
   xp_role_multiplier: Object.freeze(['boon', 'twist']),
   church_promotion_terms: Object.freeze(['twist']),
+  foes_target_commander: Object.freeze(['twist']),
+  triangle_advantage_no_counter: Object.freeze(['boon']),
+  triangle_disadvantage_no_counter: Object.freeze(['twist']),
+  weapon_swap_locked: Object.freeze(['twist']),
+  ranged_range_bonus: Object.freeze(['boon']),
+  weapons_arrive_forged: Object.freeze(['boon']),
+  forging_forbidden: Object.freeze(['twist']),
+});
+/** The types that are a switch (params `{}`): held or not. */
+const FLAG_TYPES = Object.freeze({
+  weapon_art_hp_free: 'weaponArtHpFree',
+  foes_target_commander: 'foesTargetCommander',
+  triangle_advantage_no_counter: 'triangleAdvantageNoCounter',
+  triangle_disadvantage_no_counter: 'triangleDisadvantageNoCounter',
+  weapon_swap_locked: 'weaponSwapLocked',
+  forging_forbidden: 'forgingForbidden',
 });
 const TYPES = new Set(Object.keys(TRADE_ROLES));
 /** The types a card's `boons` may name. */
@@ -79,7 +113,12 @@ export const COMBAT_DELTA_WHEN = Object.freeze([
   'plain',
   'beside_ally',
   'alone',
+  'melee',
 ]);
+/** The weapon types `when: 'melee'` reads as melee (Siegebreaker's cost). */
+export const MELEE_WEAPON_TYPES = Object.freeze(['Sword', 'Lance', 'Axe']);
+/** The weapon types Siegebreaker's reach reaches (bows and tomes, dark and light). */
+export const RANGED_WEAPON_TYPES = Object.freeze(['Bow', 'Tome', 'Light']);
 /** The source the army's Move delta carries (`battleParams.battleDebuffs[].source`). */
 export const ARMY_MOVE_SOURCE = 'army_move';
 /** The acts whose loot tables an act-ahead draw may reach (the final act's pay gold only). */
@@ -95,6 +134,8 @@ const MAX_AFFIX_MULTIPLIER = 3;
 const MAX_LOOT_ACT_AHEAD = 2;
 const MAX_LOOT_CHOICE_CUT = 2;
 const MAX_XP_ROLE_MULTIPLIER = 3;
+const MAX_RANGE_BONUS = 2;
+const MAX_ARRIVAL_FORGE = 2;
 const XP_ROLES = Object.freeze(['lowest', 'highest']);
 
 function isPlainObject(value) {
@@ -177,7 +218,20 @@ export function tradeEffectErrors(effect, role = null) {
         errors.push(`params.value must be above 1, at most ${MAX_AFFIX_MULTIPLIER}`);
       break;
     case 'weapon_art_hp_free':
+    case 'foes_target_commander':
+    case 'triangle_advantage_no_counter':
+    case 'triangle_disadvantage_no_counter':
+    case 'weapon_swap_locked':
+    case 'forging_forbidden':
       if (Object.keys(params).length) errors.push('params must be empty ({})');
+      break;
+    case 'ranged_range_bonus':
+      if (!(Number.isInteger(value) && value >= 1 && value <= MAX_RANGE_BONUS))
+        errors.push(`params.value must be a whole number from 1 to ${MAX_RANGE_BONUS}`);
+      break;
+    case 'weapons_arrive_forged':
+      if (!(Number.isInteger(value) && value >= 1 && value <= MAX_ARRIVAL_FORGE))
+        errors.push(`params.value must be a whole number from 1 to ${MAX_ARRIVAL_FORGE}`);
       break;
     case 'loot_act_ahead':
       if (!(Number.isInteger(value) && value >= 1 && value <= MAX_LOOT_ACT_AHEAD))
@@ -231,6 +285,17 @@ export function tradeBoonModifierDefaults() {
     xpRoleMultipliers: { lowest: 1, highest: 1 },
     // Kingmaker's Oath: `{ minLevel, perVisit }` while held (null when either is unset: none).
     churchPromotionTerms: null,
+    // Standard of the Sun's cost.
+    foesTargetCommander: false,
+    // Oathbound Steel.
+    triangleAdvantageNoCounter: false,
+    triangleDisadvantageNoCounter: false,
+    weaponSwapLocked: false,
+    // Siegebreaker: max range added to player units' bows and tomes.
+    rangedRangeBonus: 0,
+    // Smith's Exile: the forge steps a weapon arrives with, and the ban on forging.
+    weaponArrivalForge: 0,
+    forgingForbidden: false,
   };
 }
 
@@ -293,7 +358,9 @@ export function sanitizeTradeBoonModifiers(mods) {
     MAX_AFFIX_MULTIPLIER,
     1,
   );
-  mods.weaponArtHpFree = mods.weaponArtHpFree === true;
+  for (const field of Object.values(FLAG_TYPES)) mods[field] = mods[field] === true;
+  mods.rangedRangeBonus = clampInt(mods.rangedRangeBonus, 0, MAX_RANGE_BONUS);
+  mods.weaponArrivalForge = clampInt(mods.weaponArrivalForge, 0, MAX_ARRIVAL_FORGE);
   mods.lootActAhead = clampInt(mods.lootActAhead, 0, MAX_LOOT_ACT_AHEAD);
   mods.lootChoiceDelta = clampInt(mods.lootChoiceDelta, -MAX_LOOT_CHOICE_CUT, 0);
   const roles = isPlainObject(mods.xpRoleMultipliers) ? mods.xpRoleMultipliers : {};
@@ -354,8 +421,21 @@ export function applyTradeBoon(run, blessingId, effect) {
       record({ appliedValue: value, total: mods.enemyAffixChanceMultiplier });
       break;
     case 'weapon_art_hp_free':
-      mods.weaponArtHpFree = true;
+    case 'foes_target_commander':
+    case 'triangle_advantage_no_counter':
+    case 'triangle_disadvantage_no_counter':
+    case 'weapon_swap_locked':
+    case 'forging_forbidden':
+      mods[FLAG_TYPES[effect.type]] = true;
       record({});
+      break;
+    case 'ranged_range_bonus':
+      mods.rangedRangeBonus = Math.min(MAX_RANGE_BONUS, mods.rangedRangeBonus + value);
+      record({ appliedValue: value, total: mods.rangedRangeBonus });
+      break;
+    case 'weapons_arrive_forged':
+      mods.weaponArrivalForge = Math.min(MAX_ARRIVAL_FORGE, mods.weaponArrivalForge + value);
+      record({ appliedValue: value, total: mods.weaponArrivalForge });
       break;
     case 'loot_act_ahead':
       mods.lootActAhead = Math.min(MAX_LOOT_ACT_AHEAD, mods.lootActAhead + value);
@@ -435,6 +515,8 @@ function combatDeltaApplies(entry, side) {
       return countAdjacentAllies(side.unit, side.allies) > 0;
     case 'alone':
       return !hasAllyWithin(side.unit, side.allies, entry.radius ?? 2);
+    case 'melee':
+      return MELEE_WEAPON_TYPES.includes(side.weapon?.type);
     default:
       return true;
   }
@@ -572,4 +654,77 @@ export function xpRoleMultiplierFor(unit, units, roles) {
 /** Kingmaker's Oath's terms (`{ minLevel, perVisit }`, either null), or null without them. */
 export function churchPromotionTermsOf(run) {
   return modsOf(run).churchPromotionTerms;
+}
+
+/** True while foes go for the commander first (Standard of the Sun's cost). */
+export function foesTargetCommanderOf(run) {
+  return modsOf(run).foesTargetCommander;
+}
+
+/** Oathbound Steel's counter rules: `{ advantage, disadvantage }`, null while neither is held. */
+export function triangleCounterRulesOf(run) {
+  const mods = modsOf(run);
+  if (!mods.triangleAdvantageNoCounter && !mods.triangleDisadvantageNoCounter) return null;
+  return {
+    advantage: mods.triangleAdvantageNoCounter,
+    disadvantage: mods.triangleDisadvantageNoCounter,
+  };
+}
+
+/** True while a player unit cannot change its combat weapon in battle (Oathbound Steel). */
+export function weaponSwapLockedOf(run) {
+  return modsOf(run).weaponSwapLocked;
+}
+
+/** The max range Siegebreaker adds to player units' bows and tomes (0 without it). */
+export function rangedRangeBonusOf(run) {
+  return modsOf(run).rangedRangeBonus;
+}
+
+/** The forge steps a weapon arrives with (Smith's Exile; 0 without it). */
+export function weaponArrivalForgeOf(run) {
+  return modsOf(run).weaponArrivalForge;
+}
+
+/** True while no forge may be made anywhere (Smith's Exile's cost). */
+export function forgingForbiddenOf(run) {
+  return modsOf(run).forgingForbidden;
+}
+
+/**
+ * The battle-time rules a card stamps on each player unit, from the battle's params:
+ * Siegebreaker's reach (`rangedRangeBonus`, engine/WeaponReach.js) and Oathbound Steel's lock
+ * (`weaponSwapLocked`, engine/WeaponSwapLock.js). Set (never added), so the scene and the harness
+ * call it at a fresh start and at a resume alike, and for a joiner as it joins; a unit of another
+ * side, or a battle without them, carries neither. Returns `units`.
+ */
+export function stampArmyBattleRules(units, battleParams) {
+  const reach = clampInt(battleParams?.rangedRangeBonus, 0, MAX_RANGE_BONUS);
+  const locked = battleParams?.weaponSwapLocked === true;
+  for (const unit of Array.isArray(units) ? units : []) {
+    if (!unit || typeof unit !== 'object') continue;
+    const player = unit.faction === 'player';
+    if (player && reach > 0) unit[RANGED_REACH_FIELD] = reach;
+    else delete unit[RANGED_REACH_FIELD];
+    if (player && locked) unit[WEAPON_SWAP_LOCK_FIELD] = true;
+    else delete unit[WEAPON_SWAP_LOCK_FIELD];
+  }
+  return units;
+}
+
+/**
+ * The battle params these cards add (RunManager.getBattleParams): keys only while held, so a run
+ * without them has exactly the params it had.
+ */
+export function applyTradeBattleParams(run, battleParams) {
+  if (!battleParams) return battleParams;
+  const mods = modsOf(run);
+  const set = (key, on, value = true) => {
+    if (on) battleParams[key] = value;
+    else delete battleParams[key];
+  };
+  set('foesTargetCommander', mods.foesTargetCommander);
+  set('weaponSwapLocked', mods.weaponSwapLocked);
+  set('rangedRangeBonus', mods.rangedRangeBonus > 0, mods.rangedRangeBonus);
+  return battleParams;
 }

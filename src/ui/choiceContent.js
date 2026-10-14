@@ -18,6 +18,7 @@ import { getStaticCombatStats, getStaffMaxUses } from '../engine/Combat.js';
 import { rewardWeaponEligible } from '../engine/LootRewardCommands.js';
 import { weaponComparisonRows } from './equipmentComparison.js';
 import { classChangeItemTag } from '../engine/TwistedBoons.js';
+import { whetstoneTag } from '../engine/SmithsExile.js';
 
 /** Stats compared on a candidate card, in reading order (HP sits in the identity). */
 export const CHOICE_STATS = Object.freeze(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES', 'LCK']);
@@ -307,6 +308,9 @@ export function rewardForWhom(choice, run) {
   if (item.type === 'Scroll' || item.teachesWeaponArtId)
     return { who: 'Team scrolls', detail: 'Teach it from the roster', tone: 'muted' };
   if (item.type === 'Whetstone' || choice.type === 'forge') {
+    // Smith's Exile: a whetstone is offered as ever (the loot stream never moves), marked.
+    const exiled = whetstoneTag(run, item);
+    if (exiled) return { who: exiled, detail: 'No forging while the exile holds', tone: 'bad' };
     const count = roster.reduce(
       (n, u) =>
         n +

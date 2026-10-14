@@ -21,6 +21,7 @@ import {
   spendPerBattleUse,
 } from './Combat.js';
 import { equipWeapon, getCombatWeapons } from './UnitManager.js';
+import { weaponChangeBlocked } from './WeaponSwapLock.js';
 
 /** The weapon a unit with a spent equipped weapon switches to, or null. */
 export function replacementForSpentWeapon(unit) {
@@ -61,6 +62,8 @@ export function swapSpentWeapons(units) {
     if (!unit || !(unit.currentHP > 0)) continue;
     const to = replacementForSpentWeapon(unit);
     if (!to) continue;
+    // Oathbound Steel (engine/WeaponSwapLock.js): a locked unit keeps the spent weapon it holds.
+    if (weaponChangeBlocked(unit, to)) continue;
     const from = unit.weapon;
     if (unit.faction === 'player') equipWeapon(unit, to);
     else unit.weapon = to;

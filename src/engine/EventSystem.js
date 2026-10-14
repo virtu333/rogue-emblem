@@ -37,6 +37,7 @@ import { canForge, canForgeStat } from './ForgeSystem.js';
 import { roadCandidates } from './RouteEdit.js';
 import { unitUidOf } from './UnitIdentity.js';
 import { earnedGrantBlock } from './EarnedBlessings.js';
+import { forgeBlockReason } from './SmithsExile.js';
 import { NODE_TYPES } from '../utils/constants.js';
 
 /** The acts an event is met in when it names none. */
@@ -666,6 +667,7 @@ function unitFilterReason(unit, filter, ctx) {
     return 'Nothing to learn from them.';
   if (filter.wornWeapon && !(unit?.inventory || []).some(isWorn))
     return 'Nothing they carry is worn.';
+  if (filter.forgeableWeapon && forgeBlockReason(ctx.run)) return forgeBlockReason(ctx.run);
   if (filter.forgeableWeapon && !equippedForgeable(unit)) return 'Their weapon cannot take more.';
   return '';
 }

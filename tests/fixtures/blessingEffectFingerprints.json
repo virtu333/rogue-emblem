@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "f6e1b5a11d7b46a2a348279fad3533d8fb42210f",
+  "generatedFrom": "402af45a356802d6b1c5028bdadf3f4e1af90112",
   "dataHash": "64b0795743256f2e",
   "caseCount": 747,
   "cases": {
@@ -749,6 +749,6 @@
     "card: shadow_now price": "b61f5214494b3868 | changed blessingHistory, eclipse.actStartShadow, eclipse.shadow; events eclipse_shadow_delta; draws 0",
     "chain: a held card then its rolled price": "30e919ff051c04ac | changed activeBlessings; events none; draws 0; threw Invalid blessings config: missing top-level key: costPool",
     "chain: a start gift catch (stage gift)": "c7b7acb63b79f0f7 | changed blessingHistory, burdens, eclipse.actStartShadow, eclipse.shadow (+46 paths); events burden,eclipse_sh",
-    "chain: a blessing taken mid-run": "73b337954cb66ea1 | no state change; events none; draws 0; threw Invalid blessings config: blessings[73] missing required key: des"
+    "chain: a blessing taken mid-run": "1efbd6131e64a455 | no state change; events none; draws 0; threw Invalid blessings config: blessings[77] missing required key: des"
   }
 }

@@ -106,6 +106,7 @@ import { unitUidOf } from './UnitIdentity.js';
 import { earnedGrantBlock, eventLedgerKey, grantEarnedBlessing } from './EarnedBlessings.js';
 import { weaponsNeverWearOf } from './EarnedBoons.js';
 import { applyRiteDelta, riteBand, riteConfigOf, sanitizeRite } from './Rite.js';
+import { arrivalCopy, forgeBlockReason } from './SmithsExile.js';
 import {
   START_PAGE,
   choiceCost,
@@ -727,6 +728,8 @@ function carriedWeapon(unit) {
 function planForge(ctx, effect, index, ledger) {
   const unit = ctx.target;
   if (!unit) return { error: 'No one to work for.' };
+  // Smith's Exile (engine/SmithsExile.js): no forge anywhere.
+  if (forgeBlockReason(ctx.run)) return { empty: true, reason: forgeBlockReason(ctx.run) };
   const weapon = carriedWeapon(unit);
   if (!weapon || !equippedForgeable(unit) || ledger.weapons.has(weapon))
     return { empty: true, reason: 'Their weapon cannot take more.' };
@@ -1097,12 +1100,14 @@ function applyItem(ctx, step) {
       },
     ];
   }
-  const result = applyRewardTarget(ctx.run, step.item, dest);
+  // Smith's Exile: a weapon arrives forged (engine/SmithsExile.js; a copy, the plan untouched).
+  const item = arrivalCopy(ctx.run, step.item);
+  const result = applyRewardTarget(ctx.run, item, dest);
   if (!result.ok) throw new Error(`Event item "${step.item.name}" was not delivered.`);
   return [
     {
       kind: 'item',
-      name: step.item.name,
+      name: item.name,
       tier: step.item.tier || null,
       itemType: step.item.type || null,
       unit: dest === 'convoy' ? null : dest.name,

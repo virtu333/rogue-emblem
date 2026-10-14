@@ -131,6 +131,11 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     // Edge's affix odds and Chronicle's XP roles. An older client plays the battle without them.
     affixChanceMultiplier: 'inert',
     xpRoleMultipliers: 'inert',
+    // Wave 2: Standard of the Sun's cost (foes go for the commander), Oathbound Steel's weapon
+    // lock and Siegebreaker's reach. An older client plays the battle without them.
+    foesTargetCommander: 'inert',
+    weaponSwapLocked: 'inert',
+    rangedRangeBonus: 'inert',
   }),
   // A locked battle config.
   battleConfig: Object.freeze({

@@ -16,18 +16,19 @@ const data = loadGameData();
 const EARNED_IDS = ['unbroken_banner', 'second_dawn', 'ember_lantern', 'captains_whistle'];
 // Every earned row the Compendium shows (PR C's, D1's, D2's and D3's, then the act boss's trade
 // cards of §6.8). The retired rows (weight 0: Ember Lantern, Captain's Whistle and the old
-// Chronicle, Kingmaker's Oath and Hollow Sun's Favor) stay in the data for old saves, unshown.
+// Chronicle, Kingmaker's Oath, Hollow Sun's Favor and Standard of the Sun) stay in the data for old
+// saves, unshown.
 const RETIRED_EARNED_IDS = [
   'ember_lantern',
   'captains_whistle',
   'chronicle',
   'kingmakers_oath',
   'hollow_sun_favor',
+  'standard_of_the_sun',
 ];
 const ALL_EARNED_IDS = [
   'unbroken_banner',
   'second_dawn',
-  'standard_of_the_sun',
   'hollow_hourglass',
   'tithe_box',
   'lantern_of_the_road',
@@ -53,6 +54,11 @@ const ALL_EARNED_IDS = [
   'featherweight',
   'reckless_edge',
   'shield_wall',
+  // Wave 2: Standard of the Sun with its cost, Oathbound Steel, Siegebreaker, Smith's Exile.
+  'standard_of_the_sun_ii',
+  'oathbound_steel',
+  'siegebreaker',
+  'smiths_exile',
 ];
 
 function freshRun(seed = 21, difficultyId = 'normal') {

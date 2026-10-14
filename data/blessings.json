@@ -1438,9 +1438,9 @@
     },
     {
       "id": "standard_of_the_sun",
-      "name": "Standard of the Sun",
+      "name": "Standard of the Sun (old)",
       "earned": true,
-      "weight": 1,
+      "weight": 0,
       "sources": [
         {
           "kind": "act_boss",
@@ -2377,6 +2377,144 @@
               "when": "alone",
               "radius": 2
             }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "standard_of_the_sun_ii",
+      "name": "Standard of the Sun",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss",
+          "acts": [
+            "act1"
+          ]
+        }
+      ],
+      "description": "Allies within 2 tiles of your commander have +10 Hit and +10 Avoid.",
+      "lore": "A sun stitched on old silk. The line sees it from anywhere, and so does the enemy.",
+      "boons": [
+        {
+          "type": "commander_aura",
+          "params": {
+            "radius": 2,
+            "hitBonus": 10,
+            "avoidBonus": 10
+          }
+        }
+      ],
+      "twist": {
+        "label": "Foes go for your commander first",
+        "effects": [
+          {
+            "type": "foes_target_commander",
+            "params": {}
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "oathbound_steel",
+      "name": "Oathbound Steel",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Attacking with the weapon triangle's advantage, your units are never countered.",
+      "lore": "Sworn to one blade until the war ends. The oath cuts both ways.",
+      "boons": [
+        {
+          "type": "triangle_advantage_no_counter",
+          "params": {}
+        }
+      ],
+      "twist": {
+        "label": "At a triangle disadvantage they can't counter, and no one changes weapons in battle",
+        "effects": [
+          {
+            "type": "triangle_disadvantage_no_counter",
+            "params": {}
+          },
+          {
+            "type": "weapon_swap_locked",
+            "params": {}
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "siegebreaker",
+      "name": "Siegebreaker",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Your units' bows and tomes reach 1 tile further.",
+      "lore": "Engineers' doctrine: break the wall from range. The line is left to rust.",
+      "boons": [
+        {
+          "type": "ranged_range_bonus",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "twist": {
+        "label": "Swords, lances and axes have -2 Might",
+        "effects": [
+          {
+            "type": "army_combat_delta",
+            "params": {
+              "might": -2,
+              "when": "melee"
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "smiths_exile",
+      "name": "Smith's Exile",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Every weapon you find or buy arrives forged +1 Might.",
+      "lore": "A master smith, banished, follows the army and tempers all it takes.",
+      "excludes": [
+        "frugal_smith",
+        "smiths_covenant"
+      ],
+      "boons": [
+        {
+          "type": "weapons_arrive_forged",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "twist": {
+        "label": "No forging anywhere: shops, whetstones and smiths refuse you",
+        "effects": [
+          {
+            "type": "forging_forbidden",
+            "params": {}
           }
         ]
       },

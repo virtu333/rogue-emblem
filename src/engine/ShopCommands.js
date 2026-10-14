@@ -16,6 +16,7 @@ import { getSellPrice } from './LootSystem.js';
 import { itemDisplayName } from '../utils/itemNames.js';
 import { forgeStatBlock, applyForge, forgePrice } from './ForgeSystem.js';
 import { isWorn, wearCount, repairPrice, repairWeapon } from './WeaponWear.js';
+import { arrivalCopy, forgeBlockReason } from './SmithsExile.js';
 import {
   INVENTORY_MAX,
   CONSUMABLE_MAX,
@@ -100,13 +101,15 @@ export function purchaseShopItem(run, stock, entry, recipient) {
     if (pool === 'accessories' && recipient != null && recipient !== 'pool')
       rosterAccessoryAction(run, recipient, copy);
     added = true;
-  } else if (convoy) added = run.addToConvoy(entry.item);
-  else {
-    added = supply
-      ? addToConsumables(recipient, entry.item)
-      : addToInventory(recipient, entry.item);
-    // An unarmed buyer equips the usable weapon it bought (as a trade or Withdraw does).
-    if (added && !supply) equipIfUnarmed(recipient, recipient.inventory.at(-1));
+  } else {
+    // Smith's Exile: a weapon arrives forged (a copy; the stock's row is never touched).
+    const bought = supply ? entry.item : arrivalCopy(run, entry.item);
+    if (convoy) added = run.addToConvoy(bought);
+    else {
+      added = supply ? addToConsumables(recipient, bought) : addToInventory(recipient, bought);
+      // An unarmed buyer equips the usable weapon it bought (as a trade or Withdraw does).
+      if (added && !supply) equipIfUnarmed(recipient, recipient.inventory.at(-1));
+    }
   }
   if (!added) {
     run.addGold(entry.price);
@@ -301,6 +304,9 @@ export function shopForgeBlock(
     return 'This weapon is no longer available.';
   if (expectedLevel != null && (weapon._forgeLevel || 0) !== expectedLevel)
     return 'Weapon changed. Review it again.';
+  // Smith's Exile: no forge anywhere (a repair is a mend, and stays open).
+  const exiled = forgeBlockReason(run);
+  if (exiled) return exiled;
   if (forgesUsed >= forgeLimit) return 'No forges remain at this shop.';
   const statBlock = forgeStatBlock(weapon, stat);
   if (statBlock) return statBlock;

@@ -51,6 +51,11 @@ const EARNED_IDS = [
   'featherweight',
   'reckless_edge',
   'shield_wall',
+  // Wave 2: Standard of the Sun with its cost, Oathbound Steel, Siegebreaker, Smith's Exile.
+  'standard_of_the_sun_ii',
+  'oathbound_steel',
+  'siegebreaker',
+  'smiths_exile',
 ];
 // Retired at weight 0 (never drawn; kept so a save that holds one loads and keeps its effect).
 const RETIRED_IDS = [
@@ -59,6 +64,7 @@ const RETIRED_IDS = [
   'chronicle',
   'kingmakers_oath',
   'hollow_sun_favor',
+  'standard_of_the_sun',
 ];
 const earnedRows = () => catalog.blessings.filter((b) => b.earned === true);
 

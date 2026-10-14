@@ -14,6 +14,7 @@ import { getWeaponArtTooltipLines } from './WeaponArtVisibility.js';
 import { itemBaseLine } from '../engine/ItemKeywords.js';
 import { canEquip } from '../engine/UnitManager.js';
 import { classChangeItemTag } from '../engine/TwistedBoons.js';
+import { whetstoneTag } from '../engine/SmithsExile.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { isWorn, wearDisplay } from '../engine/WeaponWear.js';
 import {
@@ -137,6 +138,9 @@ export function appendItemDetail(
   // A Master Seal under Kingmaker's Oath: sold and dropped, but it can't be used.
   const banned = run ? classChangeItemTag(run, item) : '';
   if (banned) title.append(el('p', banned, 'shop-meta'));
+  // A whetstone under Smith's Exile: offered, but it forges nothing.
+  const exiled = run ? whetstoneTag(run, item) : '';
+  if (exiled) title.append(el('p', exiled, 'shop-meta'));
   head.append(itemHero(item, { size: 96 }), title);
   copy.append(head);
   const text = detailText ?? itemDetailText({ item }, gameData);

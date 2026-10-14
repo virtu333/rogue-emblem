@@ -25,6 +25,11 @@ import {
   unequipAccessory,
 } from './UnitManager.js';
 import { ensureItemUid } from '../utils/itemUid.js';
+import {
+  WEAPON_SWAP_LOCK_REASON,
+  weaponChangeBlocked,
+  weaponSwapLocked,
+} from './WeaponSwapLock.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX, CONVOY_WEAPON_TYPES } from '../utils/constants.js';
 
 export const TRADE_REASONS = Object.freeze({
@@ -43,6 +48,8 @@ export const TRADE_REASONS = Object.freeze({
   reorderBag: 'Only weapons and supplies can be reordered.',
   reorderSameUnit: "Reorder items within one unit's bag.",
   reorderTarget: 'Choose another item to swap with.',
+  // Oathbound Steel (engine/WeaponSwapLock.js): a unit's held weapon stays in its hands in battle.
+  weaponLocked: WEAPON_SWAP_LOCK_REASON,
 });
 
 /** A reorder that would equip what its unit can't wield: "Sera can't wield Iron Axe." */
@@ -234,6 +241,13 @@ function resolveTrade(ctx, from, to) {
   const typeReason =
     typeBlock(to.holder, bag, fromItem) || (toItem ? typeBlock(from.holder, bag, toItem) : '');
   if (typeReason) return fail(typeReason);
+  // 6b. Battle: a locked unit's held combat weapon never leaves its hands.
+  if (ctx.context === 'battle' && bag === 'inventory') {
+    const heldLeaves = (holder, item) =>
+      isUnitHolder(holder) && weaponSwapLocked(holder.unit) && holder.unit.weapon === item;
+    if (heldLeaves(from.holder, fromItem) || (toItem && heldLeaves(to.holder, toItem)))
+      return fail(TRADE_REASONS.weaponLocked);
+  }
   // 7. Capacity: a give needs room; a swap never does.
   if (!toItem) {
     if (isUnitHolder(to.holder)) {
@@ -407,6 +421,8 @@ function resolveReorder(ctx, from, to) {
   let equips = null;
   if (bag === 'inventory' && next[0] !== order[0]) {
     if (!canUnitEquip(unit, next[0])) return fail(cannotWieldReason(unit, next[0]));
+    if (ctx.context === 'battle' && weaponChangeBlocked(unit, next[0]))
+      return fail(TRADE_REASONS.weaponLocked);
     equips = next[0];
   }
   return {

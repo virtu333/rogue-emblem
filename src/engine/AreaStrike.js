@@ -17,6 +17,7 @@ import { areaDamage } from './PostCombatEffects.js';
 import { timedBuffCombatMods } from './TimedWeaponArtBuffs.js';
 import { isRooted } from './StatusConditionSystem.js';
 import { settleMoves } from './ActionMovement.js';
+import { rangedReachBonusOf } from './WeaponReach.js';
 import {
   getWeaponArtArea,
   getWeaponArtCombatMods,
@@ -71,7 +72,8 @@ export function areaStrikeRange(unit, art, weapon = unit?.weapon) {
   if (area.centerRange === 'weapon') {
     if (!weapon) return null;
     const range = parseRange(weapon.range);
-    return { min: range.min, max: range.max };
+    // Siegebreaker (engine/WeaponReach.js): a player unit's bow or tome reaches further.
+    return { min: range.min, max: range.max + rangedReachBonusOf(unit, weapon) };
   }
   return area.centerRange || null;
 }

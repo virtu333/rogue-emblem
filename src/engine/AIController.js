@@ -71,12 +71,22 @@ function pathNodeLowerBound(enemy, tile) {
   return gridDistance(enemy.col, enemy.row, tile.col, tile.row) + 1;
 }
 
+/**
+ * What an attack on the army's commander scores over its exchange while foes go for the commander
+ * first (Standard of the Sun's cost): more than any blow is worth, so a foe that can strike the
+ * commander does (the caravan's 40 included).
+ */
+export const COMMANDER_PRIORITY_SCORE = 100;
+
 export class AIController {
   constructor(grid, gameData, options = {}) {
     this.grid = grid;
     this.gameData = gameData;
     this.objective = options.objective || 'rout';
     this.thronePos = options.thronePos || null;
+    // Standard of the Sun's cost (engine/TradeBoons.js `foes_target_commander`): foes go for the
+    // army's commander first. The battle's own setting, fixed for the battle.
+    this.commanderPriority = options.commanderPriority === true;
     this.aggressiveMode = false;
     this.bossEnraged = false;
     this.holdContext = null;
@@ -1221,7 +1231,22 @@ export class AIController {
     return decision;
   }
 
+  /** True when `target` is the army's living commander and foes go for it first. */
+  _isPriorityCommander(target) {
+    return (
+      this.commanderPriority &&
+      target?.isCommander === true &&
+      target.faction === 'player' &&
+      (Number(target.currentHP) || 0) > 0
+    );
+  }
+
   _findPriorityTarget(enemy, playerUnits, forceLowestHpTargeting = false) {
+    // Standard of the Sun's cost: with no one in reach, foes close on the commander.
+    if (!forceLowestHpTargeting && this.commanderPriority) {
+      const commander = (playerUnits || []).find((p) => this._isPriorityCommander(p));
+      if (commander) return commander;
+    }
     if (forceLowestHpTargeting) {
       let lowest = null;
       for (const p of playerUnits) {
@@ -1463,6 +1488,7 @@ export class AIController {
     // gated behind aggressiveMode -- the caravan is the whole point of the
     // micro-objective as soon as it's on the field).
     if (target.isCaravan) score += 40;
+    if (this._isPriorityCommander(target)) score += COMMANDER_PRIORITY_SCORE;
     if (this.aggressiveMode) {
       const terrainIdx = this.grid?.mapLayout?.[target.row]?.[target.col];
       const fortIdx = getTerrainIndexByName(this.gameData?.terrain, 'Fort');

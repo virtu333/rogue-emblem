@@ -94,5 +94,8 @@ export function serializeUnit(unit) {
   delete data._slewAllies;
   // The Unbroken Banner's stamp is the battle's: the victory commit reads it first.
   delete data._bannerHeld;
+  // The trade cards' battle stamps (TradeBoons.stampArmyBattleRules): the battle's, never the run's.
+  delete data._rangedReachBonus;
+  delete data._weaponSwapLocked;
   return data;
 }

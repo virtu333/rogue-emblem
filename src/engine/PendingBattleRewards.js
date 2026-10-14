@@ -8,6 +8,7 @@ import { gambleSummary } from './BattleGoldGamble.js';
 import { applyLotteryCards, lotteryDrawParams } from './LotteryLoot.js';
 import { dawnTitheGold, shrineBoonsOf } from './ShrineBoons.js';
 import { lootGoldMultiplierOf } from './TwistedBoons.js';
+import { arrivalForgeSteps, forgeOnArrival } from './SmithsExile.js';
 import { lootActAheadOf, lootChoiceDeltaOf } from './TradeBoons.js';
 import { lootActFor } from './Descent.js';
 import {
@@ -44,6 +45,9 @@ export function rewardDrawParams(run, ctx) {
     // Collector's Eye's cost: fewer cards to choose from (engine/TradeBoons.js); absent without it,
     // so an unblessed draw (and every record saved before) is exactly as it was.
     ...(lootChoiceDeltaOf(run) !== 0 ? { choiceCountDelta: lootChoiceDeltaOf(run) } : {}),
+    // Smith's Exile: the forge steps a drawn weapon arrives with (engine/SmithsExile.js); absent
+    // without it, so an unblessed draw (and every record saved before) is exactly as it was.
+    ...(arrivalForgeSteps(run) > 0 ? { arrivalForge: arrivalForgeSteps(run) } : {}),
     // Lottery Loot: which table its card comes from (engine/LotteryLoot.js); absent without it.
     ...(lotteryDrawParams(run, { nodeId: ctx.nodeId || run.currentNodeId }) || {}),
   };
@@ -103,7 +107,12 @@ export function rollBattleRewardChoices(run, data, draw, { round = 0 } = {}) {
       choice.goldAmount = Math.max(0, Math.floor((choice.goldAmount || 0) * pressure));
       if (favor !== 1) choice.goldAmount = Math.floor(choice.goldAmount * favor);
     }
-  return JSON.parse(JSON.stringify(choices));
+  const rolled = JSON.parse(JSON.stringify(choices));
+  // Smith's Exile: a weapon card shows the weapon as it arrives, forged (read from the draw, so a
+  // reroll forges as the first offer did). On the copy: the catalog is never touched.
+  const arrivalForge = Math.trunc(Number(draw.arrivalForge) || 0);
+  if (arrivalForge > 0) for (const choice of rolled) forgeOnArrival(choice.item, arrivalForge);
+  return rolled;
 }
 
 // Prepared once with the victorious roster, before the completed-battle save.

@@ -24,6 +24,7 @@ import {
 import { awardTeamXp, teamXpLines } from '../engine/TeamXp.js';
 import { canForge, canForgeStat } from '../engine/ForgeSystem.js';
 import { canImbue, isImbueStone, getImbueStoneDetailText } from '../engine/ImbueSystem.js';
+import { forgeBlockReason } from '../engine/SmithsExile.js';
 import { getRating, calculateBonusGold } from '../engine/TurnBonusCalculator.js';
 import {
   GOLD_BATTLE_BONUS,
@@ -1269,9 +1270,11 @@ export class LootScreenController {
     let validCount = 0;
 
     const stoneIsImbue = isImbueStone(whetstone);
+    // Smith's Exile (engine/SmithsExile.js): a whetstone forges nothing.
+    const exiled = !stoneIsImbue && Boolean(forgeBlockReason(scene.runManager));
     for (let i = 0; i < roster.length; i++) {
       const unit = roster[i];
-      const forgeableCount = unit.inventory.filter((w) =>
+      const forgeableCount = (exiled ? [] : unit.inventory).filter((w) =>
         stoneIsImbue
           ? canImbue(w)
           : whetstone.forgeStat !== 'choice'

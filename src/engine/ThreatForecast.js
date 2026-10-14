@@ -42,6 +42,7 @@ import {
 import { entityCounterOnlyTiles } from './EntityReach.js';
 import { artilleryWeapon, holdsPost } from './SiegeArtillery.js';
 import { movementOptionsFor } from './PassMovement.js';
+import { rangedReachBonusOf } from './WeaponReach.js';
 
 const tileKey = (col, row) => `${col},${row}`;
 
@@ -151,10 +152,17 @@ export function unitReach(grid, unit, { mov = 0, positions = null, costModifier 
       }
     }
   } else if (weapon) {
+    // Siegebreaker (engine/WeaponReach.js): a player unit's bow or tome reaches further.
+    const reach = rangedReachBonusOf(unit, weapon);
+    let reachWeapon = weapon;
+    if (reach > 0) {
+      const { min, max } = parseRange(weapon.range);
+      reachWeapon = { range: `${min}-${max + reach}` };
+    }
     for (const [key, entry] of moveRange) {
       if (entry?.stoppable === false) continue;
       const [mc, mr] = key.split(',').map(Number);
-      for (const t of grid.getAttackRange(mc, mr, weapon)) {
+      for (const t of grid.getAttackRange(mc, mr, reachWeapon)) {
         const tk = tileKey(t.col, t.row);
         if (!moveRange.has(tk)) attack.add(tk);
       }
@@ -268,7 +276,13 @@ function moverCombatWeapons(mover) {
 function moverReaches(mover, entity, col, row) {
   if (!mover) return true;
   const distance = entityDistanceTo(entity, col, row);
-  return moverCombatWeapons(mover).some((w) => isInRange(w, distance));
+  return moverCombatWeapons(mover).some((w) => {
+    // Siegebreaker (engine/WeaponReach.js): a player unit's bow or tome reaches further.
+    const reach = rangedReachBonusOf(mover, w);
+    if (reach <= 0) return isInRange(w, distance);
+    const { min, max } = parseRange(w.range);
+    return distance >= min && distance <= max + reach;
+  });
 }
 
 /**
@@ -280,7 +294,7 @@ export function moverReachSignature(mover) {
   const reaches = new Set();
   for (const w of moverCombatWeapons(mover)) {
     const { min, max } = parseRange(w.range);
-    reaches.add(`${min}-${max}`);
+    reaches.add(`${min}-${max + rangedReachBonusOf(mover, w)}`);
   }
   return [...reaches].sort().join(',');
 }

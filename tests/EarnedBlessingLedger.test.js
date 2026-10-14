@@ -28,7 +28,6 @@ const EARNED_IDS = ['unbroken_banner', 'second_dawn', 'ember_lantern', 'captains
 // Chronicle being Act II's and Collector's Eye Acts I-II's).
 const ACT1_BOSS_IDS = [
   'unbroken_banner',
-  'standard_of_the_sun',
   'darkened_dawn',
   'blood_covenant',
   'kingmakers_oath_ii',
@@ -44,6 +43,11 @@ const ACT1_BOSS_IDS = [
   'featherweight',
   'reckless_edge',
   'shield_wall',
+  // Wave 2: the first Standard of the Sun retires for one with a cost.
+  'standard_of_the_sun_ii',
+  'oathbound_steel',
+  'siegebreaker',
+  'smiths_exile',
 ];
 
 function freshRun(seed = 7, difficultyId = 'normal') {
@@ -225,13 +229,13 @@ describe('rolling the offer', () => {
     // All of Act I's boss cards held but one: one card is left. (Re-sourced in
     // PR D1: Second Dawn left the boss's pool and Standard of the Sun joined it, so the lone card
     // and the full set are Act I's boss pool, not PR C's four; PR D3's twisted cards joined it.)
-    const three = rollerFor(ACT1_BOSS_IDS.filter((id) => id !== 'standard_of_the_sun'));
+    const three = rollerFor(ACT1_BOSS_IDS.filter((id) => id !== 'standard_of_the_sun_ii'));
     const rolls = [];
     for (let seed = 1; seed <= 300; seed++) rolls.push(three(seed));
     expect(
       rolls
         .filter((r) => r.status === 'owed')
-        .every((r) => r.offered.join() === 'standard_of_the_sun'),
+        .every((r) => r.offered.join() === 'standard_of_the_sun_ii'),
     ).toBe(true);
     expect(rolls.some((r) => r.status === 'owed')).toBe(true);
     const all = rollerFor(ACT1_BOSS_IDS);

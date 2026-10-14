@@ -204,7 +204,8 @@ import {
   combatHpLost,
   scaledXp,
 } from '../../src/engine/BattleXp.js';
-import { xpRoleMultiplierFor } from '../../src/engine/TradeBoons.js';
+import { stampArmyBattleRules, xpRoleMultiplierFor } from '../../src/engine/TradeBoons.js';
+import { weaponSwapLocked } from '../../src/engine/WeaponSwapLock.js';
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import { deriveNodeBattleSeed } from '../../src/engine/BattleScout.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
@@ -415,6 +416,7 @@ export class HeadlessBattle {
     // Mirrors BattleScene: the commander flag must exist before the first
     // _checkBattleEnd because the defeat check is strict on it.
     stampCommanderFlag(this.playerUnits);
+    stampArmyBattleRules(this.playerUnits, this.battleParams); // reach and weapon lock (TradeBoons)
 
     // Create enemies
     for (const spawn of bc.enemySpawns) {
@@ -517,6 +519,7 @@ export class HeadlessBattle {
     this.aiController = new AIController(this.grid, this.gameData, {
       objective: bc.objective,
       thronePos: bc.thronePos,
+      commanderPriority: this.battleParams?.foesTargetCommander === true,
     });
     // As BattleScene: holders wake on the Danger tiles of the board the player knows.
     this.aiController.setHoldContext(() => this._playerThreatContext());
@@ -678,6 +681,9 @@ export class HeadlessBattle {
         // Auto-equip active usable staff
         const staff = this._getActiveHealStaff(this.selectedUnit);
         if (staff && this.selectedUnit.weapon !== staff) {
+          // Oathbound Steel: as HealController.holdStaff, the held weapon comes back after.
+          if (weaponSwapLocked(this.selectedUnit))
+            this.selectedUnit._heldBeforeStaff = this.selectedUnit.weapon;
           equipWeapon(this.selectedUnit, staff);
         }
         this.battleState = HEADLESS_STATES.SELECTING_HEAL_TARGET;
@@ -2125,7 +2131,11 @@ export class HeadlessBattle {
     if (this.gameData?.deeds) recordStaffUse(healer, staff);
     if (healer.faction === 'player') this._grantScaledXP(healer, XP_BASE_HEAL);
     const combat = getCombatWeapons(healer);
-    if (combat.length > 0) equipWeapon(healer, combat[0]);
+    // Oathbound Steel: a locked healer takes back the weapon it held (HealController's restore).
+    const held = healer._heldBeforeStaff;
+    if (held && combat.includes(held)) equipWeapon(healer, held);
+    else if (combat.length > 0) equipWeapon(healer, combat[0]);
+    delete healer._heldBeforeStaff;
 
     this._finishUnitAction(healer);
   }

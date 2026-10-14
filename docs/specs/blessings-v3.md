@@ -1058,8 +1058,49 @@ Darkened Dawn and Blood Covenant are drawn at weight 1 beside them. Two escape t
 (`river_flight`, `hunters_woods`) took a taller player spawn zone so Act II's largest army
 (The Levy's +2 on the deploy bonus) still fits.
 
-Parked for a later wave: Standard of the Sun's cost, Oathbound Steel, Siegebreaker, Smith's
-Exile, Vanguard Oath, Night March, Bounty Road.
+**Wave two** (2026-10-14, owner's go-ahead after wave one shipped):
+
+| Card | Boon | Cost |
+| --- | --- | --- |
+| Standard of the Sun (Act I boss) | +10 Hit and Avoid within 2 of the commander | Foes go for the commander first |
+| Oathbound Steel | Attacking with the triangle's advantage, never countered | At a triangle disadvantage you can't counter; no weapon changes in battle |
+| Siegebreaker | Bows and tomes (dark and light) reach 1 tile further | Swords, lances and axes -2 Might |
+| Smith's Exile | Every weapon found or bought arrives forged +1 Might (free: price and sale value stay the catalog's) | No forging anywhere (repair stays open); excludes Smith's Mark and Smith's Covenant |
+
+The first Standard of the Sun is retired as "(old)" at weight 0; `standard_of_the_sun_ii` replaces
+it. How each is wired:
+
+- **Foes go for the commander** (`foes_target_commander`): `battleParams.foesTargetCommander` ->
+  `AIController`'s `commanderPriority`: an attack on the living commander scores
+  `COMMANDER_PRIORITY_SCORE` (100) more, so a foe that can strike it does; with no one in reach a
+  foe closes on it (`_findPriorityTarget`). A `target_lowest_hp` override still wins.
+- **The triangle's counters** (`triangle_advantage_no_counter`, `triangle_disadvantage_no_counter`):
+  `getBlessingCombatProfile().triangleCounters` -> `applyBlessingCombatMods` flags the raw mods
+  (`triangleNoCounter` on a player attacker, `triangleCannotCounter` on a player defender), and
+  `Combat.triangleBlocksCounter` reads them over the exchange's own triangle in both the forecast
+  ("Weapon triangle: no counter") and the resolution, scene and harness alike. The AI's own
+  scoring forecast does not see it.
+- **The weapon lock** (`weapon_swap_locked`) and **the reach** (`ranged_range_bonus`): battle params
+  `weaponSwapLocked` / `rangedRangeBonus`, stamped on each player unit for the battle by
+  `TradeBoons.stampArmyBattleRules` (the scene and the harness at a start and a resume, a recruit as
+  it joins; `serializeUnit` drops them). The lock (`engine/WeaponSwapLock.js`) holds a unit to the
+  combat weapon it holds: the attack's weapons, arts carried by another weapon, the Equip menu,
+  in-battle Trade and reorder, and the per-battle weapon swap; a unit holding only a staff may take
+  one up, and Heal takes the staff up for the cast and hands the held weapon back. The reach
+  (`engine/WeaponReach.js`) is read by `getWeaponRangeBonus` (targeting and the forecast),
+  `canCounter`, `ThreatForecast`'s move preview and Threat Sight, and an area art's weapon-range
+  centre. Foresight still adds no counter reach, as before. Throwing axes and lances are melee
+  weapons for the cost (`TradeBoons.MELEE_WEAPON_TYPES`, the combat delta's `when: 'melee'`).
+- **Smith's Exile** (`engine/SmithsExile.js`): `weapons_arrive_forged` forges a copy as it arrives
+  (battle loot cards, read from the reward's saved `draw.arrivalForge` so a reroll forges alike; a
+  shop purchase; an event's item); recruits' kits and start gifts are not forged, and a worn weapon
+  arrives worn. `forging_forbidden` refuses a shop forge, a loot whetstone (its card stays in the
+  draw, marked "Can't be used: Smith's Exile"; an Imbuing Stone still imbues), an event's forge step
+  and its `forgeableWeapon` filter.
+
+Tests: `tests/TradeBoonsWave2.test.js`.
+
+Parked for a later wave: Vanguard Oath, Night March, Bounty Road.
 
 ## 7. Gifts with a catch (run start)
 

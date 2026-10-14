@@ -289,10 +289,14 @@ describe('each source draws only its own cards', () => {
       'featherweight',
       'reckless_edge',
       'shield_wall',
+      // Wave 2: Standard of the Sun with its cost (Act I's only; the first one is retired).
+      ...(act === 'act1' ? ['standard_of_the_sun_ii'] : []),
+      'oathbound_steel',
+      'siegebreaker',
+      'smiths_exile',
     ];
     expect(ids(earnedPoolFor(rm, 'act_boss', { actId: 'act1' }))).toEqual([
       'unbroken_banner',
-      'standard_of_the_sun',
       ...twisted,
       ...trades('act1'),
     ]);
@@ -335,11 +339,12 @@ describe('each source draws only its own cards', () => {
         for (const id of rollActBossEarnedOffer(rm).offered) seen[act].add(id);
       }
     }
-    expect(seen.act1.has('standard_of_the_sun')).toBe(true);
+    expect(seen.act1.has('standard_of_the_sun_ii')).toBe(true);
+    for (const set of Object.values(seen)) expect(set.has('standard_of_the_sun')).toBe(false);
     expect(seen.act1.has('chronicle_ii')).toBe(false);
     expect(seen.act2.has('chronicle_ii')).toBe(true);
     for (const set of Object.values(seen)) expect(set.has('chronicle')).toBe(false);
-    expect(seen.act2.has('standard_of_the_sun')).toBe(false);
+    expect(seen.act2.has('standard_of_the_sun_ii')).toBe(false);
     for (const set of Object.values(seen)) expect(set.has('second_dawn')).toBe(false);
   });
 
@@ -361,11 +366,12 @@ describe('each source draws only its own cards', () => {
     expect(ids(earnedPoolFor(rm, 'act_boss'))).not.toContain('sworn_card');
     // Either way: a held card that names the candidate in its own excludes.
     const back = freshRun(17, { gameData });
+    expect(ids(earnedPoolFor(back, 'act_boss'))).toContain('standard_of_the_sun_ii');
     back.gameData.blessings.blessings.find((b) => b.id === 'ember_lantern').excludes = [
-      'standard_of_the_sun',
+      'standard_of_the_sun_ii',
     ];
     back.addBlessingMidRun('ember_lantern', { earned: true });
-    expect(ids(earnedPoolFor(back, 'act_boss'))).not.toContain('standard_of_the_sun');
+    expect(ids(earnedPoolFor(back, 'act_boss'))).not.toContain('standard_of_the_sun_ii');
   });
 
   it('an offer may hold several twisted cards, and a twisted card never drops from an elite', () => {

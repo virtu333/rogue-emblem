@@ -754,6 +754,12 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   featherweight: 'speedwing',
   reckless_edge: 'upgrade-lethal_armory_killer',
   shield_wall: 'barrier-ring',
+  // Wave 2: the reworked Standard keeps its crest; an oath blade, a longbow for the siege, and the
+  // smith's hammer for the exile.
+  standard_of_the_sun_ii: 'vanguard-crest',
+  oathbound_steel: 'oathblade',
+  siegebreaker: 'longbow',
+  smiths_exile: 'hammer',
 });
 
 /**

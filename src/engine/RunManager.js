@@ -175,11 +175,13 @@ import {
 } from './TwistedBoons.js';
 import {
   applyTradeBoon,
+  applyTradeBattleParams,
   armyMovBattleDeltas,
   enemyAffixChanceMultiplierOf,
   sanitizeTradeBoonModifiers,
   tradeBoonModifierDefaults,
   tradeCombatProfileOf,
+  triangleCounterRulesOf,
   xpRoleMultipliersOf,
 } from './TradeBoons.js';
 import { stampSanctum } from './SanctumPass.js';
@@ -2360,6 +2362,7 @@ export class RunManager {
       commanderAuras: commanderAurasOf(this),
       // The act boss's trade cards (engine/TradeBoons.js), null when none is held.
       trade: tradeCombatProfileOf(this),
+      triangleCounters: triangleCounterRulesOf(this),
     };
   }
 
@@ -3725,6 +3728,8 @@ export class RunManager {
     const xpRoles = xpRoleMultipliersOf(this);
     if (xpRoles) battleParams.xpRoleMultipliers = xpRoles;
     else delete battleParams.xpRoleMultipliers;
+    // Standard of the Sun's cost, Oathbound Steel's lock and Siegebreaker's reach (TradeBoons).
+    applyTradeBattleParams(this, battleParams);
     // The Rite (engine/Rite.js), only in the Descent (a run without one keeps its params as they
     // were): the words at entry (a summoning circle's Hollowed read them), the tier, the Vigil's
     // Hollowed level rule, and on a boss of the route the tier's mods, which MapGenerator writes
