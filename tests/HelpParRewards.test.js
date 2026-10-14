@@ -52,7 +52,7 @@ describe('More Info: Par & Turn Ratings', () => {
     expect(text).not.toMatch(/Rout[^.]*start higher/);
   });
 
-  it('names every map that adds par turns, and adds 1-2', () => {
+  it('names every map that adds par turns, and adds 1-3', () => {
     const templates = load('mapTemplates.json');
     const all = Object.values(templates).flat();
     // A switched-off template (`enabled: false`) is never met in a run, so the page leaves it out
@@ -64,7 +64,10 @@ describe('More Info: Par & Turn Ratings', () => {
       ['castle_ruins', 2],
       ['corridor_siege', 1],
       ['great_hall', 1],
+      ['long_road', 2],
       ['mire_crossing', 2],
+      ['three_roads', 3],
+      ['three_roads_keep', 1],
     ]);
     const pieces = load('setPieces.json').setPieces;
     // Only the set pieces that add par turns (the Descent's add none).
@@ -73,8 +76,10 @@ describe('More Info: Par & Turn Ratings', () => {
       ['toll_crossing', 2],
     ]);
     const text = lines.join(' ').replace(/\s+/g, ' ');
-    expect(text).toContain('Castles, Mire Crossing, the');
-    expect(text).toContain('Toll-House and Toll Crossing add 1-2.');
+    expect(text).toContain(
+      'Castles, Mire Crossing, Three Roads, Three Roads Keep, the Long Road, the',
+    );
+    expect(text).toContain('Toll-House and Toll Crossing add 1-3.');
   });
 });
 

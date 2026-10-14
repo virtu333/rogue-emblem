@@ -173,7 +173,9 @@ describe('switched-off templates', () => {
         .filter((t) => t.enabled === false)
         .map((t) => t.id),
     );
-    expect([...off].sort()).toEqual([...NEW_TEMPLATES].sort());
+    // The Warband alone: a captains map needs the defeat-objective save format (RunFormat).
+    expect([...off]).toEqual(['warband']);
+    const drawn = new Set();
     for (const act of ['act1', 'act2', 'act3', 'act4']) {
       for (const objective of ['rout', 'seize']) {
         for (let seed = 1; seed <= 60; seed++) {
@@ -183,9 +185,12 @@ describe('switched-off templates', () => {
           restoreMathRandom();
           expect(off.has(forNode?.id), `${act} ${objective} ${seed}`).toBe(false);
           expect(off.has(forBattle?.id), `${act} ${objective} ${seed}`).toBe(false);
+          drawn.add(forNode?.id).add(forBattle?.id);
         }
       }
     }
+    // The other new shapes are switched on and met in runs.
+    expect(NEW_TEMPLATES.filter((id) => !off.has(id) && !drawn.has(id))).toEqual([]);
     for (const id of NEW_TEMPLATES) {
       installSeed(3);
       const config = generateBattle(

@@ -63,10 +63,23 @@ function pacing(difficultyId) {
   };
 }
 
+// The rung's garrison holds (assignHolders). A shape whose enemy groups name their own AI
+// (docs/specs/map-variety.md: guard, hold and wake turn by group) is kept out of it and tested
+// in TemplateLayout and EnemyFormations, so these maps draw from the other templates.
+const ungroupedData = {
+  ...data,
+  mapTemplates: Object.fromEntries(
+    Object.entries(data.mapTemplates).map(([k, list]) => [
+      k,
+      list.filter((t) => !(t.zones || []).some((z) => z.group)),
+    ]),
+  ),
+};
+
 function gen(params, seed) {
   installSeed(seed);
   try {
-    return generateBattle({ deployCount: 5, ...params }, data);
+    return generateBattle({ deployCount: 5, ...params }, ungroupedData);
   } finally {
     restoreMathRandom();
   }

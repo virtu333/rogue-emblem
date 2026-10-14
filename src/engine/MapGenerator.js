@@ -254,11 +254,10 @@ export function generateBattleLayout(params, deps) {
     ? Math.max(0, Math.trunc(params.recruitEnemyCountBonus ?? (diffMode === 'normal' ? 1 : 2)))
     : 0;
   const densityCap = getEnemyDensityCapByTiles(sizeEntry.tiles, enemies.enemyCountByTiles);
-  // A dense shape (Corner Camp's raiders) adds its own foes, under the same cap.
-  const enemyCount = Math.min(
-    rolledEnemyCount + recruitBonus + templateExtraEnemies(template),
-    densityCap,
-  );
+  // A dense shape (Corner Camp's raiders) adds its own foes, under the same cap; never on a
+  // village ambush, whose lighter cap (rollEnemyCount) holds whatever the shape.
+  const extraEnemies = isAmbush ? 0 : templateExtraEnemies(template);
+  const enemyCount = Math.min(rolledEnemyCount + recruitBonus + extraEnemies, densityCap);
   // Apply difficulty-driven level bonus (supports positive and negative offsets)
   const baseLevelRange = levelRange || pool.levelRange;
   const adjustedLevelRange =

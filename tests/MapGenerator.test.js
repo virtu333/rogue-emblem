@@ -14,9 +14,14 @@ import {
   ACT_SEQUENCE,
   ENEMY_COUNT_OFFSET,
 } from '../src/utils/constants.js';
+import { templateExtraEnemies } from '../src/engine/TemplateLayout.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
+const templateById = (id) =>
+  Object.values(data.mapTemplates)
+    .flat()
+    .find((t) => t.id === id);
 const ACT4_BOSS_INTENT_TEMPLATE_ID = 'act4_boss_intent_bastion';
 const ACT3_DARK_CHAMPION_TEMPLATE_ID = 'act3_dark_champion_keep';
 const HYBRID_TEST_TEMPLATE_ID = 'hybrid_arena_generator_test';
@@ -901,7 +906,9 @@ describe('MapGenerator', () => {
           { act: 'act2', objective: 'rout', deployCount, row: 5 },
           data,
         );
-        const count = config.enemySpawns.length;
+        // A dense shape (Corner Camp) adds its own foes over the rolled count.
+        const count =
+          config.enemySpawns.length - templateExtraEnemies(templateById(config.templateId));
         expect(count).toBeGreaterThanOrEqual(deployCount + 2);
         expect(count).toBeLessThanOrEqual(deployCount + 3);
       }
@@ -986,6 +993,29 @@ describe('MapGenerator', () => {
         );
         expect(config.enemySpawns.length).toBeLessThanOrEqual(deployCount + 2);
         expect(config.enemySpawns.length).toBeGreaterThanOrEqual(deployCount);
+      }
+    });
+
+    it("a dense shape's extra foes never lift the ambush cap", () => {
+      // Corner Camp adds 2 foes over the roll; a village ambush keeps its lighter cap.
+      expect(templateExtraEnemies(templateById('corner_camp'))).toBe(2);
+      for (let seed = 1; seed <= 20; seed++) {
+        const deployCount = 4;
+        const config = withSeed(seed, () =>
+          generateBattle(
+            {
+              act: 'act2',
+              objective: 'rout',
+              deployCount,
+              row: 4,
+              isAmbush: true,
+              templateId: 'corner_camp',
+            },
+            data,
+          ),
+        );
+        expect(config.templateId).toBe('corner_camp');
+        expect(config.enemySpawns.length, `seed ${seed}`).toBeLessThanOrEqual(deployCount + 2);
       }
     });
 
@@ -2472,6 +2502,9 @@ describe('guard AI assignment', () => {
   it('guard percentage is between 10-35% of boss-half enemies', () => {
     for (let i = 0; i < 20; i++) {
       const config = generateBattle({ act: 'act2', objective: 'seize' }, data);
+      // A shape whose enemy groups name their own AI sets its guards itself.
+      const grouped = (templateById(config.templateId)?.zones || []).some((z) => z.group);
+      if (grouped) continue;
       const halfCol = Math.floor(config.cols / 2);
       const bossHalf = config.enemySpawns.filter((s) => !s.isBoss && s.col >= halfCol);
       const guards = bossHalf.filter((s) => s.aiMode === 'guard');
