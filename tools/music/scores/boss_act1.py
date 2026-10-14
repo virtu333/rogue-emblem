@@ -1,6 +1,7 @@
 """Act I boss — "The Border Holds".
 
-The Iron Captain and the Warchief: the first wall. A heavy march in D minor
+The Iron Captain's theme (and any boss without one of its own: the
+prologue's Captain Varro). The first wall. A heavy march in D minor
 built from the Empire drill (D-Eb-D-C, down to B-flat), stated by the whole
 low orchestra in octaves, answered by a trumpet call that pushes back with
 the first four notes of the Thread. When the march turns to F minor the
@@ -107,8 +108,7 @@ def build():
     anvil = b.part('anvil', 'orch_perc', role='accent')
     for bar in range(5, 13):
         drums(anvil, bar, {'anvil': '........x.......'}, vel=0.55)
-    # enrage layers: one boss-specific behaviour each (scores/_enrage.py)
+    # the Iron Captain's enrage layer (scores/_enrage.py)
     loop = [b.sections[k] for k in ['A', 'B', 'C', 'D', 'build']]
     _enrage.iron_captain(b, loop)
-    _enrage.warchief(b, loop)
     return b.finish()

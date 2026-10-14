@@ -1,4 +1,7 @@
-"""Enrage layers for the act boss themes.
+"""Enrage layers for the act boss themes and the story bosses' themes.
+
+A boss whose theme is its own score (the Warchief, the Knight Commander, the
+Archmage, the Iron Wall, the Berserker King) writes its layer in that score.
 
 When a boss enrages (turn pressure), the game crossfades its theme to a mix
 with that boss's own layer added: one boss-specific behaviour, not a generic
@@ -6,7 +9,7 @@ louder-and-faster. Each helper lays its parts over (bar, chart) sections of
 the loop with Battle.extra(), so the layer shares the theme's timeline.
 """
 
-from engine.patterns import arp, bass, drums, ostinato
+from engine.patterns import arp, drums, ostinato
 
 
 def _each(sections):
@@ -25,56 +28,7 @@ def iron_captain(b, sections):
         ostinato(tbn, bar, ch, 'q q q q', 'b - b -', lo=40, hi=52, vel=0.78)
 
 
-def warchief(b, sections, tonic_pc=2):
-    """The clan comes: taiko in 3+3+2 throughout; on the tonic chords the horns
-    sound open fifths and the clan hums (the theme's march sits in the low brass,
-    so the clan joins where it agrees with it and drums everywhere else)."""
-    v = 'enrage_warchief'
-    tk = b.extra(v, 'wc_taiko', 'taiko', role='drums')
-    hn = b.extra(v, 'wc_hn', 'horns', role='section')
-    hum = b.extra(v, 'wc_hum', 'oohs', role='choir')
-    for bar, ch, _ in _each(sections):
-        ostinato(tk, bar, ch, 'e e e e e e e e', 'b - - b - - b -', lo=38, hi=50, vel=0.8)
-        t = b.s.bar(bar)
-        for c, beats in ch:
-            if c.root == tonic_pc:
-                for off, dur in ((0.0, 1.5), (1.5, 1.5), (3.0, 1.0)):
-                    if off < beats - 1e-9:
-                        d = min(dur, beats - off)
-                        hn.note(t + off, 50 + (tonic_pc - 2), d, vel=0.72)   # D3
-                        hn.note(t + off, 57 + (tonic_pc - 2), d, vel=0.64)   # A3
-                hum.note(t, 50 + (tonic_pc - 2), beats, vel=0.42)
-            t += beats
 
-
-def knight_commander(b, sections):
-    """The charge: the gallop doubles and trumpets sound the imperial arpeggio."""
-    v = 'enrage_knight_commander'
-    cb = b.extra(v, 'kc_gallop', 'basses', role='low', art='spic')
-    vc = b.extra(v, 'kc_gallop_vc', 'celli', role='section', art='spic')
-    tpt = b.extra(v, 'kc_tpt', 'trumpets', role='section')
-    for bar, ch, _ in _each(sections):
-        bass(cb, bar, ch, 'e s s e s s e s s e s s', 'r r r r r r r r r r r r', floor=29,
-             vel=0.7, art='spic')
-        bass(vc, bar, ch, 'e s s e s s e s s e s s', 'r r r r r r r r r r r r', floor=41,
-             vel=0.62, art='spic')
-        ostinato(tpt, bar, ch, 'e e e e h', '0 1 2 3 -', lo=58, hi=77, vel=0.72)
-
-
-def archmage(b, sections):
-    """The calculation accelerates: celesta sixteenths, a note corrected every other bar."""
-    v = 'enrage_archmage'
-    cel = b.extra(v, 'am_cel', 'celesta', role='ostinato')
-    gl = b.extra(v, 'am_gl', 'glock', role='accent')
-    for bar, ch, _ in _each(sections):
-        arp(cel, bar, ch, '0 1 2 3', step=0.25, lo=72, hi=96, vel=0.5)
-        arp(gl, bar, ch, '3', step=1.0, lo=79, hi=96, vel=0.42)
-    bb = b.s.bar_beats
-    for n in cel.notes:
-        bar_i = int(n.start // bb)
-        # every other bar the fourth note of each beat is corrected down a semitone
-        if bar_i % 2 == 1 and abs((n.start % 1.0) - 0.75) < 1e-6:
-            n.pitch -= 1
 
 
 def dark_rider(b, sections):
@@ -103,29 +57,6 @@ def blade_lord(b, sections):
         arp(va, bar, ch, '2 1 0 1', step=0.25, lo=55, hi=72, vel=0.52, accent_every=4)
 
 
-def iron_wall(b, sections):
-    """The bass finally moves: a walking line under the wall."""
-    v = 'enrage_iron_wall'
-    tbn = b.extra(v, 'iw_walk_tbn', 'trombones', role='section')
-    tuba = b.extra(v, 'iw_walk_tuba', 'tuba', role='low')
-    cb = b.extra(v, 'iw_walk_cb', 'basses', role='low')
-    for bar, ch, _ in _each(sections):
-        bass(tbn, bar, ch, 'q q q q', 'r 3 5 8', floor=40, vel=0.7)
-        bass(tuba, bar, ch, 'q q q q', 'r 3 5 8', floor=28, vel=0.72)
-        bass(cb, bar, ch, 'q q q q', 'r 3 5 8', floor=28, vel=0.66, art='spic')
-
-
-def berserker_king(b, sections):
-    """Blows on every beat: taiko, bass drum and marcato low brass."""
-    v = 'enrage_berserker_king'
-    tk = b.extra(v, 'bk_taiko', 'taiko', role='drums')
-    perc = b.extra(v, 'bk_bd', 'orch_perc', role='drums')
-    tbn = b.extra(v, 'bk_tbn', 'trombones', role='section')
-    for bar, ch, n in _each(sections):
-        ostinato(tk, bar, ch, 'q q q q', 'b b b b', lo=38, hi=52, vel=0.82)
-        ostinato(tbn, bar, ch, 'q q q q', 'b b b b', lo=40, hi=52, vel=0.8)
-        for i in range(n):
-            drums(perc, bar + i, {'bd': 'x...x...x...x...'}, vel=0.7)
 
 
 def emperor(b, sections):
