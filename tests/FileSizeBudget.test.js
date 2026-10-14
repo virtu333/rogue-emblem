@@ -13,15 +13,17 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = path.resolve(__dirname, '..');
 
-// Set 2026-10-12 at the count on main rounded up, plus about a hundred lines of slack for
-// the pull requests already open then.
+// Tightened 2026-10-14 once the October release batch was on main: each file's count there
+// rounded up to the next hundred, with no slack for open pull requests. BattleScene sat on a
+// round 12,100, so it keeps the next hundred above it rather than a budget with no room at all.
+// A PR that needs room extracts first, or raises the budget here with its reason.
 const BUDGETS = {
   'src/scenes/BattleScene.js': 12200,
-  'src/engine/RunManager.js': 7800,
-  'src/scenes/NodeMapScene.js': 2750,
+  'src/engine/RunManager.js': 6700,
+  'src/scenes/NodeMapScene.js': 2700,
   // The harness's copy of the scene's state machine: a rule moved to src/engine/ deletes
   // its copy here, it never grows a second one.
-  'tests/harness/HeadlessBattle.js': 2750,
+  'tests/harness/HeadlessBattle.js': 2700,
 };
 
 const lineCount = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8').split('\n').length;
