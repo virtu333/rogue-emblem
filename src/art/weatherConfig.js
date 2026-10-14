@@ -27,6 +27,7 @@ export const WEATHER_KINDS = Object.freeze([
   'embers',
   'motes',
   'unlight',
+  'fireflies',
 ]);
 
 // Pool caps per mode (the owner's performance budget).
@@ -133,6 +134,23 @@ export const WEATHER_SPECS = Object.freeze({
     flicker: true,
     alignToVelocity: false,
   }),
+  // A clear Act I or III night: a few slow green-gold sparks blinking over the grass.
+  fireflies: Object.freeze({
+    label: 'Fireflies',
+    count: 22,
+    shape: 'soft',
+    blend: 'add',
+    colors: Object.freeze([0xd8f08a, 0xf0e27a, 0xb8e070]),
+    alpha: Object.freeze([0.35, 0.75]),
+    scale: Object.freeze([0.35, 0.6]),
+    vx: Object.freeze([-7, 7]),
+    vy: Object.freeze([-6, 5]),
+    sway: 8,
+    swayHz: Object.freeze([0.08, 0.22]),
+    lifeMs: Object.freeze([2600, 5200]),
+    flicker: true,
+    alignToVelocity: false,
+  }),
   // The Deep: a few dark specks rising like ash falling upward. Restrained on purpose.
   unlight: Object.freeze({
     label: 'Unlight',
@@ -168,7 +186,9 @@ export function weatherKindFor({ gradeKey, biome, isScripted = false, override =
   if (biome === 'castle') return 'motes';
   if (biome === 'tundra' || gradeKey === 'rime') return 'snow';
   if (biome === 'volcano') return 'embers';
-  if (gradeKey === 'act2') return 'rain';
+  if (gradeKey === 'act2' || gradeKey === 'act2_night') return 'rain';
+  // A clear night outdoors: fireflies over the grass and the mire.
+  if (gradeKey === 'act1_night' || gradeKey === 'act3_night') return 'fireflies';
   if (gradeKey === 'act4') return 'ash';
   // Ember Dusk and Bleached Rite stay clear.
   return 'none';

@@ -100,6 +100,49 @@ export const ATMOSPHERE_GRADES = Object.freeze({
     grain: 0.045,
     aberration: 0.6,
   },
+  // Night variants of the first three acts (resolveTimeOfDay): the same place after dark.
+  // Cool moon shadows, pale highlights, no warm key; the warmth is the light units carry.
+  act1_night: {
+    label: 'Moonrise',
+    shadow: '#1a2350',
+    highlight: '#d6dcf0',
+    split: 0.6,
+    sat: 0.78,
+    contrast: 1.07,
+    exposure: 0.92,
+    key: 0.05,
+    vignette: 0.68,
+    grain: 0.04,
+    aberration: 0.4,
+  },
+  // Iron Rain after dark: the storm keeps falling, slate-blue and colder still.
+  act2_night: {
+    label: 'Storm Night',
+    shadow: '#141e36',
+    highlight: '#c4d2e2',
+    split: 0.5,
+    sat: 0.7,
+    contrast: 1.08,
+    exposure: 0.9,
+    key: 0.02,
+    vignette: 0.72,
+    grain: 0.045,
+    aberration: 0.5,
+  },
+  // Bleached Rite under a pale moon: chalk highlights, violet shadows.
+  act3_night: {
+    label: 'Pale Moon',
+    shadow: '#2a2448',
+    highlight: '#eef0ff',
+    split: 0.5,
+    sat: 0.66,
+    contrast: 1.05,
+    exposure: 0.93,
+    key: 0.05,
+    vignette: 0.66,
+    grain: 0.04,
+    aberration: 0.4,
+  },
   deep: {
     label: 'The Deep',
     shadow: '#2c1645',
@@ -137,7 +180,43 @@ const BASE_EMITTERS = Object.freeze({
   'Acidic Bog': [1.1, 0.35, '#9ad06a'],
 });
 
+// Indoors: a sconce on the wall every few tiles where a wall faces open floor
+// (BattleLightLayer places them from the layout alone, no draw), and one on every pillar.
+export const WALL_TORCHES = Object.freeze({
+  spacing: 4,
+  radius: 2.1,
+  strength: 0.75,
+  color: '#ffa850',
+});
+const INDOOR_EMITTERS = Object.freeze({ ...BASE_EMITTERS, Pillar: [1.25, 0.55, '#ffb45a'] });
+
 export const LIGHT_PRESETS = Object.freeze({
+  // An Act I-III outdoor battle at night: moonlit blue ink, units carry lanterns,
+  // villages and forts keep their windows lit.
+  moonlit: {
+    darkness: 0.52,
+    color: '#0a1230',
+    unitRadius: 2.6,
+    unitLight: '#ffb064',
+    allyLight: '#a8e0b8',
+    glowStrength: 0.3,
+    emitters: BASE_EMITTERS,
+  },
+  // A castle hall by day: no sky indoors, so the hall is dim and the torches carry it.
+  // Lighter than any night (the act's own grade stays), so it reads as shade, not dark.
+  hall: {
+    darkness: 0.4,
+    color: '#120e18',
+    unitRadius: 2.2,
+    unitLight: '#ffc27a',
+    allyLight: '#a8e0b8',
+    glowStrength: 0.26,
+    // The hall's light is its wall sconces (and forts' and thrones' fires); pillars
+    // carry none here and throw the sconces' shadows instead.
+    emitters: BASE_EMITTERS,
+    wallTorches: WALL_TORCHES,
+    castShadows: true,
+  },
   ashfall: {
     darkness: 0.52,
     color: '#0e0c14',
@@ -183,13 +262,59 @@ export const LIGHT_PRESETS = Object.freeze({
 });
 
 const NIGHT_PRESET_BY_GRADE = Object.freeze({
+  act1_night: 'moonlit',
+  act2_night: 'moonlit',
+  act3_night: 'moonlit',
   act4: 'ashfall',
   rime: 'rime',
   throne: 'throne',
   deep: 'deep',
 });
 
-const DEV_OVERRIDE_KEYS = Object.freeze(['act1', 'act2', 'act3', 'act4', 'rime', 'throne', 'deep']);
+const DEV_OVERRIDE_KEYS = Object.freeze([
+  'act1',
+  'act2',
+  'act3',
+  'act1_night',
+  'act2_night',
+  'act3_night',
+  'act4',
+  'rime',
+  'throne',
+  'deep',
+]);
+
+// --- Time of day ----------------------------------------------------------------------
+// Acts I-III are fought by day. Some outdoor battles fall at night instead: presentation
+// only (no vision, fog, AI or difficulty change). The pick is hashed from the battle's own
+// seed, never Math.random, so a resumed battle keeps its night.
+export const TIME_OF_DAY = Object.freeze(['day', 'night']);
+export const NIGHT_CHANCE = 0.25;
+const DAY_NIGHT_ACTS = Object.freeze(['act1', 'act2', 'act3']);
+const OUTDOOR_BIOMES = Object.freeze(['grassland', 'swamp']);
+
+function hashTimeOfDay(battleSeed) {
+  let h = (Number(battleSeed) >>> 0) ^ 0x6e696768; // 'nigh'
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 0x846ca68b) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * Day or night for a battle (pure). Night only falls on an outdoor Act I-III battle
+ * with a seed, never a scripted (prologue) battle, never a run's opening map.
+ * @param {object} ctx { act, biome, battleSeed, row, isScripted, override ('day'|'night') }
+ */
+export function resolveTimeOfDay(ctx = {}) {
+  if (ctx.isScripted) return 'day';
+  const act = String(ctx.act || 'act1');
+  const biome = normBiome(ctx.biome);
+  if (!DAY_NIGHT_ACTS.includes(act) || !OUTDOOR_BIOMES.includes(biome)) return 'day';
+  if (TIME_OF_DAY.includes(ctx.timeOverride)) return ctx.timeOverride;
+  if (ctx.battleSeed == null || !Number.isFinite(Number(ctx.battleSeed))) return 'day';
+  if (act === 'act1' && Number(ctx.row) === 0) return 'day';
+  return hashTimeOfDay(ctx.battleSeed) < NIGHT_CHANCE ? 'night' : 'day';
+}
 
 function normBiome(biome) {
   const b = String(biome || '')
@@ -240,8 +365,9 @@ export function tuneGrade(grade, tune) {
 /**
  * Pick the battle's mood.
  * @param {object} ctx { act, biome, isBoss, isSecret, isFinalBoss, isScripted, hasEntity, override,
- *   eclipsePhase (0 Pale .. 4 Hollow) }
- * @returns {{ gradeKey, label, grade, night:boolean, lightOptions:object|null, biome }}
+ *   eclipsePhase (0 Pale .. 4 Hollow), battleSeed, row, timeOverride ('day'|'night') }
+ * @returns {{ gradeKey, label, grade, night:boolean, lighting:'day'|'night'|'indoor',
+ *   timeOfDay:'day'|'night', lightOptions:object|null, biome }}
  */
 export function resolveAtmosphere(ctx = {}) {
   const act = String(ctx.act || 'act1');
@@ -249,6 +375,7 @@ export function resolveAtmosphere(ctx = {}) {
   const override = DEV_OVERRIDE_KEYS.includes(ctx.override) ? ctx.override : null;
   let gradeKey;
   let tune = null;
+  let timeOfDay = 'day';
   if (override) {
     gradeKey = override;
   } else if (ctx.isScripted) {
@@ -266,20 +393,35 @@ export function resolveAtmosphere(ctx = {}) {
     gradeKey = biome === 'tundra' ? 'rime' : 'act4';
   } else {
     gradeKey = ATMOSPHERE_GRADES[act] ? act : 'act1';
-    tune = BIOME_TUNES[biome] || null;
+    timeOfDay = gradeKey === act ? resolveTimeOfDay({ ...ctx, act, biome }) : 'day';
+    if (timeOfDay === 'night') gradeKey = `${gradeKey}_night`;
+    else tune = BIOME_TUNES[biome] || null;
   }
   if (!override && (gradeKey === 'act4' || gradeKey === 'rime' || gradeKey === 'throne')) {
     if (biome === 'castle') tune = BIOME_TUNES.castle;
     else if (biome === 'swamp') tune = BIOME_TUNES.swamp;
   }
+  if (gradeKey.endsWith('_night')) timeOfDay = 'night';
   const base = ATMOSPHERE_GRADES[gradeKey];
   // The Eclipse phase darkens every mood a little more (never a prologue chapter or a dev
   // override, which exist to show the plain grade).
   const eclipse = override || ctx.isScripted ? 0 : Math.max(0, Math.trunc(ctx.eclipsePhase) || 0);
   const grade = eclipseGrade(tuneGrade(base, tune), eclipse);
-  const presetKey = NIGHT_PRESET_BY_GRADE[gradeKey] || null;
-  const night = Boolean(presetKey);
-  const lightOptions = night ? { ...LIGHT_PRESETS[presetKey] } : null;
+  const nightKey = NIGHT_PRESET_BY_GRADE[gradeKey] || null;
+  const night = Boolean(nightKey);
+  // Indoors (a castle map) by day: the hall's own torchlight. A castle at night keeps
+  // its night preset and gains the hall's sconces.
+  const indoor = biome === 'castle' && !ctx.isScripted && gradeKey !== 'deep';
+  const presetKey = nightKey || (indoor ? 'hall' : null);
+  let lightOptions = presetKey ? { ...LIGHT_PRESETS[presetKey] } : null;
+  if (lightOptions && indoor && presetKey !== 'hall') {
+    lightOptions = {
+      ...lightOptions,
+      emitters: { ...INDOOR_EMITTERS, ...lightOptions.emitters },
+      wallTorches: WALL_TORCHES,
+      castShadows: true,
+    };
+  }
   if (lightOptions && eclipse) {
     const nudge = ECLIPSE_PHASE_NUDGE[Math.min(ECLIPSE_PHASE_NUDGE.length - 1, eclipse)];
     lightOptions.darkness = Math.min(0.7, lightOptions.darkness + nudge.darkness);
@@ -289,6 +431,8 @@ export function resolveAtmosphere(ctx = {}) {
     label: base.label,
     grade,
     night,
+    lighting: night ? 'night' : indoor ? 'indoor' : 'day',
+    timeOfDay,
     lightPreset: presetKey,
     lightOptions,
     biome,
