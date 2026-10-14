@@ -735,6 +735,25 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   blood_covenant: 'vampires-bloodshard',
   kingmakers_oath: 'upgrade-legendary_heir',
   hollow_sun_favor: 'diamond-medallion',
+  // The act boss's trade cards (§6.8; the atlas is full): the reworked Chronicle, Kingmaker's Oath
+  // and Hollow Sun's Favor keep their old cards' pictures, and each new card borrows an item that
+  // says its boon: soles for the march, a dragon shield, the art adept's scroll, a gambler's
+  // coin, a chosen partner, more banners, a shield ring, a collector's case, a speedwing, the
+  // killer's edge and a barrier ring for the wall.
+  chronicle_ii: 'upgrade-studied_training',
+  kingmakers_oath_ii: 'upgrade-legendary_heir',
+  hollow_sun_favor_ii: 'diamond-medallion',
+  forced_march: 'swiftsoles',
+  bulwark: 'dracoshield',
+  way_of_the_art: 'upgrade-art_adept',
+  gamblers_edge: 'gamblers-coin',
+  the_chosen_few: 'upgrade-partner_choice',
+  the_levy: 'upgrade-deploy_limit',
+  stone_vow: 'shield-ring',
+  collectors_eye: 'upgrade-trinket_collector',
+  featherweight: 'speedwing',
+  reckless_edge: 'upgrade-lethal_armory_killer',
+  shield_wall: 'barrier-ring',
 });
 
 /**

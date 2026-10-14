@@ -173,6 +173,15 @@ import {
   scaledShadowGain,
   twistedBoonModifierDefaults,
 } from './TwistedBoons.js';
+import {
+  applyTradeBoon,
+  armyMovBattleDeltas,
+  enemyAffixChanceMultiplierOf,
+  sanitizeTradeBoonModifiers,
+  tradeBoonModifierDefaults,
+  tradeCombatProfileOf,
+  xpRoleMultipliersOf,
+} from './TradeBoons.js';
 import { stampSanctum } from './SanctumPass.js';
 import { RUN_START_BLESSING_EFFECTS, getBlessingEntryId } from './RunStartBlessingEffects.js';
 import { sanitizeChurchTithes } from './ChurchTithe.js';
@@ -474,6 +483,9 @@ function createBlessingRuntimeModifiers() {
     // The twisted earned blessings of engine/TwistedBoons.js (Darkened Dawn's faster Eclipse and
     // its carry, Kingmaker's Oath and its ban on Master Seals, Hollow Sun's Favor's loot gold).
     ...twistedBoonModifierDefaults(),
+    // The act boss's trade cards of engine/TradeBoons.js (combat numbers, Move, the Levy's cut,
+    // Featherweight, Gambler's Edge, Way of the Art, Collector's Eye, Chronicle, Kingmaker's terms).
+    ...tradeBoonModifierDefaults(),
   };
 }
 
@@ -1984,6 +1996,8 @@ export class RunManager {
     // The twisted earned blessings' boons and twists (Blood Covenant, Kingmaker's Oath, Hollow
     // Sun's Favor, Darkened Dawn's faster Eclipse).
     if (applyTwistedBoon(this, blessingId, effect)) return;
+    // The act boss's trade cards' boons and costs.
+    if (applyTradeBoon(this, blessingId, effect)) return;
     const value = Number(effect.params.value || 0);
     if (!Number.isFinite(value)) return;
 
@@ -2344,6 +2358,8 @@ export class RunManager {
       isolated: sanitizeIsolatedCombatBonuses(modifiers?.isolatedCombatBonuses),
       // Standard of the Sun: Hit and Avoid near the commander.
       commanderAuras: commanderAurasOf(this),
+      // The act boss's trade cards (engine/TradeBoons.js), null when none is held.
+      trade: tradeCombatProfileOf(this),
     };
   }
 
@@ -3693,9 +3709,22 @@ export class RunManager {
     else delete battleParams.swornEnemy;
     // Battle-start stat deltas: the Lingering Injury burden's, and Cavalier's Hour's by move
     // type (engine/ShrineBoons.js). Applied at a fresh start only; taken back at the battle's end.
-    const debuffs = [...battleDebuffsFor(this), ...moveTypeBattleDeltas(this)];
+    const debuffs = [
+      ...battleDebuffsFor(this),
+      ...moveTypeBattleDeltas(this),
+      // Forced March's +1 Move, Bulwark's -1 (engine/TradeBoons.js).
+      ...armyMovBattleDeltas(this),
+    ];
     if (debuffs.length) battleParams.battleDebuffs = debuffs;
     else delete battleParams.battleDebuffs;
+    // Gambler's Edge's cost (foes roll affixes more often) and Chronicle's XP by level: keys only
+    // while a card holds them (engine/TradeBoons.js).
+    const affixShare = enemyAffixChanceMultiplierOf(this);
+    if (affixShare !== 1) battleParams.affixChanceMultiplier = affixShare;
+    else delete battleParams.affixChanceMultiplier;
+    const xpRoles = xpRoleMultipliersOf(this);
+    if (xpRoles) battleParams.xpRoleMultipliers = xpRoles;
+    else delete battleParams.xpRoleMultipliers;
     // The Rite (engine/Rite.js), only in the Descent (a run without one keeps its params as they
     // were): the words at entry (a summoning circle's Hollowed read them), the tier, the Vigil's
     // Hollowed level rule, and on a boss of the route the tier's mods, which MapGenerator writes
@@ -5923,6 +5952,7 @@ export class RunManager {
     sanitizeEarnedBoonModifiers(rm.blessingRuntimeModifiers);
     // The twisted earned blessings (PR D3): a save from before them holds none.
     sanitizeTwistedBoonModifiers(rm.blessingRuntimeModifiers);
+    sanitizeTradeBoonModifiers(rm.blessingRuntimeModifiers);
     for (const field of Object.values(EARNED_BOON_MODIFIERS))
       rm.blessingRuntimeModifiers[field] = Math.max(
         0,

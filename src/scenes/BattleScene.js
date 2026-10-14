@@ -115,6 +115,7 @@ import {
   combatHpLost,
   scaledXp,
 } from '../engine/BattleXp.js';
+import { xpRoleMultiplierFor } from '../engine/TradeBoons.js';
 import { postCombatEffects, allyBuff } from '../engine/PostCombatEffects.js';
 import {
   applyTimedBuffEntry,
@@ -7996,6 +7997,8 @@ export class BattleScene extends Phaser.Scene {
       defTerrain,
       turn: this.turnManager?.turnNumber,
       alliesOf: getAllies,
+      atkWeapon: weapon === undefined ? attacker.weapon : weapon,
+      atkWeaponArt: Boolean(weaponArt),
     });
 
     const atkWeaponArtMods = weaponArt ? getWeaponArtCombatMods(weaponArt) : null;
@@ -9293,6 +9296,12 @@ export class BattleScene extends Phaser.Scene {
         : 1,
       blessingXpDelta: this.runManager?.getXpMultiplierDelta?.() || 0,
       traitXpMultiplier: getTraitXpMultiplier(playerUnit, this.gameData?.traits || null),
+      // Chronicle (engine/TradeBoons.js): the lowest- and highest-level unit on the field.
+      unitXpMultiplier: xpRoleMultiplierFor(
+        playerUnit,
+        this.playerUnits,
+        this.battleParams?.xpRoleMultipliers,
+      ),
     });
 
     // Apply XP, levels and every skill grant before any presentation (BattleXp).

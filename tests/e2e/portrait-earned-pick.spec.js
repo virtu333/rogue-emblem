@@ -27,7 +27,7 @@ for (const viewport of [PORTRAIT_PHONES[0], PORTRAIT_PHONES[1]]) {
       const { pick } = await winBossToPick(page);
       await expectPortraitUi(page);
       const offered = await pickIds(pick);
-      expect(offered).toHaveLength(2);
+      expect(offered).toHaveLength(3);
       await expectNoSidewaysScroll(page, '.ch-earned-pick');
       expect(await clippedText(page, '.ch-earned-pick')).toEqual([]);
       const cards = pick.locator('.ch-card');
@@ -43,7 +43,10 @@ for (const viewport of [PORTRAIT_PHONES[0], PORTRAIT_PHONES[1]]) {
       await playOnToRouteMap(page);
       const saved = await savedRun(page);
       expect(saved.currentAct).toBe('act2');
-      expect(saved.earnedBlessingPicks.act1).toMatchObject({ status: 'taken', chosen: offered[1] });
+      expect(saved.earnedBlessingPicks.act1).toMatchObject({
+        status: 'taken',
+        chosen: offered[offered.length - 1],
+      });
       expect(errors).toEqual([]);
     });
   });

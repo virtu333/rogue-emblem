@@ -755,6 +755,8 @@ export function weaponArtRunOptions(run) {
     weaponArtHpCostDelta: toFiniteNumber(mods?.weaponArtHpCostDelta, 0),
     playerArtHpCostDelta: toFiniteNumber(mods?.playerArtHpCostDelta, 0),
     playerArtMapUsesBonus: toFiniteNumber(mods?.playerArtMapUsesBonus, 0),
+    // Way of the Art (an act boss's card, engine/TradeBoons.js): player units' arts cost no HP.
+    playerArtHpFree: mods?.weaponArtHpFree === true,
   };
 }
 
@@ -795,6 +797,7 @@ function isPlayerArtUser(unit) {
 export function getEffectiveWeaponArtHpCost(unit, art, opts = {}) {
   const baseCost = Math.max(0, toFiniteNumber(art?.hpCost, 0));
   if (baseCost <= 0) return 0;
+  if (opts.playerArtHpFree === true && isPlayerArtUser(unit)) return 0;
   const combatEffects = unit?.accessory?.combatEffects || null;
   const explicitReduction = Math.max(
     0,

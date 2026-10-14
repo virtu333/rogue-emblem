@@ -817,6 +817,8 @@ function dressEnemySpawns(enemySpawns, { params, deps, act, templateId }) {
     difficultyId: params.difficultyId || 'normal',
     act,
     eclipse: params.eclipseAffix || null,
+    // Gambler's Edge's cost (engine/TradeBoons.js): foes roll affixes this much more often.
+    chanceMultiplier: params.affixChanceMultiplier,
   });
   // The Sworn Enemy burden (engine/Burdens.js): the act boss carries one more tier-1 affix.
   // Its own seeded stream (`params.swornEnemy.seed`), so Math.random is never touched.

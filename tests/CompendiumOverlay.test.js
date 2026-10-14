@@ -214,9 +214,25 @@ describe('CompendiumOverlay', () => {
     expect(later._getItemsForTab(5).length).toBe(gameData.lords.length);
   });
 
-  it('Blessings tab returns all blessings from gameData', () => {
+  it('Blessings tab returns every blessing but the retired earned cards (weight 0)', () => {
     const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
-    expect(overlay._getItemsForTab(6).length).toBe(gameData.blessings.blessings.length);
+    const shown = overlay._getItemsForTab(6);
+    const retired = gameData.blessings.blessings.filter((b) => b.earned === true && b.weight === 0);
+    // Ember Lantern, Captain's Whistle and the old Chronicle, Kingmaker's Oath, Hollow Sun's Favor.
+    expect(retired.map((b) => b.id).sort()).toEqual(
+      [
+        'captains_whistle',
+        'chronicle',
+        'ember_lantern',
+        'hollow_sun_favor',
+        'kingmakers_oath',
+      ].sort(),
+    );
+    expect(shown.length).toBe(gameData.blessings.blessings.length - retired.length);
+    for (const b of retired) expect(shown, b.id).not.toContain(b);
+    // A shrine card at weight 0 (the Armory Stash the gift replaced) is no earned card: still shown.
+    const shrineZero = gameData.blessings.blessings.filter((b) => !b.earned && b.weight === 0);
+    for (const b of shrineZero) expect(shown, b.id).toContain(b);
   });
 
   it('Terrain tab returns all terrain from gameData', () => {

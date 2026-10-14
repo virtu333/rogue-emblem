@@ -36,6 +36,29 @@ const EARNED_IDS = [
   'blood_covenant',
   'kingmakers_oath',
   'hollow_sun_favor',
+  // The act boss's trade cards (§6.8): the reworked three under new ids, then the new eleven.
+  'chronicle_ii',
+  'kingmakers_oath_ii',
+  'hollow_sun_favor_ii',
+  'forced_march',
+  'bulwark',
+  'way_of_the_art',
+  'gamblers_edge',
+  'the_chosen_few',
+  'the_levy',
+  'stone_vow',
+  'collectors_eye',
+  'featherweight',
+  'reckless_edge',
+  'shield_wall',
+];
+// Retired at weight 0 (never drawn; kept so a save that holds one loads and keeps its effect).
+const RETIRED_IDS = [
+  'ember_lantern',
+  'captains_whistle',
+  'chronicle',
+  'kingmakers_oath',
+  'hollow_sun_favor',
 ];
 const earnedRows = () => catalog.blessings.filter((b) => b.earned === true);
 
@@ -55,12 +78,13 @@ describe('the shipped earned rows', () => {
     expect(validateBlessingsConfig(catalog).errors).toEqual([]);
   });
 
-  it('an earned card carries no tier, price, pact or cost, and a draw weight', () => {
+  it('an earned card carries no tier, price, pact or cost, and a draw weight (0 only when retired)', () => {
     for (const b of earnedRows()) {
       for (const key of ['tier', 'prices', 'pact', 'intrinsicPrice'])
         expect(b[key], `${b.id}.${key}`).toBeUndefined();
       expect(b.costs, b.id).toEqual([]);
-      expect(b.weight, b.id).toBeGreaterThan(0);
+      if (RETIRED_IDS.includes(b.id)) expect(b.weight, b.id).toBe(0);
+      else expect(b.weight, b.id).toBeGreaterThan(0);
     }
   });
 
@@ -72,11 +96,11 @@ describe('the shipped earned rows', () => {
     }
   });
 
-  it('the pick odds sit in the data: two cards, 1 / 0.85 / 0.7 by earned blessings held', () => {
+  it('the pick odds sit in the data: three cards, always offered (§6.8)', () => {
     // PR D1 adds the eclipsed elite's flat third (D-4) and the Old Sanctum's stamp chance (D-5).
     expect(catalog.earnedOffer).toEqual({
-      actBoss: 2,
-      weightByHeld: [1, 0.85, 0.7],
+      actBoss: 3,
+      weightByHeld: [1],
       eclipsedEliteChance: 0.3333,
       sanctum: { chance: 0.5 },
     });

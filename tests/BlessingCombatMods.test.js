@@ -145,7 +145,19 @@ describe('blessingCombatModsFor', () => {
       const unit = { ...holding(), faction };
       expect(
         blessingCombatModsFor({ ...PROFILE, actHitBonus: 5 }, side(unit, { initiating: true })),
-      ).toEqual({ hitBonus: 0, avoidBonus: 0, defBonus: 0, critBonus: 0, firstStrikeHitBonus: 0 });
+      ).toEqual({
+        hitBonus: 0,
+        avoidBonus: 0,
+        defBonus: 0,
+        critBonus: 0,
+        firstStrikeHitBonus: 0,
+        // The trade cards' fields (engine/TradeBoons.js), at their "none" values.
+        resBonus: 0,
+        atkBonus: 0,
+        spdBonus: 0,
+        damageScale: 1,
+        procChanceMultiplier: 1,
+      });
     }
   });
 

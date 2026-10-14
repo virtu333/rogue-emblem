@@ -22,19 +22,29 @@ import { loadGameData } from './testData.js';
 const data = loadGameData();
 const EARNED_IDS = ['unbroken_banner', 'second_dawn', 'ember_lantern', 'captains_whistle'];
 // What Act I's boss may offer (PR D1 re-sourced the cards: Second Dawn is an eclipsed elite's,
-// Standard of the Sun is Act I's boss's own, Chronicle Act II's; PR D3 adds the four twisted
-// cards, an act boss's only, two of them while the Eclipse is on, as it is in every run here).
+// Standard of the Sun is Act I's boss's own; PR D3 adds the twisted cards, two of them while the
+// Eclipse is on, as it is in every run here; §6.8 retires Ember Lantern, Captain's Whistle and the
+// old Chronicle, Kingmaker's Oath and Hollow Sun's Favor, and adds the trade cards, the new
+// Chronicle being Act II's and Collector's Eye Acts I-II's).
 const ACT1_BOSS_IDS = [
   'unbroken_banner',
-  'ember_lantern',
-  'captains_whistle',
   'standard_of_the_sun',
   'darkened_dawn',
   'blood_covenant',
-  'kingmakers_oath',
-  'hollow_sun_favor',
+  'kingmakers_oath_ii',
+  'hollow_sun_favor_ii',
+  'forced_march',
+  'bulwark',
+  'way_of_the_art',
+  'gamblers_edge',
+  'the_chosen_few',
+  'the_levy',
+  'stone_vow',
+  'collectors_eye',
+  'featherweight',
+  'reckless_edge',
+  'shield_wall',
 ];
-const TWISTED_IDS = ['darkened_dawn', 'blood_covenant', 'kingmakers_oath', 'hollow_sun_favor'];
 
 function freshRun(seed = 7, difficultyId = 'normal') {
   const rm = new RunManager(data);
@@ -172,20 +182,25 @@ describe('rolling the offer', () => {
     expect(JSON.stringify(rm.nodeMap)).toBe(mapBefore);
   });
 
-  it('draws two distinct earned cards the run does not hold', () => {
-    const roller = rollerFor(['ember_lantern']);
+  it('draws three distinct earned cards of the pool the run does not hold, every time', () => {
+    const roller = rollerFor(['bulwark']);
     for (let seed = 1; seed <= 300; seed++) {
       const roll = roller(seed);
-      if (roll.status !== 'owed') continue;
-      expect(roll.offered).toHaveLength(2);
-      expect(new Set(roll.offered).size).toBe(2);
+      expect(roll.status).toBe('owed');
+      expect(roll.offered).toHaveLength(3);
+      expect(new Set(roll.offered).size).toBe(3);
       for (const id of roll.offered) {
         expect(ACT1_BOSS_IDS).toContain(id);
-        expect(id).not.toBe('ember_lantern');
+        expect(id).not.toBe('bulwark');
       }
-      // D-3: never two twisted cards in one pair.
-      expect(roll.offered.filter((id) => TWISTED_IDS.includes(id)).length).toBeLessThanOrEqual(1);
     }
+  });
+
+  it("draws the whole of Act I's pool over the seeds, and never a retired card", () => {
+    const roller = rollerFor();
+    const seen = new Set();
+    for (let seed = 1; seed <= 400; seed++) for (const id of roller(seed).offered) seen.add(id);
+    expect([...seen].sort()).toEqual([...ACT1_BOSS_IDS].sort());
   });
 
   it('is a different pair for a different act of the same run, and varies across seeds', () => {
@@ -207,7 +222,7 @@ describe('rolling the offer', () => {
   });
 
   it('offers a lone card when one is left and nothing when none is', () => {
-    // All of Act I's boss cards held but one: the odds are 0.7 and one card is left. (Re-sourced in
+    // All of Act I's boss cards held but one: one card is left. (Re-sourced in
     // PR D1: Second Dawn left the boss's pool and Standard of the Sun joined it, so the lone card
     // and the full set are Act I's boss pool, not PR C's four; PR D3's twisted cards joined it.)
     const three = rollerFor(ACT1_BOSS_IDS.filter((id) => id !== 'standard_of_the_sun'));
@@ -227,8 +242,7 @@ describe('rolling the offer', () => {
   it('never offers a card whose weight is 0', () => {
     // (PR D1: Second Dawn is an eclipsed elite's now, so a boss card keeps its weight here.)
     const copy = structuredClone(data);
-    for (const b of copy.blessings.blessings)
-      if (b.earned && b.id !== 'captains_whistle') b.weight = 0;
+    for (const b of copy.blessings.blessings) if (b.earned) b.weight = b.id === 'bulwark' ? 1 : 0;
     const rm = freshRun(5);
     rm.gameData = copy;
     let owed = 0;
@@ -237,7 +251,7 @@ describe('rolling the offer', () => {
       const roll = rollActBossEarnedOffer(rm);
       if (roll.status === 'owed') {
         owed++;
-        expect(roll.offered).toEqual(['captains_whistle']);
+        expect(roll.offered).toEqual(['bulwark']);
       }
     }
     expect(owed).toBeGreaterThan(0);
@@ -245,28 +259,37 @@ describe('rolling the offer', () => {
 });
 
 describe('the odds an act boss offers anything (D4)', () => {
-  it('1 with none held, 0.85 with one, 0.7 with two or more', () => {
+  it('1 however many are held (§6.8: the shipped data offers every time)', () => {
     const config = earnedOfferConfig(data.blessings);
-    expect([0, 1, 2, 3, 9].map((n) => earnedOfferChance(n, config))).toEqual([
-      1, 0.85, 0.7, 0.7, 0.7,
-    ]);
+    expect([0, 1, 2, 3, 9].map((n) => earnedOfferChance(n, config))).toEqual([1, 1, 1, 1, 1]);
     expect(earnedOfferChance(-4, config)).toBe(1);
     expect(earnedOfferChance(Number.NaN, config)).toBe(1);
   });
 
-  it('with none held a boss always offers; with one it skips about 15%; with two about 30%', () => {
+  it('a boss never skips its offer, whatever the run already holds (the old silent miss)', () => {
     const skipRate = (held) => {
       let none = 0;
-      const N = 4000;
-      const roller = rollerFor(EARNED_IDS.slice(0, held));
+      const N = 1000;
+      const roller = rollerFor(ACT1_BOSS_IDS.slice(0, held));
       for (let seed = 1; seed <= N; seed++) if (roller(seed).status === 'none') none++;
       return none / N;
     };
-    expect(skipRate(0)).toBe(0);
-    expect(skipRate(1)).toBeGreaterThan(0.12);
-    expect(skipRate(1)).toBeLessThan(0.18);
-    expect(skipRate(2)).toBeGreaterThan(0.26);
-    expect(skipRate(2)).toBeLessThan(0.34);
+    expect([0, 1, 2, 3, 5].map(skipRate)).toEqual([0, 0, 0, 0, 0]);
+  });
+
+  it('the odds still read the data: a snowball guard there thins the offer as before', () => {
+    // The mechanism stays for a retune: [1, 0.5] skips about half the offers with one held.
+    const rm = freshRun(1);
+    rm.gameData = structuredClone(data);
+    rm.gameData.blessings.earnedOffer = { actBoss: 3, weightByHeld: [1, 0.5] };
+    rm.activeBlessings = [{ id: 'bulwark', rolledCost: null, midRun: true }];
+    let none = 0;
+    for (let seed = 1; seed <= 2000; seed++) {
+      rm.runSeed = seed;
+      if (rollActBossEarnedOffer(rm).status === 'none') none++;
+    }
+    expect(none / 2000).toBeGreaterThan(0.44);
+    expect(none / 2000).toBeLessThan(0.56);
   });
 
   it('counts only earned blessings: a tiered one does not thin the offer', () => {
@@ -319,7 +342,7 @@ describe('preparing, saving and reloading the pick', () => {
       status: 'owed',
       chosen: null,
     });
-    expect(entry.offered).toHaveLength(2);
+    expect(entry.offered).toHaveLength(3);
     expect(prepareEarnedBlessingPick(rm, bossOf(rm))).toBe(entry);
   });
 

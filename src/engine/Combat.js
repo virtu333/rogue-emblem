@@ -211,6 +211,36 @@ function normalizeCombatFoeDefShare(value) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
+/**
+ * A side's damage scale (`damageScale`, a share of 1 or less: The Levy's 0.9), 1 when absent or
+ * malformed. Never above 1: a raise has its own key (`damageMultiplier`).
+ */
+function normalizeCombatDamageScale(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 && n < 1 ? n : 1;
+}
+
+/**
+ * A strike's damage after its side's `damageScale`, the last step of every damage reading (the
+ * strike, its Luna reading, a counter, an art's follow-up): floored, and a blow that did damage
+ * still does at least 1.
+ */
+export function scaleDealtDamage(damage, mods) {
+  const scale = normalizeCombatDamageScale(mods?.damageScale);
+  if (scale === 1 || !(damage > 0)) return damage;
+  return Math.max(1, Math.floor(damage * scale + 1e-9));
+}
+
+/**
+ * A side's proc odds multiplier (`procChanceMultiplier` on its raw skill mods: Gambler's Edge,
+ * engine/TradeBoons.js), 1 when absent. Read from `skillCtx.atkMods` / `defMods` as built, never
+ * merged, so no other mod source can carry it.
+ */
+function procMultiplierOf(mods) {
+  const n = Number(mods?.procChanceMultiplier);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
 /** A Hit rating as a roll's input: 0 to 100. */
 function clampHit(hit) {
   return Math.max(0, Math.min(100, hit));
@@ -249,6 +279,7 @@ function normalizeCombatMods(mods) {
       : null,
     drainPerHit: normalizeCombatDrainPerHit(mods.drainPerHit),
     damageMultiplier: normalizeCombatDamageMultiplier(mods.damageMultiplier),
+    damageScale: normalizeCombatDamageScale(mods.damageScale),
     ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
     ignoreRES: Boolean(mods.ignoreRES),
     foeDefShare: normalizeCombatFoeDefShare(mods.foeDefShare),
@@ -297,6 +328,8 @@ export function mergeCombatMods(baseMods, extraMods) {
       Math.max(base.damageMultiplier || 0, extra.damageMultiplier || 0) > 1
         ? Math.max(base.damageMultiplier || 0, extra.damageMultiplier || 0)
         : null,
+    // Damage scales (The Levy's cut) multiply: two cuts compound, as two blessings would.
+    damageScale: base.damageScale * extra.damageScale,
     ignoreWeaponTriangle: base.ignoreWeaponTriangle || extra.ignoreWeaponTriangle,
     ignoreRES: base.ignoreRES || extra.ignoreRES,
     foeDefShare: base.foeDefShare + extra.foeDefShare,
@@ -973,7 +1006,7 @@ export function strikeDamage(
   if (atkMods?.vengeance) damage += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) damage = Math.floor(damage / 2);
   if (atkMods?.damageMultiplier > 1) damage = Math.floor(damage * atkMods.damageMultiplier);
-  return Math.max(0, damage);
+  return Math.max(0, scaleDealtDamage(damage, atkMods));
 }
 
 /**
@@ -1062,7 +1095,7 @@ export function artFollowUpStrike(
     if (strikerMods?.vengeance) dmg += getMissingHp(striker);
     if (targetMods?.halfPhysicalDamage && isPhysical(strikerWeapon)) dmg = Math.floor(dmg / 2);
     if (strikerMods?.damageMultiplier > 1) dmg = Math.floor(dmg * strikerMods.damageMultiplier);
-    return Math.max(0, dmg);
+    return Math.max(0, scaleDealtDamage(dmg, strikerMods));
   };
   const terrainForHit = strikerMods?.ignoreTerrainAvoid ? null : targetTerrain;
   let hit = Math.max(
@@ -1462,7 +1495,7 @@ export function getCombatForecast(
     if (defMods?.vengeance) defDmg += getMissingHp(defender);
     if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
     if (defMods?.damageMultiplier > 1) defDmg = Math.floor(defDmg * defMods.damageMultiplier);
-    defDmg = Math.max(0, defDmg);
+    defDmg = Math.max(0, scaleDealtDamage(defDmg, defMods));
     if (defMultiHit) defDmg = Math.max(1, Math.floor(defDmg * defMultiHit.damageMultiplier));
     defHit =
       calculateHitRate(defender, defWeapon, attacker, atkTerrainForDefHit, defTriangle) +
@@ -1759,6 +1792,7 @@ function rollStrike(
       strikeSkills.target,
       strikeSkills.skillsData,
       strikeSkills.combatState,
+      strikeSkills.procMultiplier ?? 1,
     );
     if (skillResult.commandersGambit) commandersGambit = true;
     if (skillResult.aetherLuna) aetherLuna = true;
@@ -1808,6 +1842,7 @@ function rollStrike(
       strikeSkills.skillsData,
       targetHP,
       strikeSkills.marksData,
+      strikeSkills.targetProcMultiplier ?? 1,
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;
@@ -2050,7 +2085,7 @@ export function resolveCombat(
   if (atkMods?.vengeance) atkLunaDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkLunaDmg = Math.floor(atkLunaDmg / 2);
   if (atkMods?.damageMultiplier > 1) atkLunaDmg = Math.floor(atkLunaDmg * atkMods.damageMultiplier);
-  atkLunaDmg = Math.max(0, atkLunaDmg);
+  atkLunaDmg = Math.max(0, scaleDealtDamage(atkLunaDmg, atkMods));
   // Keen Eye: only the attacker's first rolled strike takes `firstStrikeHitBonus`.
   const atkHitRaw =
     calculateHitRate(attacker, atkWeapon, defender, defTerrainForAtkHit, atkTriangle) +
@@ -2133,7 +2168,7 @@ export function resolveCombat(
     if (defMods?.vengeance) defDmg += getMissingHp(defender);
     if (atkMods?.halfPhysicalDamage && isPhysical(defWeapon)) defDmg = Math.floor(defDmg / 2);
     if (defMods?.damageMultiplier > 1) defDmg = Math.floor(defDmg * defMods.damageMultiplier);
-    defDmg = Math.max(0, defDmg);
+    defDmg = Math.max(0, scaleDealtDamage(defDmg, defMods));
     defLunaDmg = Math.max(
       0,
       calculateDamage(defender, defWeapon, attacker, atkWeapon, atkTerrain, false, {
@@ -2153,7 +2188,7 @@ export function resolveCombat(
       defLunaDmg = Math.floor(defLunaDmg / 2);
     if (defMods?.damageMultiplier > 1)
       defLunaDmg = Math.floor(defLunaDmg * defMods.damageMultiplier);
-    defLunaDmg = Math.max(0, defLunaDmg);
+    defLunaDmg = Math.max(0, scaleDealtDamage(defLunaDmg, defMods));
     defHit = Math.max(
       0,
       Math.min(
@@ -2206,6 +2241,9 @@ export function resolveCombat(
         skillsData: skillCtx.skillsData,
         marksData: skillCtx.marksData || null,
         combatState: combatSkillState,
+        // Gambler's Edge: each side's own procs (its odds scaled), on-defend ones the target's.
+        procMultiplier: procMultiplierOf(skillCtx.atkMods),
+        targetProcMultiplier: procMultiplierOf(skillCtx.defMods),
       }
     : null;
   const defStrikeSkills =
@@ -2224,6 +2262,8 @@ export function resolveCombat(
           skillsData: skillCtx.skillsData,
           marksData: skillCtx.marksData || null,
           combatState: combatSkillState,
+          procMultiplier: procMultiplierOf(skillCtx.defMods),
+          targetProcMultiplier: procMultiplierOf(skillCtx.atkMods),
         }
       : null;
 
@@ -2420,7 +2460,11 @@ export function resolveCombat(
       phaseMultiplier = artMultiHit.damageMultiplier;
       phaseDmg = Math.max(1, Math.floor(dmg * artMultiHit.damageMultiplier));
     } else if (skillCtx?.checkAstra) {
-      const astra = skillCtx.checkAstra(unit, skillCtx.skillsData);
+      const astra = skillCtx.checkAstra(
+        unit,
+        skillCtx.skillsData,
+        procMultiplierOf(unit === attacker ? skillCtx.atkMods : skillCtx.defMods),
+      );
       if (astra.triggered) {
         count = astra.strikeCount;
         phaseMultiplier = astra.damageMult;

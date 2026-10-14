@@ -20,6 +20,7 @@ import { RUN_START_BLESSING_EFFECTS } from '../src/engine/RunStartBlessingEffect
 import { SHRINE_BOON_TYPES } from '../src/engine/ShrineBoons.js';
 import { EARNED_BOON_TYPES } from '../src/engine/EarnedBoons.js';
 import { TWISTED_BOON_TYPES, TWISTED_TWIST_TYPES } from '../src/engine/TwistedBoons.js';
+import { TRADE_BOON_TYPES, TRADE_TWIST_TYPES } from '../src/engine/TradeBoons.js';
 import { ACT_SEQUENCE, XP_STAT_NAMES } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
@@ -1412,6 +1413,8 @@ describe('the handler table', () => {
     ...EARNED_BOON_TYPES,
     ...TWISTED_BOON_TYPES,
     ...TWISTED_TWIST_TYPES,
+    ...TRADE_BOON_TYPES,
+    ...TRADE_TWIST_TYPES,
     'battle_last_stand',
     'first_kill_heal',
     'first_turn_mov_delta',

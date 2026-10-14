@@ -15,6 +15,9 @@
 //   (first_turn_mov_delta) the same timed buff the turn-1 pipeline gives the army
 //                          (BattleBlessings.blessingTurnStartEffects), ending as turn 1's enemy
 //                          phase starts. A join on a later turn is owed nothing.
+//   Forced March, Bulwark  "Every unit +1 Move" / "-1 Move": OWED, the same uid-keyed battle
+//   (army_mov_delta)       delta the army started with (TradeBoons.unitArmyMovBattleDeltas,
+//                          source 'army_move'), taken back with the army's at the battle's end.
 //   Lingering Injury       a burden on one named unit (uid-keyed in `battleDebuffs`): NOT owed.
 //   (burden `wounded`)
 //
@@ -34,6 +37,7 @@ import { blessingTurnStartEffects } from './BattleBlessings.js';
 import { applyBattleStartDebuffs, battleDeltaSourcesOf } from './BattleStatDeltas.js';
 import { shrineBoonsOf, unitMoveTypeBattleDeltas } from './ShrineBoons.js';
 import { applyTimedBuffEntry } from './TimedWeaponArtBuffs.js';
+import { armyMovDeltaOf, unitArmyMovBattleDeltas } from './TradeBoons.js';
 
 /**
  * The battle-start effects `unit` is owed as it joins the player army.
@@ -57,9 +61,10 @@ export function battleJoinBoons({
   if (!unit || unit.faction !== 'player') return { deltas: [], buffs: [] };
   const carried = new Set(battleDeltaSourcesOf(unit));
   const deltas = run
-    ? unitMoveTypeBattleDeltas(unit, shrineBoonsOf(run).moveTypeBattleStats, classes).filter(
-        (delta) => !carried.has(delta.source),
-      )
+    ? [
+        ...unitMoveTypeBattleDeltas(unit, shrineBoonsOf(run).moveTypeBattleStats, classes),
+        ...unitArmyMovBattleDeltas(unit, armyMovDeltaOf(run)),
+      ].filter((delta) => !carried.has(delta.source))
     : [];
   const buffs = blessingTurnStartEffects([unit], battleBlessings, turn).map(
     (effect) => effect.entry,

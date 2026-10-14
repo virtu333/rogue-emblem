@@ -40,7 +40,16 @@ function isBelow25(unit) {
   return unit.currentHP <= Math.floor(unit.stats.HP / 4);
 }
 
-export function getActivationChance(unit, activation) {
+export function getActivationChance(unit, activation, multiplier = 1) {
+  const chance = baseActivationChance(unit, activation);
+  // Gambler's Edge (a player unit's procs, engine/TradeBoons.js): the odds scaled, at most 100.
+  // 'always' is 100 either way.
+  const scale = Number(multiplier);
+  if (!(Number.isFinite(scale) && scale > 0) || scale === 1) return chance;
+  return Math.min(100, Math.floor(chance * scale + 1e-9));
+}
+
+function baseActivationChance(unit, activation) {
   switch (activation) {
     case 'SKL':
       return unit.stats.SKL;
@@ -453,7 +462,14 @@ export function getSkillCombatMods(
  * Roll per-strike skill effects after a hit lands.
  * Returns: { modifiedDamage, heal, lethal, astra, activated: [{id, name}] }
  */
-export function rollStrikeSkills(attacker, normalDamage, target, skillsData, combatState = null) {
+export function rollStrikeSkills(
+  attacker,
+  normalDamage,
+  target,
+  skillsData,
+  combatState = null,
+  procMultiplier = 1,
+) {
   const result = {
     modifiedDamage: normalDamage,
     heal: 0,
@@ -481,7 +497,7 @@ export function rollStrikeSkills(attacker, normalDamage, target, skillsData, com
     const skill = getSkill(skillId, skillsData);
     if (!skill || skill.trigger !== 'on-attack') continue;
 
-    const chance = getActivationChance(attacker, skill.activation);
+    const chance = getActivationChance(attacker, skill.activation, procMultiplier);
     const roll = Math.random() * 100;
     if (roll >= chance) continue;
 
@@ -583,6 +599,7 @@ export function rollDefenseSkills(
   skillsData,
   liveHP = null,
   marksData = null,
+  procMultiplier = 1,
 ) {
   const result = {
     modifiedDamage: damage,
@@ -609,7 +626,7 @@ export function rollDefenseSkills(
     const skill = getSkill(skillId, skillsData);
     if (!skill || skill.trigger !== 'on-defend') continue;
 
-    const chance = getActivationChance(defender, skill.activation);
+    const chance = getActivationChance(defender, skill.activation, procMultiplier);
     // Pavise gets a minimum 5% proc floor so it stays relevant on low-SKL units
     const effectiveChance = skill.id === 'pavise' ? Math.max(chance, 5) : chance;
     const roll = Math.random() * 100;
@@ -661,7 +678,7 @@ export function rollDefenseSkills(
  * If triggered, the normal strike count is replaced with 5 at half damage.
  * Returns: { triggered, strikeCount, damageMult, name }
  */
-export function checkAstra(attacker, skillsData) {
+export function checkAstra(attacker, skillsData, procMultiplier = 1) {
   if (!skillsData || isSilenced(attacker)) return { triggered: false };
 
   if (!hasEffectiveSkill(attacker, 'astra')) return { triggered: false };
@@ -669,7 +686,7 @@ export function checkAstra(attacker, skillsData) {
   const skill = getSkill('astra', skillsData);
   if (!skill) return { triggered: false };
 
-  const chance = getActivationChance(attacker, skill.activation);
+  const chance = getActivationChance(attacker, skill.activation, procMultiplier);
   if (Math.random() * 100 >= chance) return { triggered: false };
 
   return { triggered: true, strikeCount: 5, damageMult: 0.5, name: 'Astra' };

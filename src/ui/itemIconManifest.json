@@ -572,7 +572,21 @@
     "blessing-darkened_dawn": [307, 5, 4],
     "blessing-blood_covenant": [212, 5, 4],
     "blessing-kingmakers_oath": [308, 5, 4],
-    "blessing-hollow_sun_favor": [220, 5, 4]
+    "blessing-hollow_sun_favor": [220, 5, 4],
+    "blessing-chronicle_ii": [301, 5, 4],
+    "blessing-kingmakers_oath_ii": [308, 5, 4],
+    "blessing-hollow_sun_favor_ii": [220, 5, 4],
+    "blessing-forced_march": [188, 5, 4],
+    "blessing-bulwark": [185, 5, 4],
+    "blessing-way_of_the_art": [327, 5, 4],
+    "blessing-gamblers_edge": [218, 5, 4],
+    "blessing-the_chosen_few": [310, 5, 4],
+    "blessing-the_levy": [305, 5, 4],
+    "blessing-stone_vow": [197, 5, 4],
+    "blessing-collectors_eye": [302, 5, 4],
+    "blessing-featherweight": [184, 5, 4],
+    "blessing-reckless_edge": [316, 5, 4],
+    "blessing-shield_wall": [198, 5, 4]
   },
   "aliases": {
     "greycord": "gravesong",
@@ -613,6 +627,20 @@
     "blessing-darkened_dawn": "upgrade-vision_charges_3",
     "blessing-blood_covenant": "vampires-bloodshard",
     "blessing-kingmakers_oath": "upgrade-legendary_heir",
-    "blessing-hollow_sun_favor": "diamond-medallion"
+    "blessing-hollow_sun_favor": "diamond-medallion",
+    "blessing-chronicle_ii": "upgrade-studied_training",
+    "blessing-kingmakers_oath_ii": "upgrade-legendary_heir",
+    "blessing-hollow_sun_favor_ii": "diamond-medallion",
+    "blessing-forced_march": "swiftsoles",
+    "blessing-bulwark": "dracoshield",
+    "blessing-way_of_the_art": "upgrade-art_adept",
+    "blessing-gamblers_edge": "gamblers-coin",
+    "blessing-the_chosen_few": "upgrade-partner_choice",
+    "blessing-the_levy": "upgrade-deploy_limit",
+    "blessing-stone_vow": "shield-ring",
+    "blessing-collectors_eye": "upgrade-trinket_collector",
+    "blessing-featherweight": "speedwing",
+    "blessing-reckless_edge": "upgrade-lethal_armory_killer",
+    "blessing-shield_wall": "barrier-ring"
   }
 }

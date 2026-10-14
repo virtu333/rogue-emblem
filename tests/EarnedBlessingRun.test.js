@@ -14,15 +14,21 @@ import { loadGameData } from './testData.js';
 
 const data = loadGameData();
 const EARNED_IDS = ['unbroken_banner', 'second_dawn', 'ember_lantern', 'captains_whistle'];
-// Every earned row (PR C's four, then PR D1's six, then PR D2's five).
+// Every earned row the Compendium shows (PR C's, D1's, D2's and D3's, then the act boss's trade
+// cards of §6.8). The retired rows (weight 0: Ember Lantern, Captain's Whistle and the old
+// Chronicle, Kingmaker's Oath and Hollow Sun's Favor) stay in the data for old saves, unshown.
+const RETIRED_EARNED_IDS = [
+  'ember_lantern',
+  'captains_whistle',
+  'chronicle',
+  'kingmakers_oath',
+  'hollow_sun_favor',
+];
 const ALL_EARNED_IDS = [
   'unbroken_banner',
   'second_dawn',
-  'ember_lantern',
-  'captains_whistle',
   'standard_of_the_sun',
   'hollow_hourglass',
-  'chronicle',
   'tithe_box',
   'lantern_of_the_road',
   'crest_of_the_road',
@@ -33,8 +39,20 @@ const ALL_EARNED_IDS = [
   'seers_eye',
   'darkened_dawn',
   'blood_covenant',
-  'kingmakers_oath',
-  'hollow_sun_favor',
+  'chronicle_ii',
+  'kingmakers_oath_ii',
+  'hollow_sun_favor_ii',
+  'forced_march',
+  'bulwark',
+  'way_of_the_art',
+  'gamblers_edge',
+  'the_chosen_few',
+  'the_levy',
+  'stone_vow',
+  'collectors_eye',
+  'featherweight',
+  'reckless_edge',
+  'shield_wall',
 ];
 
 function freshRun(seed = 21, difficultyId = 'normal') {
@@ -358,8 +376,11 @@ describe('the held list, the card and the Compendium say Earned', () => {
       expect(tiered).toHaveLength(40);
     });
 
-    it('All still lists everything', () => {
-      expect(filteredBy('All')).toHaveLength(data.blessings.blessings.length);
+    it('All lists everything but the retired earned rows', () => {
+      expect(filteredBy('All')).toHaveLength(
+        data.blessings.blessings.length - RETIRED_EARNED_IDS.length,
+      );
+      for (const id of RETIRED_EARNED_IDS) expect(filteredBy('All')).not.toContain(id);
     });
 
     it('a row reads "Earned" at its right edge, not "Tier ?", and the reference summary agrees', () => {

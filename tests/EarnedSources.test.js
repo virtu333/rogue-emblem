@@ -37,6 +37,7 @@ import {
   findEvent,
 } from '../src/engine/EventSystem.js';
 import { EARNED_BOON_TYPES } from '../src/engine/EarnedBoons.js';
+import { TRADE_TWIST_TYPES } from '../src/engine/TradeBoons.js';
 import { planEffects } from '../src/engine/EventEffects.js';
 import { validateEventsConfig } from '../src/engine/EventValidation.js';
 import { chooseEventPlan, choiceGrantsEarned, skipOwedEarnedPick } from './sim/RunPolicies.js';
@@ -269,27 +270,41 @@ describe('each source draws only its own cards', () => {
     // act boss card after it moved to the eclipsed elites.
     const rm = freshRun(15);
     // PR D3's twisted cards are every act boss's (Darkened Dawn and Blood Covenant need the
-    // Eclipse, which this run has).
-    const twisted = ['darkened_dawn', 'blood_covenant', 'kingmakers_oath', 'hollow_sun_favor'];
+    // Eclipse, which this run has); the act boss rework's trade cards follow them. Retired cards
+    // (weight 0: Ember Lantern, Captain's Whistle, the old Chronicle, Kingmaker's Oath and Hollow
+    // Sun's Favor) are in no pool.
+    const twisted = ['darkened_dawn', 'blood_covenant'];
+    const trades = (act) => [
+      ...(act === 'act2' ? ['chronicle_ii'] : []),
+      'kingmakers_oath_ii',
+      'hollow_sun_favor_ii',
+      'forced_march',
+      'bulwark',
+      'way_of_the_art',
+      'gamblers_edge',
+      'the_chosen_few',
+      'the_levy',
+      'stone_vow',
+      ...(act === 'act3' ? [] : ['collectors_eye']),
+      'featherweight',
+      'reckless_edge',
+      'shield_wall',
+    ];
     expect(ids(earnedPoolFor(rm, 'act_boss', { actId: 'act1' }))).toEqual([
       'unbroken_banner',
-      'ember_lantern',
-      'captains_whistle',
       'standard_of_the_sun',
       ...twisted,
+      ...trades('act1'),
     ]);
     expect(ids(earnedPoolFor(rm, 'act_boss', { actId: 'act2' }))).toEqual([
       'unbroken_banner',
-      'ember_lantern',
-      'captains_whistle',
-      'chronicle',
       ...twisted,
+      ...trades('act2'),
     ]);
     expect(ids(earnedPoolFor(rm, 'act_boss', { actId: 'act3' }))).toEqual([
       'unbroken_banner',
-      'ember_lantern',
-      'captains_whistle',
       ...twisted,
+      ...trades('act3'),
     ]);
     expect(ids(earnedPoolFor(rm, 'eclipsed_elite'))).toEqual([
       'second_dawn',
@@ -321,8 +336,9 @@ describe('each source draws only its own cards', () => {
       }
     }
     expect(seen.act1.has('standard_of_the_sun')).toBe(true);
-    expect(seen.act1.has('chronicle')).toBe(false);
-    expect(seen.act2.has('chronicle')).toBe(true);
+    expect(seen.act1.has('chronicle_ii')).toBe(false);
+    expect(seen.act2.has('chronicle_ii')).toBe(true);
+    for (const set of Object.values(seen)) expect(set.has('chronicle')).toBe(false);
     expect(seen.act2.has('standard_of_the_sun')).toBe(false);
     for (const set of Object.values(seen)) expect(set.has('second_dawn')).toBe(false);
   });
@@ -352,21 +368,25 @@ describe('each source draws only its own cards', () => {
     expect(ids(earnedPoolFor(back, 'act_boss'))).not.toContain('standard_of_the_sun');
   });
 
-  it('a pair holds at most one twisted card, and a twisted card never drops from an elite', () => {
-    // Failure: an act boss offers "two curses", or a twisted card reaches a source that has no
-    // room for its warning (an elite's one-card drop, the sanctum).
+  it('an offer may hold several twisted cards, and a twisted card never drops from an elite', () => {
+    // Failure: the old one-curse-per-pair rule still holds the draw back (every act boss card
+    // carries a cost now), or a twisted card reaches a source that has no room for its warning
+    // (an elite's one-card drop, the sanctum).
     const heavy = (id) => twisted(id, { weight: 50 });
     const gameData = withCards(heavy('curse_a'), heavy('curse_b'), heavy('curse_c'));
     const rm = freshRun(18, { gameData });
-    let pairs = 0;
+    let offers = 0;
+    let several = 0;
     for (let seed = 1; seed <= 400; seed++) {
       rm.runSeed = seed;
       const roll = rollActBossEarnedOffer(rm);
-      if (roll.status !== 'owed') continue;
-      pairs++;
-      expect(roll.offered.filter((id) => id.startsWith('curse_')).length).toBeLessThanOrEqual(1);
+      expect(roll.status).toBe('owed');
+      offers++;
+      expect(roll.offered).toHaveLength(3);
+      if (roll.offered.filter((id) => id.startsWith('curse_')).length > 1) several++;
     }
-    expect(pairs).toBe(400);
+    expect(offers).toBe(400);
+    expect(several).toBeGreaterThan(0);
     expect(ids(earnedPoolFor(rm, 'eclipsed_elite')).some((id) => id.startsWith('curse_'))).toBe(
       false,
     );
@@ -481,6 +501,10 @@ describe('the validator reads the earned fields', () => {
         // PR D3's own twist types (engine/TwistedBoons.js).
         'eclipse_gain_multiplier_delta',
         'master_seals_forbidden',
+        // The act boss rework: The Chosen Few's deploy cut and the trade cards' costs
+        // (engine/TradeBoons.js).
+        'deploy_cap_delta',
+        ...TRADE_TWIST_TYPES,
       ].sort(),
     );
   });

@@ -345,7 +345,12 @@ export class CompendiumOverlay {
         // Only lords met in some slot (Edric and Sera always); memoized per show().
         return (this._lordsItems ||= metLords(gd.lords, metLordNamesAcrossSlots()));
       case 'blessings':
-        return gd.blessings?.blessings || [];
+        // A retired earned card (weight 0: Ember Lantern, Captain's Whistle, the old Chronicle,
+        // Kingmaker's Oath and Hollow Sun's Favor, kept only so old saves load) is never shown:
+        // the reworked cards that took its name are.
+        return (gd.blessings?.blessings || []).filter(
+          (b) => !(b?.earned === true && b.weight === 0),
+        );
       case 'terrain':
         return gd.terrain || [];
       case 'affixes':
