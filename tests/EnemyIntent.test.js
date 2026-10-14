@@ -387,3 +387,66 @@ describe('EnemyIntent: foes that will not move', () => {
     expect(ai.aggressiveMode).toBe(false); // the battle's AI is untouched
   });
 });
+
+describe("EnemyIntent: the Entity's Grasping Limbs (live and preview agree)", () => {
+  // The Entity's body at cols 1-3, rows 2-4; a limb at (9,3). The Entity strikes within 3 of
+  // its body or beside a living limb (EntitySystem.canEntityStrike).
+  const entityAt = (col, row) =>
+    unit('enemy', col, row, {
+      name: 'The Entity',
+      className: 'Entity',
+      isEntity: true,
+      isBoss: true,
+      mov: 0,
+      weaponName: 'Eldritch Grasp',
+      stats: { HP: 120, STR: 24, MAG: 22, SKL: 20, SPD: 12, DEF: 22, RES: 20, LCK: 15, MOV: 0 },
+      currentHP: 120,
+    });
+  const limbAt = (col, row, extra = {}) =>
+    unit('enemy', col, row, {
+      name: 'Grasping Limb',
+      className: 'Grasping Limb',
+      _summonedBy: 'entity:limb',
+      mov: 0,
+      weaponName: 'Grasping Coil',
+      stats: { HP: 22, STR: 18, SKL: 14, SPD: 8, DEF: 12, RES: 8, MOV: 0 },
+      ...extra,
+    });
+  const board = ({ limb = {}, fogHidesLimb = false } = {}) => {
+    const grid = makeGrid(plainLayout(14, 8));
+    if (fogHidesLimb) {
+      grid.fogEnabled = true;
+      grid.isVisible = (col, row) => !(col === 9 && row === 3);
+    }
+    const entity = entityAt(1, 2);
+    const knight = unit('player', 13, 7, { name: 'Knight', weaponName: 'Iron Bow' });
+    const world = { enemies: [entity, limbAt(9, 3, limb)], players: [knight], npcs: [] };
+    return { grid, entity, knight, world };
+  };
+  const entityPreview = (b, col, row) => predict(b.grid, b.world, b.knight, col, row).get(b.entity);
+  const entityLive = async (b, col, row) =>
+    (await playEnemyPhase(b.grid, b.world, b.knight, col, row)).get('The Entity') || null;
+
+  it('a mover set down beside a visible living limb is struck, in both', async () => {
+    const b = board();
+    expect(entityPreview(b, 10, 3)).toMatchObject({ kind: 'attack', target: b.knight });
+    expect(await entityLive(b, 10, 3)).toEqual({ kind: 'attack', target: 'Knight' });
+  });
+
+  it('a mover set down out of every reach is not, in both', async () => {
+    const b = board();
+    expect(entityPreview(b, 11, 3)).toMatchObject({ kind: 'none', target: null });
+    expect(await entityLive(b, 11, 3)).toBeNull();
+  });
+
+  it('a dead limb lends no reach, in both', async () => {
+    const b = board({ limb: { currentHP: 0 } });
+    expect(entityPreview(b, 10, 3)).toMatchObject({ kind: 'none', target: null });
+    expect(await entityLive(b, 10, 3)).toBeNull();
+  });
+
+  it('a limb the fog hides lends the preview nothing (it would name an unseen foe)', () => {
+    const b = board({ fogHidesLimb: true });
+    expect(entityPreview(b, 10, 3)).toMatchObject({ kind: 'none', target: null });
+  });
+});
