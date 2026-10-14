@@ -2812,6 +2812,27 @@
       }
     },
     {
+      "id": "sword_toppling_cut",
+      "name": "Toppling Cut",
+      "weaponType": "Sword",
+      "tierAffinity": "Steel",
+      "unlockAct": "act2",
+      "requiredRank": "Prof",
+      "hpCost": 6,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "description": "Finds where the weight leans: the bigger the foe, the deeper it bites.",
+      "combatMods": {
+        "foeMaxHpShare": 0.15,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Toppling Cut"
+          }
+        ]
+      }
+    },
+    {
       "id": "lance_override",
       "name": "Override",
       "weaponType": "Lance",

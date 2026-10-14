@@ -666,6 +666,7 @@ export const UPGRADE_ICON_REUSE = Object.freeze({
 export const WEAPON_ICON_REUSE = Object.freeze({
   Greycord: 'gravesong',
   "Hunter's Focus Scroll": 'encloser-scroll',
+  'Toppling Cut Scroll': 'lunge-scroll',
 });
 
 /**

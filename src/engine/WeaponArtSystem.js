@@ -621,6 +621,8 @@ export function getWeaponArtCombatMods(art) {
     ignoreRES: Boolean(mods.ignoreRES),
     // Lunar Brace: a share of the foe's DEF added to a physical strike (Combat.strikeDamage).
     foeDefShare: normalizeFoeDefShare(mods.foeDefShare),
+    // Toppling Cut: a share of the foe's max HP added to the strike (Combat.strikeDamage).
+    foeMaxHpShare: normalizeFoeDefShare(mods.foeMaxHpShare),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
 }

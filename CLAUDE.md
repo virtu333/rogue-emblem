@@ -59,10 +59,10 @@ emblem-rogue/
 │   ├── recruits.json      # Recruit pools by act (act1-act4) + namePool
 │   ├── referenceViewer.json # Reference viewer config: formulas, weapon ranks, game version
 │   ├── setPieces.json     # Set pieces (docs/specs/event-set-pieces.md; v2 keys: act-v-descent §9.2): authored, scaled, seeded maps an event battle names (`setPiece`): the Toll-House, the Toll Crossing; the Descent's first passes (`acts: ['finalBoss']`): the Old Kings' Stair, the Mortuary Column, the Vigil (four Circle Adept Voices, the Waking's sigil `waking: true`), the Glass
-│   ├── skills.json        # 70 skills across 8 trigger types
+│   ├── skills.json        # 71 skills across 8 trigger types (the Entity's innate Unfathomed: foes fighting it proc skills and crit at half odds, `ENTITY_PROC_RATE_MULT` / `ENTITY_CRIT_RATE_MULT`; boss-tier classes learn only innate skills)
 │   ├── terrain.json       # 19 terrain types (incl. Ice, Lava Crack, Floor, Pillar, Ballista, Swamp, Bog, Acidic Swamp/Bog)
 │   ├── turnBonus.json     # Turn par calculation config
-│   ├── weaponArts.json    # 91 weapon arts across 8 weapon types: HP-cost combat mods, `area` blocks (radius, line, around-attacker, cone, arc; a chosen-center `leap`), post-combat moves (incl. `dash`); the legendary rework is docs/specs/legendary-arts-rework.md
+│   ├── weaponArts.json    # 92 weapon arts across 8 weapon types: HP-cost combat mods (incl. `foeDefShare`, Lunar Brace, and `foeMaxHpShare`, Toppling Cut: a share of the foe's max HP after its DEF), `area` blocks (radius, line, around-attacker, cone, arc; a chosen-center `leap`), post-combat moves (incl. `dash`); the legendary rework is docs/specs/legendary-arts-rework.md
 │   ├── weapons.json       # 136 weapons across 8 types (incl. Restore cure staff, enemy-only status staves, lord personal weapons)
 │   └── whetstones.json    # 5 whetstones: Silver (choice), Might, Crit, Hit, Weight
 ├── src/

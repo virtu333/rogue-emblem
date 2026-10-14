@@ -640,6 +640,13 @@
     "classInnate": "Dragon Lord"
   },
   {
+    "id": "unfathomed",
+    "name": "Unfathomed",
+    "description": "Foes fighting it trigger skills and land crits half as often",
+    "trigger": "passive",
+    "classInnate": "Entity"
+  },
+  {
     "id": "measured_step",
     "name": "Measured Step",
     "description": "Use remaining movement after a noncombat action. Not after fighting.",

@@ -45,7 +45,9 @@ export function getActivationChance(unit, activation, multiplier = 1) {
   const chance = baseActivationChance(unit, activation);
   // Gambler's Edge (a player unit's procs, engine/TradeBoons.js): the odds scaled, at most 100.
   // 'always' is 100 either way.
+  // Unfathomed (the Entity) scales below 1; an 'always' skill is no proc and keeps its 100.
   const scale = Number(multiplier);
+  if (activation === 'always') return chance;
   if (!(Number.isFinite(scale) && scale > 0) || scale === 1) return chance;
   return Math.min(100, Math.floor(chance * scale + 1e-9));
 }

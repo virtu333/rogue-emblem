@@ -11,6 +11,7 @@ import {
   DARK_CLASSES,
   ENTITY_CRIT_RATE_MULT,
   ENTITY_CRIT_DMG_MULT,
+  ENTITY_PROC_RATE_MULT,
   ENTITY_PRIMARY_ATTACK_RANGE,
 } from '../utils/constants.js';
 import { gridDistance, thornsReflectDamage } from './CombatGeometry.js';
@@ -212,6 +213,12 @@ function normalizeCombatFoeDefShare(value) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
+/** A share of the foe's max HP a strike adds as damage (Toppling Cut); 0 when absent. */
+function normalizeCombatFoeMaxHpShare(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.min(1, n) : 0;
+}
+
 /**
  * A side's damage scale (`damageScale`, a share of 1 or less: The Levy's 0.9), 1 when absent or
  * malformed. Never above 1: a raise has its own key (`damageMultiplier`).
@@ -240,6 +247,16 @@ export function scaleDealtDamage(damage, mods) {
 function procMultiplierOf(mods) {
   const n = Number(mods?.procChanceMultiplier);
   return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+/**
+ * A side's proc odds multiplier in a combat against `foe`: its own (`procMultiplierOf`) and,
+ * when the foe is the Entity, Unfathomed's halving (ENTITY_PROC_RATE_MULT). The Entity's own
+ * procs are never halved: only the units fighting it pay.
+ */
+function sideProcMultiplier(mods, foe) {
+  const own = procMultiplierOf(mods);
+  return isEntity(foe) ? own * ENTITY_PROC_RATE_MULT : own;
 }
 
 /** A Hit rating as a roll's input: 0 to 100. */
@@ -284,6 +301,7 @@ function normalizeCombatMods(mods) {
     ignoreWeaponTriangle: Boolean(mods.ignoreWeaponTriangle),
     ignoreRES: Boolean(mods.ignoreRES),
     foeDefShare: normalizeCombatFoeDefShare(mods.foeDefShare),
+    foeMaxHpShare: normalizeCombatFoeMaxHpShare(mods.foeMaxHpShare),
     firstStrikeHitBonus: Math.trunc(Number(mods.firstStrikeHitBonus) || 0),
     activated: Array.isArray(mods.activated) ? [...mods.activated] : [],
   };
@@ -334,6 +352,7 @@ export function mergeCombatMods(baseMods, extraMods) {
     ignoreWeaponTriangle: base.ignoreWeaponTriangle || extra.ignoreWeaponTriangle,
     ignoreRES: base.ignoreRES || extra.ignoreRES,
     foeDefShare: base.foeDefShare + extra.foeDefShare,
+    foeMaxHpShare: Math.min(1, base.foeMaxHpShare + extra.foeMaxHpShare),
     firstStrikeHitBonus: base.firstStrikeHitBonus + extra.firstStrikeHitBonus,
     activated: [...base.activated, ...extra.activated],
   };
@@ -966,6 +985,18 @@ function foeDefShareBonus(
 }
 
 /**
+ * Toppling Cut's bonus (`foeMaxHpShare`): floor(share × the foe's max HP) added to the
+ * strike after its DEF or RES, so it lands even on a foe the weapon cannot scratch. Physical
+ * or magic alike. Max HP, not current: the same bite on every bar of a boss.
+ */
+function foeMaxHpShareBonus(defender, atkMods) {
+  const share = Number(atkMods?.foeMaxHpShare) || 0;
+  const maxHp = Number(defender?.stats?.HP) || 0;
+  if (!(share > 0) || !(maxHp > 0)) return 0;
+  return Math.floor(maxHp * share + 1e-9);
+}
+
+/**
  * One strike's damage before crits, procs and multi-hit (what the forecast shows and
  * resolveCombat rolls from): attack with the art/skill/imbue mods in `atkMods`, minus
  * the defender's DEF or RES, terrain, weapon stat bonuses and `defMods`. Deterministic.
@@ -1004,6 +1035,7 @@ export function strikeDamage(
   );
   damage += getCombatStatScalingBonus(attacker, atkMods);
   damage += foeDefShareBonus(defender, atkWeapon, defWeapon, defTerrain, atkMods, defMods);
+  damage += foeMaxHpShareBonus(defender, atkMods);
   if (atkMods?.vengeance) damage += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) damage = Math.floor(damage / 2);
   if (atkMods?.damageMultiplier > 1) damage = Math.floor(damage * atkMods.damageMultiplier);
@@ -1093,6 +1125,7 @@ export function artFollowUpStrike(
         halveDefense,
       },
     );
+    dmg += foeMaxHpShareBonus(target, strikerMods);
     if (strikerMods?.vengeance) dmg += getMissingHp(striker);
     if (targetMods?.halfPhysicalDamage && isPhysical(strikerWeapon)) dmg = Math.floor(dmg / 2);
     if (strikerMods?.damageMultiplier > 1) dmg = Math.floor(dmg * strikerMods.damageMultiplier);
@@ -2113,6 +2146,7 @@ export function resolveCombat(
   atkLunaDmg += foeDefShareBonus(defender, atkWeapon, defWeapon, defTerrain, atkMods, defMods, {
     halveDefense: true,
   });
+  atkLunaDmg += foeMaxHpShareBonus(defender, atkMods);
   if (atkMods?.vengeance) atkLunaDmg += getMissingHp(attacker);
   if (defMods?.halfPhysicalDamage && isPhysical(atkWeapon)) atkLunaDmg = Math.floor(atkLunaDmg / 2);
   if (atkMods?.damageMultiplier > 1) atkLunaDmg = Math.floor(atkLunaDmg * atkMods.damageMultiplier);
@@ -2274,8 +2308,8 @@ export function resolveCombat(
         marksData: skillCtx.marksData || null,
         combatState: combatSkillState,
         // Gambler's Edge: each side's own procs (its odds scaled), on-defend ones the target's.
-        procMultiplier: procMultiplierOf(skillCtx.atkMods),
-        targetProcMultiplier: procMultiplierOf(skillCtx.defMods),
+        procMultiplier: sideProcMultiplier(skillCtx.atkMods, defender),
+        targetProcMultiplier: sideProcMultiplier(skillCtx.defMods, attacker),
       }
     : null;
   const defStrikeSkills =
@@ -2294,8 +2328,8 @@ export function resolveCombat(
           skillsData: skillCtx.skillsData,
           marksData: skillCtx.marksData || null,
           combatState: combatSkillState,
-          procMultiplier: procMultiplierOf(skillCtx.defMods),
-          targetProcMultiplier: procMultiplierOf(skillCtx.atkMods),
+          procMultiplier: sideProcMultiplier(skillCtx.defMods, attacker),
+          targetProcMultiplier: sideProcMultiplier(skillCtx.atkMods, defender),
         }
       : null;
 
@@ -2495,7 +2529,9 @@ export function resolveCombat(
       const astra = skillCtx.checkAstra(
         unit,
         skillCtx.skillsData,
-        procMultiplierOf(unit === attacker ? skillCtx.atkMods : skillCtx.defMods),
+        unit === attacker
+          ? sideProcMultiplier(skillCtx.atkMods, defender)
+          : sideProcMultiplier(skillCtx.defMods, attacker),
       );
       if (astra.triggered) {
         count = astra.strikeCount;
