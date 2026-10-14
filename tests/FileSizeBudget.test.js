@@ -13,12 +13,13 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = path.resolve(__dirname, '..');
 
-// Tightened 2026-10-13 after #379 and #380 landed: each file's count on main rounded up to
-// the next hundred, with no slack for open pull requests. A PR that needs room extracts
-// first, or raises the budget here with its reason.
+// Tightened 2026-10-14 once the October release batch was on main: each file's count there
+// rounded up to the next hundred, with no slack for open pull requests. BattleScene sat on a
+// round 12,100, so it keeps the next hundred above it rather than a budget with no room at all.
+// A PR that needs room extracts first, or raises the budget here with its reason.
 const BUDGETS = {
-  'src/scenes/BattleScene.js': 12100,
-  'src/engine/RunManager.js': 6600,
+  'src/scenes/BattleScene.js': 12200,
+  'src/engine/RunManager.js': 6700,
   'src/scenes/NodeMapScene.js': 2700,
   // The harness's copy of the scene's state machine: a rule moved to src/engine/ deletes
   // its copy here, it never grows a second one.
