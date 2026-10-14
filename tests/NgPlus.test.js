@@ -24,6 +24,7 @@ import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js'
 import { getMetaKey } from '../src/engine/SlotManager.js';
 import { learnSkill } from '../src/engine/UnitManager.js';
 import { requiredRunFormat } from '../src/engine/RunFormat.js';
+import { slotKindFor, swornOathSkillId } from '../src/engine/SkillSlots.js';
 import { INVENTORY_MAX } from '../src/utils/constants.js';
 import {
   BRING_LIMIT,
@@ -1014,5 +1015,32 @@ describe('two managers on one slot never lose or undo each other’s NG+ changes
       x.name,
       y.name,
     ]);
+  });
+});
+
+describe('a kept Oath', () => {
+  it('can be kept, and comes back as an ordinary skill with the Oath slot free', () => {
+    // Pins the rule as built (the owner's Oath decision): the sworn Oath is keepable; in the
+    // next run it is an ordinary skill, never locked in the Oath slot, and the unit has sworn
+    // nothing yet.
+    const meta = unlockedMeta();
+    const rm = wonRun();
+    const fighter = addRecruit(rm);
+    learnSkill(fighter, 'pavise');
+    fighter.deeds = {
+      ...(fighter.deeds || {}),
+      oath: { deedId: 'dev_deed', skillId: 'pavise', name: 'Test Oath', className: 'Fighter' },
+    };
+    const candidate = rideCandidates(rm).find((c) => c.ref === fighter.unitUid);
+    expect(candidate.skills).toContain('pavise');
+    winRun(rm, meta);
+    expect(meta.chooseNgPlusRide([{ ref: fighter.unitUid, skillId: 'pavise' }]).ok).toBe(true);
+    const vet = meta.getNgPlus().barracks.find((r) => r.kind === 'recruit');
+    expect(meta.setNgPlusBring([vet.id]).ok).toBe(true);
+    const next = startNgPlus(meta, 24);
+    const unit = next.roster.find((u) => u.name === vet.name);
+    expect(unit.skills).toContain('pavise');
+    expect(swornOathSkillId(unit)).toBeNull();
+    expect(slotKindFor(unit, 'pavise', data.skills)).not.toBe('oath');
   });
 });
