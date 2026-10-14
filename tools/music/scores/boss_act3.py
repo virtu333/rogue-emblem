@@ -1,8 +1,8 @@
 """Act III boss — "The Perfect Duel".
 
-The Blade Lord, the Iron Wall, the Berserker King: the Lieutenant's own
-champions. E minor at a sprint. The violins fence in sixteenth-note runs and
-the brass answer blade for blade; then, for eight bars, the Lieutenant's
+The Blade Lord's theme (the Iron Wall and the Berserker King have their
+own): the Lieutenant's own champion. E minor at a sprint. The violins fence
+in sixteenth-note runs and the brass answer blade for blade; then, for eight bars, the Lieutenant's
 sign appears for the first time: the Thread's rhythm falling instead of
 rising, shadowed a tritone away, E minor against B-flat, a future split in two.
 """
@@ -92,9 +92,7 @@ def build():
     for bar in (5, 13, 21, 29):
         b.hit(bar)
     b.riser(35, beats=8)
-    # enrage layers: one boss-specific behaviour each (scores/_enrage.py)
+    # the Blade Lord's enrage layer (scores/_enrage.py)
     loop = [b.sections[k] for k in ['A', 'A2', 'B', 'A3', 'build']]
     _enrage.blade_lord(b, loop)
-    _enrage.iron_wall(b, loop)
-    _enrage.berserker_king(b, loop)
     return b.finish()

@@ -122,6 +122,11 @@ describe('BattleMusicController', () => {
     const { audio, scene } = makeScene();
     const ctrl = new BattleMusicController(scene);
     for (const [name, act] of [
+      ['Warchief', 'act1'],
+      ['Knight Commander', 'act2'],
+      ['Archmage', 'act2'],
+      ['Iron Wall', 'act3'],
+      ['Berserker King', 'act3'],
       ['The Emperor', 'act4'],
       ['The Lieutenant', 'finalBoss'],
     ]) {
@@ -132,11 +137,18 @@ describe('BattleMusicController', () => {
     }
   });
 
-  it('uses the act boss theme for other bosses', () => {
+  it("plays a boss's own theme, else the act's boss theme", () => {
     const { scene } = makeScene();
     const ctrl = new BattleMusicController(scene);
+    expect(ctrl.create({ act: 'act3', isBoss: true, bossName: 'Iron Wall' })).toBe(
+      'music_boss_iron_wall',
+    );
+    // the act's theme is the Blade Lord's own
     expect(ctrl.create({ act: 'act3', isBoss: true, bossName: 'Blade Lord' })).toBe(
       MUSIC.boss.act3,
+    );
+    expect(ctrl.create({ act: 'act1', isBoss: true, bossName: 'Captain Varro' })).toBe(
+      MUSIC.boss.act1,
     );
   });
 

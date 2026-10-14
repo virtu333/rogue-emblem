@@ -1,6 +1,7 @@
 """Act II boss — "Doctrine of Lances".
 
-The Knight Commander, the Archmage, the Dark Rider: the Empire's officers.
+The Dark Rider's theme (the Knight Commander and the Archmage have their
+own): the Empire's officers' doctrine, and the rider who carries its orders.
 F minor at a charge, everything cut 3+3+2 like couched lances. The brass
 doctrine marches in dotted quarters; the violins answer with the Thread in
 A-flat major; the C strain belongs to the black rider (a chromatic crawl in
@@ -98,9 +99,7 @@ def build():
     for bar in (5, 13, 21, 29):
         b.hit(bar)
     b.riser(35, beats=8)
-    # enrage layers: one boss-specific behaviour each (scores/_enrage.py)
+    # the Dark Rider's enrage layer (scores/_enrage.py)
     loop = [b.sections[k] for k in ['A', 'B', 'C', 'D', 'build']]
-    _enrage.knight_commander(b, loop)
-    _enrage.archmage(b, loop)
     _enrage.dark_rider(b, loop)
     return b.finish()

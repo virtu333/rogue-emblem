@@ -15,8 +15,8 @@ export const MUSIC_STINGERS = {
     notesEnd: 2.0,
     duration: 3.539,
   },
-  boss_archmage: { keyed: false, tonics: [], notesEnd: 4.138, duration: 6.137 },
-  boss_berserker_king: { keyed: false, tonics: [], notesEnd: 3.429, duration: 5.253 },
+  boss_archmage: { keyed: false, tonics: [], notesEnd: 4.138, duration: 6.072 },
+  boss_berserker_king: { keyed: false, tonics: [], notesEnd: 3.429, duration: 5.321 },
   boss_blade_lord: { keyed: false, tonics: [], notesEnd: 4.0, duration: 5.616 },
   boss_card: {
     keyed: true,
@@ -33,8 +33,8 @@ export const MUSIC_STINGERS = {
     duration: 4.884,
   },
   boss_iron_captain: { keyed: false, tonics: [], notesEnd: 4.138, duration: 4.962 },
-  boss_iron_wall: { keyed: false, tonics: [], notesEnd: 5.0, duration: 6.588 },
-  boss_knight_commander: { keyed: false, tonics: [], notesEnd: 3.636, duration: 5.165 },
+  boss_iron_wall: { keyed: false, tonics: [], notesEnd: 5.0, duration: 6.626 },
+  boss_knight_commander: { keyed: false, tonics: [], notesEnd: 3.636, duration: 5.387 },
   boss_lieutenant_card: { keyed: false, tonics: [], notesEnd: 4.8, duration: 6.281 },
   boss_warchief: { keyed: false, tonics: [], notesEnd: 4.0, duration: 5.861 },
   deed: {

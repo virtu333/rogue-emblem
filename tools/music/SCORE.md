@@ -120,29 +120,37 @@ it was heard when the wound was dealt).
 | `music_colosseum` | The Pit Answers | A dorian, 3+3+2: a fiddle calls, the crowd answers... then a few voices, then nobody |
 | `music_shrine` | What the Sun Kept | Blessing select. G major 3/4, harp and celesta, Lydian gold; the hymn still stops on the leading tone |
 | `music_explore_deep` | The Loom: Unlight | The last act's route map: Act I's loom with its notes taken away in three stages over a D drone |
-| `music_boss_act1` | The Border Holds | Empire march in octaves against the Thread |
-| `music_boss_act2` | Doctrine of Lances | F minor, everything 3+3+2; the black rider's chromatic crawl |
-| `music_boss_act3` | The Perfect Duel | E minor duel; the Lieutenant's sign appears |
+| `music_boss_act1` | The Border Holds | The Iron Captain (and any boss without a theme of its own: the prologue's Captain Varro). Empire march in octaves against the Thread |
+| `music_boss_warchief` | Breaker of Treaties | The Warchief. 152 bpm, D Phrygian minor: **the treaty in four, broken into seven, and bled to minor**. Two ways home to D: the treaty (a D major brass chorale in square 4/4 half notes, the piece's only major key and only leading tone) rises by C-sharp; the clans (7/8, 2+2+3, every group head stamped by taiko and bass drum, never 3+3+2, low celli sawing D D, E-flat D, D D E-flat under everything) fall by E-flat, every cadence bII–i. Their war song (A D, D E-flat F; over i, iv and a bare A ground against B-flat; a tritone leap to E-flat falling to D) on horns with trombones growling under, then sung by the clan's low choir while the fiddle laughs in falling minor thirds; each phrase ends on a band-stop "HAH!" (brass, the clan and the drums on the open fifth, trumpets snarling a semitone over it); the axe strain chops e e q q. over i, bVI, bII and a bare A with its flat ninth, an anvil and semitone tremolos, its last HAH dropping into near-silence. Out of it the treaty comes once, muted and far off, in D major, a phrase long; the seven swallows it and it goes on in four over the seven (timpani on its half notes, taiko the seven, realigning every 28 beats) while the clans bleed it to minor with low chants and trombone clusters (D, E-flat, A), until its held C-sharp grinds against E-flat, the brass stamp E-flat, a beat and a half of silence, and the war song crashes back on D |
+| `music_boss_knight_commander` | The Doctrine and Its Ledger | The Knight Commander. 6/8 at dotted quarter = 101, B-flat minor: a **doctrine and its ledger**. The doctrine is a slow horn-and-trombone tune whose head is the tonic, the flat second's sigh (C-flat back to B-flat over the tonic pedal) and a leap to his faith, the E-natural, now the tritone (a tubular bell rings it), climbing through a hemiola, every dominant with its flat ninth, over low strings sawing eighths up to C-flat and trumpet clusters on the held notes; the card's long-short-short is the riders' hooves (timpani, field drum). The ledger opens on a cut (tam-tam, a B-flat/C-flat/E stroke): a low choir sings the doctrine while the accompaniment loses a voice every two bars, the bell tolling the tritone for each, down to the field drum and a violin shiver on B-flat and C-flat. The second push climbs a step every two bars in the low brass over a bass rising by semitones B-flat to F through minor, bare and diminished chords, trumpets stabbing minor seconds; the tutti return ends on G-flat over G-flat with a tam-tam and the flat-ninth dominant drives back in: nothing resolves |
+| `music_boss_archmage` | The Sums Still Balance | The Archmage, Act II. 152 bpm, E minor: a **palindrome** (E F# G B, A G F# D#, a low climb to C, then the same notes back; the card's figure slowed down) built from a line and its counterpoint in thirds and sixths, so the tune started at its middle page is a strict crab canon (the fold: violins against horns, trombones and celli, over a palindromic harmony); a marimba works a sum in sixteenths, each group one note longer (3 … 10, 12, then over), played backwards by the celesta in the fold; a second tune that counts (one note in its first bar … eight in its last); under it all BEING FED, a low swell (the basses' E, the tuba's F, the trombones' B-flat, oohs, a timpani roll) that grows every strain and is never answered, until the turn, where the tune is stuck on its first bar and the swell is cut dead on beat 3: the card's figure taps twice and the loop restarts clean |
+| `music_boss_act2` | Doctrine of Lances | The Dark Rider. F minor, everything 3+3+2; the black rider's chromatic crawl |
+| `music_boss_act3` | The Perfect Duel | The Blade Lord. E minor duel; the Lieutenant's sign appears |
+| `music_boss_iron_wall` | The Order That Never Came | Act III boss, the Holder of the Breach. 112 bpm, D-flat minor (Phrygian, written C-sharp minor): **a pedal that will not move**, one low C-sharp (basses, the organ's pedal, the sub; the tuba in the last strain) under the whole loop, the celli and violas sawing at it in eighths then sixteenths and pricking it with the Phrygian D above; every chord grinds on it (D minor a minor ninth up, A minor, A-sharp diminished, G minor a tritone away). The tune marches low in horns and trombones (half note, two quarters), down the tonic chord in two-bar cells, each note struck twice with the semitone above pressing on it, then falling a tritone; it ends unresolved on G. At each strain's end a distant trumpet sounds the order to fall back (an F-sharp minor bugle call) and the wall (a dissonant brass and percussion hit) cuts it off sooner each time (five notes, four, three, two). Between: a men's chant on hammered fifths and semitones, a static hammer riff (C-sharp struck, D held against it, G a tritone below) under choir and trumpet clusters, a near-silent strain (tritone oohs, a timpani heartbeat, a growing trombone cluster), then the tune with everyone, the men's choir on the melody |
+| `music_boss_berserker_king` | Frightened Acclaim | The Berserker King. Orchestral metal in A Phrygian that accelerates from 150 to 180 over the loop: the King's two-bar riff on A never changes, while his court (a low choir, horns and organ) sings a D-minor coronation anthem in the same seven notes, ever faster (half notes, then quarters with an eighth-note gabble over them), never reaching its tonic: its last A, D minor's dominant, is taken as the King's root on a B♭-A Phrygian cadence; the crowning drops back to 150 for the anthem as written over crushed chords. |
 | `music_boss_emperor` | Human, Powerful, and Wrong | Organ chorale, imperial anthem, the Thread over the drill |
 | `music_boss_lieutenant` | Every Future You Could Reach | Canon a tritone apart; the player's battle theme returns against his motif; in the last strain Sera's violin answers him once with his own falling line, without the shadow |
 | `music_boss_entity` | · · · | A hole in the music: hum, a heartbeat losing beats, the Thread with notes missing; one clear Thread from the player's violin. No choir, no brass, under battle loudness (−19 LUFS). Plays until the Entity's first wound |
 | `music_boss_entity_finale` | All of Us Across | The Entity's finale (above): 12/8, Ember Dusk augmented, the choir, the Thread completed by everyone; ends on the leading tone. `_hum` is the Entity's stem under it, its level set by the Entity's HP |
 
-Every boss theme also ships one **enrage layer per boss** (`<theme>_enrage_<boss>`),
-rendered on the same timeline. When turn pressure enrages the boss the game
-crossfades to it: one boss-specific behaviour, not a generic louder-and-faster
-(`scores/_enrage.py`).
+Every boss has a theme of its own: the three act themes belong to the Iron Captain,
+the Dark Rider and the Blade Lord, and the Warchief, the Knight Commander, the Archmage,
+the Iron Wall and the Berserker King each have their own score. Every boss theme ships its
+boss's **enrage layer** (`<theme>_enrage_<boss>`), rendered on the same timeline. When
+turn pressure enrages the boss the game crossfades to it: one boss-specific behaviour,
+not a generic louder-and-faster (`scores/_enrage.py` for the shared themes; a boss's own
+score writes its layer itself).
 
 | Boss | Encounter card (`stinger_boss_*`) | Enrage layer |
 |---|---|---|
 | Iron Captain | the Empire drill returning to its post (D, not B-flat) | the drill doubles: 16th snare, stamped low brass |
-| Warchief | taiko 3+3+2 under horn open fifths, a low clan hum | the clan joins: taiko throughout, horn fifths and hum on the tonic |
-| Knight Commander | imperial arpeggio, hard leading-tone cadence, gallop | the gallop doubles, trumpet arpeggio charges |
-| Archmage | a celesta calculation corrected a semitone at a time | the calculation accelerates in 16ths, corrected every other bar |
+| Warchief | taiko 3+3+2 under horn open fifths, a low clan hum | the whole clan stamps every 2+2+3 head (taiko, bass drum, trombones roaring open fifths over a ground semitone), straight through the treaty's moment of major |
+| Knight Commander | imperial arpeggio, hard leading-tone cadence, gallop | lances level: the hooves become a taiko-and-bass-drum stampede on every stride, even under the doctrine and through the ledger; horn-and-trombone charge calls at each phrase over snare rolls |
+| Archmage | a celesta calculation corrected a semitone at a time | it answers: a low E–F cluster and bass drum on every downbeat, a breath swelling into the next |
 | Dark Rider | a gallop leaning on the semitone above the root, then a tritone | the root crawls to the note above and back, under everything |
 | Blade Lord | two clipped neighbour notes and a long dangerous rest | no more rests: the strings cut without pause |
-| Iron Wall | augmented low brass; the lower neighbour cannot move the tonic | the bass finally moves: a walking line |
-| Berserker King | the clan cell compressed into blows | blows on every beat: taiko, bass drum, marcato brass |
+| Iron Wall | augmented low brass; the lower neighbour cannot move the tonic | the wall stops waiting: low-brass, taiko and bass-drum blows land in every bar, shaped to each strain, men's shouts in the call bars and the quiet strain; the order to fall back is never heard |
+| Berserker King | the clan cell compressed into blows | blows on every beat, always on A: taiko, bass drum, marcato trombones and tuba, a guitar octave, under the court's chords too |
 | The Emperor | the anthem's leading-tone cadence, then the flat-second collapse | every chord rots: the low brass land a semitone above its root and fall onto it |
 | The Lieutenant | his motif and its shadow; the player's Thread cut off | he is a beat ahead: the shadow comes first; the player's own melody sounds a beat early |
 | The Entity | no card music: the theme drains to near-silence | no enrage layer: turn pressure starts its finale (if no wound has yet) |
@@ -217,7 +225,7 @@ points, so a change of layer is a sample-aligned crossfade: the music never rest
 
 A battle's music answers the most specific thing true of it (`engine/BattleMusicSelection.js`):
 
-1. a boss plays its theme (the antagonists' own, else the act's);
+1. a boss plays its own theme (an act's theme for a boss without one);
 2. an escape map plays a pursuit theme;
 3. a node the Eclipse has taken plays Totality; a village under attack, Bells Over the Village;
    a recruit rescue, a rescue theme; an elite company, its act's own: Against the Standard

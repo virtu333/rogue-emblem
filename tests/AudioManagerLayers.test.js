@@ -169,8 +169,8 @@ describe('AudioManager — extra layers (a boss enrage layer)', () => {
   });
 
   it('opens on the enrage layer when the intensity was set first (a resumed battle)', async () => {
-    const theme = 'music_boss_act2';
-    const layer = 'music_boss_act2_enrage_archmage';
+    const theme = 'music_boss_archmage';
+    const layer = 'music_boss_archmage_enrage_archmage';
     const sound = makeSound([theme, layer]);
     const audio = new AudioManager(sound);
     audio.setMusicIntensity('enrage', 0);
