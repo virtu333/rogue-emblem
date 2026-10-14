@@ -3,13 +3,13 @@
 A four-note celesta figure (D-E-F-A) repeats; every second repetition one
 note is corrected a semitone (A to Ab, E to Eb, D to Db) so the sum never
 comes out the same. A muted horn and a glockenspiel mark each correction.
-In the key of the Act II boss theme.
+In the key of his own theme, The Sums Still Balance (E minor).
 """
 
 from stingers._common import cue
 
 KEYED = False
-TONIC = 'F'
+TONIC = 'E'
 
 
 def build(transpose=0):
