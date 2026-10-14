@@ -118,8 +118,19 @@ function sceneWorld(players, enemies) {
     scene.battleState = 'BATTLE_END';
   };
   scene.awardScaledXP = async () => {};
+  const revealed = [];
+  scene.grid.revealContact = (tiles) => revealed.push(...tiles);
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   return {
+    revealed,
+    turnStart: async (units, turn) => {
+      scene.turnManager.turnNumber = turn;
+      await scene.processTurnStartEffects(units);
+    },
+    enemyTurnStart: async (turn) => {
+      scene.turnManager.turnNumber = turn;
+      await scene.processTurnStartEffects(scene.enemyUnits);
+    },
     gold: () => scene.goldEarned,
     // The scene pays kill gold only inside a run.
     inRun: () => {
@@ -147,8 +158,19 @@ function harnessWorld(players, enemies) {
     getMoveCost: () => 1,
     updateFogOfWar() {},
   };
+  const revealed = [];
+  battle.grid.revealContact = (tiles) => revealed.push(...tiles);
   battle._grantScaledXP = () => {};
   return {
+    revealed,
+    turnStart: async (units, turn) => {
+      battle.turnManager.turnNumber = turn;
+      battle._processTurnStartEffects(units);
+    },
+    enemyTurnStart: async (turn) => {
+      battle.turnManager.turnNumber = turn;
+      battle._processTurnStartEffects(battle.enemyUnits);
+    },
     gold: () => battle.goldEarned,
     inRun: () => {},
     attack: async (attacker, defender) => {
@@ -250,5 +272,87 @@ describe.each(WORLDS)('Epic weapons through %s', (_label, makeWorld) => {
     expect(foe.currentHP).toBe(0);
     const plain = calculateKillReward(foe, null, { rewardMultiplier: 1 });
     expect(world.gold() - before).toBe(plain + 150);
+  });
+
+  it('Frightened Acclaim strikes 3 harder after a kill this battle', async () => {
+    const edric = makeEdric('Frightened Acclaim');
+    const first = makeFoe('First', 1, { hp: 1, lck: 25 });
+    const second = makeFoe('Second', 1, { row: 2, lck: 25 });
+    const world = makeWorld([edric], [first, second, bystander()]);
+    await world.attack(edric, first);
+    expect(first.currentHP).toBe(0);
+    expect(edric._epicBattleKills).toBe(1);
+    edric.row = 2;
+    await world.attack(edric, second);
+    // 12 + 11 - 4 = 19, + 3 for the kill.
+    expect(second.currentHP).toBe(60 - 22);
+  });
+
+  it('Tallyblade notches each kill and gains on the fourth', async () => {
+    const edric = makeEdric('Tallyblade');
+    const before = { might: edric.weapon.might, crit: edric.weapon.crit, hit: edric.weapon.hit };
+    const foes = [0, 2, 4, 6].map((row) => makeFoe(`F${row}`, 1, { hp: 1, row }));
+    const world = makeWorld([edric], [...foes, bystander()]);
+    for (const [i, target] of foes.entries()) {
+      edric.row = target.row;
+      await world.attack(edric, target);
+      expect(target.currentHP).toBe(0);
+      expect(edric.weapon._tally.kills).toBe(i + 1);
+    }
+    const w = edric.weapon;
+    const gained = (w.might - before.might) * 5 + (w.crit - before.crit) + (w.hit - before.hit);
+    // One gain in four kills: +1 Mt (counted as 5 here), +5 Crit or +5 Hit.
+    expect(gained).toBe(5);
+  });
+
+  it('Gorgemaw is fed by a kill and goes hungry the turn after it does not kill', async () => {
+    const edric = makeEdric('Gorgemaw', { hp: 40 });
+    const foe = makeFoe('Target', 1, { hp: 1 });
+    const world = makeWorld([edric], [foe, bystander()]);
+    await world.attack(edric, foe);
+    expect(foe.currentHP).toBe(0);
+    await world.turnStart([edric], 2);
+    expect(edric.currentHP).toBe(40);
+    // Turn 3: nothing killed on turn 2. 15% of 40 = 6.
+    await world.turnStart([edric], 3);
+    expect(edric.currentHP).toBe(34);
+  });
+
+  it('Holder of the Breach slows the foe beside it as the enemy phase starts', async () => {
+    const edric = makeEdric('Holder of the Breach');
+    const beside = makeFoe('Beside', 1);
+    const far = makeFoe('Far', 3);
+    const world = makeWorld([edric], [beside, far, bystander()]);
+    // The army's own phase start slows nobody.
+    await world.turnStart([edric], 2);
+    expect(beside.stats.MOV).toBe(5);
+    await world.enemyTurnStart(2);
+    expect(beside.stats.MOV).toBe(3);
+    expect(far.stats.MOV).toBe(5);
+  });
+
+  it('Wakelight keeps the foe it hits shown, and Hollowsong is stamped once it strikes', async () => {
+    const edric = makeEdric('Wakelight');
+    const foe = makeFoe('Target', 2);
+    const world = makeWorld([edric], [foe, bystander()]);
+    await world.attack(edric, foe);
+    // MAG 12 + 5 - RES 3 = 14.
+    expect(foe.currentHP).toBe(46);
+    expect(world.revealed).toEqual([{ col: 2, row: 0 }]);
+    const sage = makeEdric('Hollowsong');
+    const other = makeFoe('Other', 2);
+    const second = makeWorld([sage], [other, bystander()]);
+    await second.attack(sage, other);
+    expect(other.currentHP).toBe(60 - (12 + 13 - 3));
+    expect(sage.weapon._epicBattleUsed).toBe(true);
+  });
+
+  it('Futuresold strikes with its +2 Atk', async () => {
+    const edric = makeEdric('Futuresold');
+    const foe = makeFoe('Target', 1, { lck: 25 });
+    const world = makeWorld([edric], [foe, bystander()]);
+    await world.attack(edric, foe);
+    // 12 + 12 + 2 - 4 = 22.
+    expect(foe.currentHP).toBe(38);
   });
 });

@@ -1,6 +1,7 @@
 import { skipsClassProgression, normalizeSpecialCharacter } from './SpecialCharacterPolicy.js';
 import { createVeteranKnight } from './SpecialCharacters.js';
 import { validateBattleState } from './BattleStateSnapshot.js';
+import { epicVictoryTerms, settleEpicVictory } from './EpicWeapons.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
 import {
@@ -4352,7 +4353,9 @@ export class RunManager {
         hunted: !bossNode && (lockedConfig ? isHuntedBattle(lockedConfig) : true),
       },
     });
-    const eclipseCommit = this._commitBattleShadow(node, options, settlement.extraShadow);
+    const epicTerms = epicVictoryTerms(survivingUnits); // Hollowsong's shadow (EpicWeapons.js)
+    const shadowAdded = settlement.extraShadow + epicTerms.shadow;
+    const eclipseCommit = this._commitBattleShadow(node, options, shadowAdded);
     // The Rite's words from this battle (the Vigil's, a node's par), committed here and nowhere
     // else, once: the node is open (checked above), so a battle won twice counts nothing twice.
     this._commitBattleRite(node, lockedConfig, options);
@@ -4443,6 +4446,7 @@ export class RunManager {
     this.winStreak++;
     if (this.winStreak > this.maxWinStreak) this.maxWinStreak = this.winStreak;
     this.awardGold(settlement.gold);
+    this.lastEpicVictory = settleEpicVictory(this, nodeId, epicTerms, eclipseCommit); // Futuresold
     // A wound whose unit fell (or left) in this battle ends with it: nobody carries it on.
     this.burdens = pruneGoneWounds(settlement.burdens, this.roster);
     const bannerWound = this._takeBannerWound(this.roster[bannerHeldIndex], nodeId);

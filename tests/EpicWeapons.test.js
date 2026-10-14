@@ -6,10 +6,24 @@ import { loadGameData } from './testData.js';
 import {
   epicAfterCombatSteps,
   epicCombatMods,
+  recordEpicCombat,
+  tallyKill,
+  tallyOf,
   unlockedTrophyNames,
   validateWeaponRules,
 } from '../src/engine/EpicWeapons.js';
-import { getSkillCombatMods } from '../src/engine/SkillSystem.js';
+import { getSkillCombatMods, getTurnStartEffects } from '../src/engine/SkillSystem.js';
+import { cantoAllowance, cantoRuleFor } from '../src/engine/CantoRule.js';
+import { unitVisionRange } from '../src/engine/Grid.js';
+import {
+  weaponChangeBlocked,
+  weaponSwapLockReason,
+  weaponSwapLocked,
+} from '../src/engine/WeaponSwapLock.js';
+import { stampArmyBattleRules } from '../src/engine/TradeBoons.js';
+import { getAttackWeapons } from '../src/engine/AttackOptions.js';
+import { serializeUnit } from '../src/engine/UnitSerialization.js';
+import { applyTimedBuffEntry, expireTimedBuffs } from '../src/engine/TimedWeaponArtBuffs.js';
 import { getEffectivenessMultiplier } from '../src/engine/Combat.js';
 import { stampTurnAnchors } from '../src/engine/TurnAnchor.js';
 import { generateLootChoices, generateShopInventory } from '../src/engine/LootSystem.js';
@@ -51,10 +65,18 @@ const mods = (me, them, { initiating = true, allies = [], terrain = null, turn =
   getSkillCombatMods(me, them, allies, [them], data.skills, terrain, initiating, null, { turn });
 
 describe('the Epic tier in data', () => {
-  it('has fifteen Epic weapons, each with a price and either rules or a range of its own', () => {
+  it('has twenty-three Epic weapons, each with a price and either rules or a range of its own', () => {
     expect(epics.map((w) => w.name).sort()).toEqual(
       [
         'Cinderstring',
+        'Frightened Acclaim',
+        'Futuresold',
+        'Gorgemaw',
+        'Holder of the Breach',
+        'Hollowsong',
+        'Second Push',
+        'Tallyblade',
+        'Wakelight',
         'Haulhook',
         'Mirrorglass',
         'Parrying Blade',
@@ -87,6 +109,14 @@ describe('the Epic tier in data', () => {
     expect(bad([{ kind: 'mods', tag: 'X', mods: { stealBonus: 2 } }])[0]).toMatch(/combat mod/);
     expect(bad([{ kind: 'afterCombat', effect: 'pull', onlyWhen: 'always' }])[0]).toMatch(/starts/);
     expect(bad([{ kind: 'effective', classNames: ['Dragon'], multiplier: 3 }])[0]).toMatch(/label/);
+    expect(bad([{ kind: 'slowAdjacentFoes', mov: 2 }])[0]).toMatch(/below 0/);
+    expect(bad([{ kind: 'turnStartToll', percent: 100 }])[0]).toMatch(/1 to 99/);
+    expect(bad([{ kind: 'grows', every: 4, gains: { weight: 1 } }])[0]).toMatch(/gains/);
+    expect(bad([{ kind: 'canto', tiles: 0 }])[0]).toMatch(/tiles/);
+    expect(bad([{ kind: 'victoryUpkeep', gold: 200, extra: 1 }])[0]).toMatch(/unknown key/);
+    expect(bad([{ kind: 'mods', tag: 'X', per: 'battleKill', mods: { atkBonus: 3 } }])[0]).toMatch(
+      /cap/,
+    );
   });
 
   it('the data check refuses an Epic weapon in a shop pool and an unknown class or boss', () => {
@@ -338,5 +368,176 @@ describe('Epic weapons in the loot', () => {
     // 1600 battles' worth of cards: a find is an event, not a staple.
     expect(found).toBeGreaterThan(0);
     expect(found).toBeLessThan(1600 * 0.2);
+  });
+});
+
+// The second batch's rules (spec §2 "PR B"). Each test names the failure it catches; the numbers
+// are the data's (weapons.json), worked by hand.
+describe('battle-long rules', () => {
+  it('Second Push moves 2 tiles after a fight, never after a plain action or when rooted', () => {
+    // Failure: no Canto (the rule unread), Canto after a move with no fight, or past a root.
+    const me = unit('Second Push');
+    expect(cantoAllowance(me, 0, { afterCombat: true })).toBe(2);
+    expect(cantoAllowance(me, 5, { afterCombat: false })).toBe(0);
+    expect(cantoRuleFor(me)).toBe('any');
+    expect(cantoAllowance(unit('Silver Lance'), 3, { afterCombat: true })).toBe(0);
+    me._conditions = [{ id: 'root', turnsRemaining: 2 }];
+    expect(cantoAllowance(me, 0, { afterCombat: true })).toBe(0);
+    // Its catch: -10 Avoid in every combat.
+    expect(mods(unit('Second Push'), foe()).avoidBonus).toBe(-10);
+  });
+
+  it('Wakelight sees 2 tiles further in the fog', () => {
+    const plain = unitVisionRange(unit('Brilliance'), null);
+    expect(unitVisionRange(unit('Wakelight'), null)).toBe(plain + 2);
+  });
+
+  it('Frightened Acclaim grows +3 Atk a kill this battle, up to +9', () => {
+    // Failure: the count unread, uncapped, or kept past the battle.
+    const me = unit('Frightened Acclaim');
+    expect(mods(me, foe()).atkBonus).toBe(0);
+    me._epicBattleKills = 2;
+    expect(mods(me, foe()).atkBonus).toBe(6);
+    me._epicBattleKills = 7;
+    expect(mods(me, foe()).atkBonus).toBe(9);
+    expect(serializeUnit(me)).not.toHaveProperty('_epicBattleKills');
+  });
+
+  it('Frightened Acclaim stays in hand in battle, and only there', () => {
+    // Failure: the lock leaking to the roster, or a battle lock that lets the axe be put down.
+    const me = unit('Frightened Acclaim', { inventory: [] });
+    const other = weapon('Iron Axe');
+    me.inventory = [me.weapon, other];
+    me.proficiencies = [{ type: 'Axe', rank: 'Mast' }];
+    expect(weaponSwapLocked(me)).toBe(false);
+    expect(getAttackWeapons(me).map((w) => w.name)).toEqual(['Frightened Acclaim', 'Iron Axe']);
+    stampArmyBattleRules([me], {});
+    expect(weaponSwapLocked(me)).toBe(true);
+    expect(weaponChangeBlocked(me, other)).toBe(true);
+    expect(weaponSwapLockReason(me)).toMatch(/Frightened Acclaim can't leave/);
+    expect(getAttackWeapons(me).map((w) => w.name)).toEqual(['Frightened Acclaim']);
+    // Holding the Iron Axe instead, the unit may take the Acclaim up (then it holds).
+    me.weapon = other;
+    expect(weaponChangeBlocked(me, me.inventory[0])).toBe(false);
+    expect(serializeUnit(me)).not.toHaveProperty('_inBattle');
+  });
+
+  it('Tallyblade notches every kill and rolls a gain every fourth, the same for the same blade', () => {
+    // Failure: a gain off the 4-kill beat, Math.random rolls (a rewind rolls another gain), a cap.
+    const blade = { ...weapon('Tallyblade'), uid: 'itm_tally_a' };
+    const copy = structuredClone(blade);
+    const base = { might: blade.might, crit: blade.crit, hit: blade.hit };
+    for (let i = 0; i < 3; i++) expect(tallyKill(blade)).toBeNull();
+    Math.random = () => {
+      throw new Error('Math.random drawn');
+    };
+    const gain = tallyKill(blade);
+    expect(gain).not.toBeNull();
+    expect({ might: 1, crit: 5, hit: 5 }[gain.stat]).toBe(gain.amount);
+    for (let i = 0; i < 4; i++) tallyKill(copy);
+    expect(copy[gain.stat]).toBe(blade[gain.stat]);
+    // Uncapped: 400 kills are 100 gains, spread over the three stats.
+    for (let i = 4; i < 400; i++) tallyKill(blade);
+    const tally = tallyOf(blade);
+    expect(tally.kills).toBe(400);
+    expect(tally.might + tally.crit / 5 + tally.hit / 5).toBe(100);
+    expect([tally.might, tally.crit, tally.hit].every((n) => n > 0)).toBe(true);
+    expect(blade.might - base.might).toBe(tally.might);
+    expect(blade.crit - base.crit).toBe(tally.crit);
+    expect(blade.hit - base.hit).toBe(tally.hit);
+    expect(itemKeywords(blade).map((t) => t.text)).toEqual(['Tally 400 kills']);
+  });
+
+  it("Gorgemaw takes 15% of max HP at its wielder's turn start unless it fed last turn", () => {
+    // Failure: a toll on turn 1, a toll after a kill, a toll that kills, or a toll from the bag.
+    const toll = (u, turn) =>
+      getTurnStartEffects([u], data.skills, null, turn).filter((e) => e.type === 'toll');
+    const me = unit('Gorgemaw', { currentHP: 30 });
+    expect(toll(me, 1)).toEqual([]);
+    // 15% of 30 is 4.5: 4.
+    expect(toll(me, 3).map((e) => e.amount)).toEqual([4]);
+    me._epicFedTurn = 2;
+    expect(toll(me, 3)).toEqual([]);
+    expect(toll(me, 4).map((e) => e.amount)).toEqual([4]);
+    expect(toll(unit('Gorgemaw', { currentHP: 2 }), 3).map((e) => e.amount)).toEqual([1]);
+    expect(toll(unit('Gorgemaw', { currentHP: 1 }), 3)).toEqual([]);
+    const carried = unit('Iron Axe');
+    carried.inventory.push(weapon('Gorgemaw'));
+    expect(toll(carried, 3)).toEqual([]);
+    // A kill feeds it for the turn it was made in.
+    const fed = unit('Gorgemaw');
+    recordEpicCombat(fed, { struck: true, killed: true, turn: 5 });
+    expect(fed._epicFedTurn).toBe(5);
+  });
+
+  it('Holder of the Breach slows the foes beside it for their phase, then lets go', () => {
+    // Failure: a slow on a foe two tiles away, a slow that outlives the enemy phase.
+    const holder = unit('Holder of the Breach', { col: 3, row: 3 });
+    const beside = foe({ name: 'Beside', col: 4, row: 3 });
+    const far = foe({ name: 'Far', col: 5, row: 3 });
+    const effects = getTurnStartEffects([beside, far], data.skills, null, 2, [holder]);
+    const slows = effects.filter((e) => e.slow);
+    expect(slows.map((e) => e.target.name)).toEqual(['Beside']);
+    applyTimedBuffEntry(beside, slows[0].entry);
+    expect(beside.stats.MOV).toBe(3);
+    expectTimed([beside], 'enemy', 2, 3);
+    expectTimed([beside], 'player', 3, 5);
+    // No holder on the other side (the army's own phase): nothing.
+    expect(getTurnStartEffects([holder], data.skills, null, 3, [beside]).length).toBe(0);
+  });
+});
+
+function expectTimed(units, phase, turn, mov) {
+  expireTimedBuffs(units, phase, turn);
+  expect(units[0].stats.MOV).toBe(mov);
+}
+
+describe('victory terms', () => {
+  function battleRun() {
+    const run = new RunManager(data);
+    run.startRun({ runSeed: 21, difficultyId: 'dusk', autoSelectBlessing: false });
+    run.chooseBlessing(null);
+    return run;
+  }
+  const firstBattle = (run) => run.getAvailableNodes().find((n) => n.type === 'battle');
+  function win(run, arm) {
+    const units = run.getRoster().map((u) => structuredClone(u));
+    arm?.(units);
+    run.gold = 1000;
+    expect(run.completeBattle(units, firstBattle(run).id, 0, { turnCount: 4, turnPar: 9 })).toBe(
+      true,
+    );
+    return run;
+  }
+
+  it('Futuresold costs 200 gold a victory while the army carries it, convoy included', () => {
+    // Failure: the upkeep unpaid, paid twice, or paid past an empty purse.
+    const plain = win(battleRun()).gold;
+    const carried = win(battleRun(), (units) => units[0].inventory.push(weapon('Futuresold')));
+    expect(carried.gold).toBe(plain - 200);
+    expect(carried.lastEpicVictory.lines).toEqual(['Futuresold −200 G']);
+    const stored = battleRun();
+    stored.convoy.weapons.push(weapon('Futuresold'));
+    expect(win(stored).gold).toBe(plain - 200);
+    expect(win(battleRun()).lastEpicVictory).toBeNull();
+  });
+
+  it('Hollowsong adds a shadow for each battle it struck in, once, and the stamp clears', () => {
+    // Failure: no shadow, shadow from a carried but unused tome, or a stamp kept into the next battle.
+    const shadow = (run) => run.eclipse.shadow;
+    const plain = shadow(win(battleRun()));
+    const idle = shadow(win(battleRun(), (units) => units[0].inventory.push(weapon('Hollowsong'))));
+    expect(idle).toBe(plain);
+    const used = win(battleRun(), (units) => {
+      const tome = weapon('Hollowsong');
+      units[0].inventory.push(tome);
+      units[0].weapon = tome;
+      recordEpicCombat(units[0], { struck: true, killed: false, turn: 2 });
+      expect(tome._epicBattleUsed).toBe(true);
+    });
+    expect(shadow(used)).toBe(plain + 1);
+    expect(used.lastEpicVictory.lines).toEqual(['Hollowsong +1 shadow']);
+    const kept = used.roster[0].inventory.find((w) => w.name === 'Hollowsong');
+    expect(kept._epicBattleUsed).toBeUndefined();
   });
 });

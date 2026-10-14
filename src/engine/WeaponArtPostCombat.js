@@ -13,7 +13,7 @@ import { getFootprint, isEntity } from './EntitySystem.js';
 import { traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { getUnitMarkFor } from './MarkSystem.js';
-import { epicAfterCombatSteps } from './EpicWeapons.js';
+import { epicAfterCombatSteps, keepsCombatRecord } from './EpicWeapons.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
@@ -403,6 +403,22 @@ export function getPostCombatPipelineSteps({
       targetSide: getOpposingSide(side),
       skillIds,
       ...(markId ? { markId } : {}),
+    });
+  }
+
+  // Epic weapons that keep a record of their combats (Tallyblade, Frightened Acclaim, Gorgemaw,
+  // Hollowsong): last of all, so every kill this combat made is read (EpicWeapons.recordEpicCombat).
+  for (const side of SIDE_ORDER) {
+    const unit = side === 'attacker' ? attacker : defender;
+    if (!keepsCombatRecord(unit?.weapon)) continue;
+    const struck =
+      didCombatSideLandHit(result?.events, side, attacker, defender) ||
+      getMissedStrikeCount(result?.events, side, attacker, defender) > 0;
+    steps.push({
+      type: 'epic_combat_record',
+      sourceSide: side,
+      targetSide: getOpposingSide(side),
+      struck,
     });
   }
 

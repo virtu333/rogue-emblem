@@ -48,7 +48,7 @@ export const GENERATED_HELP_TABS = [
             "color": "#ffdd44"
           },
           {
-            "text": "Prof: 174 weapons (0 legendary)",
+            "text": "Prof: 182 weapons (0 legendary)",
             "color": "#66ddff"
           },
           {
@@ -137,7 +137,7 @@ export const GENERATED_MECHANICS_REFERENCE = {
     "rankRequirements": [
       {
         "rank": "Prof",
-        "totalWeapons": 174,
+        "totalWeapons": 182,
         "legendaryWeapons": 0
       },
       {

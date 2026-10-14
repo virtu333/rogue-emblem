@@ -3375,6 +3375,206 @@
     ]
   },
   {
+    "name": "Second Push",
+    "lore": "The Knight Commander never stopped a charge to admire it. Neither will you.",
+    "type": "Lance",
+    "tier": "Epic",
+    "rankRequired": "Prof",
+    "might": 12,
+    "hit": 80,
+    "crit": 0,
+    "weight": 7,
+    "range": "1",
+    "special": "After a fight, may move 2 tiles (Canto); -10 Avoid",
+    "price": 2400,
+    "trophyOf": "Knight Commander",
+    "rules": [
+      {
+        "kind": "canto",
+        "tiles": 2
+      },
+      {
+        "kind": "mods",
+        "tag": "-10 Avoid",
+        "mods": {
+          "avoidBonus": -10
+        }
+      }
+    ]
+  },
+  {
+    "name": "Holder of the Breach",
+    "lore": "The Iron Wall's axe. Too heavy to swing twice; it rarely had to.",
+    "type": "Axe",
+    "tier": "Epic",
+    "rankRequired": "Prof",
+    "might": 13,
+    "hit": 75,
+    "crit": 0,
+    "weight": 15,
+    "range": "1",
+    "special": "Foes beside the wielder as their phase starts have -2 Move for it",
+    "price": 2400,
+    "trophyOf": "Iron Wall",
+    "rules": [
+      {
+        "kind": "slowAdjacentFoes",
+        "mov": -2
+      }
+    ]
+  },
+  {
+    "name": "Frightened Acclaim",
+    "lore": "The Berserker King's crowds cheered louder every kill. They did not dare stop.",
+    "type": "Axe",
+    "tier": "Epic",
+    "rankRequired": "Prof",
+    "might": 11,
+    "hit": 75,
+    "crit": 5,
+    "weight": 9,
+    "range": "1",
+    "special": "+3 Atk for each kill this battle (up to +9); once taken up, it can't be put down in battle",
+    "price": 2400,
+    "trophyOf": "Berserker King",
+    "rules": [
+      {
+        "kind": "mods",
+        "tag": "Per kill: +3 Atk",
+        "per": "battleKill",
+        "cap": 3,
+        "mods": {
+          "atkBonus": 3
+        }
+      },
+      {
+        "kind": "lockedInHand"
+      }
+    ]
+  },
+  {
+    "name": "Futuresold",
+    "lore": "The Emperor bought it with years not yet lived. The debt passes to whoever holds it.",
+    "type": "Sword",
+    "tier": "Epic",
+    "rankRequired": "Prof",
+    "might": 12,
+    "hit": 90,
+    "crit": 5,
+    "weight": 5,
+    "range": "1",
+    "special": "+2 Atk, DEF, RES and Attack Speed, +5 Hit and Avoid; costs 200 gold each victory while the army carries it",
+    "price": 2600,
+    "trophyOf": "The Emperor",
+    "rules": [
+      {
+        "kind": "mods",
+        "tag": "Sold future",
+        "mods": {
+          "atkBonus": 2,
+          "defBonus": 2,
+          "resBonus": 2,
+          "spdBonus": 2,
+          "hitBonus": 5,
+          "avoidBonus": 5
+        }
+      },
+      {
+        "kind": "victoryUpkeep",
+        "gold": 200
+      }
+    ]
+  },
+  {
+    "name": "Tallyblade",
+    "lore": "Plain steel, notched once for every life. Each notch made it a little more certain.",
+    "type": "Sword",
+    "tier": "Epic",
+    "rankRequired": "Prof",
+    "might": 5,
+    "hit": 80,
+    "crit": 0,
+    "weight": 5,
+    "range": "1",
+    "special": "Every 4 kills with it: +1 Mt, +5 Crit or +5 Hit, without end",
+    "price": 1500,
+    "rules": [
+      {
+        "kind": "grows",
+        "every": 4,
+        "gains": {
+          "might": 1,
+          "crit": 5,
+          "hit": 5
+        }
+      }
+    ]
+  },
+  {
+    "name": "Gorgemaw",
+    "lore": "An axe with a mouth worked into the head. It is never fed enough.",
+    "type": "Axe",
+    "tier": "Epic",
+    "rankRequired": "Prof",
+    "might": 15,
+    "hit": 70,
+    "crit": 0,
+    "weight": 10,
+    "range": "1",
+    "special": "Each turn the wielder did not kill in the turn before, it costs 15% of max HP (never the last 1)",
+    "price": 2300,
+    "rules": [
+      {
+        "kind": "turnStartToll",
+        "percent": 15
+      }
+    ]
+  },
+  {
+    "name": "Hollowsong",
+    "lore": "A hymn to the Hollow Sun. It burns well, and something listens when it does.",
+    "type": "Tome",
+    "tier": "Epic",
+    "rankRequired": "Prof",
+    "might": 13,
+    "hit": 80,
+    "crit": 0,
+    "weight": 6,
+    "range": "1-2",
+    "special": "Each battle it is used in adds 1 Eclipse shadow",
+    "price": 2400,
+    "rules": [
+      {
+        "kind": "battleShadow",
+        "shadow": 1
+      }
+    ]
+  },
+  {
+    "name": "Wakelight",
+    "lore": "A watch lamp's prayer. Whatever it touches can't hide in the dark after.",
+    "type": "Light",
+    "tier": "Epic",
+    "rankRequired": "Prof",
+    "might": 5,
+    "hit": 90,
+    "crit": 0,
+    "weight": 3,
+    "range": "1-2",
+    "special": "+2 fog vision; a foe it hits stays shown for the rest of the phase",
+    "price": 1600,
+    "rules": [
+      {
+        "kind": "vision",
+        "bonus": 2
+      },
+      {
+        "kind": "afterCombat",
+        "effect": "reveal"
+      }
+    ]
+  },
+  {
     "name": "Daybreak",
     "lore": "Forged at the first dawn after the Hollow Sun. Old things still flinch from it.",
     "type": "Sword",

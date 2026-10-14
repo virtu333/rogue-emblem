@@ -1335,14 +1335,12 @@ export class HeadlessBattle {
       this.gameData.skills,
       this.gameData.marks,
       this.turnManager?.turnNumber,
+      units === this.enemyUnits ? this.playerUnits : this.enemyUnits, // an Epic slow's holders
     );
     for (const effect of skillEffects) {
-      if (effect.type === 'heal' && effect.target.currentHP < effect.target.stats.HP) {
-        effect.target.currentHP = Math.min(
-          effect.target.stats.HP,
-          effect.target.currentHP + effect.amount,
-        );
-      }
+      if (effect.type === 'heal') healUnit(effect.target, effect.amount);
+      if (effect.type === 'toll')
+        damageUnit(effect.target, effect.amount, { floor: 1, disturbs: false });
     }
     this._applyTurnStartMarkBuffs(skillEffects);
     // (Captain's Whistle is turn 1's alone: _onPhaseChange applies it there, since this runs
@@ -1892,6 +1890,7 @@ export class HeadlessBattle {
       getMoveCost: (col, row, moveType) => this.grid.getMoveCost(col, row, moveType),
       getUnitAt: (col, row) => this.getUnitAt(col, row),
       getTerrainAt: (col, row) => this.grid.getTerrainAt?.(col, row) ?? null,
+      revealContact: (tiles) => this.grid.revealContact?.(tiles), // Wakelight
       hostilesOf: (unit) =>
         unit?.faction === 'enemy' ? this.playerUnits || [] : unit ? this.enemyUnits || [] : [],
       alliesOf: (unit) => this._getDivineChargeAllies(unit),

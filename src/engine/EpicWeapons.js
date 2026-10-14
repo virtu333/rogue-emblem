@@ -9,10 +9,20 @@
 //   afterCombat  WeaponArtPostCombat.getPostCombatPipelineSteps, via epicAfterCombatSteps
 //   killGold     LootSystem.calculateKillReward, via epicKillGold
 //   effective    Combat.getEffectivenessMultiplier, via epicEffectiveness
+//   canto        CantoRule.cantoAllowance (after a combat), via epicCantoTiles
+//   vision       Grid.unitVisionRange, via epicVisionBonus
+//   lockedInHand WeaponSwapLock.weaponSwapLocked (in battle only), via locksInHand
+//   slowAdjacentFoes, turnStartToll
+//                SkillSystem.getTurnStartEffects, via epicTurnStartEffects
+//   grows, battleShadow (and a `per: 'battleKill'` mods rule's count)
+//                PostCombatEffects' `epic_combat_record` step, via recordEpicCombat
+//   victoryUpkeep, battleShadow's commit
+//                RunManager.completeBattle, via epicVictoryTerms / settleEpicVictory
 // Boss trophies (`trophyOf`) join the loot draw through `unlockedTrophyNames`.
 
 import { combatDistance } from './EntitySystem.js';
 import { isHoldingGround } from './TurnAnchor.js';
+import { keyedBattleRandom } from './BattleRng.js';
 
 /** The tier word. Every tier list that picks gear by tier leaves it out on purpose. */
 export const EPIC_TIER = 'Epic';
@@ -43,7 +53,7 @@ export const EPIC_CONDITIONS = Object.freeze([
 ]);
 
 /** What a `mods` rule may scale by (`per`), each capped by `cap`. */
-export const EPIC_SCALERS = Object.freeze(['adjacentAlly']);
+export const EPIC_SCALERS = Object.freeze(['adjacentAlly', 'battleKill']);
 
 /** The after-combat effects, and which of them need the wielder's strike to have landed. */
 export const EPIC_AFTER_COMBAT_EFFECTS = Object.freeze([
@@ -52,6 +62,7 @@ export const EPIC_AFTER_COMBAT_EFFECTS = Object.freeze([
   'status',
   'selfDamage',
   'selfHeal',
+  'reveal',
 ]);
 const AFTER_COMBAT_STATUSES = Object.freeze(['silence', 'root']);
 const ONLY_WHEN = Object.freeze(['initiating', 'always']);
@@ -62,6 +73,14 @@ export const EPIC_RULE_KINDS = Object.freeze([
   'afterCombat',
   'killGold',
   'effective',
+  'canto',
+  'vision',
+  'lockedInHand',
+  'slowAdjacentFoes',
+  'turnStartToll',
+  'grows',
+  'battleShadow',
+  'victoryUpkeep',
 ]);
 
 /** The weapon's rules, as data (an empty list for every weapon without any). */
@@ -148,6 +167,7 @@ function scaleOf(rule, unit, ctx) {
   if (!rule.per) return 1;
   const cap = Math.max(0, Math.trunc(Number(rule.cap) || 0));
   if (rule.per === 'adjacentAlly') return Math.min(cap, adjacentAllyCount(unit, ctx.allies));
+  if (rule.per === 'battleKill') return Math.min(cap, battleKillsOf(unit));
   return 0;
 }
 
@@ -234,6 +254,10 @@ export function epicAfterCombatSteps(weapon, side, { landed = false } = {}) {
         if (!landed || amount <= 0) break;
         steps.push({ type: 'epic_self_heal', sourceSide: side, targetSide: side, amount });
         break;
+      case 'reveal':
+        if (!landed) break;
+        steps.push({ type: 'epic_reveal', sourceSide: side, targetSide: other });
+        break;
       case 'selfDamage':
         if (amount <= 0) break;
         steps.push({
@@ -271,6 +295,244 @@ export function epicEffectiveness(weapon, defender) {
     best = Math.max(best, Math.trunc(Number(rule.multiplier) || 1));
   }
   return best;
+}
+
+// --- Battle-long rules (PR B) ---------------------------------------------------------------
+
+/** Unit fields these rules keep for one battle (UnitSerialization.serializeUnit drops them). */
+export const EPIC_BATTLE_UNIT_FIELDS = Object.freeze(['_epicBattleKills', '_epicFedTurn']);
+/** The weapon's stamp for "used in this battle" (Hollowsong), cleared at the victory commit. */
+export const EPIC_BATTLE_USED_FIELD = '_epicBattleUsed';
+
+function wholeAtLeast(value, min) {
+  return Math.max(min, Math.trunc(Number(value) || 0));
+}
+
+/** Kills this battle the unit made with a weapon that counts them (Frightened Acclaim). */
+export function battleKillsOf(unit) {
+  return wholeAtLeast(unit?._epicBattleKills, 0);
+}
+
+/** The tiles a unit may move after a combat it fought with this weapon (Second Push), else 0. */
+export function epicCantoTiles(weapon) {
+  let tiles = 0;
+  for (const rule of rulesOfKind(weapon, 'canto'))
+    tiles = Math.max(tiles, wholeAtLeast(rule.tiles, 0));
+  return tiles;
+}
+
+/** The fog vision the held weapon adds (Wakelight), else 0. */
+export function epicVisionBonus(weapon) {
+  let bonus = 0;
+  for (const rule of rulesOfKind(weapon, 'vision')) bonus += wholeAtLeast(rule.bonus, 0);
+  return bonus;
+}
+
+/** True for a weapon that cannot leave its bearer's hands in battle (Frightened Acclaim). */
+export function locksInHand(weapon) {
+  return rulesOfKind(weapon, 'lockedInHand').length > 0;
+}
+
+function tollOf(unit, turn) {
+  const rule = rulesOfKind(unit.weapon, 'turnStartToll')[0];
+  if (!rule || !(turn > 1)) return 0;
+  // Fed: the wielder killed in the turn before this one (either phase of it).
+  if (Number(unit._epicFedTurn) === turn - 1) return 0;
+  const max = Number(unit.stats?.HP) || 0;
+  const amount = Math.max(1, Math.floor((max * wholeAtLeast(rule.percent, 0)) / 100));
+  // The toll never kills: the wielder keeps at least 1 HP.
+  return Math.max(0, Math.min(amount, Math.trunc(Number(unit.currentHP) || 0) - 1));
+}
+
+/**
+ * The Epic turn-start effects for the side whose phase starts (`units`), as
+ * SkillSystem.getTurnStartEffects returns them: Gorgemaw's toll on its own wielder
+ * (`{ type: 'toll', target, amount, source }`, through UnitHealth with a floor of 1) and, from
+ * `foes` (the other side), Holder of the Breach's slow on each unit standing beside its
+ * wielder as this phase starts (`{ type: 'buff', slow: true, target, entry, source }`, a
+ * timed MOV buff that ends as the wielder's side's next phase starts). Not skills: Silence
+ * stops neither.
+ */
+export function epicTurnStartEffects(units, foes = [], turn = 1) {
+  const effects = [];
+  const side = Array.isArray(units) ? units.filter((u) => living(u)) : [];
+  for (const unit of side) {
+    const amount = tollOf(unit, turn);
+    if (amount > 0) effects.push({ type: 'toll', target: unit, amount, source: unit.weapon.name });
+  }
+  const slowed = new Set();
+  for (const holder of Array.isArray(foes) ? foes : []) {
+    if (!living(holder) || !onMap(holder)) continue;
+    const rule = rulesOfKind(holder.weapon, 'slowAdjacentFoes')[0];
+    if (!rule) continue;
+    const mov = Math.trunc(Number(rule.mov) || 0);
+    if (mov >= 0) continue;
+    for (const unit of side) {
+      if (slowed.has(unit) || !onMap(unit) || combatDistance(holder, unit) !== 1) continue;
+      slowed.add(unit);
+      effects.push({
+        type: 'buff',
+        slow: true,
+        target: unit,
+        source: holder.weapon.name,
+        entry: {
+          key: `epic_slow::${holder.weapon.name}`,
+          artId: null,
+          sourceName: holder.weapon.name,
+          sourceFaction: holder.faction || null,
+          // Through the slowed side's phase: gone as the holder's side's next phase starts.
+          expiryPhase: holder.faction === 'enemy' ? 'enemy' : 'player',
+          expiryTurn: Math.max(1, Math.trunc(Number(turn) || 1)) + 1,
+          stats: { MOV: mov },
+        },
+      });
+    }
+  }
+  return effects;
+}
+
+/** True when the weapon has a rule the `epic_combat_record` step keeps a count for. */
+export function keepsCombatRecord(weapon) {
+  return weaponRules(weapon).some(
+    (rule) =>
+      rule.kind === 'grows' ||
+      rule.kind === 'battleShadow' ||
+      rule.kind === 'turnStartToll' ||
+      (rule.kind === 'mods' && rule.per === 'battleKill'),
+  );
+}
+
+const GROWTH_STATS = Object.freeze(['might', 'crit', 'hit']);
+const GROWTH_WORDS = Object.freeze({ might: 'Mt', crit: 'Crit', hit: 'Hit' });
+
+/** A growing weapon's record (Tallyblade): kills counted and what they gave, on the instance. */
+export function tallyOf(weapon) {
+  const tally = weapon?._tally;
+  return {
+    kills: wholeAtLeast(tally?.kills, 0),
+    might: wholeAtLeast(tally?.might, 0),
+    crit: wholeAtLeast(tally?.crit, 0),
+    hit: wholeAtLeast(tally?.hit, 0),
+  };
+}
+
+/**
+ * One kill for a growing weapon: counted on the instance, and every `every`th kill rolls one
+ * of its gains (+Might, +Crit or +Hit), added to the weapon as a forge adds. The roll is keyed
+ * by the weapon's uid and the kill's number (never Math.random), so a rewind or a reload that
+ * replays the kill rolls the same gain. Returns `{ stat, amount }` for a gain, else null.
+ */
+export function tallyKill(weapon) {
+  const rule = rulesOfKind(weapon, 'grows')[0];
+  if (!rule) return null;
+  const tally = tallyOf(weapon);
+  tally.kills += 1;
+  let gain = null;
+  const every = wholeAtLeast(rule.every, 1);
+  if (tally.kills % every === 0) {
+    const key = `tally:${weapon.uid || weapon.name}:${tally.kills}`;
+    const stat = GROWTH_STATS[Math.floor(keyedBattleRandom(0, key)() * GROWTH_STATS.length)];
+    const amount = wholeAtLeast(rule.gains?.[stat], 0);
+    if (amount > 0) {
+      weapon[stat] = (Number(weapon[stat]) || 0) + amount;
+      tally[stat] += amount;
+      gain = { stat, amount };
+    }
+  }
+  weapon._tally = tally;
+  return gain;
+}
+
+/**
+ * What one combat leaves on a side's weapon and wielder (PostCombatEffects `epic_combat_record`,
+ * last in the pipeline): Hollowsong is stamped as used when its side struck; a kill (read as
+ * on-kill skills read it) counts for Frightened Acclaim, feeds Gorgemaw for the turn and
+ * notches the Tallyblade. Returns the hints to float over the wielder.
+ */
+export function recordEpicCombat(unit, { struck = false, killed = false, turn = null } = {}) {
+  const hints = [];
+  const weapon = unit?.weapon;
+  if (!weapon || !living(unit)) return hints;
+  if (struck && rulesOfKind(weapon, 'battleShadow').length > 0)
+    weapon[EPIC_BATTLE_USED_FIELD] = true;
+  if (!killed) return hints;
+  const counted = rulesOfKind(weapon, 'mods').find((rule) => rule.per === 'battleKill');
+  if (counted) {
+    const before = battleKillsOf(unit);
+    unit._epicBattleKills = before + 1;
+    if (before < wholeAtLeast(counted.cap, 0)) hints.push({ text: counted.tag, tone: 'buff' });
+  }
+  if (rulesOfKind(weapon, 'turnStartToll').length > 0 && Number.isFinite(Number(turn)))
+    unit._epicFedTurn = Math.trunc(Number(turn));
+  const gain = tallyKill(weapon);
+  if (gain)
+    hints.push({ text: `${weapon.name} +${gain.amount} ${GROWTH_WORDS[gain.stat]}`, tone: 'buff' });
+  return hints;
+}
+
+function weaponsOf(unit) {
+  const out = [];
+  for (const item of [unit?.weapon, ...(Array.isArray(unit?.inventory) ? unit.inventory : [])]) {
+    if (item && typeof item === 'object' && !out.includes(item)) out.push(item);
+  }
+  return out;
+}
+
+/**
+ * The victory's terms from the battle's survivors, read before the shadow is committed:
+ * the Eclipse shadow of each weapon stamped as used this battle (Hollowsong), by name.
+ */
+export function epicVictoryTerms(survivors) {
+  const shadowBy = {};
+  let shadow = 0;
+  for (const unit of Array.isArray(survivors) ? survivors : []) {
+    for (const weapon of weaponsOf(unit)) {
+      if (weapon[EPIC_BATTLE_USED_FIELD] !== true) continue;
+      for (const rule of rulesOfKind(weapon, 'battleShadow')) {
+        const add = wholeAtLeast(rule.shadow, 0);
+        shadow += add;
+        shadowBy[weapon.name] = (shadowBy[weapon.name] || 0) + add;
+      }
+    }
+  }
+  return { shadow, shadowBy };
+}
+
+/**
+ * The rest of the victory's terms, after the gold is paid: each weapon with an upkeep
+ * (Futuresold) the army carries (the roster's bags and the convoy) costs its gold, as much as
+ * the purse holds; and every "used this battle" stamp is cleared. `eclipseCommit` is the
+ * Eclipse's commit record (none while it is off: then no shadow line). Returns `{ nodeId, upkeep, lines }` for
+ * the victory band, or null when nothing was settled.
+ */
+export function settleEpicVictory(run, nodeId = null, terms = null, eclipseCommit = null) {
+  const shadowShown = Boolean(eclipseCommit);
+  const carried = [
+    ...(Array.isArray(run?.roster) ? run.roster.flatMap(weaponsOf) : []),
+    ...(Array.isArray(run?.convoy?.weapons) ? run.convoy.weapons : []),
+  ];
+  for (const unit of Array.isArray(run?.fallenUnits) ? run.fallenUnits : [])
+    for (const weapon of weaponsOf(unit)) delete weapon[EPIC_BATTLE_USED_FIELD];
+  const owedBy = {};
+  for (const weapon of carried) {
+    if (!weapon || typeof weapon !== 'object') continue;
+    delete weapon[EPIC_BATTLE_USED_FIELD];
+    for (const rule of rulesOfKind(weapon, 'victoryUpkeep'))
+      owedBy[weapon.name] = (owedBy[weapon.name] || 0) + wholeAtLeast(rule.gold, 0);
+  }
+  const lines = [];
+  if (shadowShown)
+    for (const [name, amount] of Object.entries(terms?.shadowBy || {}))
+      if (amount > 0) lines.push(`${name} +${amount} shadow`);
+  let upkeep = 0;
+  for (const [name, owed] of Object.entries(owedBy)) {
+    const paid = Math.min(owed, Math.max(0, Math.trunc(Number(run.gold) || 0)));
+    if (paid <= 0) continue;
+    run.gold -= paid;
+    upkeep += paid;
+    lines.push(`${name} −${paid} G`);
+  }
+  return lines.length > 0 ? { nodeId, upkeep, lines } : null;
 }
 
 // --- Boss trophies ---------------------------------------------------------------------------
@@ -330,6 +592,7 @@ export function epicKeywordTags(weapon) {
     else if (rule.kind === 'mirrorMight') add('epic', "Foe's Might");
     else if (rule.kind === 'killGold') add('epic', `+${rule.gold} gold a kill`);
     else if (rule.kind === 'afterCombat') add('epic', AFTER_COMBAT_TAG[rule.effect]?.(rule));
+    else add('epic', RULE_TAG[rule.kind]?.(rule, weapon));
   }
   return tags;
 }
@@ -340,6 +603,18 @@ const AFTER_COMBAT_TAG = {
   status: (rule) => (rule.status === 'silence' ? 'Silences' : 'Roots'),
   selfDamage: (rule) => `-${rule.amount} HP a combat`,
   selfHeal: (rule) => `Heals ${rule.amount} on hit`,
+  reveal: () => 'Marks its foe',
+};
+
+const RULE_TAG = {
+  canto: (rule) => `Canto ${rule.tiles}`,
+  vision: (rule) => `+${rule.bonus} vision`,
+  lockedInHand: () => 'Locked in hand',
+  slowAdjacentFoes: (rule) => `Foes beside ${rule.mov} Mv`,
+  turnStartToll: (rule) => `Hungers: ${rule.percent}% HP`,
+  grows: (_rule, weapon) => `Tally ${tallyOf(weapon).kills} kills`,
+  battleShadow: (rule) => `+${rule.shadow} shadow`,
+  victoryUpkeep: (rule) => `−${rule.gold} G a win`,
 };
 
 // --- Validation ------------------------------------------------------------------------------
@@ -366,6 +641,14 @@ export function validateWeaponRules(weapon) {
       afterCombat: ['kind', 'effect', 'distance', 'status', 'phases', 'amount', 'onlyWhen'],
       killGold: ['kind', 'gold'],
       effective: ['kind', 'classNames', 'multiplier', 'label'],
+      canto: ['kind', 'tiles'],
+      vision: ['kind', 'bonus'],
+      lockedInHand: ['kind'],
+      slowAdjacentFoes: ['kind', 'mov'],
+      turnStartToll: ['kind', 'percent'],
+      grows: ['kind', 'every', 'gains'],
+      battleShadow: ['kind', 'shadow'],
+      victoryUpkeep: ['kind', 'gold'],
     }[rule.kind];
     for (const key of Object.keys(rule)) {
       if (!allowed.includes(key)) errors.push(`${at}: unknown key "${key}"`);
@@ -417,6 +700,34 @@ export function validateWeaponRules(weapon) {
     }
     if (rule.kind === 'killGold' && !(Number.isInteger(rule.gold) && rule.gold > 0))
       errors.push(`${at}: gold must be a whole number above 0`);
+    const positive = {
+      canto: 'tiles',
+      vision: 'bonus',
+      battleShadow: 'shadow',
+      victoryUpkeep: 'gold',
+    };
+    if (
+      positive[rule.kind] &&
+      !(Number.isInteger(rule[positive[rule.kind]]) && rule[positive[rule.kind]] > 0)
+    )
+      errors.push(`${at}: ${positive[rule.kind]} must be a whole number above 0`);
+    if (rule.kind === 'slowAdjacentFoes' && !(Number.isInteger(rule.mov) && rule.mov < 0))
+      errors.push(`${at}: mov must be a whole number below 0`);
+    if (
+      rule.kind === 'turnStartToll' &&
+      !(Number.isInteger(rule.percent) && rule.percent > 0 && rule.percent < 100)
+    )
+      errors.push(`${at}: percent must be a whole number from 1 to 99`);
+    if (rule.kind === 'grows') {
+      if (!(Number.isInteger(rule.every) && rule.every > 0))
+        errors.push(`${at}: every must be a whole number above 0`);
+      const gains = rule.gains;
+      const keys = gains && typeof gains === 'object' ? Object.keys(gains) : [];
+      if (keys.length === 0 || keys.some((k) => !GROWTH_STATS.includes(k)))
+        errors.push(`${at}: gains must name ${GROWTH_STATS.join(', ')} only`);
+      else if (keys.some((k) => !(Number.isInteger(gains[k]) && gains[k] > 0)))
+        errors.push(`${at}: each gain must be a whole number above 0`);
+    }
     if (rule.kind === 'effective') {
       if (!Array.isArray(rule.classNames) || rule.classNames.length === 0)
         errors.push(`${at}: classNames must be a non-empty list`);

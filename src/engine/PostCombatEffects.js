@@ -49,7 +49,8 @@
 import { applyGrievousStatus, getAttackAffixes, isDisplacementImmune } from './AffixSystem.js';
 import { planAreaBlows } from './AreaDamage.js';
 import { planAreaPush } from './AreaPush.js';
-import { combatDistance } from './EntitySystem.js';
+import { combatDistance, getFootprint } from './EntitySystem.js';
+import { recordEpicCombat } from './EpicWeapons.js';
 import { applyCondition, isSilenced } from './StatusConditionSystem.js';
 import { damageUnit, damageUnitDetailed, healUnit, setUnitHP } from './UnitHealth.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
@@ -236,6 +237,20 @@ function* postCombatStep(
       break;
     case 'skill_on_kill':
       yield* skillOnKill(step, sourceUnit, targetUnit, result, world);
+      break;
+    case 'epic_combat_record':
+      // An Epic weapon's count of its combats and kills (EpicWeapons.recordEpicCombat).
+      if (!sourceUnit || sourceUnit.currentHP <= 0) break;
+      for (const hint of recordEpicCombat(sourceUnit, {
+        struck: step.struck === true,
+        killed: killedInCombat(sourceUnit, targetUnit, result),
+        turn: world.turnNumber,
+      }))
+        yield { kind: 'hint', unit: sourceUnit, text: hint.text, tone: hint.tone };
+      break;
+    case 'epic_reveal':
+      // Wakelight: a foe it hit stays shown for the rest of this phase (Grid.revealContact).
+      if (targetUnit && targetUnit.currentHP > 0) world.revealContact?.(getFootprint(targetUnit));
       break;
     case 'tier2_move':
       yield* postCombatMove(sourceUnit, targetUnit, step, world, result, held);
