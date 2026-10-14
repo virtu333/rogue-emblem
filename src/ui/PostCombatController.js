@@ -894,6 +894,9 @@ export class PostCombatController {
       completionGoldAward: s._completionGoldAward,
       battleCompletionAwardedGold: s._battleCompletionAwardedGold,
       metaEffects: s.runManager?.metaEffects,
+      // The save's slain bosses (the live meta, never the run's snapshot): the trophies they
+      // unlock join the loot draw (docs/specs/epic-weapons.md §4).
+      bossSlain: s.registry?.get?.('meta')?.getStoryFlags?.()?.bossSlain || null,
     };
   }
 

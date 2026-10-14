@@ -1792,8 +1792,7 @@ export class HeadlessBattle {
       return this.enemyUnits;
     };
     const getEnemies = (u) => {
-      if (u.faction === 'player') return this.enemyUnits;
-      if (u.faction === 'npc') return this.enemyUnits;
+      if (u.faction === 'player' || u.faction === 'npc') return this.enemyUnits;
       return this.playerUnits;
     };
 
@@ -1804,6 +1803,7 @@ export class HeadlessBattle {
     const masteryCtx = {
       classesData: this.gameData.classes,
       traitsData: this.gameData.traits || null,
+      turn: this.turnManager?.turnNumber, // Epic weapons' "has not moved this turn"
     };
     const atkMods = getSkillCombatMods(
       attacker,

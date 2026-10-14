@@ -1,4 +1,4 @@
-// LegendaryOwnership.js - one Legend-tier weapon per run.
+// LegendaryOwnership.js - one Legend-tier (or Epic) weapon per run.
 //
 // A legendary weapon is granted at most once a run: `run.legendaryGrants` is the ledger of base
 // names (forge and wear suffixes stripped) a battle reward or a shop sale has handed over, kept
@@ -9,8 +9,10 @@
 
 import { stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
 
-// Legend-tier weapons only: the Legend staves (Warp Staff, Fortify) stay repeatable.
-const isLegend = (item) => item?.tier === 'Legend' && item.type !== 'Staff';
+// Legend-tier weapons and the one-of-a-kind Epic weapons (docs/specs/epic-weapons.md): the
+// Legend staves (Warp Staff, Fortify) stay repeatable.
+const isLegend = (item) =>
+  (item?.tier === 'Legend' && item.type !== 'Staff') || item?.tier === 'Epic';
 
 /**
  * The catalog name of a Legend item: no forge/wear suffix, no imbue adjective. With the weapon

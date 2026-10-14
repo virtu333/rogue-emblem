@@ -15,6 +15,7 @@ import {
   isStaff,
 } from './Combat.js';
 import { WEAPON_TRIANGLE } from '../utils/constants.js';
+import { EPIC_TIER, epicKeywordTags } from './EpicWeapons.js';
 
 const TIER_WORDS = new Set(['Iron', 'Steel', 'Silver']);
 
@@ -50,6 +51,9 @@ export const KEYWORDS = {
   alone: { tone: 'plain', label: 'Alone' },
   equipped: { tone: 'plain', label: 'Equipped' },
   siege: { tone: 'thrown', label: 'Siege' },
+  // An Epic weapon's own rule (engine/EpicWeapons.js: the chip is the rule's tag).
+  epic: { tone: 'magic', label: 'Epic' },
+  perBattle: { tone: 'plain', label: 'Per battle' },
 };
 
 function specialOf(item) {
@@ -155,6 +159,13 @@ export function itemKeywords(item) {
       `Range ${item.range}`,
       `Siege magic: strikes from range ${item.range}.${perBattleShotsSentence(item)}`,
     );
+  // Epic weapons' rules are structured (`rules`), so their chips come from the rules, never
+  // from the sentence; `effective` keeps its own tone.
+  for (const tag of epicKeywordTags(item)) add(tag.id, tag.text, tag.title);
+  if (item.perBattleUses && !special.includes('Siege magic') && !isStaff(item)) {
+    const uses = getPerBattleMaxUses(item, { faction: 'player' });
+    add('perBattle', `${uses} a battle`, `${uses} uses each battle; refilled for the next.`);
+  }
   return tags;
 }
 
@@ -192,6 +203,7 @@ export function itemBaseLine(item) {
   if (!noun) return null;
   if (item.tier === 'Legend') return `Legend ${noun}`;
   if (item.tier === 'Rare') return `Rare ${noun}`;
+  if (item.tier === EPIC_TIER) return `Epic ${noun}`;
   if (TIER_WORDS.has(item.tier) && ['Sword', 'Lance', 'Axe', 'Bow'].includes(item.type))
     return `${item.tier} ${noun}`;
   return noun;

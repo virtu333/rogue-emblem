@@ -6,6 +6,12 @@ import { validateAccessorySkillData } from '../src/engine/AccessorySkills.js';
 import { validateCarryPools } from '../src/engine/EnemyCarry.js';
 import { ENEMY_ONLY_CLASS_NAMES } from '../src/engine/UnitManager.js';
 import { ENTITY_WEAPON_NAMES } from '../src/utils/constants.js';
+import {
+  EPIC_TIER,
+  bossActOf,
+  validateWeaponRules,
+  weaponRules,
+} from '../src/engine/EpicWeapons.js';
 
 const DATA_DIR = path.resolve('data');
 
@@ -215,6 +221,59 @@ export function validateCrossReferences(datasets = null) {
         if (signatureNames.has(itemName)) {
           errors.push(
             `lootTables.json:${actId}.${poolKey} lists signature weapon "${itemName}" (personal weapons never drop or sell)`,
+          );
+        }
+      }
+    }
+  }
+
+  // Epic weapons (docs/specs/epic-weapons.md): every rule well formed, an effective rule's
+  // classes real, a trophy's boss a real boss, and an Epic weapon listed only in a table's
+  // `epicWeapons` (shops stock from `weapons`, so an Epic there would be sold), which in turn
+  // holds only Epic weapons that are not trophies (a trophy joins the draw once its boss falls).
+  const weaponByName = new Map(
+    (Array.isArray(weapons) ? weapons : []).filter((w) => w?.name).map((w) => [w.name, w]),
+  );
+  for (const weapon of Array.isArray(weapons) ? weapons : []) {
+    for (const problem of validateWeaponRules(weapon)) errors.push(`weapons.json:${problem}`);
+    for (const rule of weaponRules(weapon)) {
+      if (rule?.kind !== 'effective') continue;
+      for (const className of Array.isArray(rule.classNames) ? rule.classNames : []) {
+        if (!classNames.has(className))
+          errors.push(
+            `weapons.json:${weapon.name} is effective against unknown class "${className}"`,
+          );
+      }
+    }
+    if (weapon?.trophyOf !== undefined) {
+      if (weapon.tier !== EPIC_TIER)
+        errors.push(`weapons.json:${weapon.name}.trophyOf is only for Epic weapons`);
+      if (!bossActOf(weapon.trophyOf, enemiesData))
+        errors.push(
+          `weapons.json:${weapon.name}.trophyOf references unknown boss "${weapon.trophyOf}"`,
+        );
+    }
+    if (weapon?.tier === EPIC_TIER && !(weapon.price > 0))
+      errors.push(`weapons.json:${weapon.name} is Epic and needs a price (it sells for gold)`);
+  }
+  for (const [actId, table] of Object.entries(lootTables || {})) {
+    for (const [poolKey, pool] of Object.entries(table || {})) {
+      if (!Array.isArray(pool)) continue;
+      for (const entry of pool) {
+        const itemName = typeof entry === 'string' ? entry : entry?.name;
+        const weapon = weaponByName.get(itemName);
+        if (poolKey === 'epicWeapons') {
+          if (!weapon || weapon.tier !== EPIC_TIER)
+            errors.push(
+              `lootTables.json:${actId}.epicWeapons lists "${itemName}", not an Epic weapon`,
+            );
+          else if (weapon.trophyOf !== undefined)
+            errors.push(
+              `lootTables.json:${actId}.epicWeapons lists trophy "${itemName}" (it joins the draw once its boss falls)`,
+            );
+        } else if (weapon?.tier === EPIC_TIER) {
+          errors.push(
+            `lootTables.json:${actId}.${poolKey} lists Epic weapon "${itemName}" (Epic weapons belong in epicWeapons)`,
           );
         }
       }
