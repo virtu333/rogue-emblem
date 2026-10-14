@@ -2,13 +2,13 @@
 
 Taiko in 3+3+2 under horns in open fifths (D-A, down to C-G, back to D-A)
 and a low hum of the clan's voices on the fifth. In the key of his theme,
-"Breaker of Treaties" (C).
+"Breaker of Treaties" (D).
 """
 
 from stingers._common import cue
 
 KEYED = False
-TONIC = 'C'
+TONIC = 'D'
 
 
 def build(transpose=0):

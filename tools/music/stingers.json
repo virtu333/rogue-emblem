@@ -399,13 +399,13 @@
     "tonics": []
   },
   "boss_warchief": {
-    "duration": 6.037,
+    "duration": 5.861,
     "files": {
       "stinger_boss_warchief": {
-        "duration": 6.037,
+        "duration": 5.861,
         "lufs": -16.5,
         "notesEnd": 4.0,
-        "peakDb": -4.86
+        "peakDb": -5.69
       }
     },
     "keyed": false,

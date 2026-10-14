@@ -36,7 +36,7 @@ export const MUSIC_STINGERS = {
   boss_iron_wall: { keyed: false, tonics: [], notesEnd: 5.0, duration: 6.626 },
   boss_knight_commander: { keyed: false, tonics: [], notesEnd: 3.636, duration: 5.387 },
   boss_lieutenant_card: { keyed: false, tonics: [], notesEnd: 4.8, duration: 6.281 },
-  boss_warchief: { keyed: false, tonics: [], notesEnd: 4.0, duration: 6.037 },
+  boss_warchief: { keyed: false, tonics: [], notesEnd: 4.0, duration: 5.861 },
   deed: {
     keyed: true,
     tonics: ['C', 'Db', 'D', 'E', 'F', 'G', 'A', 'Bb', 'B'],
