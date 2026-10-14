@@ -2,13 +2,13 @@
 
 Low brass hold the fifth for a whole bar; a lower neighbour (C#) leans on it
 for two beats and fails to move it. Timpani keep a slow, heavy pulse. In the
-key of the Act III boss theme.
+key of his own theme, "The Order That Never Came" (D-flat).
 """
 
 from stingers._common import cue
 
 KEYED = False
-TONIC = 'E'
+TONIC = 'Db'
 
 
 def build(transpose=0):
