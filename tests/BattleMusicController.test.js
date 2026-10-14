@@ -89,9 +89,9 @@ describe('BattleMusicController', () => {
     const { audio, scene } = makeScene();
     const ctrl = new BattleMusicController(scene, { bossEnraged: () => false });
     const key = ctrl.create({ act: 'act1', isBoss: true, bossName: 'Iron Captain' });
-    expect(key).toBe(MUSIC.boss.act1);
+    expect(key).toBe('music_boss_iron_captain');
     expect(audio.playMusic).toHaveBeenCalledWith(key, scene, 800, {
-      layers: { enrage: 'music_boss_act1_enrage_iron_captain' },
+      layers: { enrage: 'music_boss_iron_captain_enrage_iron_captain' },
     });
     expect(audio.setMusicIntensity).toHaveBeenLastCalledWith('full', 0);
     expect(ctrl.onBossEnrage()).toBe(true);
@@ -122,6 +122,14 @@ describe('BattleMusicController', () => {
     const { audio, scene } = makeScene();
     const ctrl = new BattleMusicController(scene);
     for (const [name, act] of [
+      ['Iron Captain', 'act1'],
+      ['Warchief', 'act1'],
+      ['Knight Commander', 'act2'],
+      ['Archmage', 'act2'],
+      ['Dark Rider', 'act2'],
+      ['Blade Lord', 'act3'],
+      ['Iron Wall', 'act3'],
+      ['Berserker King', 'act3'],
       ['The Emperor', 'act4'],
       ['The Lieutenant', 'finalBoss'],
     ]) {
@@ -132,11 +140,14 @@ describe('BattleMusicController', () => {
     }
   });
 
-  it('uses the act boss theme for other bosses', () => {
+  it("plays a named boss's own theme, and the act's boss theme for a boss without one", () => {
     const { scene } = makeScene();
     const ctrl = new BattleMusicController(scene);
     expect(ctrl.create({ act: 'act3', isBoss: true, bossName: 'Blade Lord' })).toBe(
-      MUSIC.boss.act3,
+      'music_boss_blade_lord',
+    );
+    expect(ctrl.create({ act: 'act1', isBoss: true, bossName: 'Captain Varro' })).toBe(
+      MUSIC.boss.act1,
     );
   });
 

@@ -186,7 +186,7 @@ function expectPlaying(audio, key) {
 
 const BATTLE = 'music_battle_act1';
 const BATTLE_CALM = getMusicLayers(BATTLE).calm;
-const BOSS = 'music_boss_act1';
+const BOSS = 'music_boss_iron_captain';
 const BOSS_ENRAGE = getBossEnrageLayer(BOSS, 'Iron Captain');
 const ENTITY = ENTITY_FINALE.theme;
 const FINALE = ENTITY_FINALE.track;
@@ -195,7 +195,7 @@ const FINALE_HUM = ENTITY_FINALE.hum;
 describe('layered music under the mobile cache budget', () => {
   it('fixture sanity: the layer keys exist and the byte sizes are what the scenarios assume', () => {
     expect(BATTLE_CALM).toBe('music_battle_act1_calm');
-    expect(BOSS_ENRAGE).toBe('music_boss_act1_enrage_iron_captain');
+    expect(BOSS_ENRAGE).toBe('music_boss_iron_captain_enrage_iron_captain');
     expect(getMusicLoop(FINALE_HUM).duration).toBe(getMusicLoop(FINALE).duration);
     // battle pair + boss pair fit 120 MB; the track cap (3) is what binds
     expect(2 * mb(BATTLE) + 2 * mb(BOSS)).toBeLessThan(120);

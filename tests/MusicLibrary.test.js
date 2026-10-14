@@ -194,17 +194,24 @@ describe('music library', () => {
     expect(new Set(eliteKeys).size).toBe(4);
   });
 
-  it('the story antagonists get their own themes, wherever they are fought', () => {
+  it('every boss gets its own theme, wherever it is fought', () => {
     const bossNames = new Set(
       Object.values(enemies.bosses)
         .flat()
         .map((b) => b.name),
     );
+    for (const name of bossNames) {
+      expect(MUSIC.bossByName[name], `${name} has a theme of its own`).toBeTruthy();
+    }
+    // no two bosses share one
+    const themes = Object.values(MUSIC.bossByName);
+    expect(new Set(themes).size).toBe(themes.length);
     for (const name of Object.keys(MUSIC.bossByName)) {
       expect(bossNames.has(name), `${name} is a boss in enemies.json`).toBe(true);
       expect(getBossMusicKey(name, 'act1')).toBe(MUSIC.bossByName[name]);
     }
-    expect(getBossMusicKey('Iron Captain', 'act1')).toBe(MUSIC.boss.act1);
+    // a boss with no theme of its own (the prologue's captain) plays the act's
+    expect(getBossMusicKey('Captain Varro', 'act1')).toBe(MUSIC.boss.act1);
     expect(getBossMusicKey(null, 'act2')).toBe(MUSIC.boss.act2);
   });
 });
