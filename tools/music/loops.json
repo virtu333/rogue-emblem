@@ -835,17 +835,6 @@
     "title": "The Border Holds",
     "tonic": "D"
   },
-  "music_boss_act1_enrage_warchief": {
-    "duration": 74.165,
-    "loopEnd": 73.565215,
-    "loopStart": 10.956531,
-    "lufs": -13.5,
-    "peakDb": -1.14,
-    "score": "boss_act1",
-    "seamDb": -71.5,
-    "title": "The Border Holds",
-    "tonic": "D"
-  },
   "music_boss_act2": {
     "duration": 62.431,
     "loopEnd": 61.831315,
@@ -854,17 +843,6 @@
     "peakDb": -1.11,
     "score": "boss_act2",
     "seamDb": -81.3,
-    "title": "Doctrine of Lances",
-    "tonic": "F"
-  },
-  "music_boss_act2_enrage_archmage": {
-    "duration": 62.431,
-    "loopEnd": 61.831315,
-    "loopStart": 9.783129,
-    "lufs": -13.5,
-    "peakDb": -1.24,
-    "score": "boss_act2",
-    "seamDb": -81.7,
     "title": "Doctrine of Lances",
     "tonic": "F"
   },
@@ -879,17 +857,6 @@
     "title": "Doctrine of Lances",
     "tonic": "F"
   },
-  "music_boss_act2_enrage_knight_commander": {
-    "duration": 62.431,
-    "loopEnd": 61.831315,
-    "loopStart": 9.783129,
-    "lufs": -13.5,
-    "peakDb": -1.16,
-    "score": "boss_act2",
-    "seamDb": -82.0,
-    "title": "Doctrine of Lances",
-    "tonic": "F"
-  },
   "music_boss_act3": {
     "duration": 60.414,
     "loopEnd": 59.813968,
@@ -898,17 +865,6 @@
     "peakDb": -1.13,
     "score": "boss_act3",
     "seamDb": -85.5,
-    "title": "The Perfect Duel",
-    "tonic": "E"
-  },
-  "music_boss_act3_enrage_berserker_king": {
-    "duration": 60.414,
-    "loopEnd": 59.813968,
-    "loopStart": 9.581406,
-    "lufs": -13.5,
-    "peakDb": -1.09,
-    "score": "boss_act3",
-    "seamDb": -74.0,
     "title": "The Perfect Duel",
     "tonic": "E"
   },
@@ -923,16 +879,49 @@
     "title": "The Perfect Duel",
     "tonic": "E"
   },
-  "music_boss_act3_enrage_iron_wall": {
-    "duration": 60.414,
-    "loopEnd": 59.813968,
-    "loopStart": 9.581406,
-    "lufs": -13.5,
-    "peakDb": -1.1,
-    "score": "boss_act3",
-    "seamDb": -86.7,
-    "title": "The Perfect Duel",
+  "music_boss_archmage": {
+    "duration": 74.074,
+    "loopEnd": 73.473673,
+    "loopStart": 10.315782,
+    "lufs": -13.51,
+    "peakDb": -1.09,
+    "score": "boss_archmage",
+    "seamDb": -72.4,
+    "title": "The Sums Still Balance",
     "tonic": "E"
+  },
+  "music_boss_archmage_enrage_archmage": {
+    "duration": 74.074,
+    "loopEnd": 73.473673,
+    "loopStart": 10.315782,
+    "lufs": -13.51,
+    "peakDb": -1.09,
+    "score": "boss_archmage",
+    "seamDb": -72.9,
+    "title": "The Sums Still Balance",
+    "tonic": "E"
+  },
+  "music_boss_berserker_king": {
+    "duration": 82.143,
+    "loopEnd": 81.542902,
+    "loopStart": 10.4,
+    "lufs": -13.5,
+    "peakDb": -1.09,
+    "score": "boss_berserker_king",
+    "seamDb": -58.2,
+    "title": "Frightened Acclaim",
+    "tonic": "A"
+  },
+  "music_boss_berserker_king_enrage_berserker_king": {
+    "duration": 82.143,
+    "loopEnd": 81.542902,
+    "loopStart": 10.4,
+    "lufs": -13.5,
+    "peakDb": -1.09,
+    "score": "boss_berserker_king",
+    "seamDb": -59.1,
+    "title": "Frightened Acclaim",
+    "tonic": "A"
   },
   "music_boss_emperor": {
     "duration": 84.6,
@@ -989,6 +978,50 @@
     "title": "All of Us Across",
     "tonic": "D"
   },
+  "music_boss_iron_wall": {
+    "duration": 96.908,
+    "loopEnd": 96.307687,
+    "loopStart": 13.230771,
+    "lufs": -13.5,
+    "peakDb": -1.09,
+    "score": "boss_iron_wall",
+    "seamDb": -56.5,
+    "title": "The Order That Never Came",
+    "tonic": "Db"
+  },
+  "music_boss_iron_wall_enrage_iron_wall": {
+    "duration": 96.908,
+    "loopEnd": 96.307687,
+    "loopStart": 13.230771,
+    "lufs": -13.5,
+    "peakDb": -1.12,
+    "score": "boss_iron_wall",
+    "seamDb": -57.9,
+    "title": "The Order That Never Came",
+    "tonic": "Db"
+  },
+  "music_boss_knight_commander": {
+    "duration": 77.457,
+    "loopEnd": 76.857143,
+    "loopStart": 8.285714,
+    "lufs": -13.5,
+    "peakDb": -1.09,
+    "score": "boss_knight_commander",
+    "seamDb": -56.9,
+    "title": "The Doctrine and Its Ledger",
+    "tonic": "Bb"
+  },
+  "music_boss_knight_commander_enrage_knight_commander": {
+    "duration": 77.457,
+    "loopEnd": 76.857143,
+    "loopStart": 8.285714,
+    "lufs": -13.5,
+    "peakDb": -1.36,
+    "score": "boss_knight_commander",
+    "seamDb": -57.1,
+    "title": "The Doctrine and Its Ledger",
+    "tonic": "Bb"
+  },
   "music_boss_lieutenant": {
     "duration": 73.171,
     "loopEnd": 72.571429,
@@ -1010,6 +1043,28 @@
     "seamDb": -87.0,
     "title": "Every Future You Could Reach",
     "tonic": "D"
+  },
+  "music_boss_warchief": {
+    "duration": 80.192,
+    "loopEnd": 79.592086,
+    "loopStart": 10.118413,
+    "lufs": -13.52,
+    "peakDb": -1.09,
+    "score": "boss_warchief",
+    "seamDb": -56.9,
+    "title": "Breaker of Treaties",
+    "tonic": "C"
+  },
+  "music_boss_warchief_enrage_warchief": {
+    "duration": 80.192,
+    "loopEnd": 79.592086,
+    "loopStart": 10.118413,
+    "lufs": -13.52,
+    "peakDb": -1.09,
+    "score": "boss_warchief",
+    "seamDb": -58.6,
+    "title": "Breaker of Treaties",
+    "tonic": "C"
   },
   "music_colosseum": {
     "duration": 49.817,

@@ -138,13 +138,13 @@
     "tonics": ["C", "Db", "D", "E", "F", "G", "A", "Bb", "B"]
   },
   "boss_archmage": {
-    "duration": 6.137,
+    "duration": 6.072,
     "files": {
       "stinger_boss_archmage": {
-        "duration": 6.137,
+        "duration": 6.072,
         "lufs": -18.0,
         "notesEnd": 4.138,
-        "peakDb": -6.75
+        "peakDb": -6.99
       }
     },
     "keyed": false,
@@ -153,13 +153,13 @@
     "tonics": []
   },
   "boss_berserker_king": {
-    "duration": 5.253,
+    "duration": 5.321,
     "files": {
       "stinger_boss_berserker_king": {
-        "duration": 5.253,
+        "duration": 5.321,
         "lufs": -15.5,
         "notesEnd": 3.429,
-        "peakDb": -4.39
+        "peakDb": -2.13
       }
     },
     "keyed": false,
@@ -354,13 +354,13 @@
     "tonics": []
   },
   "boss_iron_wall": {
-    "duration": 6.588,
+    "duration": 6.626,
     "files": {
       "stinger_boss_iron_wall": {
-        "duration": 6.588,
+        "duration": 6.626,
         "lufs": -17.0,
         "notesEnd": 5.0,
-        "peakDb": -4.68
+        "peakDb": -6.03
       }
     },
     "keyed": false,
@@ -369,13 +369,13 @@
     "tonics": []
   },
   "boss_knight_commander": {
-    "duration": 5.165,
+    "duration": 5.387,
     "files": {
       "stinger_boss_knight_commander": {
-        "duration": 5.165,
+        "duration": 5.387,
         "lufs": -16.0,
         "notesEnd": 3.636,
-        "peakDb": -5.08
+        "peakDb": -3.42
       }
     },
     "keyed": false,
@@ -399,13 +399,13 @@
     "tonics": []
   },
   "boss_warchief": {
-    "duration": 5.861,
+    "duration": 6.037,
     "files": {
       "stinger_boss_warchief": {
-        "duration": 5.861,
+        "duration": 6.037,
         "lufs": -16.5,
         "notesEnd": 4.0,
-        "peakDb": -5.69
+        "peakDb": -4.86
       }
     },
     "keyed": false,

@@ -1,13 +1,14 @@
 """The Warchief — the clan's own dignity, not the Empire's brass.
 
 Taiko in 3+3+2 under horns in open fifths (D-A, down to C-G, back to D-A)
-and a low hum of the clan's voices on the fifth. In the Act I boss key.
+and a low hum of the clan's voices on the fifth. In the key of his theme,
+"Breaker of Treaties" (C).
 """
 
 from stingers._common import cue
 
 KEYED = False
-TONIC = 'D'
+TONIC = 'C'
 
 
 def build(transpose=0):
