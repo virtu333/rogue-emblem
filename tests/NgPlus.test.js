@@ -38,6 +38,7 @@ import {
   ridePickBlock,
   runStartOf,
   setBring,
+  undoLastRide,
 } from '../src/engine/NgPlusState.js';
 import { isNgPlusRun, ngPlusRunEnd, rideCandidates } from '../src/engine/NgPlusRun.js';
 import {
@@ -642,17 +643,109 @@ describe('the run’s end settles the Barracks', () => {
     expect(state.barracks.some((r) => r.id === lordRecordId('Edric'))).toBe(true);
   });
 
-  it('the commander the defeat took leaves the Barracks', () => {
-    // Failure: a lord's kit survives the battle that ended the run on their fall.
+  it('the commander the defeat took loses only their latest ride', () => {
+    // Failure: a lost run wipes a lord's whole kit (every defeat ends with the commander
+    // down), or it costs nothing at all.
     const { meta } = metaWithBarracks();
+    const second = wonRun({ seed: 13 });
+    const edric = second.roster.find((u) => u.name === 'Edric');
+    learnSkill(edric, 'vantage');
+    const lance = { ...weapon('Steel Lance'), uid: 'itm_second_ride' };
+    edric.inventory = [lance];
+    winRun(second, meta);
+    const pick = [{ ref: edric.unitUid, skillId: 'vantage', itemUid: lance.uid }];
+    expect(meta.chooseNgPlusRide(pick).ok).toBe(true);
+    if (meta.getNgPlus().pendingRide) expect(meta.chooseNgPlusRide([]).ok).toBe(true);
+
     const rm = ngPlusRun(meta);
     rm.failRun({ defeatedBy: 'Fighter', wasBoss: false });
     rm.settleEndRunRewards(meta, 'defeat');
+    const record = freshMeta()
+      .getNgPlus()
+      .barracks.find((r) => r.id === lordRecordId('Edric'));
+    expect(record.keptSkills).toEqual(['sol']);
+    expect(record.keptItems.map((i) => i.uid)).toEqual(['itm_kept_elixir']);
+    expect(record.rides).toBe(1);
+
+    // A second defeat takes the first ride too, and with nothing left he leaves.
+    const again = ngPlusRun(meta);
+    again.failRun({ defeatedBy: 'Fighter', wasBoss: false });
+    again.settleEndRunRewards(meta, 'defeat');
     expect(
       freshMeta()
         .getNgPlus()
         .barracks.some((r) => r.id === lordRecordId('Edric')),
     ).toBe(false);
+  });
+
+  it('taking back a ride restores what it replaced', () => {
+    // Failure: undoing a ride that swapped out a kept skill or item leaves the slot empty.
+    const state = defaultNgPlusState();
+    const sword = { ...weapon('Iron Sword'), uid: 'itm_old' };
+    const axe = { ...weapon('Steel Axe'), uid: 'itm_new' };
+    state.barracks.push({
+      id: lordRecordId('Edric'),
+      kind: 'lord',
+      name: 'Edric',
+      keptSkills: ['sol'],
+      skillKinds: { sol: 'skill' },
+      keptItems: [sword],
+      rides: 1,
+    });
+    state.pendingRide = {
+      runId: 'r2',
+      candidates: [
+        {
+          ref: 'e',
+          kind: 'lord',
+          name: 'Edric',
+          items: [axe],
+          skills: ['vantage'],
+          skillKinds: { vantage: 'skill' },
+        },
+      ],
+    };
+    const s = normalizeNgPlusState({ ...state, v: 1 });
+    // Make both kinds full so the ride must replace.
+    const record = s.barracks[0];
+    record.keptSkills = [
+      'sol',
+      'luna',
+      'astra',
+      'adept',
+      'miracle',
+      'guard',
+      'wrath',
+      'aether',
+      'cancel',
+      'desperation',
+    ];
+    record.skillKinds = Object.fromEntries(record.keptSkills.map((id) => [id, 'skill']));
+    record.keptItems = [
+      sword,
+      ...['a', 'b', 'c', 'd'].map((x) => ({ ...weapon('Iron Lance'), uid: `itm_${x}` })),
+    ];
+    const done = applyRidePicks(s, [
+      {
+        ref: 'e',
+        skillId: 'vantage',
+        replaceSkillId: 'sol',
+        itemUid: 'itm_new',
+        replaceItemUid: 'itm_old',
+      },
+    ]);
+    expect(done.ok).toBe(true);
+    expect(record.keptSkills).not.toContain('sol');
+    // The log survives a save and load.
+    expect(normalizeNgPlusState(s).barracks[0].rideLog).toHaveLength(1);
+    expect(undoLastRide(s, record.id)).toBe(true);
+    expect(record.keptSkills).toContain('sol');
+    expect(record.keptSkills).not.toContain('vantage');
+    expect(record.keptItems.map((i) => i.uid)).toContain('itm_old');
+    expect(record.keptItems.map((i) => i.uid)).not.toContain('itm_new');
+    expect(record.rides).toBe(1);
+    // A ride from before the log can't be taken back.
+    expect(undoLastRide(s, record.id)).toBe(false);
   });
 
   it('a win keeps a member’s items as they are now and drops one used up', () => {

@@ -318,7 +318,8 @@ function heldItemsByUid(run) {
 
 /**
  * What a run's end does to the Barracks (NgPlusState.applyRunEnd's record), or null when
- * nothing does: a member that fell (or the commander a defeat took) leaves; on a win each
+ * nothing does: a member that fell leaves, the commander a defeat took loses their latest ride
+ * (`setBackIds`); on a win each
  * member still standing keeps its items as they are now; a win on an NG+ rung leaves its
  * survivors to pick from, whether or not NG+ is bought yet.
  * @param {{ result: 'victory'|'defeat' }} summary - the run's settled rewards
@@ -332,11 +333,14 @@ export function ngPlusRunEnd(run, summary) {
       .map((u) => u?.unitUid)
       .filter(Boolean),
   );
-  if (!victory && run.defeatContext) {
-    const commander = findCommander(run.roster || []);
-    if (commander?.unitUid) fallenUids.add(commander.unitUid);
-  }
-  const fallenIds = members.filter((m) => fallenUids.has(m.uid)).map((m) => m.id);
+  // The commander a defeat took is set back one ride, never wiped (the owner's call): every
+  // lost run ends with the commander down, so wiping would cost a built-up lord everything.
+  const commanderUid =
+    !victory && run.defeatContext ? findCommander(run.roster || [])?.unitUid || null : null;
+  const setBackIds = members.filter((m) => m.uid === commanderUid).map((m) => m.id);
+  const fallenIds = members
+    .filter((m) => m.uid !== commanderUid && fallenUids.has(m.uid))
+    .map((m) => m.id);
   const refresh = [];
   if (victory) {
     const held = heldItemsByUid(run);
@@ -362,6 +366,7 @@ export function ngPlusRunEnd(run, summary) {
         }
       : null;
   const ngPlusWin = victory && isNgPlusRun(run);
-  if (!fallenIds.length && !refresh.length && !pendingRide && !ngPlusWin) return null;
-  return { fallenIds, refresh, pendingRide, ngPlusWin };
+  if (!fallenIds.length && !setBackIds.length && !refresh.length && !pendingRide && !ngPlusWin)
+    return null;
+  return { fallenIds, setBackIds, refresh, pendingRide, ngPlusWin };
 }

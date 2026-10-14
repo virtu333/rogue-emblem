@@ -9,8 +9,10 @@
 //     v: 1,
 //     rev,          // bumped on every change: the adopt-merge keeps the copy with the higher one
 //     barracks,     // records: a lord's ({ id: 'lord:<name>', kind: 'lord', name, keptSkills,
-//                   //   keptItems, rides }) or a recruit's (also className (base), growths,
-//                   //   traits, traitAttackStat, markId, portraitVariant)
+//                   //   keptItems, rides, rideLog }) or a recruit's (also className (base),
+//                   //   growths, traits, traitAttackStat, markId, portraitVariant). `rideLog`
+//                   //   is each ride's keeps, newest last, so a lost run can take back the
+//                   //   commander's latest ride (undoLastRide)
 //     bring,        // up to BRING_LIMIT recruit record ids taken into the next NG+ run
 //     pendingRide,  // the last eligible win's survivors, until picked or passed:
 //                   //   { runId, difficultyId, endedAt, candidates: [candidate], picked: [ref] }
@@ -36,6 +38,8 @@ export const RIDE_RECRUIT_PICKS = 2;
 export const BRING_LIMIT = 2;
 /** What one character may hold across runs: kept skills by slot kind, kept items by kind. */
 export const KEPT_SKILL_CAPS = Object.freeze({ skill: 10, ability: 5 });
+/** How many rides a record remembers for undoLastRide (older ones can no longer be undone). */
+export const RIDE_LOG_LIMIT = 30;
 export const KEPT_ITEM_CAPS = Object.freeze({
   weapon: INVENTORY_MAX,
   consumable: CONSUMABLE_MAX,
@@ -102,6 +106,24 @@ function sanitizeIdentity(raw) {
   };
 }
 
+const sanitizeItem = (raw) => (keptItemKind(raw) && isId(raw.uid) ? structuredClone(raw) : null);
+
+/** One ride's keeps on a record (what undoLastRide takes back), or null. */
+function sanitizeRideEntry(raw) {
+  if (!isRecord(raw)) return null;
+  const kindOf = (v) => (v === 'ability' ? 'ability' : 'skill');
+  return {
+    skillId: isName(raw.skillId) ? raw.skillId : null,
+    itemUid: isId(raw.itemUid) ? raw.itemUid : null,
+    replacedSkillId: isName(raw.replacedSkillId) ? raw.replacedSkillId : null,
+    replacedSkillKind: kindOf(raw.replacedSkillKind),
+    replacedItem: sanitizeItem(raw.replacedItem),
+  };
+}
+
+const sanitizeRideLog = (raw) =>
+  (Array.isArray(raw) ? raw : []).map(sanitizeRideEntry).filter(Boolean).slice(-RIDE_LOG_LIMIT);
+
 /** One Barracks record as saved, or null. */
 export function sanitizeRecord(raw) {
   if (!isRecord(raw) || !isId(raw.id) || !isName(raw.name)) return null;
@@ -117,6 +139,7 @@ export function sanitizeRecord(raw) {
     skillKinds: sanitizeKinds(raw.skillKinds, keptSkills),
     keptItems: sanitizeItems(raw.keptItems),
     rides: count(raw.rides),
+    rideLog: sanitizeRideLog(raw.rideLog),
   };
   if (kind === 'recruit') {
     const identity = sanitizeIdentity(raw);
@@ -255,14 +278,19 @@ export function setBring(state, ids) {
 
 /**
  * What one run's end does to the Barracks (NgPlusRun.ngPlusRunEnd's record): the brought
- * veterans that fell leave it; the ones that came through a win keep their items as they are
+ * veterans and lords that fell leave it; the commander a defeat took loses only their latest
+ * ride (`setBackIds`, undoLastRide); the ones that came through a win keep their items as they are
  * now (one sold, used up or broken is gone); an eligible win leaves its survivors to pick from,
  * replacing an older pick never made; an NG+ win counts. Returns what changed.
  */
 export function applyRunEnd(state, end) {
-  if (!isRecord(end)) return { removed: [], ride: false };
+  if (!isRecord(end)) return { removed: [], setBack: [], ride: false };
   const removed = removeRecords(state, end.fallenIds);
   let changed = removed.length > 0;
+  const setBack = [];
+  for (const id of Array.isArray(end.setBackIds) ? end.setBackIds : [])
+    if (undoLastRide(state, id)) setBack.push(id);
+  if (setBack.length) changed = true;
   for (const refresh of Array.isArray(end.refresh) ? end.refresh : []) {
     const record = findRecord(state, refresh?.id);
     if (!record) continue;
@@ -279,7 +307,7 @@ export function applyRunEnd(state, end) {
     changed = true;
   }
   if (changed) bump(state);
-  return { removed, ride: Boolean(ride) };
+  return { removed, setBack, ride: Boolean(ride) };
 }
 
 /** The Barracks record a candidate already has (a brought veteran's, or a lord's), or null. */
@@ -363,6 +391,7 @@ function newRecord(candidate, runId) {
     skillKinds: {},
     keptItems: [],
     rides: 0,
+    rideLog: [],
     ...(candidate.kind === 'recruit' ? structuredClone(candidate.identity) : {}),
   };
 }
@@ -392,6 +421,13 @@ export function applyRidePicks(state, picks) {
       record = newRecord(candidate, ride.runId);
       state.barracks.push(record);
     }
+    const entry = sanitizeRideEntry({
+      skillId: pick.skillId,
+      itemUid: pick.itemUid,
+      replacedSkillId: pick.replaceSkillId,
+      replacedSkillKind: record.skillKinds?.[pick.replaceSkillId],
+      replacedItem: record.keptItems.find((i) => i.uid === pick.replaceItemUid),
+    });
     if (pick.skillId != null) {
       if (pick.replaceSkillId != null)
         record.keptSkills = record.keptSkills.filter((id) => id !== pick.replaceSkillId);
@@ -407,6 +443,7 @@ export function applyRidePicks(state, picks) {
       record.keptItems.push(structuredClone(candidate.items.find((i) => i.uid === pick.itemUid)));
     }
     record.rides += 1;
+    record.rideLog = [...(record.rideLog || []), entry].slice(-RIDE_LOG_LIMIT);
     added.push(record.id);
   }
   ride.picked = [...(ride.picked || []), ...picks.map((pick) => pick.ref)];
@@ -415,6 +452,34 @@ export function applyRidePicks(state, picks) {
   if (closed) state.pendingRide = null;
   bump(state);
   return { ok: true, added, closed };
+}
+
+/**
+ * Take back a record's latest ride (a lost run's commander): the skill and item it kept leave,
+ * and whatever that ride replaced comes back. An item the ride kept that is no longer on the
+ * record (used up) is simply not there to take. A record left with nothing kept and no rides
+ * leaves the Barracks. Returns true when a ride was taken back.
+ */
+export function undoLastRide(state, id) {
+  const record = findRecord(state, id);
+  const entry = record?.rideLog?.at(-1);
+  if (!entry) return false;
+  record.rideLog = record.rideLog.slice(0, -1);
+  if (entry.skillId) {
+    record.keptSkills = record.keptSkills.filter((s) => s !== entry.skillId);
+  }
+  if (entry.replacedSkillId && !record.keptSkills.includes(entry.replacedSkillId)) {
+    record.keptSkills.push(entry.replacedSkillId);
+    record.skillKinds = { ...record.skillKinds, [entry.replacedSkillId]: entry.replacedSkillKind };
+  }
+  record.skillKinds = sanitizeKinds(record.skillKinds, record.keptSkills);
+  if (entry.itemUid) record.keptItems = record.keptItems.filter((i) => i.uid !== entry.itemUid);
+  if (entry.replacedItem && !record.keptItems.some((i) => i.uid === entry.replacedItem.uid))
+    record.keptItems.push(structuredClone(entry.replacedItem));
+  record.rides = Math.max(0, count(record.rides) - 1);
+  if (!record.rides && !record.keptSkills.length && !record.keptItems.length)
+    removeRecords(state, [record.id]);
+  return true;
 }
 
 /** Pass on the pending ride (nobody new rides again). */

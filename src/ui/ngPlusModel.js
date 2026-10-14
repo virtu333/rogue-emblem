@@ -60,7 +60,7 @@ export function unlockView(meta) {
       'Nightfall and Black Sun runs where your best keep what they earned.',
       'After each win on those rungs, 1 lord and 2 recruits can ride again: each keeps 1 skill and 1 item.',
       'Veterans come back at level 1 in their base class, with their growths, traits and Mark.',
-      'Anyone from the Barracks who falls leaves it for good.',
+      'Anyone from the Barracks who falls leaves it for good, except a lost run’s commander, who loses only their latest ride.',
     ],
     cost: `${NG_PLUS_COST.valor} Valor + ${NG_PLUS_COST.supply} Supply · never refunded`,
     buyLabel: 'Unlock New Game+',
