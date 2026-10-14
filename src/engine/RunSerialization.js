@@ -2,7 +2,7 @@
 // run-format marker). Pure: reads the manager, writes nothing. The held blessings and the
 // blessing runtime modifiers come from the manager, whose helpers own their shape.
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
-import { PROLOGUE_RUN_MODE, STANDARD_RUN_MODE } from './ScriptedBattle.js';
+import { PROLOGUE_RUN_MODE, STANDARD_RUN_MODE, isPrologueRun } from './ScriptedBattle.js';
 import { sanitizeLegendaryGrants } from './LegendaryOwnership.js';
 import { DIFFICULTY_DEFAULTS } from './DifficultyEngine.js';
 import { ACT_SEQUENCE } from '../utils/constants.js';
@@ -18,8 +18,8 @@ import { sanitizeNgPlusRun } from './NgPlusRun.js';
 export function serializeRun(rm, blessings) {
   return {
     version: 1,
-    mode: rm.mode === PROLOGUE_RUN_MODE ? PROLOGUE_RUN_MODE : STANDARD_RUN_MODE,
-    ...(rm.mode === PROLOGUE_RUN_MODE
+    mode: isPrologueRun(rm) ? PROLOGUE_RUN_MODE : STANDARD_RUN_MODE,
+    ...(isPrologueRun(rm)
       ? {
           prologueVisionGranted: rm.prologueVisionGranted === true,
           prologueRosterLesson: rm.prologueRosterLesson
