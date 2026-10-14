@@ -34,6 +34,7 @@ vi.mock('../src/art/BattleLightLayer.js', () => ({
 import {
   AtmosphereController,
   atmosphereContextFromScene,
+  devTimeOverride,
 } from '../src/ui/AtmosphereController.js';
 import { UI_DEPTHS } from '../src/utils/uiDepths.js';
 
@@ -274,5 +275,27 @@ describe('atmosphereContextFromScene', () => {
         battleParams: { act: 'act1', prologueChapter: 'p1_banner_at_dawn' },
       }).isScripted,
     ).toBe(true);
+  });
+});
+
+describe('the dev route hour', () => {
+  const q = (search) => new URLSearchParams(search);
+
+  it('a review battle is daylit unless ?timeOfDay= asks for another hour', () => {
+    expect(devTimeOverride(q('?devScene=battle&preset=combat_actions&seed=42'))).toBe('day');
+    expect(devTimeOverride(q('?devScene=battle&seed=42&timeOfDay=dusk'))).toBe('dusk');
+    expect(devTimeOverride(q('?devScene=nodemap&preset=fresh'))).toBe(null);
+    expect(devTimeOverride(q(''))).toBe(null);
+    expect(devTimeOverride(null)).toBe(null);
+  });
+
+  it('reaches the resolver from the scene', () => {
+    vi.stubGlobal('location', { search: '?devScene=battle&preset=combat_actions&seed=42' });
+    try {
+      const ctx = atmosphereContextFromScene({ battleParams: { act: 'act2', row: 3 } });
+      expect(ctx.timeOverride).toBe('day');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
