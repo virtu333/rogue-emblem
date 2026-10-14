@@ -2456,6 +2456,45 @@
       }
     },
     {
+      "id": "legend_dawnwave",
+      "name": "Dawnwave",
+      "weaponType": "Sword",
+      "tierAffinity": "Legendary",
+      "unlockAct": "act3",
+      "requiredRank": "Mast",
+      "hpCost": 7,
+      "perTurnLimit": 1,
+      "perMapLimit": 2,
+      "targeting": "normal_attack",
+      "area": {
+        "shape": "arc",
+        "width": 1,
+        "damage": {
+          "kind": "scaled",
+          "multiplier": 0.7
+        },
+        "strikes": "once"
+      },
+      "description": "The blade's light leaps out and breaks wide across the foe's line.",
+      "allowedFactions": [
+        "player"
+      ],
+      "legendaryWeaponIds": [
+        "Daybreak"
+      ],
+      "combatMods": {
+        "rangeBonus": 1,
+        "hitBonus": 10,
+        "activated": [
+          {
+            "id": "weapon_art",
+            "name": "Dawnwave"
+          }
+        ]
+      },
+      "noFollowUp": true
+    },
+    {
       "id": "sword_courtbreaker",
       "name": "Courtbreaker",
       "weaponType": "Sword",

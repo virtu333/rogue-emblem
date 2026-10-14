@@ -17,6 +17,11 @@
 
 import { adjacentAllyDefBonus, isolatedCombatBonus } from './FormationBlessings.js';
 import { tradeCombatModsFor } from './TradeBoons.js';
+import { isHoldingGround } from './TurnAnchor.js';
+
+// The turn anchor (Hold the Line's "has not moved this turn") lives in TurnAnchor.js, a leaf
+// module, so weapon rules can read it too; it is re-exported here for its older callers.
+export { isHoldingGround, stampTurnAnchors } from './TurnAnchor.js';
 
 /**
  * Standard of the Sun (an earned blessing): Hit and Avoid for a unit within `radius` tiles
@@ -39,35 +44,6 @@ export function commanderAuraBonus(entries, unit, allies) {
     out.avoidBonus += Math.trunc(Number(aura.avoidBonus) || 0);
   }
   return out;
-}
-
-/**
- * Remember where each living unit stood as `turn`'s player phase began. Hold the Line reads it
- * through the player phase and the enemy phase that follows. Called wherever the player
- * units' per-turn flags are reset.
- */
-export function stampTurnAnchors(units, turn) {
-  for (const unit of units || []) {
-    if (!unit || (unit.currentHP ?? 1) <= 0) continue;
-    unit._turnAnchor = { turn, col: unit.col, row: unit.row };
-  }
-}
-
-/**
- * Hold the Line's predicate: the unit has not moved this turn. True while it stands on the tile
- * `stampTurnAnchors` recorded for `turn`, has not been marked as moved and has spent no
- * movement; this holds through the enemy phase after it (a push or a Blink off the tile
- * ends it). A unit with no anchor for this turn (a mid-turn arrival, an older checkpoint)
- * is not holding. A move a hidden foe blocked before the first step still marks the unit as
- * moved ("it tried to move"), so it stops holding; that is intended.
- */
-export function isHoldingGround(unit, turn) {
-  const anchor = unit?._turnAnchor;
-  if (!anchor || !Number.isFinite(turn) || anchor.turn !== turn) return false;
-  if (unit.col !== anchor.col || unit.row !== anchor.row) return false;
-  if (unit.hasMoved === true) return false;
-  if ((Number(unit._movementSpent) || 0) > 0) return false;
-  return true;
 }
 
 const ZERO = () => ({

@@ -7953,6 +7953,8 @@ export class BattleScene extends Phaser.Scene {
     const masteryCtx = {
       classesData: this.gameData.classes,
       traitsData: this.gameData.traits || null,
+      // The battle's turn: an Epic weapon's "has not moved this turn" reads it.
+      turn: this.turnManager?.turnNumber,
     };
     const atkMods = getSkillCombatMods(
       attacker,

@@ -132,6 +132,14 @@
         "weapons": {
           "$ref": "#/$defs/nameArray"
         },
+        "epicWeapons": {
+          "$ref": "#/$defs/nameArray"
+        },
+        "epicChance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
         "healing": {
           "$ref": "#/$defs/nameArray"
         },

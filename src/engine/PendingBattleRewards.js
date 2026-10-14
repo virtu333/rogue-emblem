@@ -11,6 +11,7 @@ import { lootGoldMultiplierOf } from './TwistedBoons.js';
 import { arrivalForgeSteps, forgeOnArrival } from './SmithsExile.js';
 import { lootActAheadOf, lootChoiceDeltaOf } from './TradeBoons.js';
 import { lootActFor } from './Descent.js';
+import { unlockedTrophyNames } from './EpicWeapons.js';
 import {
   LOOT_CHOICES,
   ELITE_LOOT_CHOICES,
@@ -27,11 +28,20 @@ import {
 export function rewardDrawParams(run, ctx) {
   const meta = ctx.metaEffects || null;
   const pressure = Number(ctx.victoryPressureState?.goldMultiplier ?? 1);
+  // The tables the draw reads: the act's own, but in the Descent the act before it
+  // (lootTables.finalBoss pays gold only; act-v-descent §2.3 rule 3). Collector's Eye draws
+  // from a later act's (engine/TradeBoons.js), never past Act IV.
+  const actId = lootActAheadOf(run, lootActFor(run));
+  // The boss trophies this save has unlocked (docs/specs/epic-weapons.md §4), from the live
+  // meta's story flags: frozen here so a reroll or a reload offers from the same pool.
+  const epicTrophies = unlockedTrophyNames(
+    run.gameData?.weapons,
+    ctx.bossSlain,
+    actId,
+    run.gameData?.enemies,
+  );
   return {
-    // The tables the draw reads: the act's own, but in the Descent the act before it
-    // (lootTables.finalBoss pays gold only; act-v-descent §2.3 rule 3). Collector's Eye draws
-    // from a later act's (engine/TradeBoons.js), never past Act IV.
-    actId: lootActAheadOf(run, lootActFor(run)),
+    actId,
     isElite: ctx.isElite === true,
     isBoss: ctx.isBoss === true,
     lootWeaponQualityBonus: meta?.lootWeaponQualityBonus ?? meta?.lootWeaponWeightBonus ?? 0,
@@ -50,6 +60,8 @@ export function rewardDrawParams(run, ctx) {
     ...(arrivalForgeSteps(run) > 0 ? { arrivalForge: arrivalForgeSteps(run) } : {}),
     // Lottery Loot: which table its card comes from (engine/LotteryLoot.js); absent without it.
     ...(lotteryDrawParams(run, { nodeId: ctx.nodeId || run.currentNodeId }) || {}),
+    // Absent until a trophy is unlocked, so every record saved before draws as it did.
+    ...(epicTrophies.length > 0 ? { epicTrophies } : {}),
   };
 }
 
@@ -89,6 +101,7 @@ export function rollBattleRewardChoices(run, data, draw, { round = 0 } = {}) {
       lootCategoryWeightBonuses: draw.lootCategoryWeightBonuses || undefined,
       imbues: data.imbues || null,
       excludeLegendaryNames: [...ownedLegendaryNames(run)],
+      epicTrophies: Array.isArray(draw.epicTrophies) ? draw.epicTrophies : undefined,
     },
   );
   const choices = applyLotteryCards(run, data, draw, drawn, { round });

@@ -199,6 +199,16 @@ function* postCombatStep(
       };
       break;
     }
+    case 'epic_self_heal': {
+      // Pilgrim's Lamp (an Epic weapon): the wielder mends after a combat it hit in.
+      if (!sourceUnit || sourceUnit.currentHP <= 0) break;
+      const healed = healUnit(sourceUnit, step.amount);
+      if (healed > 0) {
+        yield { kind: 'hp', unit: sourceUnit };
+        yield { kind: 'hint', unit: sourceUnit, text: `+${healed}`, tone: 'heal' };
+      }
+      break;
+    }
     case 'art_miss_self_damage':
       if (!targetUnit || targetUnit.currentHP <= 0) break;
       yield* damageOverTime(targetUnit, step.amount, step.nonLethal === false ? 0 : 1, world, held);
@@ -428,7 +438,10 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result, held = nul
     getMoveCost: world.getMoveCost,
     getUnitAt: world.getUnitAt,
     getTerrainAt: world.getTerrainAt,
-    isImmovable: (unit) => isDisplacementImmune(unit, world.affixes),
+    // An Epic weapon moves a foe on every hit, so it never moves a boss (as Smite never does).
+    isImmovable: (unit) =>
+      isDisplacementImmune(unit, world.affixes) ||
+      (Boolean(step.epicWeapon) && unit?.isBoss === true),
   });
   // A dash held short by units on the line past its landing: the scene shows each one the fog
   // hid and says the run was blocked (a walk's ambush rule). It reads the real board, so this
@@ -437,7 +450,7 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result, held = nul
     yield { kind: 'contact', units: moveResult.blockers };
   if (!moveResult.ok) {
     const pinned = moveResult.reason === 'rooted' || moveResult.reason === 'immovable';
-    if (step.mode === 'ram' && pinned && targetUnit?.currentHP > 0)
+    if ((step.mode === 'ram' || step.epicWeapon) && pinned && targetUnit?.currentHP > 0)
       yield { kind: 'hint', unit: targetUnit, text: 'Braced!', tone: 'good' };
     return;
   }

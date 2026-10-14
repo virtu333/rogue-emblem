@@ -320,6 +320,24 @@ const STATIC_HELP_TABS = [
         ],
       },
       {
+        // docs/specs/epic-weapons.md
+        title: 'Epic Weapons',
+        tags: ['epic', 'trophy', 'unique'],
+        lines: [
+          { text: 'Epic weapons are one of a kind: Steel or', color: GRAY },
+          { text: 'Silver strength with a rule of their own,', color: GRAY },
+          { text: 'often with a catch. Their tags name it.', color: GRAY },
+          { text: '' },
+          { text: 'Finds: a weapon reward sometimes turns', color: CYAN },
+          { text: '  up an Epic weapon from Act I on.' },
+          { text: 'Trophies: once you have beaten a boss', color: GOLD },
+          { text: '  on this save, its own weapon can turn' },
+          { text: '  up in the loot from its act on.' },
+          { text: '' },
+          { text: 'Never sold in shops. One of each a run.', color: GRAY },
+        ],
+      },
+      {
         title: 'Legendary Weapons',
         lines: [
           { text: 'Ragnarok - Sword, range 1-2, +5 DEF', color: GOLD },
@@ -329,6 +347,7 @@ const STATIC_HELP_TABS = [
           { text: 'Starfall - Bow, range 2-3', color: GOLD },
           { text: 'Tidebreaker - Axe, +5 DEF/RES', color: GOLD },
           { text: 'Ruin - Axe, ignores triangle penalty', color: GOLD },
+          { text: 'Daybreak - Sword, x3 vs dragons, undead', color: GOLD },
           {
             text: 'Breachbolt - Tome, range 3-10 (limited shots, refilled each battle)',
             color: GOLD,
@@ -761,7 +780,7 @@ const STATIC_HELP_TABS = [
           { text: 'Village:', color: CYAN },
           { text: '  Buy, sell, and forge weapons.' },
           { text: '  Forging costs more on better weapons:' },
-          { text: '  Iron ×0.6, Steel ×1, Silver ×1.5, Legend ×2.' },
+          { text: '  Iron ×0.6, Steel ×1, Silver and Epic ×1.5, Legend ×2.' },
           { text: 'Ruins:', color: GOLD },
           { text: '  Pre-boss camp: rest (heal, revive)' },
           { text: '  or scavenge marked-up wares. One only.' },

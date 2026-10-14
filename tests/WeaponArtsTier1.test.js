@@ -25,9 +25,10 @@ const artById = new Map(allArts.map((a) => [a.id, a]));
 describe('Tier 1 Weapon Arts Expansion', () => {
   // 83, plus the four area arts of docs/specs/aoe-weapon-arts.md (Sweeping Cleave, Skewer,
   // Benediction, Battering Ram), plus Lunar Brace and Override (docs/specs/phase3.md 3F).
-  // Plus Hermit's Bow's Fan Shot (docs/specs/legendary-arts-rework.md §2).
-  it('has exactly 91 arts', () => {
-    expect(allArts.length).toBe(91);
+  // Plus Hermit's Bow's Fan Shot (docs/specs/legendary-arts-rework.md §2), and Daybreak's
+  // Dawnwave (docs/specs/epic-weapons.md).
+  it('has exactly 92 arts', () => {
+    expect(allArts.length).toBe(92);
   });
 
   it('all art IDs are unique', () => {
@@ -69,7 +70,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     });
 
     it('legendary tier has correct count', () => {
-      expect(legendaryArts.length).toBe(17);
+      expect(legendaryArts.length).toBe(18); // + Dawnwave
     });
 
     it('all legendary arts have legendaryWeaponIds', () => {
@@ -228,7 +229,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     );
 
     it('all non-staff legendary weapons except Fortify have bound arts', () => {
-      expect(boundWeapons.length).toBe(16);
+      expect(boundWeapons.length).toBe(17); // + Daybreak
     });
 
     it('all bound art IDs exist in the catalog', () => {

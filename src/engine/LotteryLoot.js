@@ -103,6 +103,7 @@ export function applyLotteryCards(run, data, draw, choices, { round = 0 } = {}) 
             lootCategoryWeightBonuses: draw.lootCategoryWeightBonuses || undefined,
             imbues: data.imbues || null,
             excludeLegendaryNames: [...ownedLegendaryNames(run)],
+            epicTrophies: Array.isArray(draw.epicTrophies) ? draw.epicTrophies : undefined,
           },
         )[0] || null,
     );

@@ -40,7 +40,26 @@ describe('reversed-triangle weapons name the type they beat', () => {
 });
 
 describe('effectiveness tags match the combat multiplier', () => {
-  const effective = weapons.filter((w) => itemKeywords(w).some((t) => t.id === 'effective'));
+  // Weapons whose effectiveness is read from `special` (an Epic or relic rule's is below).
+  const effective = weapons.filter(
+    (w) => !Array.isArray(w.rules) && itemKeywords(w).some((t) => t.id === 'effective'),
+  );
+
+  it("names each effective rule's multiplier, and combat applies it to every class it lists", () => {
+    const ruled = weapons.filter((w) => (w.rules || []).some((r) => r.kind === 'effective'));
+    expect(ruled.map((w) => w.name)).toEqual(['Daybreak']);
+    for (const w of ruled) {
+      const texts = itemKeywords(w).map((t) => t.text);
+      for (const rule of w.rules.filter((r) => r.kind === 'effective')) {
+        expect(texts).toContain(`x${rule.multiplier} vs ${rule.label}`);
+        for (const className of rule.classNames)
+          expect(getEffectivenessMultiplier(w, { className, moveType: 'Infantry' })).toBe(
+            rule.multiplier,
+          );
+      }
+      expect(getEffectivenessMultiplier(w, { moveType: 'Infantry', className: 'Fighter' })).toBe(1);
+    }
+  });
 
   it('covers every weapon combat treats as effective', () => {
     expect(effective.map((w) => w.name).sort()).toEqual([

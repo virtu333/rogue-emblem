@@ -12,7 +12,7 @@
       },
       "tier": {
         "type": "string",
-        "enum": ["Iron", "Steel", "Silver", "Legend", "Rare"]
+        "enum": ["Iron", "Steel", "Silver", "Legend", "Rare", "Epic"]
       },
       "rankRequired": {
         "type": "string",
@@ -78,7 +78,17 @@
       "teachesWeaponArtId": { "type": "string" },
       "allowedWeaponTypes": { "type": "array", "items": { "type": "string" } },
       "lore": { "type": "string", "minLength": 1 },
-      "signatureOf": { "type": "string", "minLength": 1 }
+      "signatureOf": { "type": "string", "minLength": 1 },
+      "trophyOf": { "type": "string", "minLength": 1 },
+      "rules": {
+        "type": "array",
+        "description": "Epic weapons' rules (engine/EpicWeapons.js validateWeaponRules checks each kind's keys).",
+        "items": {
+          "type": "object",
+          "properties": { "kind": { "type": "string" } },
+          "required": ["kind"]
+        }
+      }
     },
     "required": [
       "name",

@@ -25,6 +25,7 @@ import { bannerReadyFor } from './BattleBlessings.js';
 import { revivalStoneCount } from './RevivalStones.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
+import { epicEffectiveness } from './EpicWeapons.js';
 import {
   getImbueCombatMods,
   getImbuePostCombatPoison,
@@ -353,14 +354,6 @@ export function isStaff(weapon) {
 
 /** Check weapon effectiveness vs defender's moveType. Returns multiplier (1 if none). */
 export function getEffectivenessMultiplier(weapon, defender) {
-  const normalizeMoveType = (value) => {
-    const normalized = String(value || '')
-      .trim()
-      .toLowerCase();
-    if (normalized === 'calvary') return 'cavalry';
-    return normalized;
-  };
-
   // Check if defender's accessory negates effectiveness
   if (defender.accessory?.combatEffects?.negateEffectiveness) return 1;
   if (
@@ -370,6 +363,20 @@ export function getEffectivenessMultiplier(weapon, defender) {
   ) {
     return 1;
   }
+  // An Epic weapon's or relic's class rule (Daybreak: dragons, the undead, the Entity), beside
+  // the rules below; the larger applies.
+  return Math.max(epicEffectiveness(weapon, defender), legacyEffectiveness(weapon, defender));
+}
+
+/** The effectiveness the weapon's type and `special` text give (before any `rules`). */
+function legacyEffectiveness(weapon, defender) {
+  const normalizeMoveType = (value) => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase();
+    if (normalized === 'calvary') return 'cavalry';
+    return normalized;
+  };
   // Global rule: all bows are effective against fliers
   if (weapon?.type === 'Bow' && defender.moveType === 'Flying') return 3;
   // Light magic is effective against undead (zombie) classes
