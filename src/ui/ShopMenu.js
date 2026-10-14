@@ -427,9 +427,10 @@ export class ShopMenu {
     this.controller._saveShopState();
     return saveServiceRun(this.scene);
   }
-  complete(result) {
+  /** A committed shop action: its sound (a purchase's purse, a sale's gold), then the save. */
+  complete(result, sfx = 'sfx_gold') {
     if (!result.ok) return result;
-    this.scene.registry.get('audio')?.playSFX('sfx_gold');
+    this.scene.registry.get('audio')?.playSFX(sfx);
     this.render((result.message || '') + this.persist());
     return result;
   }
@@ -484,7 +485,10 @@ export class ShopMenu {
             : `Equip now${unit.accessory ? `; ${this.shown(unit.accessory)} returns to the shared pool` : ''}.`),
         blocked: () => shopBuyBlock(this.run, this.scene.shopBuyItems, entry),
         apply: (unit) =>
-          this.complete(purchaseShopItem(this.run, this.scene.shopBuyItems, entry, unit)),
+          this.complete(
+            purchaseShopItem(this.run, this.scene.shopBuyItems, entry, unit),
+            'sfx_purchase',
+          ),
       });
       return;
     }
@@ -492,7 +496,8 @@ export class ShopMenu {
       this.confirm(
         `Buy ${this.shown(entry.item)}?`,
         `${entry.price} gold · Added to the team ${entry.type} pool.`,
-        () => this.complete(purchaseShopItem(this.run, this.scene.shopBuyItems, entry)),
+        () =>
+          this.complete(purchaseShopItem(this.run, this.scene.shopBuyItems, entry), 'sfx_purchase'),
       );
       return;
     }
@@ -525,7 +530,10 @@ export class ShopMenu {
         return full && !this.run.canAddToConvoy(entry.item) ? 'No space in convoy.' : '';
       },
       apply: (unit) =>
-        this.complete(purchaseShopItem(this.run, this.scene.shopBuyItems, entry, unit)),
+        this.complete(
+          purchaseShopItem(this.run, this.scene.shopBuyItems, entry, unit),
+          'sfx_purchase',
+        ),
     });
   }
   forgeOptions() {
@@ -549,7 +557,7 @@ export class ShopMenu {
         const options = { ...this.forgeOptions(), expectedWear };
         const result = repairShopWeapon(this.run, weapon, options);
         if (result.ok) this.scene.shopForgesUsed++;
-        return this.complete(result);
+        return this.complete(result, 'sfx_purchase');
       },
     );
   }
@@ -585,7 +593,7 @@ export class ShopMenu {
           expectedLevel,
         });
         if (result.ok) this.scene.shopForgesUsed++;
-        return this.complete(result);
+        return this.complete(result, 'sfx_purchase');
       },
     });
   }
@@ -597,6 +605,7 @@ export class ShopMenu {
       units: this.run.roster,
       gameData: this.scene.gameData,
       run: this.run,
+      overview: true,
       onClose: () => {
         this.child.destroy();
         this.child = null;

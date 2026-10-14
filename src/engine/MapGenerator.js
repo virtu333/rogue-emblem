@@ -42,6 +42,26 @@ import { assignEnemyCarry } from './EnemyCarry.js';
 import { buildReinforcementTemplatePool } from './ReinforcementSpawns.js';
 import { reinforcementMoveTypes } from './ReinforcementScheduler.js';
 import { SET_PIECE_TEMPLATE_PREFIX, buildSetPieceBattle, findSetPiece } from './SetPieces.js';
+import {
+  applyTemplateGroupOrders,
+  enemyGroupZones,
+  groupEnemyWeights,
+  isTemplateDrawable,
+  isTemplateGroupSpawn,
+  planGroupSlots,
+  resolveTemplateLayout,
+  templateExtraEnemies,
+  templateSizeFor,
+  playerSpawnZones,
+  planPlayerSplit,
+  interleaveSpawns,
+  appointTemplateCaptains,
+  templateCaptainObjectives,
+  captainIndexOf,
+  hasTemplateCaptain,
+} from './TemplateLayout.js';
+import { coverOpening, placeFormation } from './EnemyFormations.js';
+import { isBackLineClass } from './EngagementScan.js';
 
 const DEBUG_MAP_GEN = false;
 const mapGenLog = createScopedLogger('MapGen', { debug: DEBUG_MAP_GEN });
@@ -118,17 +138,21 @@ export function generateBattleLayout(params, deps) {
     isTemplateAllowedForAct(preAssignedTemplate, act) &&
     isTemplateAllowedForObjective(preAssignedTemplate, objective, mapTemplates);
   // Only roll biome when we need to pick a fresh template (preserves RNG for seeded pre-assigned paths)
-  const template =
+  const pickedTemplate =
     preAssignedTemplateId && preAssignedAllowed
       ? preAssignedTemplate
       : pickTemplate(objective, mapTemplates, act, { isBoss, biome: rollBiome(act) });
-  if (!template) {
+  if (!pickedTemplate) {
     throw new Error(`No valid map template found for objective "${objective}" in act "${act}"`);
   }
+  // This battle's shape of the template (TemplateLayout.js): its choices taken and maybe
+  // mirrored. A template with neither comes back as it is, with no draw.
+  const { template, layout: templateLayout } = resolveTemplateLayout(pickedTemplate);
 
-  // Override map size if template has fixedSize
-  if (template.fixedSize) {
-    const [fc, fr] = template.fixedSize;
+  // Override map size if template has fixedSize, or its own size for this act (TemplateLayout)
+  const templateSize = template.fixedSize || templateSizeFor(template, act);
+  if (templateSize) {
+    const [fc, fr] = templateSize;
     sizeEntry = { mapSize: `${fc}x${fr}`, tiles: fc * fr };
     cols = fc;
     rows = fr;
@@ -177,12 +201,12 @@ export function generateBattleLayout(params, deps) {
   // 5. Player spawns
   const spawnCount = deployCount || DEPLOY_LIMITS[act]?.max || 4;
   const biome = template.biome || null;
-  const playerSpawns = placeSpawns(
+  // A split start (two playerSpawn zones, TemplateLayout.js) deploys in two groups.
+  const { playerSpawns, playerGroupStarts } = placePlayerSpawns(
     mapLayout,
     template,
     cols,
     rows,
-    'playerSpawn',
     terrain,
     spawnCount,
     biome,
@@ -230,7 +254,11 @@ export function generateBattleLayout(params, deps) {
     ? Math.max(0, Math.trunc(params.recruitEnemyCountBonus ?? (diffMode === 'normal' ? 1 : 2)))
     : 0;
   const densityCap = getEnemyDensityCapByTiles(sizeEntry.tiles, enemies.enemyCountByTiles);
-  const enemyCount = Math.min(rolledEnemyCount + recruitBonus, densityCap);
+  // A dense shape (Corner Camp's raiders) adds its own foes, under the same cap.
+  const enemyCount = Math.min(
+    rolledEnemyCount + recruitBonus + templateExtraEnemies(template),
+    densityCap,
+  );
   // Apply difficulty-driven level bonus (supports positive and negative offsets)
   const baseLevelRange = levelRange || pool.levelRange;
   const adjustedLevelRange =
@@ -268,8 +296,23 @@ export function generateBattleLayout(params, deps) {
       // spawn so a locked map keeps them), and `bossName` seating a boss by name.
       seatParams: params,
       enemies,
+      // A formation faces the army (EnemyFormations.js) and the opening is read from its start.
+      playerSpawns,
     },
   );
+  // A captains map (TemplateLayout.js): each captain group's strongest foe is named its captain
+  // before dressing (an authored foe never carries), and the map becomes a defeat of the
+  // captains, its family the rout it was drawn for. No draw; never a boss's map.
+  const captainObjectives =
+    objective === 'rout' && !isBoss
+      ? templateCaptainObjectives(
+          appointTemplateCaptains(
+            enemySpawns,
+            enemyGroupZones(template).map((z) => z.group),
+            { act, levelTop: adjustedLevelRange[1] },
+          ),
+        )
+      : null;
   enemySpawns = dressEnemySpawns(enemySpawns, { params, deps, act, templateId: template?.id });
 
   // 7. NPC spawn for recruit battles
@@ -378,6 +421,8 @@ export function generateBattleLayout(params, deps) {
 
   // 8. Ensure reachability from player spawn to all enemies + throne + NPC + exits
   const reachTargets = [...enemySpawns];
+  // A split start's second group walks to the same fight (and the first group to it).
+  reachTargets.push(...playerGroupStarts.slice(1));
   if (npcSpawn) reachTargets.push(npcSpawn);
   if (caravanSpawn) reachTargets.push(caravanSpawn);
   if (villageTile) reachTargets.push(villageTile);
@@ -457,9 +502,10 @@ export function generateBattleLayout(params, deps) {
 
   // Dusk and harder: part of a seize or escape garrison holds its ground until its pack
   // is disturbed (engine/HoldActivation.js); holds replace the seize guard roll. No RNG:
-  // holders are the enemies nearest the objective, so the map is drawn as before.
+  // holders are the enemies nearest the objective, so the map is drawn as before. A
+  // template's own groups (TemplateLayout.js) keep their orders and are left out.
   assignHolders({
-    spawns: enemySpawns,
+    spawns: enemySpawns.filter((s) => !isTemplateGroupSpawn(s)),
     objective,
     share: holdShareFor(params.holdShare, objective),
     thronePos,
@@ -525,6 +571,8 @@ export function generateBattleLayout(params, deps) {
     cols,
     rows,
     objective,
+    // A captains map's model (BattleObjectives.js), locked with the map; `objective` is its family.
+    ...(captainObjectives ? { objectives: captainObjectives } : {}),
     biome: template.biome || null,
     playerSpawns: npcSpawn
       ? orderSpawnsTowardTarget(mapLayout, cols, rows, terrain, playerSpawns, npcSpawn)
@@ -537,6 +585,11 @@ export function generateBattleLayout(params, deps) {
     escapeTiles: escapeTiles || undefined,
     ballistas: ballistas.length > 0 ? ballistas : undefined,
     templateId: template.id,
+    // A template that varies per battle (TemplateLayout.js): whether it was flipped and which
+    // option each choice took, for display and records (the map itself is already drawn).
+    ...(templateLayout
+      ? { mirrored: templateLayout.mirrored, templateChoices: templateLayout.choices }
+      : {}),
     parBonus: Number.isFinite(template.parBonus) ? Math.max(0, Math.trunc(template.parBonus)) : 0,
     // The rung's par inflation, locked with the map (absent: turnBonus.parInflation).
     ...(Number.isFinite(params.parInflation)
@@ -544,7 +597,7 @@ export function generateBattleLayout(params, deps) {
       : {}),
     // The rung's par offset for this objective and act, locked with the map, and on
     // seize the floor that keeps an S reachable under it (SeizeParFloor.js).
-    ...parOffsetConfig(params, objective, {
+    ...parOffsetConfig(params, captainObjectives ? 'defeat' : objective, {
       mapLayout,
       cols,
       rows,
@@ -917,7 +970,9 @@ export function pickTemplate(objective, mapTemplates, act = null, options = {}) 
   if (!pool || pool.length === 0) {
     return null;
   }
-  const filteredPool = act ? filterTemplatesByAct(pool, act) : pool;
+  // A template switched off (`enabled: false`) is never drawn; a battle can still name it.
+  const drawable = pool.filter(isTemplateDrawable);
+  const filteredPool = act ? filterTemplatesByAct(drawable, act) : drawable;
   const biomeFilteredPool = filterByBiome(filteredPool, biome);
   const bossFilteredPool = biomeFilteredPool.filter((template) =>
     isTemplateAllowedForBoss(template, isBoss),
@@ -1577,6 +1632,11 @@ function applyToxicOverlay({ mapLayout, template, cols, rows, terrainData, act, 
   const enemyBounds = getRoleBounds(template, 'enemySpawn', cols, rows);
   const excluded = new Set();
   addBoundsExclusionRing(playerBounds, cols, rows, excluded, 1);
+  // A split start's second group keeps its ring clear too.
+  for (const zone of playerSpawnZones(template).slice(1)) {
+    const bounds = resolveNormalizedRectBounds(zone.rect, cols, rows);
+    if (bounds) addBoundsExclusionRing(bounds, cols, rows, excluded, 1);
+  }
   addPointManhattanExclusion(thronePos, 1, cols, rows, excluded);
 
   const candidates = [];
@@ -1763,6 +1823,50 @@ export function placeEscapeTiles(mapLayout, template, cols, rows, terrainData, s
 }
 
 // --- Spawn placement ---
+
+/**
+ * The army's spawn tiles. One playerSpawn zone: placeSpawns, as ever. Two (a split start): each
+ * zone placed in turn with its share (planPlayerSplit), the slots interleaved, and the first tile
+ * of each group returned so reachability joins the groups.
+ */
+function placePlayerSpawns(mapLayout, template, cols, rows, terrainData, count, biome) {
+  const zones = playerSpawnZones(template);
+  if (zones.length < 2) {
+    const spawns = placeSpawns(
+      mapLayout,
+      template,
+      cols,
+      rows,
+      'playerSpawn',
+      terrainData,
+      count,
+      biome,
+    );
+    return { playerSpawns: spawns, playerGroupStarts: spawns.slice(0, 1) };
+  }
+  const fallbackPassable = getFallbackPassable(biome);
+  const bounds = zones.map((z) => resolveNormalizedRectBounds(z.rect, cols, rows));
+  const capacities = bounds.map((b) => (b ? (b.endCol - b.startCol) * (b.endRow - b.startRow) : 0));
+  const shares = planPlayerSplit(count, capacities);
+  const groups = bounds.map((b, i) =>
+    b
+      ? findPassableTiles(
+          mapLayout,
+          b.startCol,
+          b.endCol,
+          b.startRow,
+          b.endRow,
+          terrainData,
+          shares[i],
+          fallbackPassable,
+        )
+      : [],
+  );
+  return {
+    playerSpawns: interleaveSpawns(groups),
+    playerGroupStarts: groups.filter((g) => g.length).map((g) => g[0]),
+  };
+}
 
 function placeSpawns(mapLayout, template, cols, rows, role, terrainData, count, biome) {
   const fallbackPassable = getFallbackPassable(biome);
@@ -2150,6 +2254,11 @@ function resolveClassWeight(className, enemyWeights, classData) {
     composite *= enemyWeights.armored;
     matched.push('armored');
   }
+  // "healer" — has Staves proficiency (a Cleric)
+  if (enemyWeights.healer !== undefined && profList.includes('Staves')) {
+    composite *= enemyWeights.healer;
+    matched.push('healer');
+  }
   // "lance" — has Lances proficiency
   if (enemyWeights.lance !== undefined && profList.includes('Lances')) {
     composite *= enemyWeights.lance;
@@ -2335,7 +2444,8 @@ function generateEnemies(
     }
   }
 
-  // Get enemy spawn zone positions
+  // Get enemy spawn zone positions (a template with groups splits its fillers among its zones
+  // below; its first zone stands in here)
   const enemyZone = template.zones.find((z) => z.role === 'enemySpawn');
   let zoneStartCol, zoneEndCol, zoneStartRow, zoneEndRow;
   if (enemyZone) {
@@ -2384,21 +2494,52 @@ function generateEnemies(
     }
   }
 
-  for (let i = 0; i < remaining && candidateTiles.length > 0; i++) {
-    // Pick class using template-weighted selection
+  // A template's enemy groups (TemplateLayout.js): each filler slot belongs to a group, and
+  // takes a tile from that group's zone (or, when it is full, the next group's with room).
+  // No draw of its own: the slots are planned from the shares.
+  const groupZones = enemyGroupZones(template);
+  const groupPlan = groupZones.length
+    ? planGroupSlots(
+        groupZones.map((z) => z.group),
+        remaining,
+      )
+    : null;
+  const groupTiles = groupPlan
+    ? groupZones.map((z) => {
+        const b = resolveNormalizedRectBounds(z.rect, cols, rows);
+        const tiles = [];
+        for (let r = b.startRow; r < b.endRow; r++)
+          for (let c = b.startCol; c < b.endCol; c++)
+            if (!usedPositions.has(`${c},${r}`)) tiles.push({ col: c, row: r });
+        return tiles;
+      })
+    : null;
+
+  for (let i = 0; i < remaining && (groupPlan || candidateTiles.length > 0); i++) {
+    let group = -1;
+    let slotTiles = candidateTiles;
+    if (groupPlan) {
+      group = groupPlan[i];
+      if (groupTiles[group].length === 0) group = groupTiles.findIndex((l) => l.length > 0);
+      if (group < 0) break;
+      slotTiles = groupTiles[group];
+    }
+    // Pick class using template-weighted selection (a group's role weighs its own slots)
+    const slotWeights =
+      group >= 0 ? groupEnemyWeights(groupZones[group].group, enemyWeights) : enemyWeights;
     let className;
     if (usePromoted && Math.random() < promotedShare) {
-      className = weightedClassPick(pool.promoted, enemyWeights, classes);
+      className = weightedClassPick(pool.promoted, slotWeights, classes);
     } else if (pool.base.length > 0) {
       className = weightedClassPick(
         spawns.some((s) => s.className === 'Cleric')
           ? pool.base.filter((c) => c !== 'Cleric')
           : pool.base,
-        enemyWeights,
+        slotWeights,
         classes,
       );
     } else {
-      className = weightedClassPick(allClasses, enemyWeights, classes);
+      className = weightedClassPick(allClasses, slotWeights, classes);
     }
 
     // One Necromancer per battle: a further pick is mapped to the pool's next class (no
@@ -2407,22 +2548,33 @@ function generateEnemies(
 
     const unit = { className };
 
-    // Score all remaining candidate tiles for this unit
+    // A formation group's slots take their tiles together once every slot is drawn (below): no
+    // tile draw here.
+    const inFormation = group >= 0 && Boolean(groupZones[group].group.formation);
+    let pos = null;
     const scored = [];
-    for (const tile of candidateTiles) {
-      const s = scoreSpawnTile(tile, unit, terrainData, mapLayout, cols, classes);
-      if (s > 0) scored.push({ item: tile, weight: s });
+    if (!inFormation) {
+      // Score all remaining candidate tiles for this unit
+      for (const tile of slotTiles) {
+        const s = scoreSpawnTile(tile, unit, terrainData, mapLayout, cols, classes);
+        if (s > 0) scored.push({ item: tile, weight: s });
+      }
+
+      if (scored.length === 0) {
+        if (groupPlan) continue; // this group's zone has nothing this class can stand on
+        break; // no passable tiles left for this unit
+      }
+
+      // Weighted pick
+      pos = weightedPick(scored);
+
+      // Remove chosen tile from candidates (every group's list: zones may overlap)
+      for (const list of groupTiles || [candidateTiles]) {
+        const idx = list.findIndex((t) => t.col === pos.col && t.row === pos.row);
+        if (idx !== -1) list.splice(idx, 1);
+      }
+      usedPositions.add(`${pos.col},${pos.row}`);
     }
-
-    if (scored.length === 0) break; // no passable tiles left for this unit
-
-    // Weighted pick
-    const pos = weightedPick(scored);
-
-    // Remove chosen tile from candidates
-    const idx = candidateTiles.findIndex((t) => t.col === pos.col && t.row === pos.row);
-    if (idx !== -1) candidateTiles.splice(idx, 1);
-    usedPositions.add(`${pos.col},${pos.row}`);
 
     const level = minLvl + Math.floor(Math.random() * (maxLvl - minLvl + 1));
 
@@ -2489,7 +2641,7 @@ function generateEnemies(
       }
     }
 
-    if (DEBUG_MAP_GEN) {
+    if (DEBUG_MAP_GEN && pos) {
       const tName = terrainData[mapLayout[pos.row][pos.col]]?.name;
       const chosenScore = scored.find((s) => s.item === pos)?.weight;
       mapGenLog.debug(
@@ -2500,8 +2652,8 @@ function generateEnemies(
     spawns.push({
       className,
       level,
-      col: pos.col,
-      row: pos.row,
+      col: pos ? pos.col : null,
+      row: pos ? pos.row : null,
       isBoss: false,
       sunderWeapon: sunderWeapon || undefined,
       poisonWeapon: poisonWeapon || undefined,
@@ -2509,8 +2661,28 @@ function generateEnemies(
       // A Cleric heals; a Necromancer holds its post and raises (the existing guard mode).
       aiMode: className === 'Cleric' ? 'heal' : className === 'Necromancer' ? 'guard' : undefined,
       siegeWeapon: siegeWeapon || undefined,
+      ...(group >= 0 ? { templateGroup: groupZones[group].group.id } : {}),
     });
   }
+  // The formation groups (EnemyFormations.js), in group order, on the tiles left.
+  if (groupPlan && groupZones.some((z) => z.group.formation)) {
+    placeTemplateFormations(spawns, groupZones, {
+      cols,
+      rows,
+      mapLayout,
+      terrainData,
+      classes,
+      usedPositions,
+      playerSpawns: extraOptions.playerSpawns || [],
+      thronePos,
+    });
+  }
+  // A group's orders (hold pack, guard post) before the seize guard roll, which skips them.
+  if (groupPlan)
+    applyTemplateGroupOrders(
+      spawns,
+      groupZones.map((z) => z.group),
+    );
 
   // Assign guard AI mode only on seize maps to avoid passive enemies on rout maps.
   if (objective === 'seize') {
@@ -2529,7 +2701,144 @@ function generateEnemies(
     }
   }
 
+  // A template with formations has its opening checked: no foe the army can strike on its first
+  // phase is left where fewer than two others answer for it (EnemyFormations.coverOpening).
+  if (groupPlan && groupZones.some((z) => z.group.formation)) {
+    coverTemplateOpening(spawns, groupZones, {
+      cols,
+      rows,
+      mapLayout,
+      terrainData,
+      classes,
+      playerSpawns: extraOptions.playerSpawns || [],
+      act,
+      thronePos,
+      objective,
+    });
+  }
+
   return spawns;
+}
+
+/** How much shelter a tile and its four neighbours give (terrain DEF and Avoid). */
+function tileCover(tile, mapLayout, terrainData, cols, rows) {
+  let total = 0;
+  for (const [dc, dr] of [
+    [0, 0],
+    [0, -1],
+    [0, 1],
+    [-1, 0],
+    [1, 0],
+  ]) {
+    const col = tile.col + dc;
+    const row = tile.row + dr;
+    if (col < 0 || col >= cols || row < 0 || row >= rows) continue;
+    const t = terrainData[mapLayout[row][col]];
+    const weight = dc === 0 && dr === 0 ? 2 : 1;
+    // A wall's bonuses read "--": no shelter of its own.
+    const def = Number(t?.defBonus);
+    const avoid = Number(t?.avoidBonus);
+    total +=
+      weight * ((Number.isFinite(def) ? def : 0) + (Number.isFinite(avoid) ? avoid : 0) / 10);
+  }
+  return total;
+}
+
+function centreOf(points) {
+  const list = points.filter((p) => Number.isFinite(p?.col) && Number.isFinite(p?.row));
+  if (!list.length) return null;
+  return {
+    col: list.reduce((s, p) => s + p.col, 0) / list.length,
+    row: list.reduce((s, p) => s + p.row, 0) / list.length,
+  };
+}
+
+/**
+ * Place each formation group's spawns (their tiles were left open in the slot loop), in group
+ * order, on the free tiles of its zone, facing the army's start. A spawn no tile fits is dropped,
+ * as a slot with no standable tile always was. Mutates `spawns` and `usedPositions`.
+ */
+function placeTemplateFormations(spawns, groupZones, ctx) {
+  const { cols, rows, mapLayout, terrainData, classes, usedPositions, playerSpawns, thronePos } =
+    ctx;
+  const army = centreOf(playerSpawns) || { col: 0, row: rows / 2 };
+  groupZones.forEach((zone) => {
+    const group = zone.group;
+    if (!group.formation) return;
+    const members = spawns.filter((s) => s.templateGroup === group.id && s.col === null);
+    if (!members.length) return;
+    const b = resolveNormalizedRectBounds(zone.rect, cols, rows);
+    const tiles = [];
+    for (let r = b.startRow; r < b.endRow; r++)
+      for (let c = b.startCol; c < b.endCol; c++)
+        if (!usedPositions.has(`${c},${r}`)) tiles.push({ col: c, row: r });
+    const zoneCentre = centreOf(tiles) || army;
+    const coreIndex = hasTemplateCaptain(group) ? captainIndexOf(members) : -1;
+    const placed = placeFormation({
+      formation: group.formation,
+      members: members.map((s, i) => ({
+        back: isBackLineClass(s.className, classes),
+        core: i === coreIndex,
+      })),
+      tiles,
+      standScore: (tile, i) =>
+        scoreSpawnTile(tile, members[i], terrainData, mapLayout, cols, classes),
+      cover: (tile) => tileCover(tile, mapLayout, terrainData, cols, rows),
+      facing: { dc: army.col - zoneCentre.col, dr: army.row - zoneCentre.row },
+      random: () => Math.random(),
+      // A garrison whose zone holds the throne gathers around it.
+      heart:
+        thronePos &&
+        thronePos.col >= b.startCol &&
+        thronePos.col < b.endCol &&
+        thronePos.row >= b.startRow &&
+        thronePos.row < b.endRow
+          ? thronePos
+          : null,
+    });
+    members.forEach((s, i) => {
+      if (!placed[i]) return;
+      s.col = placed[i].col;
+      s.row = placed[i].row;
+      usedPositions.add(`${s.col},${s.row}`);
+    });
+  });
+  // A member the zone had no room for never stands.
+  for (let i = spawns.length - 1; i >= 0; i--) if (spawns[i].col === null) spawns.splice(i, 1);
+}
+
+/** EnemyFormations.coverOpening over a formation template's grouped spawns, in their zones. */
+function coverTemplateOpening(spawns, groupZones, ctx) {
+  const { cols, rows, mapLayout, terrainData, classes } = ctx;
+  const zoneById = new Map(groupZones.map((z) => [z.group.id, z]));
+  const tilesById = new Map();
+  const zoneTiles = (id) => {
+    if (!tilesById.has(id)) {
+      const b = resolveNormalizedRectBounds(zoneById.get(id).rect, cols, rows);
+      const tiles = [];
+      for (let r = b.startRow; r < b.endRow; r++)
+        for (let c = b.startCol; c < b.endCol; c++) tiles.push({ col: c, row: r });
+      tilesById.set(id, tiles);
+    }
+    return tilesById.get(id);
+  };
+  coverOpening({
+    spawns,
+    tilesFor: (i) => {
+      const s = spawns[i];
+      return s.isBoss || !zoneById.has(s.templateGroup) ? null : zoneTiles(s.templateGroup);
+    },
+    standScore: (tile, i) => scoreSpawnTile(tile, spawns[i], terrainData, mapLayout, cols, classes),
+    scan: {
+      mapLayout,
+      terrainData,
+      classes,
+      playerSpawns: ctx.playerSpawns,
+      act: ctx.act,
+      thronePos: ctx.thronePos,
+      objective: ctx.objective,
+    },
+  });
 }
 
 export function rollEnemyCount({

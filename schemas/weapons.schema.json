@@ -53,6 +53,19 @@
           "additionalProperties": false
         }
       },
+      "useBonuses": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "mag": { "type": "integer" },
+            "bonus": { "type": "integer" }
+          },
+          "required": ["mag", "bonus"],
+          "additionalProperties": false
+        }
+      },
+      "maxUses": { "type": "integer", "minimum": 1 },
       "statusEffect": { "type": "string" },
       "cureConditions": { "type": "boolean" },
       "relocate": {

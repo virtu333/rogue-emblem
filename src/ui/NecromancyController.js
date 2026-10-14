@@ -17,6 +17,7 @@ import { registerBattleEntity } from '../engine/BattleEntityIdentity.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { CombatFxController } from './CombatFxController.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
+import { drawArrivalGraphic } from './arrivalGraphic.js';
 import { crumbleFor, raiseFor, raisers } from '../engine/Necromancy.js';
 import { enemyDifficultyConfigFromParams } from '../engine/UnitManager.js';
 import { canInspectUnit } from '../engine/BattleInformation.js';
@@ -79,7 +80,7 @@ export class NecromancyController {
       registerBattleEntity(scene, unit);
       scene.dangerZoneStale = true;
       observeHistoryAction(scene, 'raised', necromancer, unit);
-      safeBattlePresentation('raised unit graphic', () => scene.addUnitGraphic(unit), { scene });
+      drawArrivalGraphic(scene, unit, 'raised unit graphic');
       if (scene.grid?.fogEnabled)
         safeBattlePresentation('raise fog visibility', () => scene.updateEnemyVisibility?.(), {
           scene,

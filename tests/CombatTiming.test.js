@@ -4,6 +4,7 @@ vi.mock('phaser', () => ({ default: { Scene: class {}, BlendModes: { ADD: 1 } } 
 import {
   battleSpeed,
   combatDuration,
+  playerMoveStepDuration,
   speedDuration,
   waitDuration,
   waitTween,
@@ -142,4 +143,15 @@ it('disposes strike effects after releasing fast-forward back to normal', () => 
   fx.finishStrike();
   expect(timer.remove).toHaveBeenCalledWith(false);
   expect(sprite.destroy).toHaveBeenCalledOnce();
+});
+
+it.each([
+  ['normal', 80, 60],
+  ['fast', 80, 60],
+  ['instant', 1, 1],
+])("a player's walked tile at %s is %i ms (a slide %i)", (speed, step, slide) => {
+  // Instant settles a player's move as it does an enemy's step: the 1 ms floor per tile.
+  // Fast leaves the player's own walk alone (only the enemy phase is hurried).
+  expect(playerMoveStepDuration(scene(speed))).toBe(step);
+  expect(playerMoveStepDuration(scene(speed), { slide: true })).toBe(slide);
 });

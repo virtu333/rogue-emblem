@@ -19,9 +19,14 @@ export function button(text, action, className = 're-btn') {
 }
 
 // DOM menus share modal ownership and teardown, not gameplay or purchase rules.
+// A menu whooshes softly as it opens and closes (sfx_menu_open / _close, soft cues that give
+// way to the press's own confirm or cancel: sfxConfig SOFT_SFX); `sound: false` is for a
+// surface that is not a menu (a story line, a progress note). Teardown by a scene's
+// shutdown is silent.
 export class MenuSurface {
-  constructor(scene, title, onClose, { modal = false } = {}) {
+  constructor(scene, title, onClose, { modal = false, sound = true } = {}) {
     Object.assign(this, { scene, onClose });
+    this.sounds = sound;
     this.previousFocus = document.activeElement;
     this.root = element('section', null, 're re-screen re-live-menu');
     this.root.style.setProperty('--re-z', DOM_UI_DEPTHS.MENU);
@@ -79,7 +84,10 @@ export class MenuSurface {
         if (action === InputAction.CONFIRM && this.root.contains(document.activeElement))
           document.activeElement.click();
       });
-      this.shutdown = () => this.destroy();
+      this.shutdown = () => {
+        this.silentClose = true;
+        this.destroy();
+      };
       scene.events.once('shutdown', this.shutdown);
       const host = document.getElementById('game-wrapper');
       if (modal) {
@@ -97,6 +105,7 @@ export class MenuSurface {
         host.append(this.shield);
       } else host.append(this.root);
       this.root.querySelector('button').focus();
+      if (this.sounds) this.playSound('sfx_menu_open');
     } catch (error) {
       // Constructor failure can occur after modal ownership but before callers
       // receive this surface. Release each resource independently.
@@ -116,6 +125,13 @@ export class MenuSurface {
       throw error;
     }
   }
+  playSound(key) {
+    try {
+      this.scene?.registry?.get?.('audio')?.playSFX?.(key);
+    } catch {
+      // Sound is decoration.
+    }
+  }
   focusContent() {
     (this.body.querySelector('button:not(:disabled),input,select,summary') || this.root).focus();
   }
@@ -133,5 +149,6 @@ export class MenuSurface {
     this.root.remove();
     this.shield?.remove();
     if (this.previousFocus?.isConnected) this.previousFocus.focus();
+    if (this.sounds && !this.silentClose) this.playSound('sfx_menu_close');
   }
 }

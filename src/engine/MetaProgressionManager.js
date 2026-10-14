@@ -488,6 +488,50 @@ function normalizeLegacyTierCosts(raw) {
 }
 
 const DEFAULT_STORAGE_KEY = 'emblem_rogue_meta_save';
+
+/**
+ * Every top-level key this build writes in a meta save (`_save`), plus `totalRenown`, the
+ * pre-split currency it reads once and no longer writes. Any other key on disk came from a
+ * newer build: it is kept as found and written back unchanged, so an older client playing
+ * the slot (an app build behind the web, a rollback) never strips it, and the cloud copy it
+ * pushes carries it to the device that wrote it. `tests/MetaUnknownFields.test.js` holds
+ * this list to the payload.
+ */
+export const META_SAVE_FIELDS = Object.freeze([
+  'balanceRevision',
+  'solRefundBasis',
+  'totalValor',
+  'totalSupply',
+  'purchasedUpgrades',
+  'retiredUpgradeRefunds',
+  'legacyTierCosts',
+  'runsCompleted',
+  'runsStarted',
+  'lastDifficulty',
+  'skillAssignments',
+  'lordSelection',
+  'milestones',
+  'storyFlags',
+  'runRecords',
+  'settledRunIds',
+  'seenDialogueKeys',
+  'deedsEarned',
+  'lordsMet',
+  'hintState',
+  'prologue',
+  'savedAt',
+]);
+const META_READ_ONLY_FIELDS = Object.freeze(['totalRenown']);
+const KNOWN_META_KEYS = new Set([...META_SAVE_FIELDS, ...META_READ_ONLY_FIELDS]);
+
+/** The keys of a meta payload this build does not know (a newer build's), as found. */
+export function unknownMetaFields(saved) {
+  const unknown = {};
+  if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return unknown;
+  for (const [key, value] of Object.entries(saved))
+    if (!KNOWN_META_KEYS.has(key)) unknown[key] = value;
+  return unknown;
+}
 const DEADLY_ARSENAL_SPLIT_MIGRATION_CUTOFF = Date.UTC(2026, 1, 14);
 const LOOT_CATEGORY_WEIGHT_BONUS_KEYS = new Set([
   'weapon',
@@ -586,6 +630,8 @@ export class MetaProgressionManager {
     this.milestones = new Set(); // e.g. "beatAct1", "beatAct2", "beatAct3"
     this.storyFlags = defaultStoryFlags(); // run-aware narrative memory
     this.prologue = defaultPrologueState();
+    // A newer build's keys, kept as found and written back by `_save` (META_SAVE_FIELDS).
+    this.unknownFields = {};
 
     let savedMeta = null;
     try {
@@ -593,6 +639,7 @@ export class MetaProgressionManager {
       if (raw) {
         const saved = JSON.parse(raw);
         savedMeta = saved;
+        this.unknownFields = unknownMetaFields(saved);
         this.lastDifficulty = isDifficultyId(saved.lastDifficulty) ? saved.lastDifficulty : null;
 
         // Migration: old single-currency saves have totalRenown but no totalValor
@@ -1932,6 +1979,8 @@ export class MetaProgressionManager {
     // this merge keeps both copies' economies (each currency and upgrade at its max):
     // a paid copy's grant is in the result, and an unpaid newer copy must not pay again.
     this.prologue = mergePrologueState(this.prologue, disk.prologue);
+    // A newer build's keys: the newer disk copy's values win, ours stay where it has none.
+    this.unknownFields = { ...this.unknownFields, ...unknownMetaFields(disk) };
     this.savedAt = diskSavedAt;
   }
 
@@ -2025,6 +2074,8 @@ export class MetaProgressionManager {
     const floor = this._readClockFloorSavedAt();
     this.savedAt = Math.max(Date.now(), this.savedAt + 1, Number.isFinite(floor) ? floor + 1 : 0);
     const payload = {
+      // First, so a key this build writes always wins over a stale copy of it.
+      ...this.unknownFields,
       balanceRevision: this.balanceRevision,
       solRefundBasis: this.solRefundBasis,
       totalValor: this.totalValor,

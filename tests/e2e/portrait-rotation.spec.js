@@ -20,7 +20,7 @@
 //   - a failed save during a switch keeps the battle playable and a later turn
 //     retries; UI-only actions never advance the gameplay RNG.
 import { test, expect } from '@playwright/test';
-import { waitForGame, attachSceneCrashArtifacts } from './helpers.js';
+import { waitForGame, attachSceneCrashArtifacts, openRosterUnit } from './helpers.js';
 import {
   PORTRAIT_PHONES,
   activeScene,
@@ -550,6 +550,7 @@ test('the trade menu keeps the held item and the focus through a turn and back',
   await page.getByRole('button', { name: 'Skip conversation', exact: true }).tap();
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
   const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+  await openRosterUnit(sheet, null, { tap: true });
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
   const trade = sheet.getByRole('button', { name: 'Trade…', exact: true }).first();
   await trade.scrollIntoViewIfNeeded();
@@ -1023,11 +1024,14 @@ test('UI-only actions never advance the gameplay RNG', async ({ page }) => {
       await summary.tap();
       await expect(page.locator('.mb-more-content')).toBeHidden();
     },
-    'Danger on and off': async () => {
+    'Danger on, outline and off': async () => {
       const danger = rail.getByRole('button', { name: 'Danger', exact: true });
+      const outline = rail.getByRole('button', { name: 'Danger · outline', exact: true });
       await danger.tap();
       await expect(danger).toHaveAttribute('aria-pressed', 'true');
       await danger.tap();
+      await expect(outline).toHaveAttribute('aria-pressed', 'true');
+      await outline.tap();
       await expect(danger).toHaveAttribute('aria-pressed', 'false');
     },
     Overview: async () => {

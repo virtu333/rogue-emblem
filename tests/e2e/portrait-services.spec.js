@@ -31,7 +31,7 @@ import {
   pageErrors,
   safeAreaInsets,
 } from './portraitHelpers.js';
-import { waitForScene, fightArenaBout } from './helpers.js';
+import { waitForScene, fightArenaBout, openRosterUnit } from './helpers.js';
 
 const [SE, IPHONE_13] = PORTRAIT_PHONES;
 
@@ -535,7 +535,7 @@ async function enterRuins(page) {
   });
 }
 
-const REST = 'Rest — heal everyone, revive the fallen';
+const REST = 'Rest — heal everyone, revive one fallen';
 const SCAVENGE = "Scavenge — the ruins' wares (+25%)";
 
 for (const viewport of [SE, IPHONE_13]) {
@@ -572,7 +572,7 @@ for (const viewport of [SE, IPHONE_13]) {
       );
       await expect(rest.locator('.ruins-path-effect')).toHaveText([
         'Heal every unit now · Free',
-        'Revive the fallen for gold · 1 waiting',
+        'Revive one fallen ally for gold · 1 waiting',
         'The wares stay buried',
       ]);
       await expect(scavenge.locator('.ruins-path-effect')).toHaveText([
@@ -705,6 +705,7 @@ for (const viewport of [SE, IPHONE_13]) {
       });
       await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
       const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+      await openRosterUnit(sheet, null, { tap: true });
       await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
       // #140: "Equipment · 5/5" and Trade with… share a row without touching.
       const heading = sheet.locator('.mr-heading-row h3');
@@ -793,6 +794,7 @@ for (const viewport of [SE, IPHONE_13]) {
       });
       await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
       const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+      await openRosterUnit(sheet, null, { tap: true });
       await sheet.getByRole('button', { name: 'Skills', exact: true }).tap();
       await sheet.getByRole('button', { name: 'Bind to weapon…' }).tap();
       const weapons = page.getByRole('dialog', {

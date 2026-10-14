@@ -4,7 +4,7 @@
 // church; and the level-up card at each battle speed. Each check asserts the
 // gains are committed exactly once and the game stays playable.
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene, openRosterUnit } from './helpers.js';
 
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
 test.setTimeout(120000);
@@ -374,6 +374,7 @@ test('roster Master Seal between battles: chooser, save, rite over the roster', 
   });
   await page.locator('.re-node-map').getByRole('button', { name: 'Roster', exact: true }).tap();
   const roster = page.locator('.mr-sheet');
+  await openRosterUnit(roster, 'Seal Bearer', { tap: true });
   await expect(roster.locator('.mr-summary .mr-crest')).toHaveCount(1);
   await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
   await roster.getByRole('button', { name: 'Promote', exact: true }).tap();

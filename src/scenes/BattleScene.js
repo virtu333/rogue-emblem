@@ -1,5 +1,6 @@
 import { MovementActionController } from '../ui/MovementActionController.js';
-import { cantoRuleFor } from '../engine/CantoRule.js';
+import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
+import { cantoAllowance } from '../engine/CantoRule.js';
 import {
   specialCharacterRefusalText,
   speakSpecialCharacterRefusal,
@@ -27,7 +28,13 @@ import { PinnedThreatController } from '../ui/PinnedThreatController.js';
 import { battlePlace } from '../ui/placeDisplay.js';
 import { levelUpDisplayResults } from '../ui/progressionDisplay.js';
 import { presentationText, isolateBattleTextFactory } from '../utils/presentationText.js';
+import { buildCombatNumber, floatCombatNumber } from '../ui/CombatNumberFloat.js';
 import { safeBattlePresentation } from '../ui/safeBattlePresentation.js';
+import {
+  drawArrivalGraphic,
+  guardUndrawnUnits,
+  setUnitPartsVisible,
+} from '../ui/arrivalGraphic.js';
 import { presentTeleporterWarp } from '../ui/WarpPresentation.js';
 import { hasBattleDefeat } from '../engine/BattleDefeat.js';
 import { applyBlessingCombatMods, stampTurnAnchors } from '../engine/BlessingCombatMods.js';
@@ -48,7 +55,12 @@ import {
   remainingObjectiveTargets,
   statusView,
 } from '../engine/BattleObjectives.js';
-import { battleSpeed, waitDuration, waitTween } from '../utils/combatTiming.js';
+import {
+  battleSpeed,
+  playerMoveStepDuration,
+  waitDuration,
+  waitTween,
+} from '../utils/combatTiming.js';
 import {
   ENEMY_STEP_LABEL,
   EnemyPhasePacing,
@@ -150,6 +162,7 @@ import { startTracedIdle } from '../ui/TracedSprites.js';
 import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
 import { paintBattlefieldTerrain, battlefieldSpriteArtEnabled } from '../ui/BattlefieldArt.js';
 import { AtmosphereController } from '../ui/AtmosphereController.js';
+import { WeatherController } from '../ui/WeatherController.js';
 import { DesktopBattleHud } from '../ui/DesktopBattleHud.js';
 import { EclipseHudController } from '../ui/EclipseHudController.js';
 import { ContractHudController } from '../ui/ContractHudController.js';
@@ -251,7 +264,7 @@ import { xpGaugeRecord } from '../ui/xpGaugeModel.js';
 import { UnitInspectionPanel } from '../ui/UnitInspectionPanel.js';
 import { UnitDetailOverlay } from '../ui/UnitDetailOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
-import { DangerZoneOverlay } from '../ui/DangerZoneOverlay.js';
+import { DangerZoneOverlay, nextDangerMode } from '../ui/DangerZoneOverlay.js';
 import { computeDangerTiles } from '../engine/ThreatForecast.js';
 import { ThreatSightController } from '../ui/ThreatSightController.js';
 import { GuidanceController } from '../ui/GuidanceController.js';
@@ -450,6 +463,9 @@ import { FormationController, FORMATION_STATE } from '../ui/FormationController.
 import { deployedFromMemory, openFormationRoster } from '../ui/FormationRoster.js';
 import { MenuFocusController } from '../ui/MenuFocusController.js';
 import { CombatFxController } from '../ui/CombatFxController.js';
+import { strikeFeedback } from '../ui/impactFeedback.js';
+import { haptic } from '../utils/haptics.js';
+import WalkCycleController from '../ui/WalkCycleController.js';
 import { CombatChoreography } from '../ui/CombatChoreography.js';
 import { CeremonyController } from '../ui/CeremonyController.js';
 import { ReinforcementPresenter } from '../ui/ReinforcementPresenter.js';
@@ -471,6 +487,7 @@ import { pauseBurdenEntries } from '../ui/eventMenuModel.js';
 import { liveRiteOptions } from '../ui/riteModel.js';
 import { recordFoesEncountered, recordRunDiscoveries } from '../engine/CompendiumDiscovery.js';
 import { heldBlessingEntries } from '../ui/heldBlessingsModel.js';
+import { strikeContactSfx } from '../utils/sfxConfig.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import {
   summarizeWeaponArtEffect,
@@ -508,6 +525,8 @@ const POST_COMBAT_HINT_COLORS = {
   muted: UI_PALETTE.muted,
 };
 const PAUSE_TRANSITION_TIMEOUT_MS = 6000;
+// A battle starts the deferred-asset warm-up this long after its music was asked for.
+const BATTLE_WARMUP_DELAY_MS = 3000;
 
 /** The battle's Zombie remains (ZombieRemainsController), made on first use. */
 function remainsOf(scene) {
@@ -845,6 +864,8 @@ export class BattleScene extends Phaser.Scene {
     this._areaTargetingController = null;
     this._combatFx?.destroy?.();
     this._combatFx = null;
+    this._walkCycleCtrl?.destroy?.();
+    this._walkCycleCtrl = null;
     this._stoneFx?.destroy?.();
     this._stoneFx = null;
     this._bannerFx?.destroy?.();
@@ -967,6 +988,8 @@ export class BattleScene extends Phaser.Scene {
 
     this._atmosphere?.destroy();
     this._atmosphere = null;
+    this._weather?.destroy();
+    this._weather = null;
     this._desktopHud?.destroy();
     this._desktopHud = null;
     this._eclipseHud?.destroy();
@@ -2306,6 +2329,11 @@ export class BattleScene extends Phaser.Scene {
         // After a turn of the phone the track plays on: ease its calm/full level.
         intensityFadeMs: this._presentationSwitch ? 600 : 0,
       });
+      // A warm-up the title handed on (a quick tap past it), after the battle's music has
+      // had the line to itself.
+      this.time?.delayedCall?.(BATTLE_WARMUP_DELAY_MS, () =>
+        startDeferredAssetWarmup(this, { resumeOnly: true }),
+      );
 
       // Initial fog of war update
       if (this.grid.fogEnabled) {
@@ -2358,7 +2386,7 @@ export class BattleScene extends Phaser.Scene {
       this.updateVisionHud();
 
       // Presentation: the Eclipse projection, reliquary desktop HUD plates, then the
-      // act mood (grade + night).
+      // act mood (grade + night) and its weather.
       this._eclipseHud?.destroy();
       this._eclipseHud = new EclipseHudController(this).create();
       this._contractHud?.destroy();
@@ -2367,6 +2395,9 @@ export class BattleScene extends Phaser.Scene {
       this._desktopHud = new DesktopBattleHud(this).create();
       this._atmosphere?.destroy();
       this._atmosphere = new AtmosphereController(this).create();
+      // Weather over the map, matched to the mood (presentation only, its own RNG).
+      this._weather?.destroy();
+      this._weather = new WeatherController(this).create();
 
       // Not in a recruit battle: it would open as a dialog there (see battle_first_turn_hints).
       if (this.mobileCameraEnabled && !hasRecruitNpc(this.npcUnits)) {
@@ -2827,7 +2858,7 @@ export class BattleScene extends Phaser.Scene {
     // arrival that fails to draw must never stop the arrivals after it.
     this.enemyUnits.push(enemy);
     registerBattleEntity(this, enemy);
-    safeBattlePresentation('enemy unit graphic', () => this.addUnitGraphic(enemy), { scene: this });
+    drawArrivalGraphic(this, enemy, 'enemy unit graphic'); // a failed sprite leaves a marker
     return enemy;
   }
 
@@ -3018,7 +3049,8 @@ export class BattleScene extends Phaser.Scene {
     ))._applySnapshot();
     // Re-checkpoint the rewound state so a refresh resumes at the restored
     // turn start (with the Vision charge spend locked in alongside it).
-    if (applied) this._captureSuspendCheckpoint?.({ session: session });
+    const saved = applied && this._captureSuspendCheckpoint?.({ session: session }) === true;
+    if (applied) guardUndrawnUnits(this, { saved }); // a unit nothing could draw asks for a reload
     return applied;
   }
 
@@ -3175,6 +3207,20 @@ export class BattleScene extends Phaser.Scene {
     this.aiController?.setBossEnraged?.(step.turnEnrageActive);
     if (step.becameEnraged) this._playBossEnrageFx();
     this._bossPresence?.sync();
+  }
+
+  /**
+   * The anti-turtle flags the next enemy phase will run with (its start advances the clock),
+   * read without advancing it: threat sight's intent preview (EnemyIntent).
+   */
+  nextEnemyPhaseAiFlags() {
+    if (!this.antiTurtleState) return {};
+    const step = advanceTurnPressure(this.antiTurtleState, this._measureTurnPressure(), {
+      turn: this.getCurrentTurnNumber(),
+      par: this.turnPar,
+      turnBonusConfig: this.turnBonusConfig,
+    });
+    return { aggressiveMode: step.aggressiveMode, bossEnraged: step.turnEnrageActive };
   }
 
   /** Flame aura on living bosses the moment turn-pressure enrage kicks in. */
@@ -3428,7 +3474,9 @@ export class BattleScene extends Phaser.Scene {
     const stones = revivalStoneCount(unit).remaining;
     const carries = Boolean(carriedItemInfo(unit));
     const staff = (statusStaffInfo(unit)?.uses || 0) > 0;
-    const count = affixIds.length + stones + (carries ? 1 : 0) + (staff ? 1 : 0);
+    // A defeat objective's named target (a captain, a Voice) leads the row with a pale diamond.
+    const target = !unit.isBoss && isObjectiveTarget(this.battleConfig, unit);
+    const count = affixIds.length + stones + (carries ? 1 : 0) + (staff ? 1 : 0) + (target ? 1 : 0);
     if (count === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -3438,6 +3486,17 @@ export class BattleScene extends Phaser.Scene {
     const totalW = pipSize * count + gap * (count - 1);
     let startX = pos.x - totalW / 2 + pipSize / 2;
     const inView = canInspectUnit(this.grid, unit);
+    if (target) {
+      unit.affixPips.push(
+        this.add
+          .rectangle(startX, pipY, pipSize + 1, pipSize + 1, UI_HEX.parchment)
+          .setStrokeStyle(1, UI_HEX.void)
+          .setAngle(45)
+          .setDepth(14)
+          .setVisible(inView),
+      );
+      startX += pipSize + gap;
+    }
 
     for (let i = 0; i < stones; i++) {
       const gem = this.add
@@ -4115,6 +4174,7 @@ export class BattleScene extends Phaser.Scene {
     if (this.battleState === FORMATION_STATE && this._formation?.ready) return true;
     if (this.isDevToolsEnabled() && this.debugOverlay?.visible) return true;
     if (this.visionDialog) return true;
+    if (this._mobileBattleHud?.endTurnPending) return true;
     if (this.unitDetailOverlay?.visible) return true;
     if (this.inspectionPanel?.visible) return true;
     if (this.isMobileInput && this.inspectMode) return true;
@@ -4148,6 +4208,8 @@ export class BattleScene extends Phaser.Scene {
       }
       return true;
     }
+    // The phone's end-turn confirm closes first (it has no button of its own to keep playing).
+    if (this._mobileBattleHud?.cancelEndTurn?.()) return true;
     // The Entity rally's card takes an explicit Cancel only when nothing else has something to
     // close: a menu, forecast, selection, overlay or panel keeps its Back, and Pause waits one press.
     if (
@@ -4460,14 +4522,23 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
+  // Each press steps Off -> Filled -> Outline -> Off (nextDangerMode); a pin outlasts the
+  // Filled -> Outline step and ends with the zone.
   _onDangerClick() {
     if (canUseDanger(this)) {
-      if (this.dangerZoneStale || !this.dangerZoneCache) {
-        this.dangerZoneCache = this.calculateDangerZone();
-        this.dangerZoneStale = false;
+      const zone = this.dangerZone;
+      const next = nextDangerMode(zone.mode ?? (zone.visible ? 'filled' : 'off'));
+      if (next === 'off') {
+        zone.hide();
+        this.keepDangerVisible = false;
+      } else {
+        if (this.dangerZoneStale || !this.dangerZoneCache) {
+          this.dangerZoneCache = this.calculateDangerZone();
+          this.dangerZoneStale = false;
+        }
+        zone.setOutline?.(next === 'outline');
+        zone.show(this.dangerZoneCache);
       }
-      this.dangerZone.toggle(this.dangerZoneCache);
-      if (!this.dangerZone.visible) this.keepDangerVisible = false;
       this._formation?.touch?.();
     }
   }
@@ -4476,6 +4547,8 @@ export class BattleScene extends Phaser.Scene {
     if (!canUseDanger(this)) return;
     this.keepDangerVisible = !this.keepDangerVisible;
     if (this.keepDangerVisible) {
+      // Pinning a hidden zone shows it filled; a shown one keeps its style.
+      if (!this.dangerZone.visible) this.dangerZone.setOutline?.(false);
       this.dangerZoneCache = this.calculateDangerZone();
       this.dangerZoneStale = false;
       this.dangerZone.show(this.dangerZoneCache);
@@ -5138,6 +5211,7 @@ export class BattleScene extends Phaser.Scene {
     const failMove = (reason, error = null) => {
       if (recoveryTriggered) return;
       recoveryTriggered = true;
+      this._walkCycle().end(unit);
       this._recoverFromMovementFault(unit, {
         context: 'moveUnit',
         reason,
@@ -5150,6 +5224,7 @@ export class BattleScene extends Phaser.Scene {
     const finalizeMove = () => {
       if (finalizeTriggered || recoveryTriggered) return;
       finalizeTriggered = true;
+      this._walkCycle().end(unit, { col: finalDest.col, row: finalDest.row });
       if (finalPath.length > 1) rememberHistoryPath(this, unit, finalPath);
       unit.col = finalDest.col;
       unit.row = finalDest.row;
@@ -5177,7 +5252,8 @@ export class BattleScene extends Phaser.Scene {
         const isSlide = effective.slideSegments.some(
           (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
         );
-        const duration = isSlide ? 60 : 80;
+        const duration = playerMoveStepDuration(this, { slide: isSlide });
+        this._walkCycle().step(unit, { ms: duration, slide: isSlide });
         this.tweens.add({
           targets,
           x: pos.x,
@@ -5282,7 +5358,7 @@ export class BattleScene extends Phaser.Scene {
     return targets;
   }
 
-  finishUnitAction(unit, { skipCanto = false, session } = {}) {
+  finishUnitAction(unit, { skipCanto = false, afterCombat = false, session } = {}) {
     if (!isCurrentBattleSession(this, session)) return false;
     // Level-up cards and EXP gauges still to show (gauges alone present too; only the
     // cards make the boundary a recovery).
@@ -5296,6 +5372,7 @@ export class BattleScene extends Phaser.Scene {
         unitName: unit.name,
         ...(unit.battleEntityId ? { unitId: unit.battleEntityId } : {}),
         skipCanto,
+        ...(afterCombat ? { afterCombat: true } : {}),
       };
       return presentQueuedProgress(this, continuation, { session })
         .then(() => {
@@ -5326,11 +5403,15 @@ export class BattleScene extends Phaser.Scene {
     // Check for Canto: use remaining movement after acting
     if (!skipCanto) {
       // Rooted units cannot use Canto (root may land mid-action via counter-art)
-      const hasCanto = Boolean(cantoRuleFor(unit));
       const movSpent = unit._movementSpent || 0;
-      // The same MOV the unit's move range read (selectUnit), less the terrain cost spent.
-      const remaining = (Number(unit.mov ?? unit.stats?.MOV) || 0) - movSpent;
-      if (hasCanto && remaining > 0 && unit.faction === 'player') {
+      // The same MOV the unit's move range read (selectUnit), less the terrain cost spent,
+      // scaled by the unit's Canto skill (Parting Step: half of it, rounded down).
+      const remaining = cantoAllowance(
+        unit,
+        (Number(unit.mov ?? unit.stats?.MOV) || 0) - movSpent,
+        { afterCombat },
+      );
+      if (remaining > 0 && unit.faction === 'player') {
         unit.hasActed = true;
         this.selectedUnit = unit;
         this.preMoveLoc = null;
@@ -5998,6 +6079,7 @@ export class BattleScene extends Phaser.Scene {
     const failCantoMove = (reason, error = null) => {
       if (recoveryTriggered) return;
       recoveryTriggered = true;
+      this._walkCycle().end(unit);
       this._recoverFromMovementFault(unit, {
         context: 'handleCantoClick',
         reason,
@@ -6009,6 +6091,7 @@ export class BattleScene extends Phaser.Scene {
     const finalizeCantoMove = () => {
       if (finalizeTriggered || recoveryTriggered) return;
       finalizeTriggered = true;
+      this._walkCycle().end(unit, { col: destCol, row: destRow });
       unit.col = destCol;
       unit.row = destRow;
       try {
@@ -6051,7 +6134,8 @@ export class BattleScene extends Phaser.Scene {
         const isSlide = cantoEffective.slideSegments.some(
           (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
         );
-        const duration = isSlide ? 60 : 80;
+        const duration = playerMoveStepDuration(this, { slide: isSlide });
+        this._walkCycle().step(unit, { ms: duration, slide: isSlide });
         this.tweens.add({
           targets,
           x: pos.x,
@@ -6355,6 +6439,11 @@ export class BattleScene extends Phaser.Scene {
 
   _effectsQuality() {
     return this.registry?.get?.('settings')?.getEffectsQuality?.() ?? 'high';
+  }
+
+  /** The walk cycle (frames, hop and landing puff of a moving unit); presentation only. */
+  _walkCycle() {
+    return (this._walkCycleCtrl ||= new WalkCycleController(this));
   }
 
   showActionMenu(unit) {
@@ -7020,6 +7109,7 @@ export class BattleScene extends Phaser.Scene {
               : UI_PALETTE.text,
           invoke: () => {
             if (!canEquipNow) return;
+            if (wpn !== unit.weapon) this.registry.get('audio')?.playSFX('sfx_equip');
             equipWeapon(unit, wpn);
             this.showActionMenu(unit);
           },
@@ -8847,6 +8937,8 @@ export class BattleScene extends Phaser.Scene {
       case 'hint': {
         const pos = this.grid.gridToPixel(unit.col, unit.row);
         this.showMinorHintAt(pos.x, pos.y, beat.text, POST_COMBAT_HINT_COLORS[beat.tone]);
+        // A ram that stopped short: the collision shakes the field (PostCombatEffects collide).
+        if (beat.impact === 'crash') this.shakeScreen('crash');
         break;
       }
       case 'contact':
@@ -8975,14 +9067,31 @@ export class BattleScene extends Phaser.Scene {
         if (audio && !event.miss) this._combatFx?.playStrikeSound(this.getWeaponSFX(striker));
         if (!isCurrentBattleSession(this, session)) return;
       },
-      onMiss: () => this._showStrikeMiss(target, reduced),
+      onMiss: () => {
+        if (audio) this._combatFx?.playStrikeSound('sfx_miss');
+        this._showStrikeMiss(target, reduced);
+      },
       onContact: () => {
-        if (audio) this._combatFx?.playStrikeSound(event.isCrit ? 'sfx_crit' : 'sfx_hit');
+        // A blow the armour turned (0 damage) clanks instead of landing (sfxConfig).
+        if (audio) this._combatFx?.playStrikeSound(strikeContactSfx(event));
         if (event.isCrit)
           (this._battleBeats ||= new BattleBeatsController(this)).onCritStrike(striker);
+        strikeFeedback(this, event, striker, target);
         this._showStrikeResult(event, striker, target, reduced);
       },
     });
+  }
+
+  /**
+   * A short camera shake ('crit' | 'boss' | 'crash' | 'splash' | 'stone'): seeded, world
+   * camera only, off with Reduce motion (CombatFxController.shake). Never Phaser's shake.
+   */
+  shakeScreen(kind) {
+    return safeBattlePresentation(
+      'screen shake',
+      () => (this._combatFx ||= new CombatFxController(this)).shake(kind),
+      { scene: this },
+    );
   }
 
   /** A broken Revival Stone's presentation (RevivalStoneController), made on first use. */
@@ -9007,49 +9116,24 @@ export class BattleScene extends Phaser.Scene {
   /** Floating MISS over a dodging target (strike presentation, see CombatChoreography). */
   _showStrikeMiss(target, reduced) {
     const pos = this.grid.gridToPixel(target.col, target.row);
-    const missText = presentationText(this, pos.x, pos.y - 16, 'MISS', {
-      fontFamily: 'monospace',
-      fontSize: '12px',
-      color: UI_PALETTE.muted,
-      fontStyle: 'bold',
-    })
-      .setOrigin(0.5)
-      .setDepth(300);
-    this.tweens.add({
-      targets: missText,
-      y: reduced ? pos.y - 16 : pos.y - 32,
-      alpha: 0,
-      duration: 500,
-      onComplete: () => missText.destroy(),
+    floatCombatNumber(this, {
+      kind: 'miss',
+      x: pos.x,
+      y: pos.y - 16,
+      reducedMotion: reduced,
     });
   }
 
   /** Damage number, HP bars, wake, drain heal and reflect at the moment of contact. */
   _showStrikeResult(event, striker, target, reduced) {
     const pos = this.grid.gridToPixel(target.col, target.row);
-    const dmgText = presentationText(
-      this,
-      pos.x,
-      pos.y - 16,
-      event.isCrit ? `${event.damage}!` : `${event.damage}`,
-      {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: event.isCrit ? UI_PALETTE.accentText : UI_PALETTE.text,
-        fontStyle: 'bold',
-        // An ink edge keeps the number legible over bright impact frames.
-        stroke: UI_PALETTE.void,
-        strokeThickness: 3,
-      },
-    )
-      .setOrigin(0.5)
-      .setDepth(300);
-    this.tweens.add({
-      targets: dmgText,
-      y: reduced ? pos.y - 16 : pos.y - 32,
-      alpha: 0,
-      duration: 600,
-      onComplete: () => dmgText.destroy(),
+    // The number's look (crit pop, "No damage" spark, reduced motion) is ui/combatNumberStyle.js.
+    floatCombatNumber(this, {
+      kind: event.isCrit ? 'crit' : 'strike',
+      value: event.damage,
+      x: pos.x,
+      y: pos.y - 16,
+      reducedMotion: reduced,
     });
 
     this.updateHPBar(target);
@@ -9072,20 +9156,12 @@ export class BattleScene extends Phaser.Scene {
     // Show what the drain actually healed (nothing at full HP).
     if (event.healed > 0) {
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const healText = presentationText(this, sPos.x + 12, sPos.y - 8, `+${event.healed}`, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: UI_PALETTE.good,
-        fontStyle: 'bold',
-      })
-        .setOrigin(0.5)
-        .setDepth(300);
-      this.tweens.add({
-        targets: healText,
-        y: reduced ? sPos.y - 8 : sPos.y - 28,
-        alpha: 0,
-        duration: 600,
-        onComplete: () => healText.destroy(),
+      floatCombatNumber(this, {
+        kind: 'drain',
+        value: event.healed,
+        x: sPos.x + 12,
+        y: sPos.y - 8,
+        reducedMotion: reduced,
       });
     }
 
@@ -9096,20 +9172,12 @@ export class BattleScene extends Phaser.Scene {
     // Labelled, and only what the striker actually lost (Thorns leaves 1 HP).
     if (event.reflectTaken > 0) {
       const sPos = this.grid.gridToPixel(striker.col, striker.row);
-      const refText = presentationText(this, sPos.x, sPos.y - 16, `−${event.reflectTaken} Thorns`, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: UI_PALETTE.bad,
-        fontStyle: 'bold',
-      })
-        .setOrigin(0.5)
-        .setDepth(300);
-      this.tweens.add({
-        targets: refText,
-        y: reduced ? sPos.y - 16 : sPos.y - 32,
-        alpha: 0,
-        duration: 600,
-        onComplete: () => refText.destroy(),
+      floatCombatNumber(this, {
+        kind: 'thorns',
+        value: event.reflectTaken,
+        x: sPos.x,
+        y: sPos.y - 16,
+        reducedMotion: reduced,
       });
     }
   }
@@ -9131,31 +9199,18 @@ export class BattleScene extends Phaser.Scene {
     if (!unit.graphic) return;
     const pos = this.grid.gridToPixel(unit.col, unit.row);
     (this._combatFx ||= new CombatFxController(this)).playStatus(pos.x, pos.y, 'poison');
-    const text = this.add
-      .text(pos.x, pos.y - 16, `Poison -${damage}`, {
-        fontFamily: 'monospace',
-        fontSize: '11px',
-        color: UI_PALETTE.rarityEpic,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(301);
+    const number = buildCombatNumber(this, {
+      kind: 'poison',
+      value: damage,
+      x: pos.x,
+      y: pos.y - 16,
+      reducedMotion: reduced,
+    });
     this.updateHPBar(unit);
-    await this._awaitSceneTween(
-      {
-        targets: text,
-        y: reduced ? pos.y - 16 : pos.y - 32,
-        alpha: 0,
-        duration: 600,
-        onComplete: () => {
-          text.destroy();
-        },
-      },
-      {
-        label: 'show_poison_damage',
-        onCancel: () => text.destroy(),
-      },
-    );
+    await this._awaitSceneTween(number.tween, {
+      label: 'show_poison_damage',
+      onCancel: number.destroy,
+    });
   }
 
   /**
@@ -9209,6 +9264,7 @@ export class BattleScene extends Phaser.Scene {
     const audio = this.registry.get('audio');
     if (!audio) return;
     this._levelUpSfxKey = 'sfx_levelup';
+    haptic('success');
     const cue = kind === 'promotion' ? 'promotion_crown' : levelUpCue(kind);
     // A cue still decoding (a new track's key) plays a beat late rather than
     // falling back to the plain sound effect.
@@ -9423,6 +9479,7 @@ export class BattleScene extends Phaser.Scene {
       async () => {
         const audio = this.registry.get('audio');
         if (audio) audio.playSFX('sfx_death');
+        haptic('medium');
         await (this._combatFx ||= new CombatFxController(this)).deathFade(unit);
       },
       { scene: this },
@@ -9606,21 +9663,12 @@ export class BattleScene extends Phaser.Scene {
             if (stoneBroken) this._stoneBreakFx().playBreak(victim);
             if (bannerHeld) this._bannerHoldFx().playHold(victim);
             const pos = this.grid.gridToPixel(victim.col, victim.row);
-            const txt = this.add
-              .text(pos.x, pos.y - 16, `${damage}`, {
-                fontFamily: 'monospace',
-                fontSize: '12px',
-                color: UI_PALETTE.warn,
-                fontStyle: 'bold',
-              })
-              .setOrigin(0.5)
-              .setDepth(320);
-            this.tweens.add({
-              targets: txt,
-              y: pos.y - 32,
-              alpha: 0,
-              duration: 500,
-              onComplete: () => txt.destroy(),
+            floatCombatNumber(this, {
+              kind: 'deathburst',
+              value: damage,
+              x: pos.x,
+              y: pos.y - 16,
+              reducedMotion: this._reduceMotion(),
             });
           },
           { scene: this },
@@ -9848,10 +9896,14 @@ export class BattleScene extends Phaser.Scene {
             } else {
               // Only a fully resolved turn start is safe to resume.
               this._timelineBoundary = 'turn_start';
-              this._captureSuspendCheckpoint?.({
-                preserveRng: presentedLevelUps,
-                session: session,
-              });
+              const saved =
+                this._captureSuspendCheckpoint?.({
+                  preserveRng: presentedLevelUps,
+                  session: session,
+                }) === true;
+              // Never play on against a unit nothing could draw: reload from this checkpoint
+              // once it is on disk (a refused write keeps the save-retry flow's choices).
+              guardUndrawnUnits(this, { saved });
             }
           } finally {
             // Errors still resolving this phase settle after the recovery below.
@@ -9942,8 +9994,8 @@ export class BattleScene extends Phaser.Scene {
                   'battle_danger_zone',
                   inputHint(
                     this,
-                    'Press [D] to show enemy threat range.',
-                    'Tap Danger to show enemy threat range. Hold Danger to keep it visible while planning; tap again to hide it.',
+                    'Press [D] to show enemy threat range. Press again for just its outline.',
+                    'Tap Danger to show enemy threat range, again for just its outline, a third time to hide it. Hold Danger to keep it visible while planning.',
                   ),
                 );
               }
@@ -10174,30 +10226,17 @@ export class BattleScene extends Phaser.Scene {
             if (bannerHeld) this._bannerHoldFx().playHold(target);
             if (target.graphic) {
               const pos = this.grid.gridToPixel(target.col, target.row);
-              const txt = this.add
-                .text(pos.x, pos.y - 16, `${result.damage}`, {
-                  fontFamily: 'monospace',
-                  fontSize: '13px',
-                  color: UI_PALETTE.warn,
-                  fontStyle: 'bold',
-                })
-                .setOrigin(0.5)
-                .setDepth(301);
-              await this._awaitSceneTween(
-                {
-                  targets: txt,
-                  y: reduced ? pos.y - 16 : pos.y - 32,
-                  alpha: 0,
-                  duration: 600,
-                  onComplete: () => {
-                    txt.destroy();
-                  },
-                },
-                {
-                  label: 'ballista_hit_float',
-                  onCancel: () => txt.destroy(),
-                },
-              );
+              const number = buildCombatNumber(this, {
+                kind: 'ballista',
+                value: result.damage,
+                x: pos.x,
+                y: pos.y - 16,
+                reducedMotion: reduced,
+              });
+              await this._awaitSceneTween(number.tween, {
+                label: 'ballista_hit_float',
+                onCancel: number.destroy,
+              });
             }
           },
           { scene: this },
@@ -10217,30 +10256,16 @@ export class BattleScene extends Phaser.Scene {
           'ballista miss',
           async () => {
             const pos = this.grid.gridToPixel(target.col, target.row);
-            const txt = this.add
-              .text(pos.x, pos.y - 16, 'Miss', {
-                fontFamily: 'monospace',
-                fontSize: '11px',
-                color: UI_PALETTE.muted,
-                fontStyle: 'bold',
-              })
-              .setOrigin(0.5)
-              .setDepth(301);
-            await this._awaitSceneTween(
-              {
-                targets: txt,
-                y: reduced ? pos.y - 16 : pos.y - 32,
-                alpha: 0,
-                duration: 600,
-                onComplete: () => {
-                  txt.destroy();
-                },
-              },
-              {
-                label: 'ballista_miss_float',
-                onCancel: () => txt.destroy(),
-              },
-            );
+            const number = buildCombatNumber(this, {
+              kind: 'miss',
+              x: pos.x,
+              y: pos.y - 16,
+              reducedMotion: reduced,
+            });
+            await this._awaitSceneTween(number.tween, {
+              label: 'ballista_miss_float',
+              onCancel: number.destroy,
+            });
           },
           { scene: this },
         );
@@ -10486,22 +10511,12 @@ export class BattleScene extends Phaser.Scene {
     if (unit.graphic?.setTint) unit.graphic.setTint(0xff4400);
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const text = this.add
-      .text(pos.x, pos.y - 16, `Lava -${damage}`, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: UI_PALETTE.warn,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(320);
-
-    this.tweens.add({
-      targets: text,
-      y: pos.y - 32,
-      alpha: 0,
-      duration: 450,
-      onComplete: () => text.destroy(),
+    floatCombatNumber(this, {
+      kind: 'lava',
+      value: damage,
+      x: pos.x,
+      y: pos.y - 16,
+      reducedMotion: this._reduceMotion(),
     });
 
     await this._awaitSceneDelay(120, { label: 'terrain_damage_tint_clear' });
@@ -10515,22 +10530,12 @@ export class BattleScene extends Phaser.Scene {
     if (unit.graphic?.setTint) unit.graphic.setTint(0x88cc44);
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
-    const text = this.add
-      .text(pos.x, pos.y - 16, `Acid -${damage}`, {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: UI_PALETTE.good,
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setDepth(320);
-
-    this.tweens.add({
-      targets: text,
-      y: pos.y - 32,
-      alpha: 0,
-      duration: 450,
-      onComplete: () => text.destroy(),
+    floatCombatNumber(this, {
+      kind: 'acid',
+      value: damage,
+      x: pos.x,
+      y: pos.y - 16,
+      reducedMotion: this._reduceMotion(),
     });
 
     await this._awaitSceneDelay(120, { label: 'acid_damage_tint_clear' });
@@ -10867,41 +10872,51 @@ export class BattleScene extends Phaser.Scene {
         (seg) => stepIndex >= seg.startIndex && stepIndex < seg.startIndex + seg.slidePath.length,
       );
 
-    for (const { index: stepIndex, tween, shown, hold } of plan.steps) {
-      const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
-      if (!tween) {
-        // Hidden before it moves, shown only once it stands on a seen tile.
-        if (fog) {
-          for (const part of targets) {
-            if (!shown) part?.setVisible?.(false);
-            part?.setPosition?.(pos.x, pos.y);
-            if (shown) part?.setVisible?.(true);
+    // The walk cycle (frames, hop, landing puff) rides the steps; it puts the unit back as
+    // it was however the walk ends (a superseded phase, a rewound battle).
+    let landed = null;
+    try {
+      for (const { index: stepIndex, tween, shown, hold } of plan.steps) {
+        const pos = this.grid.gridToPixel(finalPath[stepIndex].col, finalPath[stepIndex].row);
+        if (!tween) {
+          // Hidden before it moves, shown only once it stands on a seen tile.
+          if (fog) {
+            for (const part of targets) {
+              if (!shown) part?.setVisible?.(false);
+              part?.setPosition?.(pos.x, pos.y);
+              if (shown) part?.setVisible?.(true);
+            }
           }
+          if (!(fog && hold)) continue;
+          // Seen between two hidden tiles: held here for a step's time (read at the
+          // enemy-phase speed), never tweened through the fog on either side.
+          const ms = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
+          await this._awaitSceneDelay(ms, { label: ENEMY_STEP_LABEL, scaled: true });
+          if (!isCurrentBattleSession(this, session)) return;
+          if (!this._isSceneActiveForAsync(session)) return;
+          continue;
         }
-        if (!(fog && hold)) continue;
-        // Seen between two hidden tiles: held here for a step's time (read at the
-        // enemy-phase speed), never tweened through the fog on either side.
-        const ms = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
-        await this._awaitSceneDelay(ms, { label: ENEMY_STEP_LABEL, scaled: true });
+        // Both tiles are seen: the step is drawn, with the sprite shown.
+        if (fog) for (const part of targets) part?.setVisible?.(true);
+        const duration = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
+        this._walkCycle().step(enemy, { ms: duration, slide: isSlideStep(stepIndex) });
+        await this._awaitSceneTween(
+          {
+            targets,
+            x: pos.x,
+            y: pos.y,
+            duration,
+            ease: 'Linear',
+          },
+          { label: ENEMY_STEP_LABEL, timeoutMs: duration + 700, scaled: true },
+        );
         if (!isCurrentBattleSession(this, session)) return;
         if (!this._isSceneActiveForAsync(session)) return;
-        continue;
       }
-      // Both tiles are seen: the step is drawn, with the sprite shown.
-      if (fog) for (const part of targets) part?.setVisible?.(true);
-      const duration = enemyStepDuration(this, { slide: isSlideStep(stepIndex) });
-      await this._awaitSceneTween(
-        {
-          targets,
-          x: pos.x,
-          y: pos.y,
-          duration,
-          ease: 'Linear',
-        },
-        { label: ENEMY_STEP_LABEL, timeoutMs: duration + 700, scaled: true },
-      );
-      if (!isCurrentBattleSession(this, session)) return;
-      if (!this._isSceneActiveForAsync(session)) return;
+      const last = finalPath[finalPath.length - 1];
+      landed = { col: last.col, row: last.row };
+    } finally {
+      this._walkCycle().end(enemy, landed || undefined);
     }
 
     rememberHistoryPath(this, enemy, finalPath, false);
@@ -11184,7 +11199,14 @@ export class BattleScene extends Phaser.Scene {
             pos.x,
             pos.y,
           );
-          this.showMinorHintAt(pos.x, pos.y, `Splash -${damage}`, UI_PALETTE.rarityEpic);
+          this.shakeScreen('splash');
+          floatCombatNumber(this, {
+            kind: 'splash',
+            value: damage,
+            x: pos.x,
+            y: pos.y - 16,
+            reducedMotion: this._reduceMotion(),
+          });
           await this._awaitSceneDelay(200, { label: 'entity_splash_tick' });
         },
         { scene: this },
@@ -11215,6 +11237,8 @@ export class BattleScene extends Phaser.Scene {
     this._phaseBanner = null;
     const label = phase === 'player' ? 'Player Phase' : 'Enemy Phase';
     const color = phase === 'player' ? UI_PALETTE.info : '#ff9999';
+    // The phase's bell, with either banner (sound only: no state, no battle stream).
+    this.registry?.get?.('audio')?.playSFX('sfx_turn');
     const place =
       turn === 1 && phase === 'player'
         ? battlePlace(this.gameData, this.battleConfig, this.battleParams?.act).title
@@ -11577,16 +11601,7 @@ export class BattleScene extends Phaser.Scene {
           // canInspectUnit: an Entity shows when any tile of its body is seen, and Seer's Eye
           // shows every foe through the fog.
           const vis = canInspectUnit(this.grid, enemy);
-          if (enemy.graphic) enemy.graphic.setVisible(vis);
-          if (enemy.label) enemy.label.setVisible(vis);
-          if (enemy.factionIndicator) enemy.factionIndicator.setVisible(vis);
-          if (enemy.hpBar) {
-            enemy.hpBar.bg.setVisible(vis);
-            enemy.hpBar.fill.setVisible(vis);
-          }
-          if (enemy.affixPips) {
-            enemy.affixPips.forEach((p) => p.setVisible(vis));
-          }
+          setUnitPartsVisible(enemy, vis);
         },
         { scene: this },
       );
@@ -11597,16 +11612,7 @@ export class BattleScene extends Phaser.Scene {
         () => {
           // The recruit shows through fog (canInspectUnit); the caravan does not.
           const vis = canInspectUnit(this.grid, npc);
-          if (npc.graphic) npc.graphic.setVisible(vis);
-          if (npc.label) npc.label.setVisible(vis);
-          if (npc.factionIndicator) npc.factionIndicator.setVisible(vis);
-          if (npc.hpBar) {
-            npc.hpBar.bg.setVisible(vis);
-            npc.hpBar.fill.setVisible(vis);
-          }
-          if (npc.affixPips) {
-            npc.affixPips.forEach((p) => p.setVisible(vis));
-          }
+          setUnitPartsVisible(npc, vis);
           // Status badges (acid ground, an enemy art) hide with the NPC they sit on.
           Object.values(npc._conditionIcons || {}).forEach((icon) => icon?.setVisible?.(vis));
         },

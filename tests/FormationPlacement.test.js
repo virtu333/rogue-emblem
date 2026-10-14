@@ -13,6 +13,7 @@ import {
   placeUnit,
   placedCount,
   playerSpawnBounds,
+  playerSpawnBoundsList,
   tileKey,
 } from '../src/engine/FormationPlacement.js';
 import { loadGameData } from './testData.js';
@@ -146,6 +147,87 @@ describe('spare tiles', () => {
     // Both mounted units need a non-mountain tile; the only ones in the zone are
     // (2,0),(2,1),(1,2),(2,2).
     for (const t of spares) expect(canEnter(hills, t.col, t.row, 'Cavalry')).toBe(true);
+  });
+
+  it("offer tiles in both of a split start's zones", () => {
+    // Two start zones far apart: left and right, a plain field between.
+    const field = map(['..........', '..........', '..........', '..........']);
+    const template = {
+      zones: [
+        { rect: [0, 0, 0.2, 1], role: 'playerSpawn' },
+        { rect: [0.8, 0, 1, 1], role: 'playerSpawn' },
+      ],
+    };
+    const zones = playerSpawnBoundsList(template, field.cols, field.rows);
+    expect(zones).toEqual([
+      { startCol: 0, endCol: 2, startRow: 0, endRow: 4 },
+      { startCol: 8, endCol: 10, startRow: 0, endRow: 4 },
+    ]);
+    const spares = pickFormationSpares({
+      ...field,
+      spawns: [
+        { col: 0, row: 0 },
+        { col: 9, row: 0 },
+      ],
+      bounds: zones,
+      count: 12,
+      rng: seeded(5),
+    });
+    expect(spares.some((t) => t.col < 2)).toBe(true);
+    expect(spares.some((t) => t.col >= 8)).toBe(true);
+    for (const t of spares) expect(t.col < 2 || t.col >= 8).toBe(true);
+    // A template with one zone reads as before.
+    const one = { zones: [template.zones[0]] };
+    expect(playerSpawnBoundsList(one, 10, 4)).toEqual([playerSpawnBounds(one, 10, 4)]);
+  });
+
+  it("deal a split start's spares so each start ends with as many tiles as it can", () => {
+    const field = map(['..........', '..........', '..........', '..........']);
+    const zones = [
+      { startCol: 0, endCol: 2, startRow: 0, endRow: 4 },
+      { startCol: 8, endCol: 10, startRow: 0, endRow: 4 },
+    ];
+    const left = (tiles) => tiles.filter((t) => t.col < 2).length;
+    for (let seed = 1; seed <= 40; seed++) {
+      // Even spawns (2 + 2), four spares: two each, never 4 + 0 or 3 + 1.
+      const even = pickFormationSpares({
+        ...field,
+        spawns: [
+          { col: 0, row: 0 },
+          { col: 0, row: 1 },
+          { col: 9, row: 0 },
+          { col: 9, row: 1 },
+        ],
+        bounds: zones,
+        count: 4,
+        rng: seeded(seed),
+      });
+      expect(left(even)).toBe(2);
+      // Uneven spawns (3 + 1), four spares: the short side is made up first (1 + 3 -> 4 + 4).
+      const uneven = pickFormationSpares({
+        ...field,
+        spawns: [
+          { col: 0, row: 0 },
+          { col: 0, row: 1 },
+          { col: 0, row: 2 },
+          { col: 9, row: 0 },
+        ],
+        bounds: zones,
+        count: 4,
+        rng: seeded(seed),
+      });
+      expect(left(uneven)).toBe(1);
+    }
+  });
+
+  it('keep the one-zone draw they always made', () => {
+    // Pinned from the draw before split starts were balanced: one zone's spares are unchanged.
+    const spares = pickFormationSpares({ ...base, spawns, bounds, count: 3, rng: seeded(9) });
+    expect(spares).toEqual([
+      { col: 0, row: 2 },
+      { col: 3, row: 5 },
+      { col: 3, row: 1 },
+    ]);
   });
 
   it('widen around the spawns when the zone is full', () => {

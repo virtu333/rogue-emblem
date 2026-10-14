@@ -44,6 +44,7 @@ import { unitEpithet } from '../engine/DeedTitles.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { playCue } from './ceremonyMusic.js';
 import { restUnitAppearance } from './UnitRestAppearance.js';
+import { drawArrivalGraphic, guardUndrawnUnits } from './arrivalGraphic.js';
 
 /**
  * FNV-1a hash — deterministic seed derivation for rewind RNG re-seeding.
@@ -205,7 +206,8 @@ export class VisionRewindController {
         relinkWeapon(unit);
         targetArr.push(unit);
         registerBattleEntity(scene, unit);
-        scene.addUnitGraphic(unit);
+        // A sprite that fails leaves a marker (arrivalGraphic.js): the rewind always completes.
+        drawArrivalGraphic(scene, unit, 'rewound unit graphic');
         // Conditions rewind with the unit; rebuild their badges (mirrors
         // BattleSuspendController's restore).
         for (const cond of Array.isArray(unit._conditions) ? unit._conditions : []) {
@@ -1049,6 +1051,8 @@ export class VisionRewindController {
         const applied = this._applySnapshot({ committed: true });
         // The restored board is exactly the target point.
         if (applied) scene._rewindFingerprint = rewindFingerprint(scene);
+        // Saved before it was rebuilt: a unit nothing could draw asks for a reload.
+        if (applied) guardUndrawnUnits(scene, { saved: true });
         // A prologue chapter watches the replayed move (the rewind exercise).
         if (applied) void scene._prologue?.onRewound?.();
         return applied;

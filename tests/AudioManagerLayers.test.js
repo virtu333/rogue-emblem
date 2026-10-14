@@ -213,6 +213,7 @@ describe('AudioManager — extra layers (a boss enrage layer)', () => {
     const sound = makeSound([finale, hum]);
     const handlers = {};
     sound.locked = true;
+    sound.context.state = 'suspended';
     sound.once = vi.fn((event, fn) => {
       handlers[event] = fn;
     });
@@ -225,6 +226,7 @@ describe('AudioManager — extra layers (a boss enrage layer)', () => {
     expect(audio.currentMusic).toBeNull();
     const play = vi.spyOn(audio, 'playMusic');
     sound.locked = false;
+    sound.context.state = 'running';
     handlers.unlocked();
     // a scheduled downbeat is stale by the time audio unlocks: it starts now
     expect(play).toHaveBeenCalledWith(finale, null, 0, {

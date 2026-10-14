@@ -28,11 +28,12 @@ import {
   pickFormationSpares,
   placeUnit,
   placedCount,
-  playerSpawnBounds,
+  playerSpawnBoundsList,
   unitOnTile,
 } from '../engine/FormationPlacement.js';
 import { FormationPicker } from './FormationPicker.js';
 import { unitIdentityKey } from '../engine/UnitIdentity.js';
+import { mirrorTemplateY } from '../engine/TemplateLayout.js';
 import {
   canOpenFormationRoster,
   openFormationRoster,
@@ -263,7 +264,12 @@ export class FormationController {
       ...{ mapLayout: s.grid.mapLayout, cols: s.grid.cols, rows: s.grid.rows },
       terrainData: s.gameData.terrain,
       spawns,
-      bounds: playerSpawnBounds(template, s.grid.cols, s.grid.rows),
+      // A template flipped for this battle (TemplateLayout.js) has its spawn zone flipped too.
+      bounds: playerSpawnBoundsList(
+        bc.mirrored === true && template?.mirror === 'y' ? mirrorTemplateY(template) : template,
+        s.grid.cols,
+        s.grid.rows,
+      ),
       blocked: occupied,
       enemies: (s.enemyUnits || []).map((u) => ({ col: u.col, row: u.row })),
       moveTypes: this.units.map((u) => u.moveType || 'Infantry'),

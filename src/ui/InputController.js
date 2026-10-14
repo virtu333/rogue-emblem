@@ -9,6 +9,7 @@ import {
 import { computeEffectivePath } from '../engine/Grid.js';
 import { movementOptionsFor } from '../engine/PassMovement.js';
 import { unitReach } from '../engine/ThreatForecast.js';
+import { haptic } from '../utils/haptics.js';
 import { holdsPost } from '../engine/SiegeArtillery.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
 import {
@@ -498,8 +499,14 @@ export class InputController {
       }
       return;
     }
+    // A tap on the board closes the end-turn confirm and then acts as a tap.
+    scene._mobileBattleHud?.cancelEndTurn?.();
 
     if (scene.isMobileInput) this.refreshTileInfo(gp.col, gp.row);
+
+    // A tap on the board, or the gamepad / keyboard cursor's confirm (GridCursorController
+    // goes through here): one tick.
+    haptic('tick');
 
     switch (scene.battleState) {
       case 'PLAYER_IDLE':

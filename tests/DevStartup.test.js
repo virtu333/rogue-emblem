@@ -321,7 +321,7 @@ describe('phone review routes (deploy previews)', () => {
     ).toBe('fog_ambush');
   });
 
-  it('roster_checks: an Oath on the bench, one to meet the cap, Edric in a robe at 1 HP', () => {
+  it('roster_checks: an Oath in its slot, a skill on the bench, one to meet the cap, Edric in a robe at 1 HP', () => {
     const registry = createRegistry();
     const r = route('?devScene=nodemap&preset=roster_checks&seed=1', registry);
     expect(r.key).toBe('NodeMap');
@@ -329,8 +329,9 @@ describe('phone review routes (deploy previews)', () => {
     const bramwell = roster.find((u) => u.name === 'Bramwell');
     expect(bramwell.tier).toBe('promoted');
     expect(bramwell.deeds.oath).toMatchObject({ skillId: 'pavise' });
-    expect(bramwell.benchedSkills).toContain('pavise');
-    expect(bramwell.benchedUnseen).toContain('pavise');
+    expect(bramwell.skills).toContain('pavise');
+    expect(bramwell.benchedSkills).toContain('colossus');
+    expect(bramwell.benchedUnseen).toContain('colossus');
     const corwin = roster.find((u) => u.name === 'Corwin');
     expect(corwin.skills).toHaveLength(5);
     expect(corwin.consumables.map((c) => c.name)).toEqual(['Master Seal']);
@@ -421,6 +422,82 @@ describe('the set-piece review route', () => {
       deployCap: 6,
     });
     expect(battleRoute('setPiece=nowhere').data.battleParams.setPiece).toBeUndefined();
+  });
+});
+
+describe('the map-template review route', () => {
+  const battleRoute = (query) =>
+    buildDevStartupRoute(
+      loadGameData(),
+      createRegistry(),
+      parseDevStartupConfig(`?devScene=battle&preset=battle_smoke&seed=7&${query}`, {
+        devMode: true,
+      }),
+    );
+
+  it('fights on the named template, switched off or not, with its pool objective', () => {
+    expect(battleRoute('template=corner_camp&act=2').data.battleParams).toMatchObject({
+      act: 'act2',
+      templateId: 'corner_camp',
+      objective: 'rout',
+    });
+    expect(battleRoute('template=three_roads_keep&act=3').data.battleParams).toMatchObject({
+      act: 'act3',
+      templateId: 'three_roads_keep',
+      objective: 'seize',
+    });
+  });
+
+  it("reaches the template's first act when no act is named, with the act's whole pool", () => {
+    // The smoke preset's battle is its run's first, which draws Fighters only; a template review
+    // shows the act's whole pool (the owner's Corner Camp review met six Fighters).
+    const bare = battleRoute('template=corner_camp').data.battleParams;
+    expect(bare).toMatchObject({ act: 'act2', templateId: 'corner_camp' });
+    expect(bare.firstBattleFightersOnly).toBe(false);
+    // Snowbound Woods is Act IV only: a bare link on a rung with an Act IV is an Act IV battle.
+    expect(battleRoute('template=snowbound_woods&difficulty=hard').data.battleParams.act).toBe(
+      'act4',
+    );
+    // A named act still wins.
+    expect(battleRoute('template=snowbound_woods&act=3').data.battleParams.act).toBe('act3');
+  });
+
+  it("fields the act's full army at the act's levels, so the map meets a real battle's foe count", () => {
+    // The owner's review met 5 foes with 3 starter units: the enemy count follows the deploy.
+    const act2 = battleRoute('template=warband&act=2').data;
+    expect(act2.roster).toHaveLength(5); // DEPLOY_LIMITS.act2.max
+    const starterNames = new Set(battleRoute('').data.roster.map((u) => u.name));
+    // The run's own units at the act's level, the added ones at recruits.json act2's top (8).
+    // (the veteran starts promoted, as in a run, and keeps his level).
+    for (const unit of act2.roster.filter((u) => u.tier !== 'promoted')) expect(unit.level).toBe(8);
+    for (const unit of act2.roster.filter((u) => !starterNames.has(u.name))) {
+      expect(unit.currentHP).toBe(unit.stats.HP);
+      expect(unit.weapon?.tier).toBe('Steel');
+    }
+    expect(new Set(act2.roster.map((u) => u.name)).size).toBe(5);
+    // Act III's pool is promoted: those recruits are promoted units.
+    const act3 = battleRoute('template=warband&act=3').data.roster;
+    expect(act3).toHaveLength(7);
+    for (const unit of act3.filter((u) => !starterNames.has(u.name)))
+      expect(unit.tier).toBe('promoted');
+    // The same link adds the same units (the lords' growths are the run's own roll);
+    // `&army=0` keeps the starter roster, `&army=N` sets it.
+    const added = (roster) => roster.filter((u) => !starterNames.has(u.name));
+    const again = battleRoute('template=warband&act=2').data.roster;
+    expect(added(again).map((u) => [u.name, u.className, u.stats])).toEqual(
+      added(act2.roster).map((u) => [u.name, u.className, u.stats]),
+    );
+    const starter = battleRoute('').data.roster.length;
+    expect(battleRoute('template=warband&act=2&army=0').data.roster).toHaveLength(starter);
+    expect(battleRoute('template=warband&act=2&army=6').data.roster).toHaveLength(6);
+    // Other battle reviews keep their roster.
+    expect(battleRoute('setPiece=toll_house&act=2').data.roster).toHaveLength(starter);
+  });
+
+  it('ignores an unknown template id: the node keeps the template it drew', () => {
+    expect(battleRoute('template=nowhere').data.battleParams.templateId).toBe(
+      battleRoute('').data.battleParams.templateId,
+    );
   });
 });
 

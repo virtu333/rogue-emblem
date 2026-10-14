@@ -19,7 +19,9 @@ import { regionName } from './placeDisplay.js';
 import { ACT_CONFIG, ELITE_LOOT_CHOICES, ELITE_MAX_PICKS } from '../utils/constants.js';
 import { portraitListLayout } from './portraitListLayout.js';
 import { riteNodeModel, riteNodeNotes } from './riteModel.js';
+import { reviveNodeNotes } from '../engine/RevivePreview.js';
 import { riteCardBlock } from './RiteView.js';
+import { getMercenaryPriceRange } from '../engine/ColosseumEngine.js';
 
 // DOM pieces shared by node travel and the read-only Campaign Map: the act header
 // (Cinzel title + pixel subline) and the inspect card for the selected knot.
@@ -295,6 +297,17 @@ export function renderLoomCard(card, node, ctx = {}) {
     ruinsChoice: node.type === 'ruins' && rm ? ruinsChoice(rm, node.id) : null,
     // The Old Sanctum's line follows its vow (offered, taken, spent, nothing left).
     sanctumStatus: node.type === 'church' && rm ? sanctumStatus(rm, node.id) : null,
+    // The colosseum's hire prices, read from the same rule its board prices with.
+    mercPrices:
+      node.type === 'colosseum'
+        ? getMercenaryPriceRange(
+            actId,
+            rm?.difficultyId ?? rm?.difficultyMode ?? 'normal',
+            gameData?.colosseum,
+            gameData?.recruits,
+            gameData?.classes,
+          )
+        : null,
     // A visited event keeps the line of what was chosen there.
     eventChoice:
       node.type === 'event' && rm && (!node.eclipse || node.darkOmen === true)
@@ -375,6 +388,10 @@ export function renderLoomCard(card, node, ctx = {}) {
   if (rm)
     for (const note of riteNodeNotes(rm, node))
       card.append(element('p', note, 're-loom-text re-loom-rite-note-line'));
+  // What reviving the fallen costs here, so a player can plan for it on the road.
+  if (rm)
+    for (const note of reviveNodeNotes(rm, node))
+      card.append(element('p', note, 're-loom-text re-loom-revive-note'));
   if (info.warning) card.append(element('p', info.warning, 're-loom-eclipse-warn'));
   if (info.flavor) card.append(element('p', `“${info.flavor}”`, 're-loom-flavor'));
   card.append(

@@ -15,7 +15,7 @@ export const SAVED_TEXT_MAX = 8192;
 /**
  * A normalized copy of a saved continuation, or null when it is malformed.
  * @param {unknown} value
- * @returns {{kind:'combat'|'finish', unitName:string, unitId?:string, skipCanto?:boolean, gambitTriggered?:boolean, refreshActor?:boolean} | null}
+ * @returns {{kind:'combat'|'finish', unitName:string, unitId?:string, skipCanto?:boolean, afterCombat?:boolean, gambitTriggered?:boolean, refreshActor?:boolean} | null}
  */
 export function readActionContinuation(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -28,6 +28,7 @@ export function readActionContinuation(value) {
   )
     return null;
   if (value.skipCanto !== undefined && typeof value.skipCanto !== 'boolean') return null;
+  if (value.afterCombat !== undefined && typeof value.afterCombat !== 'boolean') return null;
   if (value.gambitTriggered !== undefined && typeof value.gambitTriggered !== 'boolean')
     return null;
   if (value.refreshActor !== undefined && typeof value.refreshActor !== 'boolean') return null;
@@ -36,6 +37,7 @@ export function readActionContinuation(value) {
     unitName: value.unitName,
     ...(value.unitId ? { unitId: value.unitId } : {}),
     ...(value.skipCanto !== undefined ? { skipCanto: value.skipCanto } : {}),
+    ...(value.afterCombat !== undefined ? { afterCombat: value.afterCombat } : {}),
     ...(value.gambitTriggered !== undefined ? { gambitTriggered: value.gambitTriggered } : {}),
     ...(value.refreshActor !== undefined ? { refreshActor: value.refreshActor } : {}),
   };

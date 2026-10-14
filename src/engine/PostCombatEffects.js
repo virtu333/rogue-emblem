@@ -528,7 +528,7 @@ function* collide(step, sourceUnit, targetUnit, moveResult, world, result, held 
     if (bannerHeld) held?.add(unit);
     if (actual > 0) {
       yield { kind: 'hp', unit };
-      yield { kind: 'hint', unit, text: `Crash -${actual}`, tone: 'splash' };
+      yield { kind: 'hint', unit, text: `Crash -${actual}`, tone: 'splash', impact: 'crash' };
       if (stoneBroken) yield { kind: 'stone', unit };
     }
     if (bannerHeld) yield { kind: 'banner', unit };
@@ -686,12 +686,13 @@ function stillStanding(unit, sourceUnit, world) {
 
 /**
  * A Tier 5 ally buff (also the Rally action ability): every living ally within range
- * gains the step's stats until the source's phase `durationPhases` turns on.
+ * gains the step's stats until the source's phase `durationPhases` turns on. A `selfOnly`
+ * step (Hunter's Focus) buffs the source alone, whatever its range.
  */
 export function* allyBuff(step, sourceUnit, world) {
   if (!sourceUnit || sourceUnit.currentHP <= 0) return;
   const range = Math.max(0, Math.trunc(Number(step?.range) || 0));
-  if (range <= 0) return;
+  if (range <= 0 && step?.selfOnly !== true) return;
   const rawStats = step?.stats;
   if (!rawStats || typeof rawStats !== 'object') return;
   const stats = {};
@@ -707,11 +708,14 @@ export function* allyBuff(step, sourceUnit, world) {
   if (Object.keys(stats).length <= 0) return;
 
   const includeSelf = step?.includeSelf === true;
-  const allies = world
-    .alliesOf(sourceUnit)
-    .filter((ally) => ally && ally.currentHP > 0)
-    .filter((ally) => includeSelf || ally !== sourceUnit)
-    .filter((ally) => combatDistance(sourceUnit, ally) <= range);
+  const allies =
+    step?.selfOnly === true
+      ? [sourceUnit]
+      : world
+          .alliesOf(sourceUnit)
+          .filter((ally) => ally && ally.currentHP > 0)
+          .filter((ally) => includeSelf || ally !== sourceUnit)
+          .filter((ally) => combatDistance(sourceUnit, ally) <= range);
   if (allies.length <= 0) return;
 
   const { expiryPhase, expiryTurn } = resolveTimedBuffExpiry(

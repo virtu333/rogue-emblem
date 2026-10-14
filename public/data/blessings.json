@@ -1358,7 +1358,7 @@
           "kind": "act_boss"
         }
       ],
-      "description": "Once per battle, the first ally who would fall survives at 1 HP.",
+      "description": "Once a battle, the first ally who would fall lives at 1 HP, with a Lingering Injury.",
       "lore": "Sewn from the cloth of fallen standards by widows who refuse the word. It stays up.",
       "boons": [
         {
@@ -1781,14 +1781,14 @@
         }
       ],
       "twist": {
-        "label": "An Ill Omen that never ends: +1 shadow each victory",
+        "label": "An Ill Omen that never ends: +2 shadow each victory",
         "effects": [
           {
             "type": "burden",
             "params": {
               "id": "ill_omen",
               "permanent": true,
-              "extraShadow": 1
+              "extraShadow": 2
             }
           }
         ]
@@ -1805,14 +1805,14 @@
           "kind": "act_boss"
         }
       ],
-      "description": "Church promotions are free and add +2 to the class's two best stats.",
+      "description": "Church promotions are free and add +2 to the class's best stat.",
       "lore": "Kings were once made at altars, not by seals. The old priests remember how.",
       "boons": [
         {
           "type": "kingmaker_promotion",
           "params": {
             "bonus": 2,
-            "stats": 2
+            "stats": 1
           }
         }
       ],

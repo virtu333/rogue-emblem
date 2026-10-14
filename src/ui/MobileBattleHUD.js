@@ -97,6 +97,7 @@ const HINTS = {
   COMBAT_RESOLVING: 'Resolving combat…',
   TURN_START_RESOLVING: 'Applying turn-start effects…',
   SHOWING_FORECAST: 'Review the forecast before committing.',
+  END_TURN_DISMISS: 'Tap the map or Back to keep playing.',
 };
 
 // Warp/Rescue: step 1 names the ally to pick, step 2 where the chosen ally lands.
@@ -457,6 +458,19 @@ export class MobileBattleHUD {
     return true;
   }
 
+  /**
+   * Close the end-turn confirm without ending the turn. Back, Escape, a tap on the
+   * board or off it all reach here (BattleScene.requestCancel, InputController.onClick),
+   * so the confirm needs no Keep playing button of its own.
+   */
+  cancelEndTurn() {
+    if (!this.endTurnPending) return false;
+    this.endTurnPending = null;
+    this.lastSnapshot = '';
+    this.sync();
+    return true;
+  }
+
   showMenu(items, objects) {
     this.menu = { items, objects, unit: this.scene.selectedUnit };
     this.expandedItem = null; // a new menu opens with every row brief
@@ -772,7 +786,13 @@ export class MobileBattleHUD {
       );
     }
     if (attacking && config.weaponArt) {
-      side.append(el('p', 'mb-detail', formatWeaponArtEffects(config.weaponArt)));
+      side.append(
+        el(
+          'p',
+          'mb-detail',
+          formatWeaponArtEffects(config.weaponArt, { weapon: forecastWeapon(config) }),
+        ),
+      );
       side.append(
         el(
           'p',
@@ -975,6 +995,7 @@ export class MobileBattleHUD {
             threat.col,
             threat.row,
             threat.result?.count,
+            threat.result?.aimed,
             threat.result?.status?.length,
             threat.result?.counter?.length,
           ]
@@ -997,6 +1018,7 @@ export class MobileBattleHUD {
       s.dangerZone?.visible &&
         `${(s.dangerZone.tiles || []).reduce((a, t) => (a * 33 + t.col * 97 + t.row * 13 + t.tier) % 1e9, 7)}:${(s.playerUnits || []).map((u) => `${u.col},${u.row},${u.currentHP > 0}`).join(';')}`,
       Boolean(s.keepDangerVisible),
+      s.dangerZone?.mode,
       Boolean(s.isThreatPinned?.(unit)),
       s.pinnedThreatEnemies?.size,
       Boolean(this.menu),
@@ -1254,7 +1276,15 @@ export class MobileBattleHUD {
     const contractLine = s._contractHud?.model?.();
     if (contractLine) detailContent.append(el('p', 'mb-contract-detail', contractLine.title));
     if (s.dangerZone?.visible)
-      detailContent.append(el('p', '', 'Darker: more enemies · Purple outline: status staff'));
+      detailContent.append(
+        el(
+          'p',
+          '',
+          s.dangerZone.outline
+            ? 'Red outline: enemy reach · Purple outline: status staff'
+            : 'Darker: more enemies · Purple outline: status staff',
+        ),
+      );
     if (s.dangerZone?.tiles?.some((t) => t.counterThreat))
       detailContent.append(
         el('p', '', 'Dashed band: the Entity cannot strike there, but it counters a blow from it'),
@@ -1277,7 +1307,7 @@ export class MobileBattleHUD {
         el(
           'p',
           '',
-          'You can also hold Danger to pin it. Tap Danger to hide it. Resets each battle.',
+          'Tap Danger once to show it, again for just its outline, a third time to hide it. Hold Danger to pin it. Resets each battle.',
         ),
       );
     }
@@ -1288,15 +1318,10 @@ export class MobileBattleHUD {
         el(
           'p',
           'mb-hint',
-          `End your turn? ${remaining} ${remaining === 1 ? 'unit still has' : 'units still have'} actions.`,
+          `End your turn? ${remaining} ${remaining === 1 ? 'unit still has' : 'units still have'} actions. ${HINTS.END_TURN_DISMISS}`,
         ),
       );
       const token = this.endTurnPending;
-      this.body.append(
-        this.button('Keep playing', () => {
-          this.endTurnPending = null;
-        }),
-      );
       // One locator that walks the ready units in reading order: it names who
       // it will show, brings them into view, selects them and marks the tile.
       const readyList = readyUnits(s);
@@ -1613,8 +1638,8 @@ export class MobileBattleHUD {
 
   /**
    * The Danger toggle: a crimson-hatched swatch, the command, and a state line that
-   * says what the overlay shows (allies in reach) or how to pin it. Tap toggles,
-   * hold pins/unpins — unchanged gestures; the name stays 'Danger' / 'Danger · pinned'.
+   * says what the overlay shows (allies in reach) or how to pin it. Tap steps Filled ->
+   * Outline -> Off, hold pins/unpins; the name reads 'Danger', '· outline', '· pinned'.
    */
   /** Top/bottom fades and a "more" cue when the command stack scrolls. */
   syncScrollCues() {
@@ -1764,11 +1789,12 @@ export class MobileBattleHUD {
     const s = this.scene;
     const pinned = Boolean(s.keepDangerVisible);
     const shown = Boolean(s.dangerZone?.visible);
-    const label = pinned ? 'Danger · pinned' : 'Danger';
+    const outline = shown && Boolean(s.dangerZone?.outline);
+    const label = ['Danger', outline && 'outline', pinned && 'pinned'].filter(Boolean).join(' · ');
     const button = this.button(
       '',
       () => (viaEvent ? s.game.events.emit('mobile:danger') : s._onDangerClick()),
-      `mb-danger-toggle${compact ? ' is-compact' : ''}${shown ? ' is-on' : ''}${pinned ? ' is-pinned' : ''}`,
+      `mb-danger-toggle${compact ? ' is-compact' : ''}${shown ? ' is-on' : ''}${outline ? ' is-outline' : ''}${pinned ? ' is-pinned' : ''}`,
       () => s.togglePersistentDanger(),
     );
     button.setAttribute('aria-label', label);

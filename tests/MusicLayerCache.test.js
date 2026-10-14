@@ -221,6 +221,8 @@ describe('layered music under the mobile cache budget', () => {
     sound.removed.length = 0;
     audio.setMusicIntensity('full', 0);
     await audio.playMusic(BOSS, null, 0, { layers: { enrage: BOSS_ENRAGE } });
+    // The enrage layer is not needed for the start: it joins the running timeline.
+    await vi.waitFor(() => expect(audio.currentMusic.hasLayer('enrage')).toBe(true));
 
     // Loading the enrage layer must not evict the boss primary it belongs to.
     expect(sound.removed).not.toContain(BOSS);
@@ -250,9 +252,9 @@ describe('layered music under the mobile cache budget', () => {
     audio.stopMusic(null, 0, true);
     sound.removed.length = 0;
     await audio.playMusic(BOSS, null, 0, { layers: { enrage: BOSS_ENRAGE } });
+    await vi.waitFor(() => expect(audio.currentMusic.hasLayer('enrage')).toBe(true));
     expect(sound.removed).not.toContain(BOSS);
     expectPlaying(audio, BOSS);
-    expect(audio.currentMusic.hasLayer('enrage')).toBe(true);
   });
 
   it('byte budget: an already-cached layer of the pending track is neither evicted nor refetched', async () => {
@@ -441,6 +443,7 @@ describe('layer switching when a layer is unavailable', () => {
   it('a track started while audio was locked keeps its extra (enrage) layer after unlock', async () => {
     const sound = makeSound([BOSS, BOSS_ENRAGE]);
     sound.locked = true;
+    sound.context.state = 'suspended';
     let unlock = null;
     sound.once = vi.fn((event, cb) => {
       if (event === 'unlocked') unlock = cb;
@@ -449,6 +452,7 @@ describe('layer switching when a layer is unavailable', () => {
     await audio.playMusic(BOSS, null, 0, { layers: { enrage: BOSS_ENRAGE } });
     expect(audio.currentMusic).toBeNull();
     sound.locked = false;
+    sound.context.state = 'running';
     unlock();
     await vi.waitFor(() => expect(audio.currentMusicKey).toBe(BOSS));
     expect(audio.currentMusic.hasLayer('enrage')).toBe(true);

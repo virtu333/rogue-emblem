@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForBattleState, waitForScene } from './helpers.js';
+import { waitForBattleState, waitForScene, openRosterUnit, closeRoster } from './helpers.js';
 test.use({ viewport: { width: 844, height: 390 } });
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() =>
@@ -32,9 +32,10 @@ test('rewards allow inventory management and direct accessory equip', async ({ p
   await rewards.getByRole('button', { name: 'Roster', exact: true }).click();
   const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
   await expect(roster).toBeVisible();
+  await openRosterUnit(roster);
   await roster.getByRole('button', { name: 'Equipment', exact: true }).click();
   await expect(roster.getByRole('button', { name: 'Store', exact: true }).first()).toBeVisible();
-  await roster.getByRole('button', { name: 'Close', exact: true }).click();
+  await closeRoster(roster);
   await rewards.getByRole('button', { name: 'Choose reward', exact: true }).click();
   await expect(rewards.getByRole('button', { name: /Keep in shared pool/ })).toBeVisible();
   await rewards.getByRole('button', { name: 'Apply reward', exact: true }).click();

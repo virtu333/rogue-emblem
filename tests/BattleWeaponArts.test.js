@@ -1391,7 +1391,13 @@ describe('BattleScene weapon art helpers', () => {
 
   it('applies Tier 2 push movement with scene/headless parity', async () => {
     const gameData = loadGameData();
-    const art = gameData.weaponArts.arts.find((entry) => entry.id === 'lance_overrun');
+    // No art in the data pushes one target any more (Overrun became a dash, 2026-10-13):
+    // the push is Overrun with its old move, so the mode keeps its parity check.
+    const overrun = gameData.weaponArts.arts.find((entry) => entry.id === 'lance_overrun');
+    const art = {
+      ...overrun,
+      effects: { afterCombat: [{ type: 'move', mode: 'push', distance: 1 }] },
+    };
     const sceneAttacker = {
       name: 'Knight',
       faction: 'enemy',
@@ -1469,6 +1475,7 @@ describe('BattleScene weapon art helpers', () => {
     expect(sceneDefender.row).toBe(headlessDefender.row);
     expect(sceneAttacker.col).toBe(headlessAttacker.col);
     expect(sceneAttacker.row).toBe(headlessAttacker.row);
+    expect(sceneDefender.col).toBe(4);
   });
 
   it('applies lethal Tier 2 advance movement with scene/headless parity before removal', async () => {

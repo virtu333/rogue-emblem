@@ -12,8 +12,6 @@ import {
   promoteUnit,
   formatDroppedSkillsNotice,
   resolvePromotionTargets,
-  addToInventory,
-  equipIfUnarmed,
   removeFromConsumables,
 } from '../engine/UnitManager.js';
 import { LevelUpPopup } from './LevelUpPopup.js';
@@ -27,7 +25,11 @@ import { promotionPathContent, projectUnit } from './growthContent.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import { applyPromotionOath, promotionOathCandidates } from '../engine/DeedSystem.js';
 import { classChangeItemBlock } from '../engine/TwistedBoons.js';
-import { getClassChangeWeaponGrants } from '../engine/RosterCommands.js';
+import {
+  getClassChangeWeaponGrants,
+  grantClassChangeWeapons,
+  classChangeGrantNotices,
+} from '../engine/RosterCommands.js';
 
 export class PromotionController {
   constructor(scene) {
@@ -201,21 +203,22 @@ export class PromotionController {
     );
     markPromotionApplied();
     // A deed's Oath, sworn with the promotion (the rite's content projected it).
-    const oath = applyPromotionOath(unit, scene.gameData);
-    // Skill slots full: the Oath waits in Deeds (the rite's card says so).
-    if (oath?.waiting) promotionResult.oathWaiting = oath;
+    applyPromotionOath(unit, scene.gameData);
     // Commit the seal with the promotion, before any dismissible/awaited UI.
     seal.uses = seal.uses - 1;
     if (seal.uses <= 0) removeFromConsumables(unit, seal);
     markSealConsumed();
 
     // Grant the Iron weapon of each newly wielded type.
-    const ungranted = [];
-    for (const newWeapon of getClassChangeWeaponGrants(unit, oldTypes, scene.gameData)) {
-      // A unit left with nothing equipped takes up the granted weapon.
-      if (addToInventory(unit, newWeapon)) equipIfUnarmed(unit, unit.inventory.at(-1));
-      else ungranted.push(newWeapon.name);
-    }
+    // A unit left with nothing equipped takes up the granted weapon; a full bag sends it
+    // to the convoy (part of the run state the action's checkpoint captures).
+    const grantNotices = classChangeGrantNotices(
+      grantClassChangeWeapons(
+        scene.runManager,
+        unit,
+        getClassChangeWeaponGrants(unit, oldTypes, scene.gameData),
+      ),
+    );
 
     try {
       observeHistoryAction(scene, 'promoted', unit, null, promotedClassData.name);
@@ -278,13 +281,10 @@ export class PromotionController {
       // (the rite lists them in its closing note)
       if (droppedNotice && !riteShown) await scene.showBriefBanner(droppedNotice, UI_PALETTE.bad);
       if (!isCurrentBattleSession(scene, session)) return true;
-      // A full bag drops the starter weapon: say so (never silent). The rite is DOM-only,
-      // so this shows after it, over the map.
-      if (ungranted.length) {
-        await scene.showBriefBanner(
-          `Bag full: ${ungranted.join(', ')} could not be granted.`,
-          UI_PALETTE.bad,
-        );
+      // A weapon the bag could not take went to the convoy (or, both full, was lost): say
+      // so (never silent). The rite is DOM-only, so this shows after it, over the map.
+      for (const note of grantNotices) {
+        await scene.showBriefBanner(note, UI_PALETTE.bad);
         if (!isCurrentBattleSession(scene, session)) return true;
       }
     } catch (error) {

@@ -21,7 +21,7 @@ import { LOCKED_LINE, LOCKED_NAME, lockedSummary } from './compendiumLocked.js';
 // detail sit side by side as before; `view` is then always 'list'.
 export class ReferenceMenu {
   constructor(scene, title, tabs, provider, onClose, { searchAllTabs = false } = {}) {
-    Object.assign(this, { tabs, provider, searchAllTabs });
+    Object.assign(this, { scene, tabs, provider, searchAllTabs });
     this.tab = 0;
     this.filter = 0;
     this.selected = 0;
@@ -138,7 +138,12 @@ export class ReferenceMenu {
     entry?.scrollIntoView?.({ block: 'nearest' });
   }
   changeTab(delta) {
+    if (this.tabs.length > 1) this.turnPage();
     this.selectTab((this.tab + delta + this.tabs.length) % this.tabs.length);
+  }
+  /** A page turned by the reader (a category or an entry opened): the page's flick. */
+  turnPage() {
+    this.scene?.registry?.get?.('audio')?.playSFX?.('sfx_page');
   }
   moveEntry(delta) {
     this.selected = Math.max(0, Math.min(this.selected + delta, (this.entryCount || 1) - 1));
@@ -182,6 +187,7 @@ export class ReferenceMenu {
     tabs.setAttribute('aria-label', 'Categories');
     this.tabs.forEach((tab, i) => {
       const b = button(tab.label, () => {
+        if (i !== this.tab) this.turnPage();
         this.selectTab(i);
       });
       b.dataset.focus = `tab-${i}`;
@@ -240,9 +246,11 @@ export class ReferenceMenu {
         null,
         () => {
           if (portraitListLayout()) {
+            this.turnPage();
             this.openEntry(i);
             return;
           }
+          if (i !== this.selected) this.turnPage();
           this.selected = i;
           this.render();
         },
@@ -420,7 +428,10 @@ export function compendiumEntries(controller, tab, filter, tabKey = null) {
       for (const id of resolveWeaponArtIds(item, arts)) {
         const weaponArt = arts.find((entry) => entry.id === id);
         if (weaponArt)
-          lines.push(`Weapon art: ${weaponArt.name}`, ...weaponArtDetailLines(weaponArt));
+          lines.push(
+            `Weapon art: ${weaponArt.name}`,
+            ...weaponArtDetailLines(weaponArt, { weapon: item }),
+          );
       }
     // A legendary's art names the weapons that carry it, once they have been met.
     if (key === 'weaponArts') lines.push(...artCarrierLines(controller, view, item, arts));

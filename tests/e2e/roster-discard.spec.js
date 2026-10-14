@@ -12,7 +12,7 @@
 //   5. a lord's personal weapon can be discarded;
 //   6. the confirmation overflows the screen with a very long item name.
 import { test, expect } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene, openRosterUnit } from './helpers.js';
 
 const VIEWPORTS = [
   { name: 'desktop-640x480', width: 640, height: 480, phone: false },
@@ -110,6 +110,8 @@ async function openRoster(page, vp) {
   );
   const sheet = page.getByRole('dialog', { name: 'Manage roster', exact: true });
   await expect(sheet).toBeVisible();
+  // The Roster opens on its overview; the first card (the unit with the full bag) opens.
+  await openRosterUnit(sheet, null, { tap: vp.phone });
   return sheet;
 }
 

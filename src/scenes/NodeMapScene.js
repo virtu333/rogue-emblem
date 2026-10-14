@@ -1,4 +1,5 @@
 import { specialCharacterEntries } from '../engine/SpecialCharacterDialogue.js';
+import { startDeferredAssetWarmup } from '../utils/assetWarmup.js';
 import { PendingRewardController } from '../ui/PendingRewardController.js';
 import { resumeBossRecruit } from '../ui/BossRecruitResume.js';
 import { resumeLordArrival } from '../ui/LordArrivalResume.js';
@@ -239,6 +240,8 @@ export class NodeMapScene extends Phaser.Scene {
       // Fire and forget; scene readiness gate below prevents early-click races.
       void audio.playMusic(getMusicKey('nodeMap', this.runManager.currentAct), this);
     }
+    // Picks up the deferred assets if the title was left before they had loaded.
+    startDeferredAssetWarmup(this, { resumeOnly: true });
 
     this._bindInputHandlers();
     // Gamepad: a cursor over the available nodes, registered on the input-focus
@@ -1962,7 +1965,11 @@ export class NodeMapScene extends Phaser.Scene {
     let label;
     // A set piece's defeat map is not the rout its params' legacy string says (ObjectivePreview).
     const kind = node.battleParams
-      ? paramsObjectiveKind(node.battleParams, this.gameData?.setPieces)
+      ? paramsObjectiveKind(
+          node.battleParams,
+          this.gameData?.setPieces,
+          this.gameData?.mapTemplates,
+        )
       : null;
     if (node.type === NODE_TYPES.BOSS) {
       label = `Boss Battle (${kind === 'defeat' ? 'Defeat' : 'Seize'})`;

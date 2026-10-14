@@ -30,8 +30,16 @@ if (!statSync(sourceDir).isDirectory()) {
   process.exit(1);
 }
 
+// Notes for people browsing the repo (assets/README.md) are not game files: the game
+// would ship them and the offline cache would have to cover them.
+const NOT_SHIPPED = new Set([join(sourceDir, 'README.md')]);
+
 mkdirSync(targetDir, { recursive: true });
-cpSync(sourceDir, targetDir, { recursive: true, force: true });
+cpSync(sourceDir, targetDir, {
+  recursive: true,
+  force: true,
+  filter: (src) => !NOT_SHIPPED.has(src),
+});
 
 const fileCount = countFilesRecursively(sourceDir);
 console.log(`Synced ${fileCount} asset files: assets/ -> public/assets/`);

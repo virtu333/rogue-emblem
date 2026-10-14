@@ -1,5 +1,5 @@
 import { rankRequirementText } from './rosterDisplay.js';
-import { weaponArtSecondaryDetails } from './weaponArtDisplay.js';
+import { weaponArtEffectivenessText, weaponArtSecondaryDetails } from './weaponArtDisplay.js';
 import { getWeaponArtIds } from '../engine/WeaponArtSystem.js';
 import { weaponCatalogNames } from '../utils/itemNames.js';
 
@@ -83,12 +83,16 @@ export function getWeaponArtTooltipLines(weapon, artsCatalog = []) {
   for (const id of resolveWeaponArtIds(weapon, artsCatalog)) {
     const art = byId.get(id);
     if (!art?.name) continue;
-    lines.push(`Art: ${art.name} - ${summarizeWeaponArtEffect(art)}`);
+    lines.push(`Art: ${art.name} - ${summarizeWeaponArtEffect(art, { weapon })}`);
   }
   return lines;
 }
 
-export function summarizeWeaponArtEffect(art) {
+/**
+ * The art in one compact line. `weapon`, when known, is the weapon it is used from: its
+ * own effectiveness stacks with the art's (weaponArtEffectivenessText).
+ */
+export function summarizeWeaponArtEffect(art, { weapon = null } = {}) {
   const mods = art?.combatMods || {};
   const chunks = [];
   const pushSigned = (label, value) => {
@@ -127,7 +131,10 @@ export function summarizeWeaponArtEffect(art) {
   } else {
     pushSigned('Range', mods.rangeBonus);
   }
-  if (mods.effectiveness?.multiplier > 1) {
+  if (weapon && mods.effectiveness?.multiplier > 1) {
+    const text = weaponArtEffectivenessText(art, weapon);
+    if (text) chunks.push(text);
+  } else if (mods.effectiveness?.multiplier > 1) {
     const moveTypes = Array.isArray(mods.effectiveness.moveTypes)
       ? mods.effectiveness.moveTypes
       : [];

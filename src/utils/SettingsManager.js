@@ -47,6 +47,9 @@ export function normalizeSettings(saved = {}) {
     // picks a mode. Stored as 'auto' so a desktop default synced through the cloud
     // never forces Full onto a phone.
     atmosphere: ATMOSPHERE_PREFERENCES.includes(saved.atmosphere) ? saved.atmosphere : 'auto',
+    // Haptic feedback (utils/haptics.js): on unless the player turned it off. The menu shows
+    // the switch only on a device that can vibrate; the preference syncs like the rest.
+    vibration: saved.vibration !== false,
   };
 }
 
@@ -204,6 +207,15 @@ export class SettingsManager {
   setAtmosphere(value) {
     if (!ATMOSPHERE_PREFERENCES.includes(value)) return { ok: false, reason: 'invalid_atmosphere' };
     return this.set('atmosphere', value);
+  }
+
+  /** Haptic feedback on (default) or off. */
+  getVibration() {
+    this.adoptPersisted();
+    return this.data.vibration !== false;
+  }
+  setVibration(value) {
+    return this.set('vibration', !!value);
   }
 
   _save() {

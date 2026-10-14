@@ -3,6 +3,7 @@ import { Grid } from '../src/engine/Grid.js';
 import { ThreatSightController } from '../src/ui/ThreatSightController.js';
 import { threatsOnTile } from '../src/engine/ThreatForecast.js';
 import { rasterizeThreatSigil, THREAT_SIGIL_SIZE } from '../src/art/threatSigil.js';
+import { AIController } from '../src/engine/AIController.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -385,5 +386,111 @@ describe('threat sigil art', () => {
     expect(at(damage, cx, cy)).toEqual([28, 6, 9, 255]); // slit pupil (ink)
     expect(at(damage, 0, 0)[3]).toBe(0); // transparent corner
     expect(at(status, cx, 1)).not.toEqual(at(damage, cx, 1));
+  });
+});
+
+describe('ThreatSightController: reach is not intent', () => {
+  // An axe fighter, a wounded mage within its reach and a knight moving in. Reaching the
+  // knight's new tile, the fighter would still go for the mage: the AI's own pick.
+  const weapon = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));
+  const STATS = { HP: 24, STR: 10, MAG: 0, SKL: 8, SPD: 7, LCK: 4, DEF: 6, RES: 3, MOV: 5 };
+  const unit = (name, faction, col, row, weaponName, stats = {}, hp = null) => {
+    const w = weapon(weaponName);
+    const s = { ...STATS, ...stats };
+    return {
+      name,
+      faction,
+      col,
+      row,
+      mov: s.MOV,
+      moveType: 'Infantry',
+      level: 5,
+      stats: s,
+      currentHP: hp ?? s.HP,
+      weapon: w,
+      inventory: [w],
+      skills: [],
+    };
+  };
+
+  function setup(moverName) {
+    const fighter = unit('Fighter', 'enemy', 8, 2, 'Iron Axe');
+    const mage = unit('Mage', 'player', 5, 2, 'Fire', { HP: 16, DEF: 1, SPD: 5 }, 9);
+    const knight = unit('Knight', 'player', 1, 1, 'Iron Lance', { HP: 30, DEF: 14, MOV: 8 });
+    const mover = moverName === 'Knight' ? knight : mage;
+    if (mover === mage) {
+      mage.col = 1;
+      mage.row = 4;
+      mage.mov = 8;
+    }
+    const scene = makeScene({ enemies: [fighter], player: mover, hover: { col: 9, row: 3 } });
+    scene.playerUnits = [mage, knight];
+    scene.movementRange = scene.grid.getMovementRange(
+      mover.col,
+      mover.row,
+      mover.mov,
+      'Infantry',
+      scene.threatContext().positions(),
+      'player',
+    );
+    scene.aiController = new AIController(scene.grid, gameData, { objective: 'rout' });
+    scene.nextEnemyPhaseAiFlags = () => ({ aggressiveMode: false, bossEnraged: false });
+    const lines = [];
+    scene.add.graphics = vi.fn(() => {
+      const g = stub();
+      g.lineBetween = (x1, y1, x2, y2) => {
+        lines.push({ x1, y1, x2, y2 });
+        return g;
+      };
+      return g;
+    });
+    const images = [];
+    scene.add.image = vi.fn(() => {
+      const img = stub();
+      img.setAlpha = (a) => {
+        img.alpha = a;
+        return img;
+      };
+      images.push(img);
+      return img;
+    });
+    return { scene, fighter, mage, knight, lines, images };
+  }
+
+  it('a knight stepping into reach: the eye dims and the thread goes to the mage', () => {
+    const { scene, fighter, mage, lines, images } = setup('Knight');
+    scene._threatFocusTile = { col: 7, row: 3 };
+    const sight = new ThreatSightController(scene).create();
+    sight.sync();
+    expect(sight.current.result.damage).toEqual([fighter]);
+    expect(sight.current.result.intents.get(fighter)).toMatchObject({ target: mage });
+    expect(sight.describe(7, 3)).toBe('1 foe can reach · none target you');
+    expect(images).toHaveLength(1);
+    expect(images[0].threatAim).toBe('aside');
+    // Its thread ends at the mage's tile, not the knight's destination.
+    const at = scene.grid.gridToPixel(mage.col, mage.row);
+    const end = lines[lines.length - 1];
+    expect(Math.hypot(end.x2 - at.x, end.y2 - at.y)).toBeLessThan(scene.grid.tileSize ?? 32);
+  });
+
+  it('the mage moving in is the one aimed at: a bright eye and a thread to its tile', () => {
+    const { scene, fighter, mage, images } = setup('Mage');
+    scene._threatFocusTile = { col: 7, row: 3 };
+    const sight = new ThreatSightController(scene).create();
+    sight.sync();
+    expect(sight.current.result.intents.get(fighter)).toMatchObject({
+      kind: 'attack',
+      target: mage,
+    });
+    expect(sight.describe(7, 3)).toBe('1 foe can reach · 1 targets you');
+    expect(images[0].threatAim).toBe('mover');
+  });
+
+  it('without a battle AI the answer is reach alone', () => {
+    const { scene } = setup('Knight');
+    scene.aiController = null;
+    scene._threatFocusTile = { col: 7, row: 3 };
+    const sight = new ThreatSightController(scene).create();
+    expect(sight.describe(7, 3)).toBe('1 foe can reach');
   });
 });

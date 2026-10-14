@@ -3,7 +3,10 @@ import { createVeteranKnight } from './SpecialCharacters.js';
 import { validateBattleState } from './BattleStateSnapshot.js';
 import { migrateSavedItemNames, ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
-import { migrateSavedPerBattleWeapons } from './WeaponCatalogMigration.js';
+import {
+  migrateSavedPerBattleWeapons,
+  migrateSavedStaffUseRules,
+} from './WeaponCatalogMigration.js';
 import { migrateSavedLegendaryRelics } from './LegendaryRelicMigration.js';
 import {
   hydrateBattleTimeline,
@@ -19,9 +22,9 @@ import {
   normalizeUnitDeeds,
 } from './DeedSystem.js';
 import { RUN_RECORD_VERSION, fallenForRecord, fallenRecord, survivorRecord } from './RunRecords.js';
-import { migrateWaitingOath, settleSlotOverflow } from './SkillLoadout.js';
+import { migrateWaitingOath, settleLoadout } from './SkillLoadout.js';
 import { settleSavedBattleSlots } from './SavedBattleSlots.js';
-import { slotKindOf, slotsFullFor } from './SkillSlots.js';
+import { slotKindFor, slotsFullFor } from './SkillSlots.js';
 import { normalizeDeploymentNames } from './DeploymentSelection.js';
 import { restrictOpeningCavaliers } from './EarlyEnemyRules.js';
 // RunManager.js — Pure class: run state (roster, node map, act progression, unit serialization)
@@ -371,6 +374,24 @@ function sanitizeRuinsChoices(raw) {
   return out;
 }
 
+function sanitizeChurchRevives(raw) {
+  const out = {};
+  if (!isPlainObject(raw)) return out;
+  for (const [nodeId, count] of Object.entries(raw)) {
+    const n = Math.trunc(Number(count));
+    if (nodeId && Number.isFinite(n) && n > 0) out[nodeId] = n;
+  }
+  return out;
+}
+
+function sanitizeRuinsRevivals(raw) {
+  const out = {};
+  if (!isPlainObject(raw)) return out;
+  for (const [nodeId, uid] of Object.entries(raw))
+    if (nodeId && typeof uid === 'string' && uid) out[nodeId] = uid;
+  return out;
+}
+
 // A church's vow: one vow (a string, as every save before Twin Chapel), or the distinct vows
 // made there (an array, once Twin Chapel's second vow is made). A one-vow list is kept a string.
 function sanitizeChurchVows(raw) {
@@ -717,6 +738,10 @@ export class RunManager {
     this.shopStateByNodeId = {};
     // The Ruins' one path per node ('rest' | 'scavenge'); see RuinsCommands.js.
     this.ruinsChoiceByNodeId = {};
+    // The Ruins' one revival per node (node id -> the revived unit's uid); see RuinsCommands.js.
+    this.ruinsRevivedByNodeId = {};
+    // How many of the fallen each church revived (node id -> count); see ChurchCommands.js.
+    this.churchRevivesByNodeId = {};
     // Each church's one vow ('promote' | 'blessing'); see ChurchVow.js.
     this.churchVowByNodeId = {};
     // The churches whose Tithe Box gold was paid this act (ChurchCommands.payChurchTithe).
@@ -938,6 +963,8 @@ export class RunManager {
     this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
+    this.ruinsRevivedByNodeId = {};
+    this.churchRevivesByNodeId = {};
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     this._resetEventState();
@@ -1030,6 +1057,8 @@ export class RunManager {
     }
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
+    this.ruinsRevivedByNodeId = {};
+    this.churchRevivesByNodeId = {};
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     this._resetEventState(); // the prologue has no events: it starts empty and stays empty
@@ -1457,6 +1486,27 @@ export class RunManager {
     });
   }
 
+  /**
+   * The Unbroken Banner's price at the victory commit: the unit it held (its new roster entry)
+   * takes a Lingering Injury through the same Burdens.addBurden an event uses (a fresh injury
+   * replaces any other, one unit at a time). The stat is drawn from the run seed and the node,
+   * never Math.random. Returns what the victory band names, or null.
+   */
+  _takeBannerWound(unit, nodeId) {
+    const uid = unitUidOf(unit);
+    if (!uid) return null;
+    const rand = this._createBlessingRng('unbroken_banner', `wound:${nodeId}`);
+    const stat = WOUND_STATS[Math.floor(rand() * WOUND_STATS.length)];
+    const result = addBurden(this, 'wounded', { unitUid: uid, unitName: unit.name, stat });
+    if (result?.ok === false || !result?.burden) return null;
+    return {
+      name: unit.name,
+      stat: result.burden.stat,
+      value: result.burden.value,
+      battles: result.burden.battles,
+    };
+  }
+
   _recordBlessingEvent(stage, blessingId, effect, details = {}) {
     this.blessingHistory.push({
       timestamp: Date.now(),
@@ -1808,8 +1858,8 @@ export class RunManager {
 
         // First pass: displace non-personal, non-innate skill of the same kind (a skill
         // only frees a skill slot, an ability an ability slot: SkillSlots.js)
-        const kind = slotKindOf(skillId, this.gameData?.skills);
-        const sameKind = (sid) => slotKindOf(sid, this.gameData?.skills) === kind;
+        const kind = slotKindFor(unit, skillId, this.gameData?.skills);
+        const sameKind = (sid) => slotKindFor(unit, sid, this.gameData?.skills) === kind;
         let restoredWithDisplacement = false;
         for (let i = unit.skills.length - 1; i >= 0; i--) {
           const sid = unit.skills[i];
@@ -4318,6 +4368,19 @@ export class RunManager {
       }
     }
 
+    // The Unbroken Banner's price: the survivor it held this battle carries a Lingering Injury,
+    // taken below once this victory's burdens settled. UnitHealth.absorbLethal stamps the battle
+    // unit; the scene serializes its survivors (which drops the stamp) before this commit, so it
+    // names the held unit by uid (`options.bannerHeldUid`, BattleBlessings.bannerHeldUidOf).
+    const bannerHeldUid =
+      typeof options.bannerHeldUid === 'string' && options.bannerHeldUid
+        ? options.bannerHeldUid
+        : null;
+    const bannerHeldIndex = survivingUnits.findIndex(
+      (u) =>
+        Number(u?.currentHP) > 0 &&
+        (u?._bannerHeld === true || (bannerHeldUid !== null && unitUidOf(u) === bannerHeldUid)),
+    );
     this.roster = survivingUnits.map((u) => {
       const data = serializeUnit(u);
       // Statuses (sleep, acid, Wounded…) are the battle's: they end with it, so a
@@ -4348,17 +4411,20 @@ export class RunManager {
     this.awardGold(settlement.gold);
     // A wound whose unit fell (or left) in this battle ends with it: nobody carries it on.
     this.burdens = pruneGoneWounds(settlement.burdens, this.roster);
+    const bannerWound = this._takeBannerWound(this.roster[bannerHeldIndex], nodeId);
     this.lastBattleGoldGamble = gambleRecord;
-    this.lastBurdenSettlement = settlement.record
-      ? {
-          nodeId,
-          ...settlement.record,
-          goldBefore: finalGold,
-          goldAfter: settlement.gold,
-          garnished: settlement.garnished,
-          extraShadow: settlement.extraShadow,
-        }
-      : null;
+    this.lastBurdenSettlement =
+      settlement.record || bannerWound
+        ? {
+            nodeId,
+            ...(settlement.record || {}),
+            goldBefore: finalGold,
+            goldAfter: settlement.gold,
+            garnished: settlement.garnished,
+            extraShadow: settlement.extraShadow,
+            ...(bannerWound ? { bannerWound } : {}),
+          }
+        : null;
     // An open contract settles here too (engine/ContractSettlement.js), once, for this victory
     // and no other: after the roster, gold and burdens are committed, so a reward lands on
     // the army as it now is and a penalty Debt starts with the NEXT victory. Never mid-battle,
@@ -4829,6 +4895,8 @@ export class RunManager {
     this.battleConfigsByNodeId = {};
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
+    this.ruinsRevivedByNodeId = {};
+    this.churchRevivesByNodeId = {};
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     // Each act's events are its own (the log, flags and burdens run on).
@@ -5265,6 +5333,8 @@ export class RunManager {
       battleConfigsByNodeId: this.battleConfigsByNodeId || {},
       shopStateByNodeId: this.shopStateByNodeId || {},
       ruinsChoiceByNodeId: this.ruinsChoiceByNodeId || {},
+      ruinsRevivedByNodeId: this.ruinsRevivedByNodeId || {},
+      churchRevivesByNodeId: this.churchRevivesByNodeId || {},
       churchVowByNodeId: this.churchVowByNodeId || {},
       churchTitheByNodeId: this.churchTitheByNodeId || {},
       eventStateByNodeId: this.eventStateByNodeId || {},
@@ -5575,6 +5645,8 @@ export class RunManager {
     migrateSavedGamblerCoins(saved, gameData);
     // Per-battle weapons (Breachbolt) take the catalog's shot counts (same places).
     migrateSavedPerBattleWeapons(saved, gameData);
+    // Staves with a use rule of their own (the Warp Staff) take the catalog's (same places).
+    migrateSavedStaffUseRules(saved, gameData);
     // Legendaries saved before the rework take its changes (Oathblade, Hermit's Bow).
     migrateSavedLegendaryRelics(saved);
     for (const [holder, key, expanded] of expandedTimelines)
@@ -5909,6 +5981,10 @@ export class RunManager {
     rm.shopStateByNodeId = saved.shopStateByNodeId || {};
     // Saves from before the Ruins' choice carry none: no path chosen yet.
     rm.ruinsChoiceByNodeId = sanitizeRuinsChoices(saved.ruinsChoiceByNodeId);
+    // Saves from before the one-revival rule carry none: no ruins has revived anyone yet.
+    rm.ruinsRevivedByNodeId = sanitizeRuinsRevivals(saved.ruinsRevivedByNodeId);
+    // Saves from before the church limit carry none: no church has revived anyone yet.
+    rm.churchRevivesByNodeId = sanitizeChurchRevives(saved.churchRevivesByNodeId);
     rm.churchVowByNodeId = sanitizeChurchVows(saved.churchVowByNodeId);
     // Saves from before the Tithe Box carry none: no church has paid it.
     rm.churchTitheByNodeId = sanitizeChurchTithes(saved.churchTitheByNodeId);
@@ -6125,8 +6201,9 @@ export class RunManager {
     rm.roster.forEach(migrateWaitingOath);
     rm.fallenUnits.forEach(migrateWaitingOath);
     // Before abilities had slots of their own, a unit could equip up to five: whatever now
-    // overflows a pool waits on the bench (SkillSlots.js), locked skills kept first.
-    for (const unit of [...rm.roster, ...rm.fallenUnits]) settleSlotOverflow(unit, rm.gameData);
+    // overflows a pool waits on the bench (SkillSlots.js), locked skills kept first. Before
+    // the Oath had a slot of its own, a promotion with five skills benched it: it is equipped.
+    for (const unit of [...rm.roster, ...rm.fallenUnits]) settleLoadout(unit, rm.gameData);
 
     // Stamp missing item UIDs from legacy saves before relinking/equipment migration.
     rm.roster.forEach(stampUnitItemUids);

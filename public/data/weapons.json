@@ -972,6 +972,17 @@
     "weight": 3,
     "range": "1-4",
     "uses": 1,
+    "useBonuses": [
+      {
+        "mag": 16,
+        "bonus": 1
+      },
+      {
+        "mag": 22,
+        "bonus": 1
+      }
+    ],
+    "maxUses": 3,
     "perBattleUses": true,
     "relocate": "warp",
     "rangeBonuses": [
@@ -2685,9 +2696,11 @@
     "special": "Teaches Seal Speed (Weapon Art)",
     "teachesWeaponArtId": "sword_seal_speed",
     "allowedWeaponTypes": [
-      "Sword"
+      "Sword",
+      "Lance",
+      "Bow"
     ],
-    "price": 2000
+    "price": 1200
   },
   {
     "name": "Poison Strike Scroll",
@@ -2739,9 +2752,11 @@
     "special": "Teaches Shatter Slash (Weapon Art)",
     "teachesWeaponArtId": "lance_shatter_slash",
     "allowedWeaponTypes": [
-      "Lance"
+      "Sword",
+      "Lance",
+      "Bow"
     ],
-    "price": 2000
+    "price": 1200
   },
   {
     "name": "Diamond Axe Scroll",
@@ -2793,9 +2808,11 @@
     "special": "Teaches Break Shot (Weapon Art)",
     "teachesWeaponArtId": "bow_break_shot",
     "allowedWeaponTypes": [
+      "Sword",
+      "Lance",
       "Bow"
     ],
-    "price": 2000
+    "price": 1200
   },
   {
     "name": "Waning Shot Scroll",
@@ -2811,9 +2828,11 @@
     "special": "Teaches Waning Shot (Weapon Art)",
     "teachesWeaponArtId": "bow_waning_shot",
     "allowedWeaponTypes": [
+      "Sword",
+      "Lance",
       "Bow"
     ],
-    "price": 2000
+    "price": 1200
   },
   {
     "name": "Seal Magic Scroll",
@@ -2828,6 +2847,26 @@
     "range": "0",
     "special": "Teaches Seal Magic (Weapon Art)",
     "teachesWeaponArtId": "bow_seal_magic",
+    "allowedWeaponTypes": [
+      "Sword",
+      "Lance",
+      "Bow"
+    ],
+    "price": 1200
+  },
+  {
+    "name": "Hunter's Focus Scroll",
+    "lore": "A hunter's breathing count, pencilled in the margin: in on four, hold on four, loose.",
+    "type": "Scroll",
+    "tier": "Rare",
+    "rankRequired": "Prof",
+    "might": 0,
+    "hit": 0,
+    "crit": 0,
+    "weight": 0,
+    "range": "0",
+    "special": "Teaches Hunter's Focus (Weapon Art)",
+    "teachesWeaponArtId": "bow_hunters_focus",
     "allowedWeaponTypes": [
       "Bow"
     ],

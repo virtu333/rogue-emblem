@@ -177,7 +177,8 @@ export async function forkStop(d, node, { lesson = 'core', healAll = true } = {}
   const strip = roster.getByRole('region', { name: 'Roster lesson', exact: true });
   await expect(strip).toContainText('Roster lesson · 1 of 2 · Withdraw');
   if (lesson === 'core') {
-    await d.click(roster.locator('.mr-unit-card', { hasText: 'Tamsin' }));
+    // The roster opens on the overview (the lesson strip leads it): Tamsin's card first.
+    await d.click(roster.locator('nav.mr-grid').getByRole('button', { name: /^Tamsin/ }));
     await d.click(roster.getByRole('button', { name: 'Convoy', exact: true }));
     await d.click(
       roster
@@ -200,6 +201,9 @@ export async function forkStop(d, node, { lesson = 'core', healAll = true } = {}
     await d.click(strip.getByRole('button', { name: 'Skip lesson', exact: true }));
     await expect(strip).toHaveCount(0);
   }
+  // From a unit's detail Back returns to the overview, whose Close leaves the sheet.
+  const back = roster.locator('button.mr-back');
+  if (await back.isVisible()) await d.click(back);
   await d.click(roster.getByRole('button', { name: 'Close', exact: true }).first());
   await expect(roster).toHaveCount(0);
   await d.click(service.getByRole('button', { name: 'Leave', exact: true }));

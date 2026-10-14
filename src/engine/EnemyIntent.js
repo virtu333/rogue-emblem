@@ -1,0 +1,207 @@
+// EnemyIntent — who each visible enemy would go for next enemy phase, if the selected unit
+// ended its move on a given tile (threat sight's lines; pure, no Phaser, no RNG, no mutation).
+//
+// The answer is the AI's own: AIController's decision runs on copies of the board, in the
+// order the enemy phase takes the enemies, and each enemy's move is applied before the next
+// one decides (two foes cannot both claim the last tile next to a unit). The AI breaks every
+// tie by the order it reads tiles and units (first best wins, `>`), never by a roll, so the
+// same lists in the same order give the same pick, and nothing here draws randomness.
+//
+// What it cannot know, it leaves out rather than guess:
+//   - blows land or miss: nobody falls in the preview, so a foe whose target an earlier foe
+//     would kill still shows it;
+//   - foes the fog hides: never evaluated, and never a blocker (they would give themselves
+//     away), the Danger overlay's rule (ThreatForecast);
+//   - whatever the phase start adds (reinforcements, a raise, a caravan step).
+// What the phase start decides that the board already tells is applied the AI's way: the
+// anti-turtle and enrage flags (the caller passes the next phase's: TurnPressure), the
+// garrison packs' wake rule (HoldActivation.wakeHolders on copies), the siege casters'
+// stances (settleArtilleryStances on copies), and a foe asleep for certain through the phase
+// start (no recovery roll can wake it) stays asleep; one that may wake is read awake.
+//
+// The AI writes to the units it decides for (a weapon swap, a guard post, a streak count):
+// every unit it may touch is a shallow copy, so the battle never changes.
+
+import { gridDistance, hasPerBattleUsesLeft, isInRange } from './Combat.js';
+import { isEntity } from './EntitySystem.js';
+import { wakeHolders } from './HoldActivation.js';
+import { settleArtilleryStances } from './SiegeArtillery.js';
+import { isThreatSourceVisible, positionsWithMoverAt } from './ThreatForecast.js';
+import { STATUS_CONDITIONS } from '../utils/constants.js';
+
+const tileKey = (col, row) => `${col},${row}`;
+const alive = (u) => u && u.currentHP > 0 && !u._removing;
+
+/** Asleep through the next phase start for certain: no countdown end, no recovery roll. */
+export function staysAsleepNextPhase(unit) {
+  const sleep = (unit?._conditions || []).find((c) => c.id === 'sleep');
+  if (!sleep) return false;
+  const chance =
+    typeof sleep.recoveryChance === 'number'
+      ? sleep.recoveryChance
+      : (STATUS_CONDITIONS.sleep?.recoveryChance ?? 0);
+  return (sleep.turnsRemaining ?? 1) - 1 > 0 && !(chance > 0);
+}
+
+function copyUnit(unit) {
+  return {
+    ...unit,
+    _conditions: unit._conditions ? unit._conditions.map((c) => ({ ...c })) : unit._conditions,
+    guardPost: unit.guardPost ? { ...unit.guardPost } : unit.guardPost,
+  };
+}
+
+/** The tile an enemy ends on after `decision` (an attack names it; a walk may slide on ice). */
+function landingTile(ai, enemy, decision, occupied) {
+  const path = decision?.path;
+  if (!path || path.length < 2) return { col: enemy.col, row: enemy.row };
+  const attackTile = decision.detail?.attackTile;
+  if (decision.target && attackTile) return { col: attackTile.col, row: attackTile.row };
+  const last = path[path.length - 1];
+  return ai._predictFinalTileFromPath(enemy, last, path, occupied).finalTile;
+}
+
+/**
+ * Each visible enemy's intent for the next enemy phase, with `mover` set down on (col, row).
+ *
+ * @param {object} options
+ *   ai           the battle's AIController (read only: a view carries the next phase's flags)
+ *   ctx          ThreatForecast's context (grid, enemyUnits, positions(), isKnown?)
+ *   playerUnits, npcUnits  the battle's live arrays
+ *   mover, col, row        the unit being moved and the tile it would end on (mover may be null)
+ *   turn         the turn whose enemy phase comes next (hold wake turns, siege stances)
+ *   aggressiveMode, bossEnraged  the next phase's anti-turtle flags (default: the AI's own)
+ * @returns {Map<object, { kind: 'attack'|'status'|'heal'|'none', target: object|null,
+ *   reason: string }>} keyed by the real enemy, in phase order; `target` is the real unit
+ *   (the mover itself when it is the one aimed at)
+ */
+export function predictEnemyIntents({
+  ai,
+  ctx,
+  playerUnits = [],
+  npcUnits = [],
+  mover = null,
+  col = mover?.col,
+  row = mover?.row,
+  turn = null,
+  aggressiveMode,
+  bossEnraged,
+}) {
+  const intents = new Map();
+  if (!ai || !ctx?.grid) return intents;
+  const view = Object.create(ai);
+  if (aggressiveMode !== undefined) view.aggressiveMode = Boolean(aggressiveMode);
+  if (bossEnraged !== undefined) view.bossEnraged = Boolean(bossEnraged);
+
+  // The real unit behind each copy, so an answer names the battle's own units.
+  const realOf = new Map();
+  const moverCopy = mover ? { ...mover, col, row } : null;
+  if (moverCopy) realOf.set(moverCopy, mover);
+  const players = (playerUnits || []).filter(alive).map((u) => (u === mover ? moverCopy : u));
+  if (moverCopy && !players.includes(moverCopy) && alive(mover)) players.push(moverCopy);
+  const knows = ctx.isKnown || (() => true);
+  const npcs = (npcUnits || []).filter((u) => alive(u) && knows(u));
+
+  // Every enemy is copied for the wake rule (a pack counts its hidden members too, as the
+  // real check does); only the visible ones decide, block and are answered for.
+  const all = (ctx.enemyUnits || []).filter(alive).map((u) => {
+    const copy = copyUnit(u);
+    realOf.set(copy, u);
+    return copy;
+  });
+  const moved = positionsWithMoverAt(ctx.positions(), mover, col, row);
+  const wakeCtx = { ...ctx, enemyUnits: all, positions: () => moved };
+  wakeHolders({
+    enemyUnits: all,
+    playerUnits: players,
+    npcUnits: npcs,
+    threatContext: wakeCtx,
+    bossEnraged: view.bossEnraged,
+    turn: Number.isInteger(turn) ? turn : null,
+  });
+  settleArtilleryStances({ enemyUnits: all, turn: Number.isInteger(turn) ? turn : null });
+
+  const visible = all.filter((u) => isThreatSourceVisible(ctx.grid, realOf.get(u)));
+  const realTarget = (t) => (t ? realOf.get(t) || t : null);
+
+  for (const enemy of visible) {
+    const real = realOf.get(enemy);
+    if (staysAsleepNextPhase(enemy)) {
+      intents.set(real, { kind: 'none', target: null, reason: 'asleep' });
+      continue;
+    }
+    if (isEntity(enemy)) {
+      const decision = view._decideEntityAction(enemy, players, npcs);
+      intents.set(real, {
+        kind: decision?.target ? 'attack' : 'none',
+        target: realTarget(decision?.target),
+        reason: decision?.reason || 'none',
+      });
+      continue;
+    }
+    const decision = view._decideAction(enemy, visible, players, npcs);
+    const occupied = new Set();
+    for (const u of [...visible, ...players, ...npcs])
+      if (u !== enemy && alive(u)) occupied.add(tileKey(u.col, u.row));
+    const landing = landingTile(view, enemy, decision, occupied);
+    enemy.col = landing.col;
+    enemy.row = landing.row;
+
+    let kind = 'none';
+    let target = null;
+    if (decision.healTarget) {
+      kind = 'heal';
+      target = decision.healTarget;
+    } else if (decision.statusStaffTarget) {
+      kind = 'status';
+      target = decision.statusStaffTarget;
+    } else if (decision.target) {
+      // AIController._processOneEnemy: a plan the landing no longer serves retargets in range.
+      target = decision.target;
+      const dist = gridDistance(enemy.col, enemy.row, target.col, target.row);
+      if (
+        !enemy.weapon ||
+        !hasPerBattleUsesLeft(enemy.weapon, enemy) ||
+        !isInRange(enemy.weapon, dist)
+      )
+        target = view._selectBestInRangeTarget(enemy, [...players, ...npcs]);
+      if (target) kind = 'attack';
+    }
+    intents.set(real, { kind, target: realTarget(target), reason: decision.reason || 'none' });
+  }
+  return intents;
+}
+
+/**
+ * A fingerprint of what the AI reads beyond ThreatForecast's world signature: HP (it scores
+ * expected damage and kills), stats, turn order state, conditions, hold and guard state.
+ */
+export function enemyIntentSignature(
+  units = [],
+  { turn = null, aggressiveMode, bossEnraged } = {},
+) {
+  const parts = [`t${turn ?? ''}:${aggressiveMode ? 1 : 0}${bossEnraged ? 1 : 0}`];
+  for (const u of units) {
+    if (!u) continue;
+    const conditions = (u._conditions || []).map((c) => `${c.id}${c.turnsRemaining ?? ''}`);
+    parts.push(
+      [
+        u.faction,
+        u.col,
+        u.row,
+        u.currentHP,
+        u.hasActed ? 1 : 0,
+        u.weapon?.name ?? '',
+        (u.inventory || []).map((w) => `${w?.name}:${w?._usesSpent ?? ''}`).join('/'),
+        conditions.join('/'),
+        u.aiMode ?? '',
+        u.holdDisturbed ?? '',
+        u.holdCheckedTurn ?? '',
+        u.statusStaff ? `${u.statusStaff.name}:${u.statusStaff._usesSpent ?? 0}` : '',
+        u.stats ? Object.values(u.stats).join('.') : '',
+        u._aiNoMoveStreak ?? 0,
+      ].join(':'),
+    );
+  }
+  return parts.join('|');
+}

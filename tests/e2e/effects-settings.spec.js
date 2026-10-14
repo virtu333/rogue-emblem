@@ -9,6 +9,9 @@ test.use({
 test('phone settings persist independently and cut-ins remain readable across quality modes', async ({
   page,
 }, info) => {
+  // Two battle loads (one after the reload) and three cut-ins: 21-29 s on an idle
+  // machine, so the 30 s default ran out on a loaded CI runner.
+  test.setTimeout(90_000);
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.emulateMedia({ reducedMotion: 'reduce' });

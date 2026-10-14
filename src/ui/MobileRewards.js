@@ -178,6 +178,7 @@ export class MobileRewards {
         scene: this.overlayScene,
         units: this.scene.runManager.roster,
         run: this.scene.runManager,
+        overview: true,
         gameData: this.scene.gameData,
         // A promotion saves before its rite (the rewards' own persistence).
         persist: () => (this.controller.persist ? this.controller.persist() : true),
@@ -520,7 +521,7 @@ export class MobileRewards {
     this.draftScroll = 0;
     this.rerolled = true;
     this.replayReveal = true;
-    this.scene.registry?.get?.('audio')?.playSFX('sfx_confirm');
+    // The new cards' reveal (render -> playReveal) carries the sound: one per press.
     this.render();
     // Keep the focus on Reroll while it can go again; else on the first card.
     if (!this.root.contains(document.activeElement) || document.activeElement.disabled)
@@ -534,6 +535,7 @@ export class MobileRewards {
     this.playReveal(row, all);
   }
   playReveal(row, all) {
+    this.scene.registry?.get?.('audio')?.playSFX('sfx_loot');
     const speed = this.overlayScene.registry?.get?.('settings')?.getBattleSpeed?.();
     this.reveal = playRewardReveal(row, [...row.children], {
       still: choiceReducedMotion(this.overlayScene) || speed === 'instant',

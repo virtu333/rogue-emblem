@@ -4,11 +4,15 @@ on:
   push:
     branches: [main]
   pull_request:
+    # ready_for_review: a draft marked ready runs the browser lanes it skipped.
+    types: [opened, synchronize, reopened, ready_for_review]
 
-# A newer run on the same ref (a PR branch or main) supersedes the older one.
+# A pull request's newer push supersedes its older run. On main a run in progress always
+# finishes (the TestFlight and Play gates need a finished run on the commit they build);
+# GitHub still collapses main pushes waiting behind it to the newest.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
@@ -68,7 +72,10 @@ jobs:
   # Browser specs run in lanes defined by tests/e2e/lanes.json (the only place that
   # lists them). This job checks every spec is in a lane (or excluded with a reason)
   # and turns the lanes into the e2e job matrix. It needs node only: no npm ci.
+  # A draft pull request skips the browser lanes (about 85% of CI's runner time, and
+  # runners are what PRs queue for); they run when it is marked ready for review.
   e2e-lanes:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.lanes.outputs.matrix }}

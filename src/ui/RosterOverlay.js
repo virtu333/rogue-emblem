@@ -148,6 +148,8 @@ export class RosterOverlay {
         ? identityIndex
         : roster.findIndex((u) => unitUidOf(initial) && unitUidOf(u) === unitUidOf(initial));
     this.selection = { kind: 'unit', index: Math.max(0, index) };
+    // A lord chip names its unit: the Roster opens on that unit, the overview behind Back.
+    this._openOnUnit = index >= 0;
     this._activeTab = 'stats'; // 'stats' | 'gear'
     this._rosterScrollOffset = 0;
     this._rosterScrollMax = 0;
@@ -198,6 +200,8 @@ export class RosterOverlay {
         gameData: this.gameData,
         portraitKey: (unit) => this._getPortraitKey(unit),
         run: this.runManager,
+        overview: true,
+        startInDetail: this._openOnUnit,
         onClose: () => this.hide(),
       });
       return;
@@ -1444,6 +1448,7 @@ export class RosterOverlay {
 
         if (!isEquipped && canEquip(unit, item)) {
           this._actionBtn(btnX, y, '[Equip]', () => {
+            this.scene.registry.get('audio')?.playSFX('sfx_equip');
             equipWeapon(unit, item);
             this.refresh();
           });
@@ -1614,7 +1619,7 @@ export class RosterOverlay {
           '9px',
         );
         const desc = art?.description || '';
-        const mods = summarizeWeaponArtEffect(art);
+        const mods = summarizeWeaponArtEffect(art, { weapon });
         const modsLine = mods && mods !== desc ? `\n${mods}` : '';
         const tooltipText = `${art.name} [${weaponName}]\n${desc}${modsLine}`;
         this._wireTooltipTarget(row, () => this._showSkillTooltip(row, tooltipText));
@@ -2450,7 +2455,7 @@ export class RosterOverlay {
           const old = equipAccessory(unit, selected);
           if (old) pool.push(old);
           const audio = this.scene.registry.get('audio');
-          if (audio) audio.playSFX('sfx_confirm');
+          if (audio) audio.playSFX('sfx_equip');
           this._destroyTrade();
           this._showBanner(
             `${unit.name} equipped ${itemDisplayName(selected, this.gameData?.skills)}!`,

@@ -1,5 +1,11 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForGame, waitForScene, collectErrors } from './helpers.js';
+import {
+  waitForGame,
+  waitForScene,
+  collectErrors,
+  openRosterUnit,
+  closeRoster,
+} from './helpers.js';
 test.use({ ...devices['iPhone SE'], viewport: { width: 667, height: 375 } });
 test('Mire details are tappable in shop and roster; revival previews and saves catch-up', async ({
   page,
@@ -50,10 +56,11 @@ test('Mire details are tappable in shop and roster; revival previews and saves c
   await page.screenshot({ path: info.outputPath('vanguard-description.png') });
   await shop.getByRole('button', { name: 'Roster', exact: true }).tap();
   const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+  await openRosterUnit(roster, null, { tap: true });
   await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
   await roster.getByText('Weapon art: Mire', { exact: true }).tap();
   await expect(roster.locator('.item-art-details')).toContainText('Cost 5 HP');
-  await roster.getByRole('button', { name: 'Close', exact: true }).tap();
+  await closeRoster(roster, 'Close', { tap: true });
   await shop.getByRole('button', { name: 'Leave', exact: true }).tap();
   await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
@@ -73,12 +80,13 @@ test('Mire details are tappable in shop and roster; revival previews and saves c
   const church = page.getByRole('dialog', { name: 'Church', exact: true });
   await church.getByRole('button', { name: /Fallen Mage.*Revive/ }).tap();
   const confirm = page.getByRole('dialog', { name: 'Revive Fallen Mage?', exact: true });
-  await expect(confirm).toContainText('Returns at level 10 with 1 HP');
+  // The living roster stands at level 10; a revival catches up to 2 below it.
+  await expect(confirm).toContainText('Returns at level 8 with 1 HP');
   await expect(confirm).toContainText('10 percentage points');
   await expect(confirm).toContainText('future growths are unchanged');
   await page.screenshot({ path: info.outputPath('revive-catch-up.png') });
   await confirm.getByRole('button', { name: 'Confirm', exact: true }).tap();
-  await expect(church.getByRole('status')).toContainText('revived at level 10');
+  await expect(church.getByRole('status')).toContainText('revived at level 8');
   const result = await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
     const { loadRun } = await import('/src/engine/RunManager.js');
@@ -89,7 +97,7 @@ test('Mire details are tappable in shop and roster; revival previews and saves c
       unchanged: JSON.stringify(saved.growths) === JSON.stringify(window.preReviveGrowths),
     };
   });
-  expect(result).toEqual({ level: 10, hp: 1, unchanged: true });
+  expect(result).toEqual({ level: 8, hp: 1, unchanged: true });
   expect(errors).toEqual([]);
 });
 test('Seraphim reward explains the scroll before claiming', async ({ page }, info) => {
@@ -151,6 +159,7 @@ test('roster Spirit Dust previews, cancels, applies once and saves immediately',
   });
   await page.getByRole('button', { name: 'Roster', exact: true }).tap();
   const roster = page.getByRole('dialog', { name: 'Manage roster', exact: true });
+  await openRosterUnit(roster, null, { tap: true });
   await roster.getByRole('button', { name: 'Equipment', exact: true }).tap();
   const card = roster
     .locator('.mr-card')

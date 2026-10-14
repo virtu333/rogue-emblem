@@ -38,7 +38,7 @@ export function statReferenceEntries(gameData = {}) {
       'MAG — Magic',
       'MAG',
       'Magic attack power and staff potency.',
-      'Magic Atk = MAG + Might. Healing uses MAG + staff base. Staff capacity gains +1 use at MAG 8, 14 and 20; some staves also gain range.',
+      'Magic Atk = MAG + Might. Healing uses MAG + staff base. Staff capacity gains +1 use at MAG 8, 14 and 20 (Warp: MAG 16 and 22, never more than 3); some staves also gain range.',
     ],
     [
       'SKL — Skill',

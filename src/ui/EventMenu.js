@@ -390,6 +390,8 @@ export class EventMenu {
       this.status = PAGE_MOVED_ON_LINE;
       return { ok: true, movedOn: true };
     }
+    // The page turns: to the event's next page, or to what came of the choice.
+    this.scene.registry?.get?.('audio')?.playSFX?.('sfx_page');
     this.justNow = result.next ? (eventView(this.run, this.nodeId)?.trail || []).length : null;
     this.scrollToRecent = Boolean(result.next);
     // A road drawn or a place changed: the route map shows what moved when it comes back.
@@ -569,6 +571,7 @@ export class EventMenu {
       scene: this.scene,
       run: this.run,
       units: this.run.roster,
+      overview: true,
       gameData: this.scene.gameData,
       onClose: () => {
         this.child.destroy();

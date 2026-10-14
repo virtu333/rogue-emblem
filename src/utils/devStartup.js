@@ -17,6 +17,7 @@ import { DEV_EVENT_FIXTURES } from './devEventFixtures.js';
 import { withDevSetPiece } from './devSetPieceFixtures.js';
 import { applyDevDescent, withDevDescent } from './devDescentFixtures.js';
 import { findSetPiece, setPieceDeployCap } from '../engine/SetPieces.js';
+import { addReviewArmy } from './devReviewArmy.js';
 
 const DEV_META_STORAGE_KEY = 'emblem_rogue_dev_meta';
 const DEV_SCENE_ALIASES = {
@@ -54,6 +55,8 @@ const DEV_PRESETS = new Set([
   // Phone review setups (playtest 2026-09-28): see docs/playtest-triage-2026-09-28.md.
   'fog_ambush',
   'roster_checks',
+  // The Roster overview review (PR #385): a full, varied army on the route map.
+  'roster_review',
   // Playtest 2026-09-29 #11: Zombie remains, the countdown and Smash (devScenarios.js).
   'zombie_remains',
   'ladder',
@@ -221,6 +224,7 @@ function createRunPreset(gameData, meta, config) {
   if (
     config.preset === 'late_act' ||
     config.preset === 'battle_smoke' ||
+    config.preset === 'roster_review' ||
     config.preset === 'eclipse'
   ) {
     if (runManager.actIndex < runManager.actSequence.length - 1) runManager.advanceAct();
@@ -228,7 +232,11 @@ function createRunPreset(gameData, meta, config) {
     addTeamWeaponArtScrolls(runManager, gameData, 2);
   }
 
-  if (config.preset === 'battle_smoke' || config.preset === 'eclipse') {
+  if (
+    config.preset === 'battle_smoke' ||
+    config.preset === 'roster_review' ||
+    config.preset === 'eclipse'
+  ) {
     const firstNode = runManager.getAvailableNodes()[0];
     if (firstNode) runManager.markNodeComplete(firstNode.id);
   }
@@ -325,6 +333,7 @@ function createRunPreset(gameData, meta, config) {
   }
 
   if (config.preset === 'roster_checks') addRosterChecks(runManager, gameData);
+  if (config.preset === 'roster_review') addRosterReview(runManager, gameData);
 
   if (config.preset === 'event') applyEventPreset(runManager, config);
   // Any other review route (a battle, the route map) may carry the contract too: `&contract=` on
@@ -461,7 +470,8 @@ function addReviewContract(runManager, goal) {
 }
 
 /**
- * Roster review units: an Oath already sworn onto a full unit's bench (Bramwell), one
+ * Roster review units: a full unit promoted with its Oath sworn into the Oath's own slot and
+ * its new class skill (Colossus) waiting on the bench (Bramwell), one
  * who will meet the cap when promoted with his Master Seal (Corwin), and Edric in a
  * Seraph Robe at 1 HP with an Elixir and a Vulnerary (the robe's HP debt).
  */
@@ -503,6 +513,50 @@ function addRosterChecks(runManager, gameData) {
   }
   runManager.ensureUnitUids();
   runManager.ensurePortraitVariants();
+}
+
+/**
+ * The Roster overview review: ten units of mixed classes and levels, some hurt, one near a
+ * level, one ready to promote, one with a Lingering Injury, one unarmed, and one fallen.
+ */
+function addRosterReview(runManager, gameData) {
+  const cls = (name) => gameData.classes.find((c) => c.name === name);
+  const recruits = [
+    ['Bramwell', 'Fighter', 10, { hp: 0.6, xp: 15 }],
+    ['Daska', 'Archer', 6, { xp: 85 }],
+    ['Oriane', 'Cavalier', 7, { hp: 0.4, xp: 30 }],
+    ['Kip', 'Thief', 5, { unarmed: true, xp: 50 }],
+    ['Ilse', 'Cleric', 4, { xp: 40 }],
+    ['Thessaly', 'Knight', 9, { hp: 0.25, xp: 5 }],
+    ['Morrow', 'Mage', 8, { xp: 70 }],
+    ['Corwin', 'Mercenary', 3, { hp: 0.8 }],
+  ];
+  for (const [name, className, level, opts] of recruits) {
+    const classData = cls(className);
+    if (!classData) continue;
+    const unit = createUnit(classData, level, gameData.weapons, { name });
+    unit.faction = 'player';
+    unit.xp = opts.xp || 0;
+    if (opts.hp) unit.currentHP = Math.max(1, Math.round(unit.stats.HP * opts.hp));
+    if (opts.unarmed) unit.inventory = [];
+    runManager.roster.push(unit);
+  }
+  const soldier = cls('Soldier');
+  if (soldier) {
+    const fallen = createUnit(soldier, 5, gameData.weapons, { name: 'Garrow' });
+    fallen.faction = 'player';
+    fallen.currentHP = 0;
+    runManager.fallenUnits.push(fallen);
+  }
+  runManager.ensureUnitUids();
+  runManager.ensurePortraitVariants();
+  const oriane = runManager.roster.find((u) => u.name === 'Oriane');
+  if (oriane)
+    addBurden(runManager, 'wounded', {
+      unitUid: oriane.unitUid,
+      unitName: oriane.name,
+      stat: 'STR',
+    });
 }
 
 /** A won run for the run-complete review: the ending follows `route`'s road. */
@@ -628,6 +682,14 @@ export function parseDevStartupConfig(search, options = {}) {
     ...(params.get('units') ? { units: params.get('units') } : {}),
     // `&setPiece=<id>` on the battle route: that event set piece (docs/specs/event-set-pieces.md).
     ...(params.get('setPiece') ? { setPiece: params.get('setPiece') } : {}),
+    // `&template=<id>` on the battle route: that map template, switched off or not
+    // (docs/specs/map-variety.md), with `&act=N` for its act.
+    ...(params.get('template') ? { template: params.get('template') } : {}),
+    // `&army=N` on the template review: the army it fields (0 keeps the starter roster; default
+    // the act's full deploy, utils/devReviewArmy.js).
+    ...(params.has('army') && Number.isInteger(Number(params.get('army')))
+      ? { army: Number(params.get('army')) }
+      : {}),
     // Act V review (devDescentFixtures.js): `&descent=1` switches the Descent on for this page and
     // enters Act V; `&rite=N` sets the Rite's words, `&descentRow=N` walks the route to row N.
     ...(parseBool(params.get('descent')) ? { descent: true } : {}),
@@ -649,6 +711,29 @@ export function parseDevStartupConfig(search, options = {}) {
       ? { actShadow: parseSeed(params.get('actShadow')) }
       : {}),
   };
+}
+
+/** The objective pool a map template sits in (rout | seize | escape), or null. */
+function templateObjective(mapTemplates, id) {
+  for (const [objective, list] of Object.entries(mapTemplates || {}))
+    if (Array.isArray(list) && list.some((t) => t?.id === id)) return objective;
+  return null;
+}
+
+/**
+ * The act a template review reaches with no `&act=`: the run's first act the template lists
+ * (`acts`, e.g. Snowbound Woods' act4 on a rung that has an Act IV), as a 1-based act number;
+ * null when it lists none, the run has none of them, or the id is unknown.
+ */
+function templateReviewAct(mapTemplates, id, actSequence) {
+  for (const list of Object.values(mapTemplates || {})) {
+    const template = Array.isArray(list) ? list.find((t) => t?.id === id) : null;
+    if (!template) continue;
+    if (!Array.isArray(template.acts) || !template.acts.length) return null;
+    const index = (actSequence || []).findIndex((act) => template.acts.includes(act));
+    return index >= 0 ? index + 1 : null;
+  }
+  return null;
 }
 
 export function buildDevStartupRoute(sourceGameData, registry, config) {
@@ -675,6 +760,7 @@ export function buildDevStartupRoute(sourceGameData, registry, config) {
   if (
     COMBAT_LOADOUT_PRESETS.has(config.preset) ||
     config.preset === 'roster_checks' ||
+    config.preset === 'roster_review' ||
     config.sceneKey === 'RunComplete'
   )
     registry.set('activeSlot', null);
@@ -719,10 +805,24 @@ export function buildDevStartupRoute(sourceGameData, registry, config) {
     };
   }
 
-  // The set-piece review fights in Act N with `&act=N` (that act's map; never back).
-  if (config.setPiece && config.eventAct) {
+  // The set-piece and template reviews fight in Act N with `&act=N` (that act's map; never back).
+  // A template review with no `&act=` reaches at least the template's first act.
+  const reviewAct =
+    config.eventAct ||
+    (config.template && !config.setPiece
+      ? templateReviewAct(gameData.mapTemplates, config.template, runManager.actSequence)
+      : null);
+  if ((config.setPiece || config.template) && reviewAct) {
     const last = runManager.actSequence.length - 1;
-    while (runManager.actIndex < Math.min(config.eventAct - 1, last)) runManager.advanceAct();
+    while (runManager.actIndex < Math.min(reviewAct - 1, last)) runManager.advanceAct();
+  }
+  // The template review fights with the act's full army (the enemy count follows the deploy).
+  if (config.template && !config.setPiece && config.army !== 0) {
+    addReviewArmy(runManager, {
+      act: runManager.currentAct,
+      seed: runManager.runSeed,
+      army: config.army ?? null,
+    });
   }
   const battleNode = pickBattleNode(runManager, config.nodeType);
   const battleParams = (battleNode && runManager.getBattleParams(battleNode)) || {
@@ -751,6 +851,18 @@ export function buildDevStartupRoute(sourceGameData, registry, config) {
     if (cap) battleParams.deployCap = cap;
     if (typeof setPiece.fog === 'boolean') battleParams.fogEnabled = setPiece.fog;
     delete battleParams.templateId;
+  }
+  // The template review (`&template=corner_camp`): the battle is drawn on that template, on the
+  // objective its pool names (a template switched off is still played when a battle names it).
+  const templatePool = config.template
+    ? templateObjective(gameData.mapTemplates, config.template)
+    : null;
+  if (templatePool && !setPiece) {
+    battleParams.templateId = config.template;
+    battleParams.objective = templatePool;
+    // The act's whole pool, never the opening battle's Fighters-only draw: the review shows the
+    // shape with the foes it meets in a run.
+    battleParams.firstBattleFightersOnly = false;
   }
   // The remains review: a Rout down to one weak Zombie beside Edric (devScenarios.js).
   if (config.preset === 'zombie_remains') {

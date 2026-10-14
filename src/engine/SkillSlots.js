@@ -8,13 +8,21 @@
 // never one of the five. Skills lent by a weapon or an accessory count toward neither
 // (EffectiveSkills.js).
 //
+// A sworn Oath (owner, 2026-10-13) has a slot of its own: the skill the unit swore at
+// promotion (`unit.deeds.oath.skillId`, DeedSystem.applyPromotionOath) counts in the oath
+// pool (MAX_OATHS, one: a unit swears one Oath, ever), never one of the five, so swearing it
+// never benches a skill and never waits for a free slot. The kind is the unit's, not the
+// skill's (Colossus is a Warrior's innate and an Oath elsewhere): the unit-aware reads take
+// the unit (`slotKindFor`); `slotKindOf` stays the skill's own kind.
+//
 // The kind is read from skills.json, the one source (an id the data does not know counts as
 // a skill). Pure: no Phaser, no RNG.
 import defaults from '../../data/skills.json' with { type: 'json' };
-import { MAX_ABILITIES, MAX_SKILLS } from '../utils/constants.js';
+import { MAX_ABILITIES, MAX_OATHS, MAX_SKILLS } from '../utils/constants.js';
 
 export const SKILL_SLOT = 'skill';
 export const ABILITY_SLOT = 'ability';
+export const OATH_SLOT = 'oath';
 
 const abilityIdsByData = new WeakMap();
 
@@ -49,15 +57,29 @@ export function slotKindOf(skillId, skillsData = defaults) {
   return isAbilitySkill(skillId, skillsData) ? ABILITY_SLOT : SKILL_SLOT;
 }
 
+/** The skill id of the Oath a player unit has sworn, or null. */
+export function swornOathSkillId(unit) {
+  if (!unit || unit.faction === 'enemy') return null;
+  const id = unit.deeds?.oath?.skillId;
+  return typeof id === 'string' && id ? id : null;
+}
+
+/** 'skill', 'ability' or 'oath': which of this unit's pools `skillId` is counted in. */
+export function slotKindFor(unit, skillId, skillsData = defaults) {
+  if (!singlePool && skillId != null && skillId === swornOathSkillId(unit)) return OATH_SLOT;
+  return slotKindOf(skillId, skillsData);
+}
+
 /** How many slots a kind has. */
 export function slotCapOf(kind) {
+  if (kind === OATH_SLOT) return MAX_OATHS;
   return kind === ABILITY_SLOT ? MAX_ABILITIES : MAX_SKILLS;
 }
 
 /** The equipped ids of one kind, in list order. */
 export function equippedOfKind(unit, kind, skillsData = defaults) {
   const skills = Array.isArray(unit?.skills) ? unit.skills : [];
-  return skills.filter((id) => slotKindOf(id, skillsData) === kind);
+  return skills.filter((id) => slotKindFor(unit, id, skillsData) === kind);
 }
 
 /** `{ skills, abilities }`: how many of each kind the unit has equipped. */
@@ -70,12 +92,13 @@ export function slotCountsOf(unit, skillsData = defaults) {
 
 /** Whether every slot of `skillId`'s kind is taken. */
 export function slotsFullFor(unit, skillId, skillsData = defaults) {
-  const kind = slotKindOf(skillId, skillsData);
+  const kind = slotKindFor(unit, skillId, skillsData);
   return equippedOfKind(unit, kind, skillsData).length >= slotCapOf(kind);
 }
 
 /** "skill slots" / "ability slots", with the count: "all 5 skill slots". */
 export function slotNoun(kind) {
+  if (kind === OATH_SLOT) return 'oath slots';
   return kind === ABILITY_SLOT ? 'ability slots' : 'skill slots';
 }
 
@@ -93,21 +116,32 @@ export function benchArrivalPhrase(ids, skillsData = defaults) {
   return kinds.size === 1 ? allSlotsPhrase([...kinds][0]) : 'its slots';
 }
 
-/** One short loadout line: "Skills 4/5 · Abilities 1/3". */
+/**
+ * One short loadout line: "Skills 4/5 · Abilities 1/3", plus "· Oath 1/1" once one is sworn
+ * and equipped.
+ */
 export function slotCountsLine(unit, skillsData = defaults) {
   const { skills, abilities } = slotCountsOf(unit, skillsData);
-  return `Skills ${skills}/${MAX_SKILLS} · Abilities ${abilities}/${MAX_ABILITIES}`;
+  const oaths = equippedOfKind(unit, OATH_SLOT, skillsData).length;
+  const oath = oaths ? ` · Oath ${oaths}/${MAX_OATHS}` : '';
+  return `Skills ${skills}/${MAX_SKILLS} · Abilities ${abilities}/${MAX_ABILITIES}${oath}`;
+}
+
+/** The display title of a pool. */
+export function slotTitleOf(kind) {
+  if (kind === OATH_SLOT) return 'Oath';
+  return kind === ABILITY_SLOT ? 'Abilities' : 'Skills';
 }
 
 /**
  * The equipped list in display groups, skills first: `[{ kind, title, ids, cap }]`, each
- * group present only when it holds something ("Skills", "Abilities").
+ * group present only when it holds something ("Skills", "Abilities", "Oath").
  */
 export function equippedGroups(unit, skillsData = defaults) {
-  return [SKILL_SLOT, ABILITY_SLOT]
+  return [SKILL_SLOT, ABILITY_SLOT, OATH_SLOT]
     .map((kind) => ({
       kind,
-      title: kind === ABILITY_SLOT ? 'Abilities' : 'Skills',
+      title: slotTitleOf(kind),
       ids: equippedOfKind(unit, kind, skillsData),
       cap: slotCapOf(kind),
     }))
@@ -123,7 +157,7 @@ export function equippedGroups(unit, skillsData = defaults) {
 export function benchSlotOverflow(unit, { locked = new Set(), skillsData = defaults } = {}) {
   if (!unit || !Array.isArray(unit.skills) || unit.faction === 'enemy') return [];
   const benched = [];
-  for (const kind of [ABILITY_SLOT, SKILL_SLOT]) {
+  for (const kind of [OATH_SLOT, ABILITY_SLOT, SKILL_SLOT]) {
     const ids = equippedOfKind(unit, kind, skillsData);
     const cap = slotCapOf(kind);
     if (ids.length <= cap) continue;
@@ -140,4 +174,22 @@ export function benchSlotOverflow(unit, { locked = new Set(), skillsData = defau
   const unseen = Array.isArray(unit.benchedUnseen) ? unit.benchedUnseen : [];
   unit.benchedUnseen = [...unseen.filter((id) => !out.has(id)), ...benched];
   return benched;
+}
+
+/**
+ * A sworn Oath waiting on the bench goes into its own slot (saves from before the Oath had
+ * one, when a promotion with five skills equipped benched it). Returns whether it moved.
+ * Idempotent: nothing moves once it is equipped (the Oath cannot be benched again).
+ */
+export function equipSwornOath(unit) {
+  const id = swornOathSkillId(unit);
+  if (!id || !Array.isArray(unit.benchedSkills) || !unit.benchedSkills.includes(id)) return false;
+  if (!Array.isArray(unit.skills)) unit.skills = [];
+  if (!unit.skills.includes(id)) unit.skills = [...unit.skills, id];
+  unit.benchedSkills = unit.benchedSkills.filter((s) => s !== id);
+  if (Array.isArray(unit.benchedUnseen)) {
+    unit.benchedUnseen = unit.benchedUnseen.filter((s) => s !== id);
+    if (!unit.benchedUnseen.length) delete unit.benchedUnseen;
+  }
+  return true;
 }

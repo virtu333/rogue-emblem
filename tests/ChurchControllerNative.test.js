@@ -57,7 +57,7 @@ const bodyText = () =>
     .all()
     .map((n) => n.textContent)
     .join(' | ');
-const REST = 'Rest — heal everyone, revive the fallen';
+const REST = 'Rest — heal everyone, revive one fallen';
 const SCAVENGE = "Scavenge — the ruins' wares (+25%)";
 const savedChoice = (id) => loadRun(d.data, 1).ruinsChoiceByNodeId[id] ?? null;
 
@@ -272,7 +272,8 @@ it("a twist's burden held alone is still listed at the altar, greyed, with the r
 it("on a merged record the altar lifts the passing part only and lists the twist's beside it", async () => {
   const card = d.data.blessings.blessings.find((b) => b.id === 'blood_covenant');
   d.run.addBlessingMidRun('blood_covenant', { earned: true, price: twistPriceOf(card) });
-  addBurden(d.run, 'ill_omen', { battles: 2, extraShadow: 2 });
+  const twistShadow = card.twist.effects[0].params.extraShadow;
+  addBurden(d.run, 'ill_omen', { battles: 2, extraShadow: twistShadow + 1 });
   d.enter('church'); // the run was changed by hand above: no persistence boundary to check
   const nodes = d.church.nativeMenu.surface.body.all();
   expect(nodes.some((n) => n.tag === 'h3' && n.textContent === 'Cleanse · Free')).toBe(true);
@@ -284,7 +285,9 @@ it("on a merged record the altar lifts the passing part only and lists the twist
   d.press('Ill Omen · 2 left');
   const result = d.confirm(0);
   expect(result.ok, result.reason).toBe(true);
-  expect(d.run.burdens).toEqual([{ id: 'ill_omen', battles: 0, extraShadow: 1, permanent: true }]);
+  expect(d.run.burdens).toEqual([
+    { id: 'ill_omen', battles: 0, extraShadow: twistShadow, permanent: true },
+  ]);
   expect(loadRun(d.data, 1).burdens).toEqual(d.run.burdens);
 });
 

@@ -387,6 +387,8 @@ export function threatSummaryTone(result) {
 
 /**
  * Short, plain move-preview text: "2 foes can reach", "2 foes can reach · 1 staff",
+ * with threat sight's intent "2 foes can reach · 1 targets you" ("none target you": they
+ * would go for someone else),
  * "Only 1 staff can reach" (no foe can strike, but a status staff can), "No foe can
  * reach"; under fog, " · fog may hide more". When some of the foes that reach carry
  * an area art, " · 1 with an area art" follows the count: the blow may land on the
@@ -400,12 +402,18 @@ export function threatSummaryText(result) {
   const staffOnly = result.status?.length || 0;
   const area = result.area?.length || 0;
   let text;
+  // Threat sight adds `aimed` (EnemyIntent): how many of them would go for this unit here.
+  const aimed = Number.isInteger(result.aimed) ? result.aimed : null;
+  const aimedText =
+    aimed === null
+      ? ''
+      : ` · ${aimed === 0 ? 'none target' : `${aimed} ${aimed === 1 ? 'targets' : 'target'}`} you`;
   if (hits > 0) {
-    text = `${hits} ${hits === 1 ? 'foe' : 'foes'} can reach`;
+    text = `${hits} ${hits === 1 ? 'foe' : 'foes'} can reach${aimedText}`;
     if (area) text += ` · ${area} with an area art`;
     if (staffOnly) text += ` · ${staves(staffOnly)}`;
   } else if (staffOnly) {
-    text = `Only ${staves(staffOnly)} can reach`;
+    text = `Only ${staves(staffOnly)} can reach${aimedText}`;
   } else {
     text = 'No foe can reach';
   }

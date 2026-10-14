@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene } from './helpers.js';
+import { waitForScene, openRosterUnit, closeRoster } from './helpers.js';
 
 // The Roster from the formation screen (src/ui/FormationRoster.js): manage gear and
 // items before turn 1, then come back to placement with everyone where they stood.
@@ -75,10 +75,13 @@ test.describe('phone', () => {
     await expect(sheet).toBeVisible();
     // The run left the battle as Back to map does: the save says "on the map".
     expect((await snapshot(page)).flag).toBe(false);
+    // The overview (a card per unit) comes first; the lord's card opens his detail.
+    await openRosterUnit(sheet, 'Edric', { tap: true });
     await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
     // Edric's Vulnerary goes to the convoy (his consumable row's Store).
     await sheet.getByRole('button', { name: 'Store', exact: true }).last().tap();
-    await sheet.getByRole('button', { name: 'Back to formation', exact: true }).tap();
+    // Back returns to the overview, whose header leads back to the formation.
+    await closeRoster(sheet, 'Back to formation', { tap: true });
     await expect(sheet).toHaveCount(0);
     await reopened(page, before.session);
 
@@ -199,10 +202,14 @@ test('desktop: a refused save keeps the Roster shut, Retry opens it, the return 
   await page.keyboard.press('o');
   await expect(sheet).toBeVisible();
   expect((await stored()).battleInProgress).toBeNull();
+  await openRosterUnit(sheet, 'Edric');
   await sheet.getByRole('button', { name: 'Equipment', exact: true }).click();
   await sheet.getByRole('button', { name: 'Store', exact: true }).last().click();
   // Refused again as the battle re-opens: the formation must not say "Roster saved".
   await refuse(true);
+  // Escape in a unit's detail returns to the overview; Escape there leaves the Roster.
+  await page.keyboard.press('Escape');
+  await expect(sheet.locator('nav.mr-grid')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);
   await reopened(page, before.session);

@@ -69,14 +69,14 @@ it('blocks a Dancer with no allowed promotion target without consuming the seal'
   expect(result).toEqual({ ok: false, reason: 'No available promotion class.' });
   expect(seal.uses).toBe(1);
 });
-it('reports an ungranted Iron weapon when the promoted unit bag is full', () => {
+it('reports an ungranted Iron weapon when the bag is full and there is no convoy', () => {
   const { unit, seal, run } = fixture();
   while (unit.inventory.length < 5) unit.inventory.push({ ...unit.inventory[0] });
   const target = resolvePromotionTargets(unit, data.classes, data.lords).find(
     (c) => c.name === 'Warrior',
   );
   expect(applyRosterClassChange(run, unit, seal, target, data).notices).toEqual([
-    'Bag full: Iron Bow could not be granted.',
+    'Bag and convoy full: Iron Bow could not be granted.',
   ]);
 });
 
@@ -103,7 +103,7 @@ it('reports full-bag reclass grants and an unarmed result without removing exist
   );
   const result = applyRosterClassChange(run, unit, seal, target, data);
   expect(result.ok).toBe(true);
-  expect(result.notices.join(' ')).toContain('Bag full: Iron Sword');
+  expect(result.notices.join(' ')).toContain('Bag and convoy full: Iron Sword');
   expect(result.notices.join(' ')).toContain('No combat weapon equipped');
   expect(unit.weapon).toBeNull();
   expect(unit.inventory).toEqual(inventory);

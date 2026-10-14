@@ -202,13 +202,9 @@ export class AbilityTargetingController {
 
   _presentSteal({ thief, carrier, item, destination }) {
     const scene = this.scene;
-    safeBattlePresentation(
-      'steal sound',
-      () => scene.registry.get('audio')?.playSFX('sfx_confirm'),
-      {
-        scene,
-      },
-    );
+    safeBattlePresentation('steal sound', () => scene.registry.get('audio')?.playSFX('sfx_steal'), {
+      scene,
+    });
     // The carrier's sack pip goes with the item.
     safeBattlePresentation('steal carrier pip', () => scene.updateAffixPips?.(carrier), { scene });
     safeBattlePresentation(
