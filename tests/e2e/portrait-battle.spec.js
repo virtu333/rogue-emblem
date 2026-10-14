@@ -525,6 +525,12 @@ test('turning the phone mid-battle does not change how the battle plays out', as
     [enemy.col, enemy.row] = tile;
     s.grid.setTerrainAt(enemy.col, enemy.row, 0);
     s.updateUnitPosition(enemy);
+    // The commander must outlast the three enemy phases compared below, whatever map the
+    // seed draws (Two Camps' five Fighters fell all three on turn 3): a fallen commander
+    // stops the battle on Sera's rewind before the runs can be compared.
+    const edric = s.playerUnits.find((p) => p.name === 'Edric');
+    edric.stats.HP = 80;
+    edric.currentHP = 80;
     // First-use tips are per-save UI state; keep them out of the runs being compared.
     s.registry.get('settings').setHints(false);
     if (!s._captureSuspendCheckpoint({ session: s._battleSession }))
