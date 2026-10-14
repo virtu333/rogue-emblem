@@ -667,6 +667,32 @@ export const WEAPON_ICON_REUSE = Object.freeze({
   Greycord: 'gravesong',
   "Hunter's Focus Scroll": 'encloser-scroll',
   'Toppling Blow Scroll': 'lunge-scroll',
+  // Epic weapons (docs/specs/epic-weapons.md) and the relic Daybreak: borrowed pictures until
+  // they get art of their own; an Epic weapon wears the Rare rim (catalog.mjs weaponRim).
+  'Prodding Spear': 'short-spear',
+  'Parrying Blade': 'jian',
+  "Rook's Bow": 'recurve-bow',
+  "Pilgrim's Lamp": 'glimmer',
+  "Tollkeeper's Knife": 'keen-sword',
+  'Thornwood Bow': 'longbow',
+  Haulhook: 'axehook',
+  'Phalanx Pike': 'spear',
+  Mirrorglass: 'twisting-vortex',
+  Cinderstring: 'keen-bow',
+  Treatybreaker: 'hatchet',
+  'Unrelieved Line': 'keen-lance',
+  'The Middle Pages': 'conflagration',
+  'Sealed Orders': 'witchfire',
+  'Proof of the Halls': 'silver-sword',
+  'Second Push': 'silver-lance',
+  'Holder of the Breach': 'hammer',
+  'Frightened Acclaim': 'keen-axe',
+  Futuresold: 'sunder-sword',
+  Tallyblade: 'steel-sword',
+  Gorgemaw: 'sunder-axe',
+  Hollowsong: 'wildfire',
+  Wakelight: 'crownlight',
+  Daybreak: 'thunderbrand',
 });
 
 /**

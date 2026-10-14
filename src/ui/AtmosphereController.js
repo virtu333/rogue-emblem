@@ -22,15 +22,31 @@ import {
 import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { applyAtmosphere, clearAtmosphere, atmosphereSupported } from '../art/AtmosphereFX.js';
 import { BattleLightLayer } from '../art/BattleLightLayer.js';
+import { CloudShadowLayer } from '../art/CloudShadowLayer.js';
+import { cloudSeed, cloudShadowsFor } from '../art/cloudShadows.js';
+import { SkyWashLayer } from '../art/SkyWashLayer.js';
+import { skyWashFor } from '../art/skyWash.js';
 import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
 import { withPresentationRandom } from '../utils/presentationRandom.js';
 import { isEntity } from '../engine/EntitySystem.js';
+import { battleGenerationSeed } from '../engine/BattleScout.js';
 
 function devQuery() {
   if (!import.meta.env?.DEV) return null;
   return new URLSearchParams(globalThis.location?.search || '');
+}
+
+/**
+ * The dev route's hour: `?timeOfDay=` when given, else day on a `?devScene=battle` review
+ * battle, so its fixtures (and the browser specs that open them) keep the daylit look they
+ * were written against. A night or a low sun adds full-screen layers, which slow CI's
+ * software renderer enough to break timing-sensitive specs. Real runs are never forced.
+ */
+export function devTimeOverride(query) {
+  if (!query) return null;
+  return query.get('timeOfDay') || (query.get('devScene') === 'battle' ? 'day' : null);
 }
 
 /** Gather the pure resolver's inputs from a BattleScene (read-only). */
@@ -54,6 +70,13 @@ export function atmosphereContextFromScene(scene) {
     isScripted: isScriptedBattle(params),
     hasEntity: enemies.some((u) => isEntity(u)),
     override: query?.get('atmosphere') || null,
+    // Day or night (Acts I-III outdoors) is hashed from the battle's own seed.
+    battleSeed: battleGenerationSeed(params, {
+      runSeed: scene?.runManager?.runSeed,
+      nodeId: scene?.nodeId,
+    }),
+    row: params.row ?? null,
+    timeOverride: devTimeOverride(query),
     // The Eclipse phase this battle was entered at (RunManager.getBattleParams).
     eclipsePhase: Math.max(0, Math.trunc(Number(params.eclipsePhaseIndex) || 0)),
   };
@@ -72,8 +95,17 @@ export function atmospherePreference(scene) {
 export class AtmosphereController {
   constructor(scene) {
     this.scene = scene;
-    this.state = { mode: 'off', supported: false, gradeKey: null, label: null, night: false };
+    this.state = {
+      mode: 'off',
+      supported: false,
+      gradeKey: null,
+      label: null,
+      night: false,
+      lighting: 'day',
+    };
     this.light = null;
+    this.clouds = null;
+    this.sky = null;
     this.uiCamera = null;
     this._signature = null;
     this._unsubscribe = null;
@@ -91,6 +123,7 @@ export class AtmosphereController {
         gradeKey: this.atmosphere.gradeKey,
         label: this.atmosphere.label,
         night: this.atmosphere.night,
+        lighting: this.atmosphere.lighting,
       });
       const settings = this.scene?.registry?.get?.('settings');
       this._unsubscribe = settings?.onChange?.(() => this.refresh()) || null;
@@ -121,7 +154,7 @@ export class AtmosphereController {
   refresh() {
     if (this.destroyed || !this.atmosphere) return;
     const info = this._modeInfo();
-    const signature = `${info.mode}|${info.flicker}|${info.animatedGrain}`;
+    const signature = `${info.mode}|${info.flicker}|${info.animatedGrain}|${this._still()}`;
     if (signature === this._signature) return;
     this._signature = signature;
     this.state.mode = info.mode;
@@ -137,6 +170,8 @@ export class AtmosphereController {
         frameProvider: () => this.frameUv(),
       });
       this._applyLight(info);
+      this._applyClouds(info);
+      this._applySky(info);
     });
   }
 
@@ -175,6 +210,43 @@ export class AtmosphereController {
     }
     if (this.light) this.light.setOptions(options);
     else this.light = new BattleLightLayer(this.scene, options).create();
+  }
+
+  _still() {
+    return this.scene?.registry?.get?.('settings')?.getReduceMotion?.() === true;
+  }
+
+  _applySky(info) {
+    const wash = skyWashFor(this.atmosphere.lighting);
+    if (!wash || info.mode === 'off') {
+      this.sky?.destroy();
+      this.sky = null;
+      return;
+    }
+    const opts = { reduced: info.mode === 'reduced' };
+    if (this.sky) this.sky.setOptions(opts);
+    else this.sky = new SkyWashLayer(this.scene, { ...opts, wash }).create();
+  }
+
+  _applyClouds(info) {
+    const wanted = cloudShadowsFor({
+      gradeKey: this.atmosphere.gradeKey,
+      biome: this.atmosphere.biome,
+      lighting: this.atmosphere.lighting,
+      isScripted: isScriptedBattle(this.scene?.battleParams || {}),
+    });
+    if (!wanted || info.mode === 'off') {
+      this.clouds?.destroy();
+      this.clouds = null;
+      return;
+    }
+    const opts = { still: this._still(), reduced: info.mode === 'reduced' };
+    if (this.clouds) this.clouds.setOptions(opts);
+    else
+      this.clouds = new CloudShadowLayer(this.scene, {
+        ...opts,
+        seed: cloudSeed(atmosphereContextFromScene(this.scene).battleSeed),
+      }).create();
   }
 
   // --- Desktop: keep UI off the graded camera --------------------------------------
@@ -242,6 +314,10 @@ export class AtmosphereController {
   _teardownVisuals() {
     this.light?.destroy();
     this.light = null;
+    this.clouds?.destroy();
+    this.clouds = null;
+    this.sky?.destroy();
+    this.sky = null;
     clearAtmosphere(this.scene?.cameras?.main);
     this._removeUiCamera();
   }

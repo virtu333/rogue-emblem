@@ -7953,6 +7953,8 @@ export class BattleScene extends Phaser.Scene {
     const masteryCtx = {
       classesData: this.gameData.classes,
       traitsData: this.gameData.traits || null,
+      // The battle's turn: an Epic weapon's "has not moved this turn" reads it.
+      turn: this.turnManager?.turnNumber,
     };
     const atkMods = getSkillCombatMods(
       attacker,
@@ -8875,6 +8877,7 @@ export class BattleScene extends Phaser.Scene {
       getMoveCost: (col, row, moveType) => this.grid.getMoveCost(col, row, moveType),
       getUnitAt: (col, row) => this.getUnitAt(col, row),
       getTerrainAt: (col, row) => this.grid.getTerrainAt?.(col, row) ?? null,
+      revealContact: (tiles) => this.grid.revealContact?.(tiles), // Wakelight
       hostilesOf: (unit) => this._getTier5HostileUnitsFor(unit),
       alliesOf: (unit) => this.getDivineChargeAllies(unit),
       turnNumber: this.turnManager?.turnNumber,
@@ -10077,6 +10080,37 @@ export class BattleScene extends Phaser.Scene {
     this.refreshEndTurnControl();
   }
 
+  /**
+   * An Epic weapon's turn-start effect (EpicWeapons.epicTurnStartEffects): Gorgemaw's toll on
+   * its wielder (UnitHealth, floor 1) or Holder of the Breach's slow on a foe beside it.
+   */
+  async _applyEpicTurnStartEffect(effect) {
+    const unit = effect.target;
+    if (effect.type === 'toll') damageUnit(unit, effect.amount, { floor: 1, disturbs: false });
+    else applyTimedBuffEntry(unit, effect.entry);
+    if (!this._showsTurnEffectOn(unit)) return;
+    await safeBattlePresentation(
+      effect.source,
+      async () => {
+        const pos = this.grid.gridToPixel(unit.col, unit.row);
+        if (effect.type === 'toll') {
+          this.updateHPBar(unit);
+          floatCombatNumber(this, {
+            kind: 'poison',
+            value: effect.amount,
+            x: pos.x,
+            y: pos.y - 16,
+            reducedMotion: this._reduceMotion(),
+          });
+        }
+        const text =
+          effect.type === 'toll' ? `${effect.source} hungers` : `${effect.entry.stats.MOV} MOV`;
+        this.showMinorHintAt(pos.x, pos.y, text, UI_PALETTE.bad);
+      },
+      { scene: this },
+    );
+  }
+
   /** Apply all turn-start effects (skills, affixes, terrain) in unified sequence */
   async processTurnStartEffects(units, { skipRecovery = false, isCurrent = () => true } = {}) {
     const session = battleSession(this);
@@ -10114,10 +10148,14 @@ export class BattleScene extends Phaser.Scene {
       this.gameData.skills,
       this.gameData.marks,
       this.turnManager?.turnNumber,
+      units === this.enemyUnits ? this.playerUnits : this.enemyUnits,
     );
     for (const effect of skillEffects) {
       if (!isCurrent()) return;
-      if (effect.type === 'heal' && effect.amount > 0) {
+      if (effect.type === 'toll' || effect.slow) {
+        await this._applyEpicTurnStartEffect(effect);
+        if (!isCurrentBattleSession(this, session)) return;
+      } else if (effect.type === 'heal' && effect.amount > 0) {
         healUnit(effect.target, effect.amount);
         this.updateHPBar(effect.target);
         if (this._showsTurnEffectOn(effect.target))

@@ -13,6 +13,7 @@ import { getFootprint, isEntity } from './EntitySystem.js';
 import { traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { getUnitMarkFor } from './MarkSystem.js';
+import { epicAfterCombatSteps, keepsCombatRecord } from './EpicWeapons.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
@@ -23,7 +24,16 @@ const TIER2_EFFECT_ORDER = [
   'postCombatMove',
   'setHp',
 ];
-const VALID_MOVE_MODES = new Set(['advance', 'retreat', 'swap', 'push', 'through', 'ram', 'dash']);
+const VALID_MOVE_MODES = new Set([
+  'advance',
+  'retreat',
+  'swap',
+  'push',
+  'through',
+  'ram',
+  'dash',
+  'pull',
+]);
 
 function getOpposingSide(side) {
   return side === 'attacker' ? 'defender' : 'attacker';
@@ -296,6 +306,16 @@ export function getPostCombatPipelineSteps({
     }
   }
 
+  // Epic weapons' after-combat rules (engine/EpicWeapons.js), each side's held weapon in turn:
+  // gated on any of the side's strikes landing (not only an art's), a push or pull only after a
+  // combat the side started.
+  for (const side of SIDE_ORDER) {
+    const unit = side === 'attacker' ? attacker : defender;
+    if (!unit?.weapon) continue;
+    const landed = didCombatSideLandHit(result?.events, side, attacker, defender);
+    steps.push(...epicAfterCombatSteps(unit.weapon, side, { landed }));
+  }
+
   // All or Nothing: self-damage per missed strike by the art user (not hit-gated)
   for (const side of SIDE_ORDER) {
     const art = artsBySide[side];
@@ -383,6 +403,22 @@ export function getPostCombatPipelineSteps({
       targetSide: getOpposingSide(side),
       skillIds,
       ...(markId ? { markId } : {}),
+    });
+  }
+
+  // Epic weapons that keep a record of their combats (Tallyblade, Frightened Acclaim, Gorgemaw,
+  // Hollowsong): last of all, so every kill this combat made is read (EpicWeapons.recordEpicCombat).
+  for (const side of SIDE_ORDER) {
+    const unit = side === 'attacker' ? attacker : defender;
+    if (!keepsCombatRecord(unit?.weapon)) continue;
+    const struck =
+      didCombatSideLandHit(result?.events, side, attacker, defender) ||
+      getMissedStrikeCount(result?.events, side, attacker, defender) > 0;
+    steps.push({
+      type: 'epic_combat_record',
+      sourceSide: side,
+      targetSide: getOpposingSide(side),
+      struck,
     });
   }
 
@@ -475,9 +511,23 @@ export function resolvePostCombatMove({
     .toLowerCase();
   if (!VALID_MOVE_MODES.has(normalizedMode)) return { ok: false, reason: 'invalid_mode' };
 
+  const stepDistance = Math.max(1, Math.trunc(Number(distance) || 1));
+  if (normalizedMode === 'pull') {
+    return resolvePull({
+      sourceUnit,
+      targetUnit,
+      stepDistance,
+      cols,
+      rows,
+      getMoveCost,
+      getUnitAt,
+      getTerrainAt,
+      isImmovable,
+    });
+  }
+
   // Every art move needs the target beside its user; from range nothing moves, so no
   // pin (root, Anchored) is ever reported for a move that could not have happened.
-  const stepDistance = Math.max(1, Math.trunc(Number(distance) || 1));
   const direction = isCardinalAdjacent(sourceUnit, targetUnit);
   if (!direction) return { ok: false, reason: 'not_adjacent' };
 
@@ -684,4 +734,55 @@ export function resolvePostCombatMove({
   });
   if (!dest) return { ok: false, reason: 'blocked' };
   return { ok: true, assignments: [{ unit: sourceUnit, col: dest.col, row: dest.row }] };
+}
+
+/**
+ * Haulhook's pull (an Epic weapon's after-combat rule, engine/EpicWeapons.js): a foe struck
+ * from range in a straight line (same row or column) is drawn up to `stepDistance` tiles
+ * toward the wielder, never onto it; a forced move, so it slides on Ice (ForcedMovement) and
+ * stops at a unit or ground it can't stand on. A foe beside the wielder, off the line, rooted,
+ * pinned (`isImmovable`) or the Entity stays.
+ */
+function resolvePull({
+  sourceUnit,
+  targetUnit,
+  stepDistance,
+  cols,
+  rows,
+  getMoveCost,
+  getUnitAt,
+  getTerrainAt,
+  isImmovable,
+}) {
+  if (!(targetUnit?.currentHP > 0) || getUnitAt(targetUnit.col, targetUnit.row) !== targetUnit)
+    return { ok: false, reason: 'invalid_target' };
+  const dCol = targetUnit.col - sourceUnit.col;
+  const dRow = targetUnit.row - sourceUnit.row;
+  if (dCol !== 0 && dRow !== 0) return { ok: false, reason: 'not_in_line' };
+  const gap = Math.abs(dCol) + Math.abs(dRow) - 1;
+  if (gap < 1) return { ok: false, reason: 'not_in_line' };
+  if (isEntity(targetUnit)) return { ok: false, reason: 'immovable' };
+  if (isRooted(targetUnit)) return { ok: false, reason: 'rooted' };
+  if (isImmovable?.(targetUnit)) return { ok: false, reason: 'immovable' };
+  const dc = -Math.sign(dCol);
+  const dr = -Math.sign(dRow);
+  const grid = { cols, rows, getMoveCost, getTerrainAt: getTerrainAt || undefined };
+  const occupantAt = (col, row) => {
+    const occupant = getUnitAt(col, row);
+    if (!occupant || occupant === targetUnit) return null;
+    return occupant.currentHP <= 0 ? null : occupant;
+  };
+  const move = traceForcedMove(targetUnit, dc, dr, Math.min(stepDistance, gap), grid, occupantAt);
+  if (move.steps <= 0) return { ok: false, reason: 'blocked' };
+  return {
+    ok: true,
+    assignments: [
+      {
+        unit: targetUnit,
+        col: move.col,
+        row: move.row,
+        ...(move.slid ? { slid: true, path: move.path } : {}),
+      },
+    ],
+  };
 }

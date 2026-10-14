@@ -22,14 +22,14 @@
 import { TILE_SIZE } from '../utils/constants.js';
 import { hexToInt } from './atmosphereConfig.js';
 
-const GLOW_KEY = 'art_light_glow';
+export const GLOW_KEY = 'art_light_glow';
 const LINEAR = 0; // Phaser.Textures.FilterMode.LINEAR (avoid importing Phaser here)
 export const LIGHT_LAYER_DEPTH = 3.5;
 const RES = 0.5; // light textures render at half resolution
 
 let layerSeq = 0;
 
-function ensureGlowTexture(scene) {
+export function ensureGlowTexture(scene) {
   if (scene.textures.exists(GLOW_KEY)) return;
   const size = 128;
   const tex = scene.textures.createCanvas(GLOW_KEY, size, size);
@@ -49,6 +49,44 @@ function toColor(value, fallback) {
   if (Number.isFinite(value)) return value >>> 0;
   if (typeof value === 'string') return hexToInt(value);
   return fallback;
+}
+
+/**
+ * Where a hall's wall sconces hang (pure; reads the layout only, no draw): on the face
+ * of a wall the camera sees (its south face, over open floor), every `spacing`-th cell
+ * along the wall. A wall block's inner and back cells carry none.
+ * @param {{ cols:number, rows:number, nameAt:(col:number,row:number)=>string|undefined }} map
+ * @param {{ spacing?:number }} spec
+ * @returns {{ col:number, row:number, faceCol:number, faceRow:number }[]} the wall cell and
+ *   the floor cell it lights
+ */
+export function wallTorchSites(map, spec = {}) {
+  const spacing = Math.max(1, Math.trunc(Number(spec.spacing) || 4));
+  const out = [];
+  const isOpen = (c, r) => {
+    if (c < 0 || r < 0 || c >= map.cols || r >= map.rows) return false;
+    const n = map.nameAt(c, r);
+    return Boolean(n) && n !== 'Wall' && n !== 'Pillar';
+  };
+  for (let row = 0; row < map.rows; row += 1) {
+    // Each run of south-facing wall gets a sconce one cell in from its west end (a
+    // one-cell stub on that cell), then every `spacing` cells.
+    let col = 0;
+    while (col < map.cols) {
+      if (!(map.nameAt(col, row) === 'Wall' && isOpen(col, row + 1))) {
+        col += 1;
+        continue;
+      }
+      let end = col;
+      while (end + 1 < map.cols && map.nameAt(end + 1, row) === 'Wall' && isOpen(end + 1, row + 1))
+        end += 1;
+      for (let c = col + Math.min(1, end - col); c <= end; c += spacing) {
+        out.push({ col: c, row, faceCol: c, faceRow: row + 1 });
+      }
+      col = end + 1;
+    }
+  }
+  return out;
 }
 
 function normalizeEmitters(emitters = {}) {
@@ -94,6 +132,16 @@ export class BattleLightLayer {
     this.glowStrength = opts.glowStrength ?? 0.28;
     this.flicker = opts.flicker ?? false;
     this.emitterSpecs = normalizeEmitters(opts.emitters);
+    this.castShadows = Boolean(opts.castShadows);
+    const torches = opts.wallTorches;
+    this.wallTorches = torches
+      ? {
+          spacing: torches.spacing ?? 3,
+          radius: Number(torches.radius) || 1.7,
+          strength: Number(torches.strength) || 0.7,
+          color: toColor(torches.color, 0xffb45a),
+        }
+      : null;
     this.entityUnlight = opts.entityUnlight ? toColor(opts.entityUnlight, 0x170c24) : null;
   }
 
@@ -149,16 +197,99 @@ export class BattleLightLayer {
   _collectEmitters() {
     const grid = this.scene.grid;
     this._emitters = [];
+    // Emitter cells are game coordinates; the light texture is laid out as drawn.
+    const drawn = (col, row) => grid.displayCellOf?.(col, row) || { col, row };
+    const seen = (col, row) => !grid.fogEnabled || grid.isVisible?.(col, row);
     for (let row = 0; row < grid.rows; row += 1) {
       for (let col = 0; col < grid.cols; col += 1) {
         const name = grid.getTerrainAt?.(col, row)?.name;
         const e = name && this.emitterSpecs[name];
         if (!e) continue;
         // Fogged tiles stay dark: a hidden lava vent or fort does not glow through fog.
-        if (grid.fogEnabled && !grid.isVisible?.(col, row)) continue;
-        this._emitters.push({ col, row, radius: e[0], strength: e[1], color: e[2] });
+        if (!seen(col, row)) continue;
+        const cell = drawn(col, row);
+        this._emitters.push({
+          x: (cell.col + 0.5) * TILE_SIZE,
+          y: (cell.row + 0.5) * TILE_SIZE,
+          radius: e[0],
+          strength: e[1],
+          color: e[2],
+        });
       }
     }
+    const board = grid.board;
+    const shown = (col, row) => (board?.fromDisplay ? board.fromDisplay(col, row) : { col, row });
+    const displayMap = {
+      cols: board?.displayCols ?? grid.cols,
+      rows: board?.displayRows ?? grid.rows,
+      nameAt: (c, r) => {
+        const g = shown(c, r);
+        return grid.getTerrainAt?.(g.col, g.row)?.name;
+      },
+    };
+    // Shadow casters (pillars) are found as drawn: the light falls across the screen.
+    this._casters = [];
+    if (this.castShadows) {
+      for (let r = 0; r < displayMap.rows; r += 1)
+        for (let c = 0; c < displayMap.cols; c += 1) {
+          if (displayMap.nameAt(c, r) !== 'Pillar') continue;
+          const g = shown(c, r);
+          if (!seen(g.col, g.row)) continue;
+          this._casters.push({ x: (c + 0.5) * TILE_SIZE, y: (r + 0.5) * TILE_SIZE });
+        }
+    }
+    const torch = this.wallTorches;
+    if (!torch) return;
+    // Sconces hang on the face of a wall as drawn (the face the camera sees).
+    for (const site of wallTorchSites(displayMap, torch)) {
+      // A sconce lights the floor it faces; hidden floor keeps it dark.
+      const floor = shown(site.faceCol, site.faceRow);
+      if (!seen(floor.col, floor.row)) continue;
+      // Hung on the wall's face: 0.45 of the way from the wall's centre to the floor's.
+      const x = (site.col + 0.5) * TILE_SIZE;
+      const y = (site.row + 0.5 + 0.45) * TILE_SIZE;
+      this._emitters.push({
+        x,
+        y,
+        radius: torch.radius,
+        strength: torch.strength,
+        color: torch.color,
+        flame: true,
+      });
+    }
+  }
+
+  /**
+   * Each pillar near a light throws a soft shadow away from it (pure geometry over the
+   * collected emitters; the nearest light within reach wins).
+   */
+  _pillarShadows() {
+    const out = [];
+    for (const p of this._casters || []) {
+      let best = null;
+      for (const e of this._emitters) {
+        const dx = p.x - e.x;
+        const dy = p.y - e.y;
+        const dist = Math.hypot(dx, dy);
+        const reach = e.radius * TILE_SIZE * 1.4;
+        if (dist < 4 || dist > reach) continue;
+        if (!best || dist < best.dist) best = { dx, dy, dist, reach, strength: e.strength };
+      }
+      if (!best) continue;
+      const ux = best.dx / best.dist;
+      const uy = best.dy / best.dist;
+      // Nearer the light, the darker and shorter the shadow.
+      const near = 1 - best.dist / best.reach;
+      const length = 1 + (1 - near) * 0.5;
+      out.push({
+        x: p.x + ux * TILE_SIZE * (0.2 + length * 0.5),
+        y: p.y + uy * TILE_SIZE * (0.2 + length * 0.5),
+        length,
+        rotation: Math.atan2(uy, ux),
+        alpha: Math.min(0.5, (0.2 + near * 0.4) * best.strength),
+      });
+    }
+    return out;
   }
 
   _stampBrush(target, x, y, radiusTiles, alpha, tint, erase) {
@@ -180,23 +311,31 @@ export class BattleLightLayer {
     tex.clear();
     tex.fill(this.color, this.darkness);
     this.glowStatic.clear();
-    const grid = this.scene.grid;
     for (const e of this._emitters) {
-      // Emitter cells are game coordinates; the light texture is laid out as drawn.
-      const cell = grid?.displayCellOf?.(e.col, e.row) || e;
-      const x = (cell.col + 0.5) * TILE_SIZE;
-      const y = (cell.row + 0.5) * TILE_SIZE;
-      this._stampBrush(tex, x, y, e.radius, e.strength, null, true);
+      this._stampBrush(tex, e.x, e.y, e.radius, e.strength, null, true);
       this._stampBrush(
         this.glowStatic,
-        x,
-        y,
+        e.x,
+        e.y,
         e.radius * 0.8,
         e.strength * this.glowStrength,
         e.color,
         false,
       );
+      // A sconce shows its flame: a small hot point on the wall face.
+      if (e.flame) this._stampBrush(this.glowStatic, e.x, e.y, 0.16, 0.75, 0xffa848, false);
     }
+    // Shadows go on after the light: they fall inside the pools the light opened.
+    const brush = this.brush;
+    for (const sh of this._pillarShadows()) {
+      const d = TILE_SIZE * RES;
+      brush.setDisplaySize(sh.length * d, 0.8 * d);
+      brush.setRotation?.(sh.rotation);
+      brush.setAlpha(sh.alpha);
+      brush.setTint(this.color);
+      tex.draw(brush, sh.x * RES, sh.y * RES);
+    }
+    brush.setRotation?.(0);
     this._unitSig = null; // the displayed darkness is derived from the cache
   }
 

@@ -28,6 +28,7 @@ import { ensureItemUid } from '../utils/itemUid.js';
 import {
   WEAPON_SWAP_LOCK_REASON,
   weaponChangeBlocked,
+  weaponSwapLockReason,
   weaponSwapLocked,
 } from './WeaponSwapLock.js';
 import { INVENTORY_MAX, CONSUMABLE_MAX, CONVOY_WEAPON_TYPES } from '../utils/constants.js';
@@ -245,8 +246,8 @@ function resolveTrade(ctx, from, to) {
   if (ctx.context === 'battle' && bag === 'inventory') {
     const heldLeaves = (holder, item) =>
       isUnitHolder(holder) && weaponSwapLocked(holder.unit) && holder.unit.weapon === item;
-    if (heldLeaves(from.holder, fromItem) || (toItem && heldLeaves(to.holder, toItem)))
-      return fail(TRADE_REASONS.weaponLocked);
+    if (heldLeaves(from.holder, fromItem)) return fail(weaponSwapLockReason(from.holder.unit));
+    if (toItem && heldLeaves(to.holder, toItem)) return fail(weaponSwapLockReason(to.holder.unit));
   }
   // 7. Capacity: a give needs room; a swap never does.
   if (!toItem) {
@@ -422,7 +423,7 @@ function resolveReorder(ctx, from, to) {
   if (bag === 'inventory' && next[0] !== order[0]) {
     if (!canUnitEquip(unit, next[0])) return fail(cannotWieldReason(unit, next[0]));
     if (ctx.context === 'battle' && weaponChangeBlocked(unit, next[0]))
-      return fail(TRADE_REASONS.weaponLocked);
+      return fail(weaponSwapLockReason(unit));
     equips = next[0];
   }
   return {

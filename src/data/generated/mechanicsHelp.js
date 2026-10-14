@@ -48,11 +48,11 @@ export const GENERATED_HELP_TABS = [
             "color": "#ffdd44"
           },
           {
-            "text": "Prof: 160 weapons (0 legendary)",
+            "text": "Prof: 183 weapons (0 legendary)",
             "color": "#66ddff"
           },
           {
-            "text": "Mast: 21 weapons (20 legendary)",
+            "text": "Mast: 22 weapons (21 legendary)",
             "color": "#66ddff"
           },
           {
@@ -137,17 +137,17 @@ export const GENERATED_MECHANICS_REFERENCE = {
     "rankRequirements": [
       {
         "rank": "Prof",
-        "totalWeapons": 160,
+        "totalWeapons": 183,
         "legendaryWeapons": 0
       },
       {
         "rank": "Mast",
-        "totalWeapons": 21,
-        "legendaryWeapons": 20
+        "totalWeapons": 22,
+        "legendaryWeapons": 21
       }
     ],
     "legendaryRequires": "Mast",
-    "legendaryCount": 20
+    "legendaryCount": 21
   },
   "legendaryWeapons": [
     {
@@ -233,6 +233,13 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "rankRequired": "Mast",
       "range": "1-4",
       "special": "Sends an adjacent ally across the field"
+    },
+    {
+      "name": "Daybreak",
+      "type": "Sword",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": "x3 against dragons and the undead; x2 against the Entity"
     },
     {
       "name": "Eldritch Grasp",

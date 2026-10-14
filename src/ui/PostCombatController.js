@@ -227,6 +227,9 @@ export class PostCombatController {
         // So does a contract this victory kept or broke ("Contract kept: Gained 600 G").
         const contract = scene.runManager.lastContractSettlement;
         if (contract && contract.nodeId === scene.nodeId) band?.addParts?.(contract.lines);
+        // And an Epic weapon's terms ("Hollowsong +1 shadow", "Futuresold −200 G").
+        const epic = scene.runManager.lastEpicVictory;
+        if (epic && epic.nodeId === scene.nodeId) band?.addParts?.(epic.lines);
       }
       const vaultGoldAfterCompletion = Math.max(0, Math.trunc(scene.runManager.gold || 0));
       scene._battleCompletionAwardedGold = completionApplied
@@ -894,6 +897,9 @@ export class PostCombatController {
       completionGoldAward: s._completionGoldAward,
       battleCompletionAwardedGold: s._battleCompletionAwardedGold,
       metaEffects: s.runManager?.metaEffects,
+      // The save's slain bosses (the live meta, never the run's snapshot): the trophies they
+      // unlock join the loot draw (docs/specs/epic-weapons.md §4).
+      bossSlain: s.registry?.get?.('meta')?.getStoryFlags?.()?.bossSlain || null,
     };
   }
 

@@ -27,6 +27,7 @@ import { getImbueStoneItems } from './ImbueSystem.js';
 import { isSignatureWeapon } from './SignatureWeapons.js';
 import { bindAccessorySkill } from './AccessorySkills.js';
 import { legendaryExclusions } from './LegendaryOwnership.js';
+import { epicKillGold } from './EpicWeapons.js';
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 // Tiers an act tunes in lootTables.json `artTiers` (base art chance, scroll slots).
@@ -112,7 +113,11 @@ export function calculateKillReward(enemy, killer = null, options = {}) {
     ? Number(combatEffects.goldPerKill)
     : Number(combatEffects?.bountyGoldOnKill);
   const bountyBonus = Math.max(0, Math.trunc(bountyRaw || 0));
-  return adjustedGold + bountyBonus;
+  // Tollkeeper's Knife (an Epic weapon's `killGold` rule): the killer's held weapon takes a toll,
+  // scaled as the kill's own gold is (a conjured unit's 0, a decayed reinforcement's share), so a
+  // summoned or endless foe is never a toll road.
+  const toll = Math.floor(epicKillGold(killer?.weapon) * rewardMultiplier);
+  return adjustedGold + bountyBonus + toll;
 }
 
 /**
@@ -1072,6 +1077,18 @@ export function generateLootChoices(
       buildLootTablesFromAct(baseTable, allWeapons, consumables).weights.legendaryWeapon,
     ) > 0;
 
+  // Epic weapons (docs/specs/epic-weapons.md): the act's finds plus the boss trophies the save
+  // has unlocked (frozen in the reward's draw), drawn only inside a weapon card at the act's
+  // `epicChance`; the roll is taken only while one is left to offer.
+  const epicPool = (() => {
+    const names = [
+      ...new Set([...normalizeLootArray(table.epicWeapons), ...(options.epicTrophies || [])]),
+    ];
+    const known = names.filter((name) => allWeapons.some((w) => w.name === name));
+    return rosterTypes ? filterByRosterTypes(known, rosterTypes, allWeapons) : known;
+  })();
+  const epicChance = Math.min(1, Math.max(0, normalizeLootNumber(table.epicChance)));
+
   while (choices.length < count && attempts < maxAttempts) {
     attempts++;
     const category = weightedRandom(adjustedWeights);
@@ -1108,9 +1125,19 @@ export function generateLootChoices(
     // unused item remained (two items left: all nine retries repeat 0.2% of
     // the time).
     pool = pool.filter((entry) => !usedNames.has(entry) && !ownedLegendaries.has(entry));
+    let epicDrawn = false;
+    if (category === 'weapon' && epicChance > 0) {
+      const epics = epicPool.filter(
+        (entry) => !usedNames.has(entry) && !ownedLegendaries.has(entry),
+      );
+      if (epics.length && Math.random() < epicChance) {
+        pool = epics;
+        epicDrawn = true;
+      }
+    }
     if (!pool.length) continue;
     let name = pool[Math.floor(Math.random() * pool.length)];
-    if (category === 'weapon' && qualityBonusPercent > 0) {
+    if (category === 'weapon' && !epicDrawn && qualityBonusPercent > 0) {
       const baseWeapon = allWeapons.find(
         (w) => w.name === name && LOOT_WEAPON_TIER_INDEX.has(w.tier),
       );

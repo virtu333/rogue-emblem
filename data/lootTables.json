@@ -34,6 +34,8 @@
       "innateChance": {"Iron": 0.3, "Steel": 0.1},
       "scrollSlots": {"Iron": 2, "Steel": 0}
     },
+    "epicWeapons": ["Prodding Spear", "Parrying Blade", "Rook's Bow", "Pilgrim's Lamp", "Tollkeeper's Knife", "Thornwood Bow"],
+    "epicChance": 0.1,
     "legendaryWeapon": [],
     "accessories": [
       "Goddess Icon",
@@ -184,6 +186,8 @@
       "innateChance": {"Iron": 0.25, "Steel": 0.2},
       "scrollSlots": {"Iron": 2, "Steel": 11}
     },
+    "epicWeapons": ["Prodding Spear", "Parrying Blade", "Rook's Bow", "Pilgrim's Lamp", "Tollkeeper's Knife", "Thornwood Bow", "Haulhook", "Phalanx Pike", "Mirrorglass", "Tallyblade", "Wakelight"],
+    "epicChance": 0.15,
     "legendaryWeapon": [],
     "accessories": [
       "Power Ring",
@@ -328,6 +332,8 @@
       "innateChance": {"Iron": 0.1, "Steel": 0.25},
       "scrollSlots": {"Iron": 1, "Steel": 8}
     },
+    "epicWeapons": ["Tollkeeper's Knife", "Thornwood Bow", "Haulhook", "Phalanx Pike", "Mirrorglass", "Cinderstring", "Tallyblade", "Wakelight", "Gorgemaw", "Hollowsong"],
+    "epicChance": 0.15,
     "legendaryWeapon": [
       "Ragnarok",
       "Namethief",
@@ -344,7 +350,8 @@
       "Oathaxe",
       "Oathbow",
       "Firstwind",
-      "Endword"
+      "Endword",
+      "Daybreak"
     ],
     "accessories": [
       "Seraph Robe",
@@ -485,6 +492,8 @@
       "innateChance": {"Iron": 0.05, "Steel": 0.15},
       "scrollSlots": {"Iron": 0, "Steel": 1}
     },
+    "epicWeapons": ["Haulhook", "Phalanx Pike", "Mirrorglass", "Cinderstring", "Tallyblade", "Wakelight", "Gorgemaw", "Hollowsong"],
+    "epicChance": 0.15,
     "legendaryWeapon": [
       "Ragnarok",
       "Namethief",
@@ -501,7 +510,8 @@
       "Oathaxe",
       "Oathbow",
       "Firstwind",
-      "Endword"
+      "Endword",
+      "Daybreak"
     ],
     "accessories": [
       "Seraph Robe",

@@ -12,6 +12,7 @@ import {
   VISION_CLASS_BONUS,
 } from '../utils/constants.js';
 import { parseRange } from './Combat.js';
+import { epicVisionBonus } from './EpicWeapons.js';
 import { createBoardTransform } from '../utils/boardOrientation.js';
 import {
   ICE_FREE_SLIDE_TILES,
@@ -30,13 +31,17 @@ const DIRECTIONS = [
 /**
  * A player unit's fog vision radius: its move type's range, plus its class's bonus (Thieves,
  * Archers and their promotions see 1 further), plus the bonus of the terrain it
- * stands on (a Mountain sees 2 further). `terrain` is the tile's terrain.json entry (or null).
+ * stands on (a Mountain sees 2 further), plus its held weapon's (Wakelight, EpicWeapons.js).
+ * `terrain` is the tile's terrain.json entry (or null).
  * The one rule Grid and the harness grid read, so the two never drift.
  */
 export function unitVisionRange(unit, terrain) {
   const base = VISION_RANGES[unit?.moveType] || 3;
   return (
-    base + (VISION_CLASS_BONUS[unit?.className] || 0) + (VISION_TERRAIN_BONUS[terrain?.name] || 0)
+    base +
+    (VISION_CLASS_BONUS[unit?.className] || 0) +
+    (VISION_TERRAIN_BONUS[terrain?.name] || 0) +
+    epicVisionBonus(unit?.weapon)
   );
 }
 

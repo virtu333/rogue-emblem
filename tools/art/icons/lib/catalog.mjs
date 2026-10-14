@@ -35,6 +35,9 @@ export function loadData(root = process.cwd()) {
 const WEAPON_ORDER = ['Sword', 'Lance', 'Axe', 'Bow', 'Tome', 'Light', 'Staff', 'Breath'];
 const TIER_RANK = { Iron: 0, Steel: 1, Silver: 2, Legend: 3, Rare: 4 };
 
+/** A weapon's rim: its tier; an Epic weapon (one of a kind, no rim of its own) the Rare rim. */
+const weaponRim = (w) => (w.tier === 'Epic' ? 'Rare' : TIER_RANK[w.tier] != null ? w.tier : 'Iron');
+
 /** Accessories the game treats as legendary (CLAUDE.md, accessories.json notes). */
 export const LEGENDARY_ACCESSORIES = new Set(["Mentor's Band", 'Mercury Sandals']);
 
@@ -99,7 +102,7 @@ export function iconEntries(data) {
         kind: 'weapon',
         type: w.type,
         socket: 'weapon',
-        rim: TIER_RANK[w.tier] != null ? w.tier : 'Iron',
+        rim: weaponRim(w),
         spec: G.weaponSpec(w, ctx),
         source: w,
       });
@@ -240,7 +243,7 @@ export function iconAliases(data) {
               id: slug(w.name),
               of: G.WEAPON_ICON_REUSE[w.name],
               socket: 'weapon',
-              rim: TIER_RANK[w.tier] != null ? w.tier : 'Iron',
+              rim: weaponRim(w),
             },
       ),
     ...upgrades

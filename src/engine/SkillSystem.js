@@ -14,6 +14,7 @@ import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
 import { getUnitMarkFor, markActivation, markProcs, roadBuffEntry } from './MarkSystem.js';
 import { combatDistance } from './EntitySystem.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
+import { epicCombatMods, epicTurnStartEffects } from './EpicWeapons.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -271,6 +272,18 @@ export function getSkillCombatMods(
   const wpnCond = getConditionalWeaponBonuses(weapon, unit, allies);
   mods.atkBonus += wpnCond.atkBonus;
   mods.spdBonus += wpnCond.spdBonus;
+
+  // An Epic weapon's (or a relic's) own rules (engine/EpicWeapons.js): like the bonus above,
+  // a property of the weapon, so Silence and a missing skill catalog leave them on.
+  const epic = epicCombatMods(weapon, unit, opponent, {
+    isInitiating,
+    allies,
+    terrain,
+    turn: context?.turn,
+  });
+  for (const key of MOD_KEYS) mods[key] += epic.mods[key] || 0;
+  if (epic.mods.vantage === true) mods.vantage = true;
+  mods.activated.push(...epic.activated);
 
   // --- Mastery perk + trait combat mods ---
   // Independent of skillsData (a mastered unit with no skills still gets its
@@ -703,8 +716,11 @@ export function checkAstra(attacker, skillsData, procMultiplier = 1) {
  * With `marksData` and a `turn`, a player unit's Mark of the Road rolls here, on the battle's
  * Math.random, and a hit is `{ type: 'buff', target, entry, source, sourceUnit }`: `entry`
  * goes to TimedWeaponArtBuffs.applyTimedBuffEntry (+1 MOV until its phase ends).
+ * Then the Epic weapons' (EpicWeapons.epicTurnStartEffects): Gorgemaw's `toll` on its own
+ * wielder and, from `foes` (the other side's units), Holder of the Breach's slow (a `buff`
+ * with `slow: true`).
  */
-export function getTurnStartEffects(units, skillsData, marksData = null, turn = 1) {
+export function getTurnStartEffects(units, skillsData, marksData = null, turn = 1, foes = []) {
   const effects = [];
 
   const resolvedSkillsData = Array.isArray(skillsData) ? skillsData : [];
@@ -813,6 +829,7 @@ export function getTurnStartEffects(units, skillsData, marksData = null, turn = 
     }
   }
 
+  effects.push(...epicTurnStartEffects(units, foes, turn));
   return effects;
 }
 

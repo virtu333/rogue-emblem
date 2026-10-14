@@ -49,7 +49,8 @@
 import { applyGrievousStatus, getAttackAffixes, isDisplacementImmune } from './AffixSystem.js';
 import { planAreaBlows } from './AreaDamage.js';
 import { planAreaPush } from './AreaPush.js';
-import { combatDistance } from './EntitySystem.js';
+import { combatDistance, getFootprint } from './EntitySystem.js';
+import { recordEpicCombat } from './EpicWeapons.js';
 import { applyCondition, isSilenced } from './StatusConditionSystem.js';
 import { damageUnit, damageUnitDetailed, healUnit, setUnitHP } from './UnitHealth.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
@@ -199,6 +200,16 @@ function* postCombatStep(
       };
       break;
     }
+    case 'epic_self_heal': {
+      // Pilgrim's Lamp (an Epic weapon): the wielder mends after a combat it hit in.
+      if (!sourceUnit || sourceUnit.currentHP <= 0) break;
+      const healed = healUnit(sourceUnit, step.amount);
+      if (healed > 0) {
+        yield { kind: 'hp', unit: sourceUnit };
+        yield { kind: 'hint', unit: sourceUnit, text: `+${healed}`, tone: 'heal' };
+      }
+      break;
+    }
     case 'art_miss_self_damage':
       if (!targetUnit || targetUnit.currentHP <= 0) break;
       yield* damageOverTime(targetUnit, step.amount, step.nonLethal === false ? 0 : 1, world, held);
@@ -226,6 +237,20 @@ function* postCombatStep(
       break;
     case 'skill_on_kill':
       yield* skillOnKill(step, sourceUnit, targetUnit, result, world);
+      break;
+    case 'epic_combat_record':
+      // An Epic weapon's count of its combats and kills (EpicWeapons.recordEpicCombat).
+      if (!sourceUnit || sourceUnit.currentHP <= 0) break;
+      for (const hint of recordEpicCombat(sourceUnit, {
+        struck: step.struck === true,
+        killed: killedInCombat(sourceUnit, targetUnit, result),
+        turn: world.turnNumber,
+      }))
+        yield { kind: 'hint', unit: sourceUnit, text: hint.text, tone: hint.tone };
+      break;
+    case 'epic_reveal':
+      // Wakelight: a foe it hit stays shown for the rest of this phase (Grid.revealContact).
+      if (targetUnit && targetUnit.currentHP > 0) world.revealContact?.(getFootprint(targetUnit));
       break;
     case 'tier2_move':
       yield* postCombatMove(sourceUnit, targetUnit, step, world, result, held);
@@ -428,7 +453,10 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result, held = nul
     getMoveCost: world.getMoveCost,
     getUnitAt: world.getUnitAt,
     getTerrainAt: world.getTerrainAt,
-    isImmovable: (unit) => isDisplacementImmune(unit, world.affixes),
+    // An Epic weapon moves a foe on every hit, so it never moves a boss (as Smite never does).
+    isImmovable: (unit) =>
+      isDisplacementImmune(unit, world.affixes) ||
+      (Boolean(step.epicWeapon) && unit?.isBoss === true),
   });
   // A dash held short by units on the line past its landing: the scene shows each one the fog
   // hid and says the run was blocked (a walk's ambush rule). It reads the real board, so this
@@ -437,7 +465,7 @@ function* postCombatMove(sourceUnit, targetUnit, step, world, result, held = nul
     yield { kind: 'contact', units: moveResult.blockers };
   if (!moveResult.ok) {
     const pinned = moveResult.reason === 'rooted' || moveResult.reason === 'immovable';
-    if (step.mode === 'ram' && pinned && targetUnit?.currentHP > 0)
+    if ((step.mode === 'ram' || step.epicWeapon) && pinned && targetUnit?.currentHP > 0)
       yield { kind: 'hint', unit: targetUnit, text: 'Braced!', tone: 'good' };
     return;
   }

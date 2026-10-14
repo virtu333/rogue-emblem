@@ -5,6 +5,7 @@
 import { normalizeEquippedFirst } from './UnitManager.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { UNIT_PRESENTATION_FIELDS } from './BattleUnitState.js';
+import { EPIC_BATTLE_UNIT_FIELDS } from './EpicWeapons.js';
 
 // Phaser-specific fields that must be stripped for serialization
 const PHASER_FIELDS = UNIT_PRESENTATION_FIELDS;
@@ -97,5 +98,8 @@ export function serializeUnit(unit) {
   // The trade cards' battle stamps (TradeBoons.stampArmyBattleRules): the battle's, never the run's.
   delete data._rangedReachBonus;
   delete data._weaponSwapLocked;
+  delete data._inBattle;
+  // The Epic weapons' battle counts (Frightened Acclaim's kills, Gorgemaw's last meal).
+  for (const key of EPIC_BATTLE_UNIT_FIELDS) delete data[key];
   return data;
 }

@@ -51,6 +51,7 @@ function copyWithoutBattleDeltas(unit) {
   delete data._speedtakerStacks;
   delete data._rangedReachBonus;
   delete data._weaponSwapLocked;
+  delete data._inBattle;
   // Status conditions are battle-scoped; structuredClone keeps weapon ===
   // inventory[i], which serializeUnit relies on to relink the equipped item.
   data._conditions = [];

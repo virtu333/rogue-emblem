@@ -627,6 +627,8 @@ describe('LootSystem', () => {
           ...gameData.lootTables.act3,
           weapons: ['Silver Axe'],
           weights: { weapon: 100, legendaryWeapon: 1, gold: 0 },
+          // No Epic roll inside the weapon card, so the scripted draws below stay in place.
+          epicChance: 0,
         },
       };
       // Draws: category, pick, then the Legend step's roll (and the Legend pick if it passes).
