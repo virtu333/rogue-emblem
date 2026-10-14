@@ -9,7 +9,9 @@
 //
 // What it cannot know, it leaves out rather than guess:
 //   - blows land or miss: nobody falls in the preview, so a foe whose target an earlier foe
-//     would kill still shows it;
+//     would kill still shows it (and an enemy that acts is read to survive its action, so it
+//     takes its Canto step: AIController._cantoStep's plan, applied to the copied board
+//     before the next foe decides, as a foe vacating a chokepoint opens it for the next);
 //   - foes the fog hides: never evaluated, and never a blocker (they would give themselves
 //     away), the Danger overlay's rule (ThreatForecast);
 //   - whatever the phase start adds (reinforcements, a raise, a caravan step).
@@ -23,10 +25,12 @@
 // every unit it may touch is a shallow copy, so the battle never changes.
 
 import { gridDistance, hasPerBattleUsesLeft, isInRange } from './Combat.js';
+import { planEnemyCanto } from './EnemyCanto.js';
 import { isEntity } from './EntitySystem.js';
 import { wakeHolders } from './HoldActivation.js';
 import { settleArtilleryStances } from './SiegeArtillery.js';
 import { isThreatSourceVisible, positionsWithMoverAt } from './ThreatForecast.js';
+import { getTerrainCostReduction } from './SkillSystem.js';
 import { STATUS_CONDITIONS } from '../utils/constants.js';
 
 const tileKey = (col, row) => `${col},${row}`;
@@ -143,6 +147,7 @@ export function predictEnemyIntents({
     const occupied = new Set();
     for (const u of [...visible, ...players, ...npcs])
       if (u !== enemy && alive(u)) occupied.add(tileKey(u.col, u.row));
+    const origin = { col: enemy.col, row: enemy.row };
     const landing = landingTile(view, enemy, decision, occupied);
     enemy.col = landing.col;
     enemy.row = landing.row;
@@ -166,6 +171,29 @@ export function predictEnemyIntents({
       )
         target = view._selectBestInRangeTarget(enemy, [...players, ...npcs]);
       if (target) kind = 'attack';
+    }
+    // The step after the action (AIController._processOneEnemy / _cantoStep), on the same
+    // board: only a foe that acted steps, and it is read to survive what it did.
+    if (kind !== 'none' || decision.breakTile) {
+      const cantoUnits = [...visible, ...players, ...npcs];
+      const skills = view.gameData?.skills;
+      const spent = view._walkSpent(enemy, origin, visible, players, npcs);
+      const plan = planEnemyCanto({
+        enemy,
+        spent,
+        afterCombat: kind === 'attack',
+        grid: view.grid,
+        units: cantoUnits,
+        playerUnits: players,
+        npcUnits: npcs,
+        costModifier: (u) => getTerrainCostReduction(u, skills),
+        skillsData: skills,
+      });
+      if (plan) {
+        const end = plan.path[plan.path.length - 1];
+        enemy.col = end.col;
+        enemy.row = end.row;
+      }
     }
     intents.set(real, { kind, target: realTarget(target), reason: decision.reason || 'none' });
   }
