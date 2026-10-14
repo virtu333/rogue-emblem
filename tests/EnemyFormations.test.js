@@ -303,9 +303,10 @@ const objectiveOf = (id) =>
   Object.keys(data.mapTemplates).find((k) => data.mapTemplates[k].some((t) => t.id === id));
 
 describe('the formation maps', () => {
-  it('ship switched off, so no run meets them until they are played', () => {
+  it('are drawn in runs, all but the Warband (a captains map needs the defeat-objective save format)', () => {
     expect(FORMATION_TEMPLATES.length).toBeGreaterThan(0);
-    expect(FORMATION_TEMPLATES.every((t) => t.enabled === false)).toBe(true);
+    const off = FORMATION_TEMPLATES.filter((t) => t.enabled === false).map((t) => t.id);
+    expect(off).toEqual(['warband']);
   });
 
   it('leave no foe the army can strike on turn 1 unanswered, and no group member alone', () => {

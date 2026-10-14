@@ -2221,7 +2221,6 @@
     {
       "id": "corner_camp",
       "name": "Corner Camp",
-      "enabled": false,
       "acts": [
         "act2",
         "act3",
@@ -2476,7 +2475,6 @@
     {
       "id": "caught_in_the_open",
       "name": "Caught in the Open",
-      "enabled": false,
       "acts": [
         "act2",
         "act3",
@@ -2741,7 +2739,6 @@
     {
       "id": "two_camps",
       "name": "Two Camps",
-      "enabled": false,
       "acts": [
         "act2",
         "act3",
@@ -3191,7 +3188,6 @@
     {
       "id": "three_roads",
       "name": "Three Roads",
-      "enabled": false,
       "parBonus": 3,
       "acts": [
         "act2",
@@ -3314,7 +3310,8 @@
           "group": {
             "id": "road",
             "share": 0.3,
-            "ai": "guard",
+            "ai": "hold",
+            "wakeTurn": 5,
             "role": "ranged",
             "formation": "strongpoint"
           }
@@ -5223,7 +5220,6 @@
     {
       "id": "three_roads_keep",
       "name": "Three Roads Keep",
-      "enabled": false,
       "parBonus": 1,
       "acts": [
         "act2",
@@ -5607,7 +5603,6 @@
     {
       "id": "long_road",
       "name": "The Long Road",
-      "enabled": false,
       "parBonus": 2,
       "acts": [
         "act2",
@@ -5943,7 +5938,6 @@
     {
       "id": "two_gates",
       "name": "Two Gates",
-      "enabled": false,
       "parBonus": 0,
       "acts": [
         "act2",

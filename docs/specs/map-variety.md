@@ -16,7 +16,7 @@ All optional; a template that names none draws and generates exactly what it did
 
 | Field | Meaning |
 |---|---|
-| `enabled: false` | Never drawn by a random pick (`pickTemplate`, `pickTemplateForNode`, via `isTemplateDrawable`). A battle that names it (`templateId`, the dev route) still plays it. New shapes ship this way until they have been played. |
+| `enabled: false` | Never drawn by a random pick (`pickTemplate`, `pickTemplateForNode`, via `isTemplateDrawable`). A battle that names it (`templateId`, the dev route) still plays it. New shapes ship this way until they have been checked and played. |
 | `choices: [{ id, options: [{ weight?, zones, features? }] }]` | One option per choice is taken for the battle and its zones/features added to the template's. One draw per choice. Option zones may add only an `enemySpawn` zone that carries a group; no Throne. |
 | `mirror: 'y'` | The battle flips the template top to bottom half the time (one draw): zones, structures, `escapeZone`, features (`topRight` ↔ `bottomRight`) and reinforcement edges (`top` ↔ `bottom`). Refused beside the tile-placed fields (`hybridArena`, `phaseTerrainOverrides`, `entitySpawn`) and `scriptedWaves`. |
 | `extraEnemies: N` | 1-4 more foes than the battle rolled, still under the map's density cap. No draw. |
@@ -40,7 +40,7 @@ formation's spare tiles).
 A captains map also writes `battleConfig.objectives` and the captains' `authoredId` and `name`.
 The model is the run-format guard's `defeatObjective` capability (`RunFormat.js`), so a run that
 locks one is refused by an older client and kept off the cloud while
-`CloudSync.CLOUD_SAFE_RUN_FORMAT` is 1, as a Descent run is. The Warband ships switched off.
+`CloudSync.CLOUD_SAFE_RUN_FORMAT` is 1, as a Descent run is. The Warband ships switched off; the other seven shapes are drawn in runs.
 
 `validateTemplateLayout` (run by `npm run validate:data`) refuses unknown keys, bad shares or
 AI modes, a `wakeTurn` outside 2-12 or on a non-hold group, a rout hold group with no wake turn,
@@ -88,22 +88,36 @@ the seize guard roll, `coverOpening` moves each foe the army can strike on turn 
 than two others answer (`MIN_OPENING_SUPPORT`) to the free tile of its group's zone nearest its
 group where it is out of reach or answered (no draw); a boss never moves.
 
-Measured over 40 seeds per act (Nightfall, the act's full deploy): free picks per map on Two
-Gates fell from 1.2-1.6 to 0, on the Warband from 0.2-0.4 to 0, everywhere else to 0; the
-nearest groupmate stands 1.2-1.5 tiles away, down from about 2. Generation costs about 1-3 ms
-more on a formation map.
+Measured over 40 seeds per act (Nightfall, the act's full deploy): under the opening model, free
+picks per map on Two Gates fell from 1.2-1.6 to 0, on the Warband from 0.2-0.4 to 0, everywhere
+else to 0 (zero free picks under the opening model, which is only a model); the nearest
+groupmate stands 1.2-1.5 tiles away, down from about 2. Generation costs about 1-3 ms more on a
+formation map.
+
+**Checked against the game's own rules** before the shapes were switched on (Oct 2026; a scratch
+harness, not kept: real run armies from the full-run driver at Act II First Light, Act II and
+Act III Nightfall, 6 seeds, fog forced off; every turn-1 strike `HeadlessBattle` allows, then
+the real enemy phase with enemy Canto). The model counts foes that *can* answer; the AI chooses
+its own targets, so the striker itself is often left alone while the army is struck elsewhere.
+A strike after which no foe struck anyone in the enemy phase (a truly free pick) came 0-0.33
+times a map on the shapes, against 0-0.5 on the live seize maps; Corner Camp's turn-1 strikes
+are a brawl (2.7 strikable foes a map, the army always struck back). Pace with the scripted
+tactician (invincible, 10 seeds a cell, Act II First Light to Act IV Nightfall): the first
+fight comes on turn 1-3 (Three Roads' 3 is the slowest; live maps 1-2.5), and the turns from
+two foes left to the end are within a turn or two of the live rout maps, except Three Roads,
+whose road group guarded its post to the end (4-15 turns); it now holds until turn 5 instead.
 
 ## Shapes
 
 | Id | Objective | Acts | State | Shape |
 |---|---|---|---|---|
-| `corner_camp` | rout | 2-4 | off | Army in a corner; a raiding party of riders (`flank`) charges down the near edge into it while the main force comes from the far corner; a third group either holds along the other near edge (wakes turn 3) or raids from the top middle (seeded). Two extra foes (they raise par as any foe does). Mirrored. |
-| `three_roads` | rout | 2-4 | off | Two walls split the map into a fast middle road (guarded by a ranged group, ballista) and two forest side lanes, each wall with one seeded gap. Par +3. |
-| `three_roads_keep` | seize | 2-4 | off | Three Roads with a keep and the throne at the road's end; waves from top and bottom. Par +1. |
-| `long_road` | seize | 2-4 | off | 20 columns long and 10-12 rows deep: a road through a pass between two cliff bands, a forest track along each edge. A picket of riders (`flank`) meets the army on the road, a ranged group waits on one track (seeded; the other track has a gap through its cliff) and wakes when you come near or on turn 4, and a `front` garrison guards the keep and its throne. Pursuit comes from behind (the left edge) on the higher rungs. One extra foe. |
-| `two_gates` | seize | 2-4 | off | A walled keep in the middle with the throne at its centre; the army comes at it in two companies, one at the west gate and one at the south (mirrored: the north). A `front` garrison holds round the throne until the army comes in reach, riders (`flank`) sally from the far corner in a screen, and a seeded third gate (north or east) opens beside a ranged tower group that holds until disturbed or turn 3. 18x12 / 20x13 / 20x13. |
-| `caught_in_the_open` | rout | 2-4 | off | Army a little in from the left on open ground, the main body ahead in a screen; riders (`flank`) wait in pods ahead above and below (or one big pod, seeded) and wake when you come near or on turn 3. 18x11 / 20x12 / 20x13. One extra foe. Mirrored. |
-| `two_camps` | rout | 2-4 | off | A ridge splits the far side into two camps: one charges, the other is a fortified `front` camp that holds until disturbed or turn 4. Which is which is mirrored; the ridge's gap is seeded. One extra foe. |
+| `corner_camp` | rout | 2-4 | on | Army in a corner; a raiding party of riders (`flank`) charges down the near edge into it while the main force comes from the far corner; a third group either holds along the other near edge (wakes turn 3) or raids from the top middle (seeded). Two extra foes (they raise par as any foe does). Mirrored. |
+| `three_roads` | rout | 2-4 | on | Two walls split the map into a fast middle road (a ranged group holds it until disturbed or turn 5, ballista) and two forest side lanes, each wall with one seeded gap. Par +3. |
+| `three_roads_keep` | seize | 2-4 | on | Three Roads with a keep and the throne at the road's end; waves from top and bottom. Par +1. |
+| `long_road` | seize | 2-4 | on | 20 columns long and 10-12 rows deep: a road through a pass between two cliff bands, a forest track along each edge. A picket of riders (`flank`) meets the army on the road, a ranged group waits on one track (seeded; the other track has a gap through its cliff) and wakes when you come near or on turn 4, and a `front` garrison guards the keep and its throne. Pursuit comes from behind (the left edge) on the higher rungs. One extra foe. |
+| `two_gates` | seize | 2-4 | on | A walled keep in the middle with the throne at its centre; the army comes at it in two companies, one at the west gate and one at the south (mirrored: the north). A `front` garrison holds round the throne until the army comes in reach, riders (`flank`) sally from the far corner in a screen, and a seeded third gate (north or east) opens beside a ranged tower group that holds until disturbed or turn 3. 18x12 / 20x13 / 20x13. |
+| `caught_in_the_open` | rout | 2-4 | on | Army a little in from the left on open ground, the main body ahead in a screen; riders (`flank`) wait in pods ahead above and below (or one big pod, seeded) and wake when you come near or on turn 3. 18x11 / 20x12 / 20x13. One extra foe. Mirrored. |
+| `two_camps` | rout | 2-4 | on | A ridge splits the far side into two camps: one charges, the other is a fortified `front` camp that holds until disturbed or turn 4. Which is which is mirrored; the ridge's gap is seeded. One extra foe. |
 | `warband` | rout (defeat) | 2-4 | off | Two camps behind a ridge, each with a captain: the riders' camp (`flank`, holds until disturbed or turn 4) and the camp proper (`ranged`, guards its post). A `front` screen in the middle charges. Defeat both captains to win; the rest need not fall, but waves keep coming from the right and top. Mirrored. One extra foe. |
 | `snowbound_woods` | rout | 4 | live | Tundra forest ambush (not a band). |
 | `ashen_ridge` | rout | 4 | live | Volcano ridge with a central ballista (not a band). |

@@ -49,9 +49,19 @@ const dataAtCapture = (() => {
   pools.act4.promotedShare = 0.3;
   for (const act of ['act3', 'act4'])
     pools[act].promoted = pools[act].promoted.filter((name) => name !== 'Necromancer');
-  // The Act IV templates added after the capture (docs/specs/map-variety.md) change which
-  // template a seed draws, so the capture's template list is the one played here.
-  const added = new Set(['snowbound_woods', 'ashen_ridge']);
+  // The Act IV templates added (or switched on) after the capture (docs/specs/map-variety.md)
+  // change which template a seed draws, so the capture's template list is the one played here.
+  const added = new Set([
+    'snowbound_woods',
+    'ashen_ridge',
+    'corner_camp',
+    'caught_in_the_open',
+    'two_camps',
+    'three_roads',
+    'three_roads_keep',
+    'long_road',
+    'two_gates',
+  ]);
   const mapTemplates = Object.fromEntries(
     Object.entries(data.mapTemplates).map(([k, list]) => [k, list.filter((t) => !added.has(t.id))]),
   );
