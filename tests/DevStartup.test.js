@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { loadGameData } from './testData.js';
 import {
   parseDevStartupConfig,
@@ -547,5 +547,54 @@ describe('the Act V review route (&descent=1)', () => {
     const plain = route('seed=42').built.data.runManager;
     expect(plain.currentAct).toBe('act1');
     expect(plain.rite).toBeNull();
+  });
+});
+
+describe('the NG+ review route (?devScene=homebase&preset=ngplus)', () => {
+  const config = () => parseDevStartupConfig('?devScene=homebase&preset=ngplus', { devMode: true });
+
+  it("opens Home Base on a Black Sun win's survivors, every kit item and skill real", () => {
+    const gameData = loadGameData();
+    const registry = createRegistry();
+    const route = buildDevStartupRoute(gameData, registry, config());
+    expect(route.key).toBe('HomeBase');
+    const meta = registry.get('meta');
+    expect(meta.hasMilestone('beatLunatic')).toBe(true);
+    expect(meta.ngPlusUnlockBlock()).toBeNull();
+    const ride = meta.getNgPlus().pendingRide;
+    expect(ride.candidates.map((c) => [c.kind, c.name])).toEqual([
+      ['lord', 'Edric'],
+      ['lord', 'Sera'],
+      ['recruit', 'Bjorn'],
+      ['recruit', 'Lyra'],
+      ['recruit', 'Oren'],
+    ]);
+    const skillIds = new Set(gameData.skills.map((s) => s.id));
+    const itemNames = new Set([...gameData.weapons, ...gameData.consumables].map((i) => i.name));
+    for (const c of ride.candidates) {
+      expect(c.items.length).toBeGreaterThan(0);
+      for (const i of c.items) expect(itemNames.has(i.name)).toBe(true);
+      expect(c.skills.length).toBeGreaterThan(0);
+      for (const id of c.skills) expect(skillIds.has(id)).toBe(true);
+    }
+  });
+
+  it('a ride already chosen is not offered again when the route reloads', () => {
+    const store = new Map();
+    vi.stubGlobal('localStorage', {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => void store.set(k, String(v)),
+      removeItem: (k) => void store.delete(k),
+    });
+    const gameData = loadGameData();
+    const registry = createRegistry();
+    buildDevStartupRoute(gameData, registry, config());
+    const meta = registry.get('meta');
+    expect(meta.unlockNgPlus()).toEqual({ ok: true });
+    expect(meta.chooseNgPlusRide([{ ref: 'dev-bjorn', skillId: 'vantage' }]).ok).toBe(true);
+    buildDevStartupRoute(gameData, registry, config());
+    expect(meta.getNgPlus().pendingRide).toBeNull();
+    expect(meta.getNgPlus().barracks.map((r) => r.name)).toEqual(['Bjorn']);
+    vi.unstubAllGlobals();
   });
 });

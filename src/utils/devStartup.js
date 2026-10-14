@@ -18,6 +18,7 @@ import { withDevSetPiece } from './devSetPieceFixtures.js';
 import { applyDevDescent, withDevDescent } from './devDescentFixtures.js';
 import { findSetPiece, setPieceDeployCap } from '../engine/SetPieces.js';
 import { addReviewArmy } from './devReviewArmy.js';
+import { applyNgPlusReviewMeta } from './devNgPlusFixtures.js';
 
 const DEV_META_STORAGE_KEY = 'emblem_rogue_dev_meta';
 const DEV_SCENE_ALIASES = {
@@ -62,6 +63,8 @@ const DEV_PRESETS = new Set([
   'ladder',
   // The event review route (docs/specs/event-nodes.md §17): see applyEventPreset.
   'event',
+  // NG+ review (docs/specs/ng-plus.md): a Black Sun win's survivors at Home Base.
+  'ngplus',
 ]);
 // Presets built on the combat_actions loadout (Edric, Sera and three utility units).
 const COMBAT_LOADOUT_PRESETS = new Set(['combat_actions', 'fog_ambush', 'zombie_remains']);
@@ -179,7 +182,7 @@ function addTeamWeaponArtScrolls(runManager, gameData, maxCount = 4) {
   runManager.scrolls.push(...scrolls);
 }
 
-function applyMetaPreset(meta, preset) {
+function applyMetaPreset(meta, preset, gameData) {
   if (!meta) return;
   if (preset === 'fresh' || preset === 'event') return;
 
@@ -188,6 +191,7 @@ function applyMetaPreset(meta, preset) {
   meta.milestones = new Set(['beatAct1', 'beatAct2', 'beatAct3', 'beatGame']);
   // The ladder with Dusk won: Dusk and Nightfall open, Black Sun still says why not.
   if (preset === 'ladder') meta.milestones.add('beatDusk');
+  if (preset === 'ngplus') applyNgPlusReviewMeta(meta, gameData);
 
   if (
     preset === 'weapon_arts' ||
@@ -630,7 +634,7 @@ function ensureMetaRegistry(registry, gameData, preset) {
     meta = new MetaProgressionManager(gameData.metaUpgrades, DEV_META_STORAGE_KEY);
     registry.set('meta', meta);
   }
-  applyMetaPreset(meta, preset);
+  applyMetaPreset(meta, preset, gameData);
   return meta;
 }
 
