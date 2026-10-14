@@ -131,7 +131,9 @@ export function predictEnemyIntents({
       continue;
     }
     if (isEntity(enemy)) {
-      const decision = view._decideEntityAction(enemy, players, npcs);
+      // The foes the player sees, so a visible Grasping Limb lends its reach and a hidden
+      // one never shows (EntitySystem.canEntityStrike; the live phase passes every foe).
+      const decision = view._decideEntityAction(enemy, players, npcs, visible);
       intents.set(real, {
         kind: decision?.target ? 'attack' : 'none',
         target: realTarget(decision?.target),

@@ -119,6 +119,7 @@ import {
   recruitAffixesAllowed,
 } from './DifficultyEngine.js';
 import { hasRevivalStones } from './RevivalStones.js';
+import { sanitizeEntityKit } from './EntityKitConfig.js'; // the Entity's kit, final act only
 import { assignPortraitVariants, backfillPortraitVariants } from './PortraitVariants.js';
 import {
   normalizeWeaponArtBinding,
@@ -3695,6 +3696,10 @@ export class RunManager {
     if (hasRevivalStones(this.difficultyModifiers?.revivalStones))
       battleParams.revivalStones = { ...this.difficultyModifiers.revivalStones };
     else delete battleParams.revivalStones;
+    const entityKit =
+      battleAct === 'finalBoss' && sanitizeEntityKit(this.difficultyModifiers?.entityKit);
+    if (entityKit) battleParams.entityKit = entityKit;
+    else delete battleParams.entityKit;
     battleParams.objectiveParOffset = this.difficultyModifiers?.objectiveParOffset ?? null;
     this._repairDuplicateRosterNames();
     // Units enter the battle (RunManager.getRoster clones) with their run identity.

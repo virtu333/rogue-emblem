@@ -4,7 +4,7 @@
 // An enemy threatens a tile when, next enemy phase, it can stop on some tile of its
 // movement range (movement + terrain costs + blocking units + roots) from which the
 // tile is inside its weapon range. Entities are stationary and strike from their
-// footprint; enemy-owned ballistas are independent sources. A siege caster or a
+// footprint (and beside each Grasping Limb of theirs the player sees: EntityKit.js); enemy-owned ballistas are independent sources. A siege caster or a
 // status-staff caster with shots or uses left holds its post (SiegeArtillery.js), so it
 // strikes from there. Status staves are a
 // separate, non-damage threat. The Entity alone also has a COUNTER band: tiles it can only
@@ -28,10 +28,10 @@
 //                           foes that reach a tile carry one.
 
 import { canInspectUnit, statusStaffThreat } from './BattleInformation.js';
-import { entityDistanceTo, getFootprint, isEntity } from './EntitySystem.js';
+import { entityDistanceTo, getFootprint, isEntity, livingEntityLimbs } from './EntitySystem.js';
 import { willRemainRootedNextPhase } from './StatusConditionSystem.js';
 import { getBallistaDangerTiles } from './BallistaEngine.js';
-import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
+import { ENTITY_LIMB_REACH, ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
 import {
   getPerBattleRemainingUses,
   isInRange,
@@ -85,7 +85,15 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
         damage.add(tileKey(t.col, t.row));
       }
     }
-    for (const key of entityCounterOnlyTiles(enemy, grid.cols, grid.rows)) counter.add(key);
+    // Beside each of its Grasping Limbs the player can see, too (canEntityStrike).
+    for (const limb of livingEntityLimbs(ctx.enemyUnits))
+      if (isThreatSourceVisible(grid, limb))
+        for (const t of grid.getAttackRange(limb.col, limb.row, {
+          range: `1-${ENTITY_LIMB_REACH}`,
+        }))
+          damage.add(tileKey(t.col, t.row));
+    for (const key of entityCounterOnlyTiles(enemy, grid.cols, grid.rows))
+      if (!damage.has(key)) counter.add(key);
     return { damage, status, counter };
   }
   // No movement while it stays rooted (willRemainRootedNextPhase, not isRooted: a root

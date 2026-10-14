@@ -181,7 +181,11 @@
         "baseStats": { "$ref": "#/$defs/statBlock" },
         "moveType": { "$ref": "#/$defs/moveType" },
         "weaponProficiencies": { "type": "string" },
-        "role": { "type": "string" }
+        "role": { "type": "string" },
+        "enemyWeapon": {
+          "type": "string",
+          "description": "The enemy-only weapon this boss-tier class wields (the Grasping Limb's Grasping Coil: weapons.json, price 0, in no loot table)."
+        }
       },
       "required": ["name", "tier", "baseStats", "moveType", "weaponProficiencies", "role"],
       "additionalProperties": false

@@ -2,7 +2,7 @@
 //
 // The Entity strikes on its own turn within ENTITY_PRIMARY_ATTACK_RANGE of its 3x3 body
 // (AIController._decideEntityAction), but its weapons (Eldritch Grasp, Twisting Vortex) carry
-// range 1-4, so a unit that attacks it from 3-4 tiles away is countered all the same
+// range 1-4, so a unit that attacks it from 4 tiles away is countered all the same
 // (Combat.canCounter). Every danger display shows the strike zone; this module names the
 // rest: the distances from the body where the Entity can ONLY counter. Ordinary units need
 // no such band: movement plus weapon range already covers where they can counter.
@@ -64,7 +64,7 @@ export function entityCounterOnlyTiles(entity, cols, rows) {
 
 /**
  * The Entity's reach as the unit pages read it: { strike, counter, text }, or null for any
- * other unit. "Strikes within 2 · Counters within 4"; when its counter reaches no farther than
+ * other unit. "Strikes within 3 · Counters within 4"; when its counter reaches no farther than
  * its strike, one clause ("Strikes and counters within 2").
  */
 export function entityReachInfo(unit) {

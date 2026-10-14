@@ -20,6 +20,8 @@
 // canvas panel and MobileBattleHUD the phone panel. It never draws RNG — the
 // forecast is the pure getCombatForecast (via scene._computePlayerForecast).
 
+import { entityKitForecastNote } from '../engine/EntityKit.js';
+import { entityKitOf } from '../engine/EntityKitConfig.js';
 import { ForecastOverlay } from './ForecastOverlay.js';
 import { AreaPreviewController } from './AreaPreviewController.js';
 import { areaForecastLines, previewAreaArt } from '../engine/AreaPreview.js';
@@ -487,6 +489,10 @@ export class AttackFlowController {
       forecast.defender.lessonNote = armor;
       this._affixLessonsShown.add('guide_armor');
     }
+    // The Entity's kit on the higher rungs (EntityKit.js): striking it raises a limb, and on
+    // Black Sun its counter drags and roots.
+    const kitNote = entityKitForecastNote(entityKitOf(scene.battleConfig), attacker, defender, forecast); // prettier-ignore
+    if (kitNote) forecast.defender.lessonNote = kitNote;
     // A prologue chapter's forecast tip (reinforcement, never over the forecast): its
     // beats are matched before the first render, and the line stays in the attacker's
     // notes, re-renders included, until the forecast closes (read on Confirm / Cancel).

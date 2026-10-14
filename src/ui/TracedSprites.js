@@ -14,9 +14,46 @@
 // the Entity 192) shown at 64x64 (128x128) world px with the feet on the rebuilt
 // baseline. A unit with no traced sprite falls back to the next-best traced key, then to
 // the classic class sprite (BattleUnitVisuals).
-import manifest from './TracedSpriteManifest.json';
+import bakedManifest from './TracedSpriteManifest.json';
 import { battlefieldTracedSpritesEnabled } from './battlefieldArtFlags.js';
 import { displayedPerson, portraitPeopleForClass } from '../engine/PortraitVariants.js';
+
+/**
+ * Sprites cut from another sprite's frames (no pixels of their own, so a rebake keeps them):
+ * `box` is [x, y, w, h] inside the source's trimmed frame, drawn standing on the foot row.
+ * The Grasping Limb is the Entity's upper-left tentacle, eye and all.
+ */
+const CROPPED_SPRITES = {
+  enemy_grasping_limb: { from: 'enemy_entity', box: [13, 7, 30, 53], size: 96, kind: 'infantry' },
+};
+
+function croppedSprites(baked) {
+  const footRow = baked.footRow;
+  const out = {};
+  for (const [key, { from, box, size, kind }] of Object.entries(CROPPED_SPRITES)) {
+    const src = baked.sprites[from];
+    if (!src) continue;
+    const [dx, dy, w, h] = box;
+    out[key] = {
+      page: src.page,
+      x: src.x + dx,
+      y: src.y + dy,
+      w,
+      h,
+      step: src.step,
+      ox: Math.round((size - w) / 2),
+      oy: footRow - h,
+      size,
+      kind,
+    };
+  }
+  return out;
+}
+
+const manifest = {
+  ...bakedManifest,
+  sprites: { ...bakedManifest.sprites, ...croppedSprites(bakedManifest) },
+};
 
 export const TRACED_PREFIX = 'traced-';
 const PAGE_PREFIX = 'traced-page-';

@@ -114,8 +114,14 @@ import {
 } from '../../src/engine/StatusConditionSystem.js';
 import { applyEnemySpawnGear, applySpawnLoadout } from '../../src/engine/EnemySpawnGear.js';
 import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
-import { registerBattleEntity } from '../../src/engine/BattleEntityIdentity.js';
-import { crumbleFor, isNecromancer, raiseFor, raisers } from '../../src/engine/Necromancy.js';
+import { crumbleFor, isNecromancer } from '../../src/engine/Necromancy.js';
+import { entityKitWorld, initialEntityKitState } from '../../src/engine/EntityKit.js';
+import {
+  entityLimbsOnFall,
+  processEntityLimbs,
+  processNecromancy,
+  processVigil,
+} from './headlessConjuring.js';
 import { createPlayerKnowledge, unitPositionEntry } from '../../src/engine/PlayerKnowledge.js';
 import {
   spendAreaStrikeShot,
@@ -127,6 +133,7 @@ import {
   combatDistance,
   getFootprint,
   isEntity,
+  isEntityLimb,
   runEntitySplashSync,
 } from '../../src/engine/EntitySystem.js';
 import { runDeathburstSync } from '../../src/engine/Deathburst.js';
@@ -210,7 +217,7 @@ import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import { deriveNodeBattleSeed } from '../../src/engine/BattleScout.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import { applyPostSpawn, settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
-import { createVigilState, vigilPhaseStep } from '../../src/engine/Vigil.js';
+import { createVigilState } from '../../src/engine/Vigil.js';
 import { applyDueHybridOverrides } from '../../src/engine/TerrainPhases.js';
 import {
   buildRisenUnit,
@@ -380,6 +387,7 @@ export class HeadlessBattle {
     this.remainsTargets = [];
     // As BattleScene: a Vigil map counts its words and calls from a fresh state.
     this._vigilState = bc.vigil ? createVigilState() : null;
+    this._entityKitState = initialEntityKitState(bc); // the Entity's limbs (EntityKit.js)
     // The run's earned blessings that act in battle, as BattleScene reads them at a fresh
     // start (engine/BattleBlessings.js): from the run when one is attached, else from the
     // numbers a sim hands in `battleParams.battleBlessings`.
@@ -1367,7 +1375,7 @@ export class HeadlessBattle {
   _processTerrainDamage(units) {
     for (const unit of [...(units || [])]) {
       if (!unit || unit._removing || unit.currentHP <= 0) continue;
-      if (isEntity(unit)) continue; // the Entity is immune to terrain hazards
+      if (isEntity(unit) || isEntityLimb(unit)) continue; // immune to terrain hazards
       const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
       if (isLavaCrackTerrainIndex(terrainIdx)) {
         if (!lavaBurnsUnit(unit)) continue;
@@ -1898,6 +1906,7 @@ export class HeadlessBattle {
       skillsData: this.gameData?.skills,
       marksData: this.gameData?.marks,
       ...(this._battleBlessings ? { battleBlessings: this._battleBlessings } : {}),
+      ...entityKitWorld(this),
     };
   }
 
@@ -2317,6 +2326,7 @@ export class HeadlessBattle {
       // As BattleScene.removeUnit: a Necromancer's Skeletons crumble with it (no killer:
       // no gold, no XP), before any battle-end check reads the roster.
       if (isNecromancer(unit)) crumbleFor(unit, this.enemyUnits);
+      entityLimbsOnFall(this, unit, killer); // the Entity's limbs (EntityKit.js)
     }
     // As BattleScene.removeUnit: a Deathburst bursts last (engine/Deathburst.js), each victim
     // it fells removed with the burster's credit before the next is struck.
@@ -2360,64 +2370,13 @@ export class HeadlessBattle {
     if (rising.length > 0) this._checkBattleEnd();
   }
 
-  /**
-   * Mirrors NecromancyController.processRaises (no banner, no graphics): each living
-   * Necromancer with fewer than two living Skeletons raises one onto its first free
-   * passable neighbour, from the keyed stream (never Math.random).
-   */
+  /** The enemy-phase-start conjurings (headlessConjuring.js: the scene controllers' mirrors). */
   _processNecromancy() {
-    const turn = this.turnManager?.turnNumber ?? 1;
-    // The harness never hands out battle entity ids; a Necromancer needs one to own its raises.
-    for (const unit of this.enemyUnits) if (isNecromancer(unit)) registerBattleEntity(this, unit);
-    for (const necromancer of raisers(this.enemyUnits)) {
-      const raised = raiseFor(necromancer, {
-        enemyUnits: this.enemyUnits,
-        cols: this.battleConfig.cols,
-        rows: this.battleConfig.rows,
-        isOccupied: (c, r) => Boolean(this.getUnitAt(c, r)),
-        moveCostAt: (c, r, moveType) => this.grid.getTerrainAt(c, r)?.moveCost?.[moveType],
-        classes: this.gameData.classes,
-        weapons: this.gameData.weapons,
-        seed: this._getReinforcementSeed(),
-        turn,
-        difficultyConfig: this._getEnemyDifficultyConfig(),
-      });
-      if (!raised) continue;
-      registerBattleEntity(this, raised.unit);
-      this.enemyUnits.push(raised.unit);
-    }
+    processNecromancy(this);
   }
 
-  /**
-   * Mirrors VigilController.processPhase (no banner, no markers): the Voices on their sigils
-   * speak, then each open circle calls a Hollowed, from the keyed stream (engine/Vigil.js).
-   * The words are counted in `_vigilState.words`, committed to the run's Rite only at victory.
-   */
   _processVigil() {
-    const vigil = this.battleConfig?.vigil;
-    if (!vigil) return;
-    const step = vigilPhaseStep({
-      vigil,
-      state: this._vigilState,
-      enemyUnits: this.enemyUnits,
-      playerUnits: this.playerUnits,
-      npcUnits: this.npcUnits,
-      cols: this.battleConfig.cols,
-      rows: this.battleConfig.rows,
-      isOccupied: (c, r) => Boolean(this.getUnitAt(c, r)),
-      moveCostAt: (c, r, moveType) => this.grid.getTerrainAt(c, r)?.moveCost?.[moveType],
-      turn: this.turnManager?.turnNumber ?? 1,
-      seed: this._getReinforcementSeed(),
-      riteAtEntry: this.battleParams?.riteAtEntry ?? 0,
-      classes: this.gameData.classes,
-      weapons: this.gameData.weapons,
-      difficultyConfig: this._getEnemyDifficultyConfig(),
-    });
-    this._vigilState = step.state;
-    for (const { unit } of step.summons) {
-      registerBattleEntity(this, unit);
-      this.enemyUnits.push(unit);
-    }
+    processVigil(this);
   }
 
   /** Faction-aware ally pool for Divine Charge heals (enemy→enemy, player→player, npc→player+npc) */
@@ -2479,6 +2438,7 @@ export class HeadlessBattle {
       this._processZombieRevival();
       this._processNecromancy();
       this._processVigil();
+      processEntityLimbs(this);
       if (this.battleState === HEADLESS_STATES.BATTLE_END) return;
       this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
       this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();

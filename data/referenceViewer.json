@@ -21,12 +21,12 @@
       },
       {
         "rank": "Mast",
-        "totalWeapons": 22,
-        "legendaryWeapons": 21
+        "totalWeapons": 23,
+        "legendaryWeapons": 22
       }
     ],
     "legendaryRequires": "Mast",
-    "legendaryCount": 21
+    "legendaryCount": 22
   },
   "legendaryWeapons": [
     {
@@ -125,6 +125,13 @@
       "type": "Sword",
       "rankRequired": "Mast",
       "range": "1-4",
+      "special": ""
+    },
+    {
+      "name": "Grasping Coil",
+      "type": "Sword",
+      "rankRequired": "Mast",
+      "range": "1",
       "special": ""
     },
     {

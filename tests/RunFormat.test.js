@@ -69,7 +69,7 @@ const battleNode = (run) => run.nodeMap.nodes.find((n) => n.type === 'battle' &&
 const ids = (saved) => requiredRunFormat(saved).capabilities;
 
 describe('the capability table', () => {
-  it('every capability needs format 2, and this build plays only the Descent’s', () => {
+  it('every capability needs format 2, and this build plays only the Descent’s and the Entity kit', () => {
     expect(RUN_FORMAT).toBe(2);
     expect(LEGACY_RUN_FORMAT).toBe(1);
     expect(CAPABILITY_IDS).toEqual([
@@ -84,11 +84,18 @@ describe('the capability table', () => {
       'rite',
       'vigil',
       'defeatObjective',
+      'entityKit',
     ]);
     for (const id of CAPABILITY_IDS) expect(RUN_CAPABILITIES[id]).toBe(2);
     // The Descent's writers have shipped; no large-maps writer has. A client never writes
     // what it can't read (test 24). RunFormatDescent.test.js holds the Descent's ids.
-    expect(CLIENT_CAPABILITIES).toEqual(['descent', 'rite', 'vigil', 'defeatObjective']);
+    expect(CLIENT_CAPABILITIES).toEqual([
+      'descent',
+      'rite',
+      'vigil',
+      'defeatObjective',
+      'entityKit',
+    ]);
   });
 
   it('every registry entry is a capability id or one of the named classes', () => {

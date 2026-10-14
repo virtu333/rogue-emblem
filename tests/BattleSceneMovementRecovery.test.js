@@ -628,18 +628,19 @@ describe('BattleScene movement recovery', () => {
       result.filter((t) => t.counterThreat).map((t) => `${t.col},${t.row}`),
     );
 
-    // Entity body: (3,3)-(5,5). ENTITY_PRIMARY_ATTACK_RANGE = 2.
-    // Max threatened distance from any body tile = 2.
-    // So (1,3) is 2 away from body tile (3,3) — should be IN.
-    expect(keys.has('1,3')).toBe(true);
-    // (0,3) is 3 away from body tile (3,3) — should NOT be in (range capped at 2).
-    expect(keys.has('0,3')).toBe(false);
-    // ...but its 1-4 weapon counters there: the band shows it (3 and 4 away, not 5).
-    expect(counterKeys.has('0,3')).toBe(true);
+    // Entity body: (3,3)-(5,5). ENTITY_PRIMARY_ATTACK_RANGE = 3.
+    // Max threatened distance from any body tile = 3.
+    // So (0,3) is 3 away from body tile (3,3) — should be IN.
+    expect(keys.has('0,3')).toBe(true);
+    // (9,3) is 4 away from body tile (5,3) — should NOT be in (range capped at 3).
+    expect(keys.has('9,3')).toBe(false);
+    // ...but its 1-4 weapon counters there: the band shows it (4 away, not 5).
+    expect(counterKeys.has('9,3')).toBe(true);
+    expect(counterKeys.has('8,3')).toBe(false);
 
-    // getAttackRange called with range '1-2', NOT '1-4'
+    // getAttackRange called with range '1-3', NOT '1-4'
     for (const call of scene.grid.getAttackRange.mock.calls) {
-      expect(call[2].range).toBe('1-2');
+      expect(call[2].range).toBe('1-3');
     }
 
     // getMovementRange should NOT be called for Entity

@@ -25,7 +25,7 @@
 // starts (docs/specs/utility-abilities.md).
 import { traceForcedSlide } from './IceMovement.js';
 import { settleMoves } from './ActionMovement.js';
-import { isEntity } from './EntitySystem.js';
+import { isEntity, isEntityLimb } from './EntitySystem.js';
 import { isDisplacementImmune } from './AffixSystem.js';
 import { isRooted } from './StatusConditionSystem.js';
 
@@ -133,7 +133,8 @@ export function traceForcedMove(
  * @returns {null|'entity'|'boss'|'anchored'|'rooted'}
  */
 export function displacementBlockReason(foe, affixData) {
-  if (isEntity(foe)) return 'entity';
+  // A Grasping Limb is rooted in the Entity's body: it holds as the Entity does.
+  if (isEntity(foe) || isEntityLimb(foe)) return 'entity';
   if (foe.isBoss) return 'boss';
   if (isDisplacementImmune(foe, affixData)) return 'anchored';
   if (isRooted(foe)) return 'rooted';
@@ -143,7 +144,7 @@ export function displacementBlockReason(foe, affixData) {
 const liveUnit = (unit) => Boolean(unit) && unit.currentHP > 0 && !unit._removing;
 
 /**
- * Allies `unit` can Shove: one per side, adjacent, with the tile beyond free for the
+ * Allies `unit` can Shove: one per side, adjacent, not rooted, with the tile beyond free for the
  * ally's move type (a fogged tile counts as taken, so a hidden foe never shows by an
  * option's absence). Where the ally ends is the push plus any slide, over the board as
  * the player knows it.
@@ -160,7 +161,8 @@ export function findShoveTargets(unit, ctx = {}) {
     const ally = allies.find(
       (u) => u !== unit && liveUnit(u) && u.col === unit.col + dc && u.row === unit.row + dr,
     );
-    if (!ally) continue;
+    // A rooted ally holds its ground (the Entity's undertow, a root staff).
+    if (!ally || isRooted(ally)) continue;
     const landing = traceForcedMove(ally, dc, dr, SHOVE_DISTANCE, grid, getUnitAt, slideUnitAt);
     if (landing.steps <= 0) continue;
     targets.push({
