@@ -72,6 +72,33 @@ If reference text and executable behavior disagree, say so: describe what the co
 does and separately identify any apparent documentation mismatch or bug. Do not
 assume Fire Emblem rules apply just because names or mechanics look familiar.
 
+## Current difficulty ladder and Lord Selection
+
+The displayed difficulty ladder is **First Light** (`normal`) → **Dusk**
+(`dusk`) → **Nightfall** (`hard`) → **Black Sun** (`lunatic`).
+The internal ID `hard` and its completion milestone `beatHard` refer to
+**Nightfall in current builds**. Older releases called that mode Hard; do not
+conflate it with Dusk's `beatDusk`. Legacy Hard victories may already have
+`beatHard` and are grandfathered into later difficulty unlocks. For an
+observed unlock, verify the actual milestone rather than inferring it from
+the displayed difficulty label.
+
+For Home Base **Banner of Command** and **Chosen Companions**, start with
+[meta upgrade definitions](../data/metaUpgrades.json) (`commander_choice`,
+`partner_choice`, and prerequisite `legendary_heir`) and
+[MetaProgressionManager](../src/engine/MetaProgressionManager.js)
+(`getCommanderChoiceTier`, `getLordSelection`, `hasMetLord`,
+`setCommander`, `setPartner`). Check
+[Home Base UI](../src/ui/MobileHomeBase.js) for selection availability and
+[RunManager](../src/engine/RunManager.js) plus
+[Commander](../src/engine/Commander.js) for run-start behavior,
+commander defeat and starting pair fallbacks. Cross-check
+[CommanderChoice tests](../tests/CommanderChoice.test.js).
+The two selection upgrades require `beatHard` (**Nightfall**),
+not `beatDusk` (Dusk), and the first requires Power of Friendship level 1.
+Only lords already met on the save can be selected. Turning meta upgrades
+off restores Edric and Sera, regardless of stored choices.
+
 ## Topic map
 
 Symbols and search terms are starting points, not an exhaustive call graph. Follow
