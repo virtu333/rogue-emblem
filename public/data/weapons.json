@@ -2411,7 +2411,7 @@
     "price": 2000
   },
   {
-    "name": "Toppling Cut Scroll",
+    "name": "Toppling Blow Scroll",
     "lore": "A woodcutter's lesson for giants: never mind the bark, find where the weight leans.",
     "type": "Scroll",
     "tier": "Rare",
@@ -2421,10 +2421,12 @@
     "crit": 0,
     "weight": 0,
     "range": "0",
-    "special": "Teaches Toppling Cut (Weapon Art)",
-    "teachesWeaponArtId": "sword_toppling_cut",
+    "special": "Teaches Toppling Blow (Weapon Art)",
+    "teachesWeaponArtId": "toppling_blow",
     "allowedWeaponTypes": [
-      "Sword"
+      "Sword",
+      "Lance",
+      "Axe"
     ],
     "price": 2000
   },

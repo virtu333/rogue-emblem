@@ -1,10 +1,10 @@
-// Toppling Cut: a Steel Sword art that adds floor(15% of the foe's max HP) to its strike,
+// Toppling Blow: a Steel art for any melee weapon (sword, lance, axe) that adds floor(15% of the foe's max HP) to its strike,
 // after DEF or RES, so it bites even where the blade cannot scratch. Built as the answer to
 // the Entity (about 124 HP on Nightfall, DEF 25): 18 extra on a strike. Every number is
 // worked by hand from the formula in CLAUDE.md:
 //   Steel Sword: 8 might, 85 hit, 5 weight. Attacker: STR 10, SKL 30 (85 + 60: a sure hit).
 //   Colossus: HP 124, DEF 25, RES 2, LCK 40 (never critted). Plain strike: 10 + 8 - 25 < 0 = 0.
-//   Toppling Cut: 0 + floor(0.15 x 124) = 18.
+//   Toppling Blow: 0 + floor(0.15 x 124) = 18.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadGameData } from './testData.js';
 import {
@@ -14,13 +14,16 @@ import {
   resolveCombat,
   strikeDamage,
 } from '../src/engine/Combat.js';
-import { getWeaponArtCombatMods } from '../src/engine/WeaponArtSystem.js';
+import {
+  getWeaponArtCombatMods,
+  isWeaponArtCompatibleWithWeapon,
+} from '../src/engine/WeaponArtSystem.js';
 import { weaponArtSheet } from '../src/ui/weaponArtDisplay.js';
 import { summarizeWeaponArtEffect } from '../src/ui/WeaponArtVisibility.js';
 
 const data = loadGameData();
 const weapon = (name) => structuredClone(data.weapons.find((w) => w.name === name));
-const art = data.weaponArts.arts.find((a) => a.id === 'sword_toppling_cut');
+const art = data.weaponArts.arts.find((a) => a.id === 'toppling_blow');
 
 const unit = (name, stats, extra = {}) => ({
   name,
@@ -46,10 +49,10 @@ const topple = () => mergeCombatMods(null, art.combatMods);
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('Toppling Cut data', () => {
-  it('is a Steel Sword art for Prof rank in act 2, 6 HP, twice a battle', () => {
+describe('Toppling Blow data', () => {
+  it('is a Steel melee art for Prof rank in act 2, 6 HP, twice a battle', () => {
     expect(art).toMatchObject({
-      name: 'Toppling Cut',
+      name: 'Toppling Blow',
       weaponType: 'Sword',
       tierAffinity: 'Steel',
       unlockAct: 'act2',
@@ -75,10 +78,17 @@ describe('Toppling Cut data', () => {
     expect(getWeaponArtCombatMods({ combatMods: {} }).foeMaxHpShare).toBe(0);
   });
 
-  it('is taught by a Sword scroll the Act II pool can drop, and the sheet says what it does', () => {
+  it('any melee weapon can use it: swords, lances and axes, never a bow or a tome', () => {
+    for (const name of ['Steel Sword', 'Steel Lance', 'Steel Axe', 'Iron Lance', 'Hand Axe'])
+      expect(isWeaponArtCompatibleWithWeapon(art, weapon(name)), name).toBe(true);
+    for (const name of ['Steel Bow', 'Fire', 'Heal'])
+      expect(isWeaponArtCompatibleWithWeapon(art, weapon(name)), name).toBe(false);
+  });
+
+  it('is taught by a melee scroll the Act II pool can drop, and the sheet says what it does', () => {
     const scroll = data.weapons.find((w) => w.teachesWeaponArtId === art.id);
-    expect(scroll?.name).toBe('Toppling Cut Scroll');
-    expect(scroll.allowedWeaponTypes).toEqual(['Sword']);
+    expect(scroll?.name).toBe('Toppling Blow Scroll');
+    expect(scroll.allowedWeaponTypes).toEqual(['Sword', 'Lance', 'Axe']);
     const text = weaponArtSheet(art)
       .map((row) => row.text)
       .join('\n');
@@ -87,7 +97,7 @@ describe('Toppling Cut data', () => {
   });
 });
 
-describe('Toppling Cut damage', () => {
+describe('Toppling Blow damage', () => {
   it("adds 15% of the foe's max HP even when armour stops the whole blow: 0 becomes 18", () => {
     const s = swordsman();
     expect(strikeDamage(s, s.weapon, colossus(), null, null)).toBe(0);
@@ -110,7 +120,7 @@ describe('Toppling Cut damage', () => {
   });
 });
 
-describe('Toppling Cut in the forecast and in combat', () => {
+describe('Toppling Blow in the forecast and in combat', () => {
   const ctx = () => ({ atkWeaponArtMods: getWeaponArtCombatMods(art) });
   const forecast = (a, d) => getCombatForecast(a, a.weapon, d, null, 1, null, null, ctx());
   const resolve = (a, d) => {

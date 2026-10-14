@@ -2812,9 +2812,10 @@
       }
     },
     {
-      "id": "sword_toppling_cut",
-      "name": "Toppling Cut",
+      "id": "toppling_blow",
+      "name": "Toppling Blow",
       "weaponType": "Sword",
+      "allowedTypes": ["Sword", "Lance", "Axe"],
       "tierAffinity": "Steel",
       "unlockAct": "act2",
       "requiredRank": "Prof",
@@ -2827,7 +2828,7 @@
         "activated": [
           {
             "id": "weapon_art",
-            "name": "Toppling Cut"
+            "name": "Toppling Blow"
           }
         ]
       }

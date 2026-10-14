@@ -213,7 +213,7 @@ function normalizeCombatFoeDefShare(value) {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-/** A share of the foe's max HP a strike adds as damage (Toppling Cut); 0 when absent. */
+/** A share of the foe's max HP a strike adds as damage (Toppling Blow); 0 when absent. */
 function normalizeCombatFoeMaxHpShare(value) {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? Math.min(1, n) : 0;
@@ -985,7 +985,7 @@ function foeDefShareBonus(
 }
 
 /**
- * Toppling Cut's bonus (`foeMaxHpShare`): floor(share × the foe's max HP) added to the
+ * Toppling Blow's bonus (`foeMaxHpShare`): floor(share × the foe's max HP) added to the
  * strike after its DEF or RES, so it lands even on a foe the weapon cannot scratch. Physical
  * or magic alike. Max HP, not current: the same bite on every bar of a boss.
  */
