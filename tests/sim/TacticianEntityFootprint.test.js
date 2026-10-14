@@ -170,7 +170,7 @@ describe('TacticianAgent: the Entity is its whole body', () => {
     expect(plan.taken).toBeCloseTo(expectedDamage(fc.defender), 6);
   });
 
-  it("reads the Entity's strike as range 2 from any body tile", () => {
+  it("reads the Entity's strike as range 3 from any body tile", () => {
     const { driver, hero } = entityField();
     standAt(hero, 0, 7);
     const agent = new TacticianAgent(driver);
@@ -180,11 +180,14 @@ describe('TacticianAgent: the Entity is its whole body', () => {
     expect(attackers(4, 6)).toBe(1);
     // Two right of the middle-right body tile (4,3): 2 from the body, 5 from the anchor.
     expect(attackers(6, 3)).toBe(1);
-    // Up-left of the anchor: 3 from the body (the anchor is its nearest tile). Inside the
-    // Entity's weapon range (1-4) but outside the range it strikes at (2).
-    expect(attackers(0, 1)).toBe(0);
-    // Three right of the body: out of reach.
-    expect(attackers(7, 3)).toBe(0);
+    // Up-left of the anchor: 3 from the body (the anchor is its nearest tile): it strikes at 3.
+    expect(attackers(0, 1)).toBe(1);
+    // Three right of the body: in reach too.
+    expect(attackers(7, 3)).toBe(1);
+    // Four from the body, up-left of the anchor and right of it: inside the Entity's weapon
+    // range (1-4, it counters there) but outside the range it strikes at (3).
+    expect(attackers(0, 0)).toBe(0);
+    expect(attackers(8, 3)).toBe(0);
   });
 
   it("advances to the body's edge, not the anchor's neighbours (seize boss field)", () => {
