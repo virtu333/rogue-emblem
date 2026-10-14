@@ -82,13 +82,13 @@ describe('resolveTimeOfDay — dawn and dusk', () => {
   it('each falls on a small share of outdoor battles, the rest by day', () => {
     const counts = { day: 0, night: 0, dawn: 0, dusk: 0 };
     for (const s of seeds) counts[hour(s)]++;
-    expect(DUSK_CHANCE).toBe(0.08);
-    expect(DAWN_CHANCE).toBe(0.08);
+    expect(DUSK_CHANCE).toBe(0.15);
+    expect(DAWN_CHANCE).toBe(0.15);
     for (const [key, share] of [
-      ['dusk', 0.08],
-      ['dawn', 0.08],
+      ['dusk', 0.15],
+      ['dawn', 0.15],
       ['night', 0.25],
-      ['day', 0.59],
+      ['day', 0.45],
     ]) {
       expect(counts[key] / seeds.length).toBeGreaterThan(share - 0.03);
       expect(counts[key] / seeds.length).toBeLessThan(share + 0.03);

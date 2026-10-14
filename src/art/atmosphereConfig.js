@@ -416,8 +416,8 @@ const DEV_OVERRIDE_KEYS = Object.freeze([
 // suns moved no battle's night).
 export const TIME_OF_DAY = Object.freeze(['day', 'night', 'dawn', 'dusk']);
 export const NIGHT_CHANCE = 0.25;
-export const DUSK_CHANCE = 0.08;
-export const DAWN_CHANCE = 0.08;
+export const DUSK_CHANCE = 0.15;
+export const DAWN_CHANCE = 0.15;
 const DAY_NIGHT_ACTS = Object.freeze(['act1', 'act2', 'act3']);
 const OUTDOOR_BIOMES = Object.freeze(['grassland', 'swamp']);
 
