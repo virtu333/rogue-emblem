@@ -2,14 +2,14 @@
 
 Trumpets climb the D minor arpeggio and close with a hard leading-tone
 cadence (C#-D) over a cavalry gallop (long-short-short) in the low strings.
-In the key of the Act II boss theme.
+In the key of his own theme, The Doctrine and Its Ledger (B-flat).
 """
 
 from engine.patterns import drums
 from stingers._common import cue
 
 KEYED = False
-TONIC = 'F'
+TONIC = 'Bb'
 
 
 def build(transpose=0):
