@@ -186,9 +186,9 @@ export function weatherKindFor({ gradeKey, biome, isScripted = false, override =
   if (biome === 'castle') return 'motes';
   if (biome === 'tundra' || gradeKey === 'rime') return 'snow';
   if (biome === 'volcano') return 'embers';
-  if (gradeKey === 'act2' || gradeKey === 'act2_night') return 'rain';
-  // A clear night outdoors: fireflies over the grass and the mire.
-  if (gradeKey === 'act1_night' || gradeKey === 'act3_night') return 'fireflies';
+  if (String(gradeKey).startsWith('act2')) return 'rain';
+  // A clear night or dusk outdoors: fireflies over the grass and the mire.
+  if (['act1_night', 'act3_night', 'act1_dusk', 'act3_dusk'].includes(gradeKey)) return 'fireflies';
   if (gradeKey === 'act4') return 'ash';
   // Ember Dusk and Bleached Rite stay clear.
   return 'none';

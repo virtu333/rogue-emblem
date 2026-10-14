@@ -24,6 +24,8 @@ import { applyAtmosphere, clearAtmosphere, atmosphereSupported } from '../art/At
 import { BattleLightLayer } from '../art/BattleLightLayer.js';
 import { CloudShadowLayer } from '../art/CloudShadowLayer.js';
 import { cloudSeed, cloudShadowsFor } from '../art/cloudShadows.js';
+import { SkyWashLayer } from '../art/SkyWashLayer.js';
+import { skyWashFor } from '../art/skyWash.js';
 import { detectMobileRuntime } from '../utils/runtimeFlags.js';
 import { BATTLEFIELD_LAB_MAPS } from '../utils/battlefieldLabMaps.js';
 import { UI_DEPTHS } from '../utils/uiDepths.js';
@@ -92,6 +94,7 @@ export class AtmosphereController {
     };
     this.light = null;
     this.clouds = null;
+    this.sky = null;
     this.uiCamera = null;
     this._signature = null;
     this._unsubscribe = null;
@@ -157,6 +160,7 @@ export class AtmosphereController {
       });
       this._applyLight(info);
       this._applyClouds(info);
+      this._applySky(info);
     });
   }
 
@@ -199,6 +203,18 @@ export class AtmosphereController {
 
   _still() {
     return this.scene?.registry?.get?.('settings')?.getReduceMotion?.() === true;
+  }
+
+  _applySky(info) {
+    const wash = skyWashFor(this.atmosphere.lighting);
+    if (!wash || info.mode === 'off') {
+      this.sky?.destroy();
+      this.sky = null;
+      return;
+    }
+    const opts = { reduced: info.mode === 'reduced' };
+    if (this.sky) this.sky.setOptions(opts);
+    else this.sky = new SkyWashLayer(this.scene, { ...opts, wash }).create();
   }
 
   _applyClouds(info) {
@@ -289,6 +305,8 @@ export class AtmosphereController {
     this.light = null;
     this.clouds?.destroy();
     this.clouds = null;
+    this.sky?.destroy();
+    this.sky = null;
     clearAtmosphere(this.scene?.cameras?.main);
     this._removeUiCamera();
   }

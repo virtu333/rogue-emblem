@@ -15,6 +15,7 @@ import { createSeededRng } from '../engine/SeededRng.js';
 // sun, no shadows); nights, indoors, snow, the volcano's ash and the Deep have none.
 const CLOUDED_GRADES = Object.freeze(['act1', 'act3']);
 const CLOUDED_BIOMES = Object.freeze(['grassland', 'swamp']);
+const CLOUDED_LIGHTING = Object.freeze(['day', 'dawn', 'dusk']);
 
 export const CLOUD_SHADOW_SPEC = Object.freeze({
   // One cloud per this many tiles of the wind's loop (the map's width plus a margin each
@@ -35,8 +36,11 @@ export const CLOUD_SHADOW_SPEC = Object.freeze({
 
 /** Whether a battle's mood casts cloud shadows (pure). */
 export function cloudShadowsFor({ gradeKey, biome, lighting, isScripted = false } = {}) {
-  if (isScripted || lighting !== 'day') return false;
-  return CLOUDED_GRADES.includes(gradeKey) && CLOUDED_BIOMES.includes(biome);
+  // A low sun (dawn, dusk) still throws cloud shadows; the dawn and dusk grades share
+  // their act's sky.
+  if (isScripted || !CLOUDED_LIGHTING.includes(lighting)) return false;
+  const act = String(gradeKey || '').replace(/_(dawn|dusk)$/, '');
+  return CLOUDED_GRADES.includes(act) && CLOUDED_BIOMES.includes(biome);
 }
 
 /** A stable presentation seed for a battle's clouds (pure; reads no RNG). */

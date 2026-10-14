@@ -143,6 +143,91 @@ export const ATMOSPHERE_GRADES = Object.freeze({
     grain: 0.04,
     aberration: 0.4,
   },
+  // Dawn and dusk variants of the first three acts (resolveTimeOfDay): a low sun. Dawn is
+  // cool lavender shade under rose-peach light, soft and a little hazy; dusk is the sun
+  // going down hard, deep violet shade under a burnt-orange key, the lanterns just lit.
+  act1_dawn: {
+    label: 'Daybreak',
+    shadow: '#3c4a8c',
+    highlight: '#ffb4b4',
+    split: 0.85,
+    sat: 0.84,
+    contrast: 1.0,
+    exposure: 1.0,
+    key: 0.2,
+    vignette: 0.5,
+    grain: 0.035,
+    aberration: 0,
+  },
+  act1_dusk: {
+    label: 'Last Light',
+    shadow: '#3a1c50',
+    highlight: '#ff8248',
+    split: 0.85,
+    sat: 0.96,
+    contrast: 1.08,
+    exposure: 0.9,
+    key: 0.3,
+    vignette: 0.62,
+    grain: 0.04,
+    aberration: 0.2,
+  },
+  // Iron Rain's dawn: grey light breaking pink under the storm.
+  act2_dawn: {
+    label: 'Grey Dawn',
+    shadow: '#2c3a62',
+    highlight: '#f2c6b8',
+    split: 0.6,
+    sat: 0.78,
+    contrast: 1.03,
+    exposure: 0.96,
+    key: 0.1,
+    vignette: 0.58,
+    grain: 0.04,
+    aberration: 0,
+  },
+  // Iron Rain's dusk: a red sun under the cloud's edge.
+  act2_dusk: {
+    label: 'Red Sky',
+    shadow: '#28224a',
+    highlight: '#ff9a6a',
+    split: 0.7,
+    sat: 0.82,
+    contrast: 1.07,
+    exposure: 0.9,
+    key: 0.16,
+    vignette: 0.64,
+    grain: 0.045,
+    aberration: 0.2,
+  },
+  // Bleached Rite's dawn: chalk going to rose.
+  act3_dawn: {
+    label: 'Pale Dawn',
+    shadow: '#423c70',
+    highlight: '#ffdccc',
+    split: 0.6,
+    sat: 0.74,
+    contrast: 0.98,
+    exposure: 1.02,
+    key: 0.15,
+    vignette: 0.5,
+    grain: 0.035,
+    aberration: 0,
+  },
+  // Bleached Rite's dusk: gold over the white stone, violet in the hollows.
+  act3_dusk: {
+    label: 'Vesper',
+    shadow: '#3c2456',
+    highlight: '#ffae66',
+    split: 0.7,
+    sat: 0.78,
+    contrast: 1.05,
+    exposure: 0.93,
+    key: 0.22,
+    vignette: 0.6,
+    grain: 0.04,
+    aberration: 0.2,
+  },
   deep: {
     label: 'The Deep',
     shadow: '#2c1645',
@@ -200,6 +285,28 @@ export const LIGHT_PRESETS = Object.freeze({
     unitLight: '#ffb064',
     allyLight: '#a8e0b8',
     glowStrength: 0.3,
+    emitters: BASE_EMITTERS,
+  },
+  // Dusk: the light going. A thin violet dusk over the map, lanterns just lit, windows
+  // starting to glow; far lighter than a night.
+  dusk: {
+    darkness: 0.26,
+    color: '#2a1238',
+    unitRadius: 2.4,
+    unitLight: '#ffa458',
+    allyLight: '#a8e0b8',
+    glowStrength: 0.2,
+    emitters: BASE_EMITTERS,
+  },
+  // Dawn: the last of the night's blue in the shade, a faint warmth where lanterns are
+  // still burning.
+  dawn: {
+    darkness: 0.16,
+    color: '#1e2450',
+    unitRadius: 2.2,
+    unitLight: '#ffc090',
+    allyLight: '#a8e0b8',
+    glowStrength: 0.12,
     emitters: BASE_EMITTERS,
   },
   // A castle hall by day: no sky indoors, so the hall is dim and the torches carry it.
@@ -271,6 +378,17 @@ const NIGHT_PRESET_BY_GRADE = Object.freeze({
   deep: 'deep',
 });
 
+// Dawn and dusk carry a light layer too, but they are not night (no night weather or
+// night label): a low sun, not the dark.
+const TWILIGHT_PRESET_BY_GRADE = Object.freeze({
+  act1_dawn: 'dawn',
+  act2_dawn: 'dawn',
+  act3_dawn: 'dawn',
+  act1_dusk: 'dusk',
+  act2_dusk: 'dusk',
+  act3_dusk: 'dusk',
+});
+
 const DEV_OVERRIDE_KEYS = Object.freeze([
   'act1',
   'act2',
@@ -278,6 +396,12 @@ const DEV_OVERRIDE_KEYS = Object.freeze([
   'act1_night',
   'act2_night',
   'act3_night',
+  'act1_dawn',
+  'act2_dawn',
+  'act3_dawn',
+  'act1_dusk',
+  'act2_dusk',
+  'act3_dusk',
   'act4',
   'rime',
   'throne',
@@ -285,11 +409,15 @@ const DEV_OVERRIDE_KEYS = Object.freeze([
 ]);
 
 // --- Time of day ----------------------------------------------------------------------
-// Acts I-III are fought by day. Some outdoor battles fall at night instead: presentation
-// only (no vision, fog, AI or difficulty change). The pick is hashed from the battle's own
-// seed, never Math.random, so a resumed battle keeps its night.
-export const TIME_OF_DAY = Object.freeze(['day', 'night']);
+// Acts I-III are fought by day. Some outdoor battles fall at night, dusk or dawn instead:
+// presentation only (no vision, fog, AI or difficulty change). The pick is hashed from the
+// battle's own seed, never Math.random, so a resumed battle keeps its hour. The hash's
+// bands: night below NIGHT_CHANCE, then dusk, then dawn, the rest day (so adding the low
+// suns moved no battle's night).
+export const TIME_OF_DAY = Object.freeze(['day', 'night', 'dawn', 'dusk']);
 export const NIGHT_CHANCE = 0.25;
+export const DUSK_CHANCE = 0.08;
+export const DAWN_CHANCE = 0.08;
 const DAY_NIGHT_ACTS = Object.freeze(['act1', 'act2', 'act3']);
 const OUTDOOR_BIOMES = Object.freeze(['grassland', 'swamp']);
 
@@ -301,9 +429,10 @@ function hashTimeOfDay(battleSeed) {
 }
 
 /**
- * Day or night for a battle (pure). Night only falls on an outdoor Act I-III battle
- * with a seed, never a scripted (prologue) battle, never a run's opening map.
- * @param {object} ctx { act, biome, battleSeed, row, isScripted, override ('day'|'night') }
+ * The hour of a battle (pure): day, night, dusk or dawn. Anything but day only falls on an
+ * outdoor Act I-III battle with a seed, never a scripted (prologue) battle, never a run's
+ * opening map.
+ * @param {object} ctx { act, biome, battleSeed, row, isScripted, timeOverride (a TIME_OF_DAY) }
  */
 export function resolveTimeOfDay(ctx = {}) {
   if (ctx.isScripted) return 'day';
@@ -313,7 +442,11 @@ export function resolveTimeOfDay(ctx = {}) {
   if (TIME_OF_DAY.includes(ctx.timeOverride)) return ctx.timeOverride;
   if (ctx.battleSeed == null || !Number.isFinite(Number(ctx.battleSeed))) return 'day';
   if (act === 'act1' && Number(ctx.row) === 0) return 'day';
-  return hashTimeOfDay(ctx.battleSeed) < NIGHT_CHANCE ? 'night' : 'day';
+  const h = hashTimeOfDay(ctx.battleSeed);
+  if (h < NIGHT_CHANCE) return 'night';
+  if (h < NIGHT_CHANCE + DUSK_CHANCE) return 'dusk';
+  if (h < NIGHT_CHANCE + DUSK_CHANCE + DAWN_CHANCE) return 'dawn';
+  return 'day';
 }
 
 function normBiome(biome) {
@@ -365,9 +498,10 @@ export function tuneGrade(grade, tune) {
 /**
  * Pick the battle's mood.
  * @param {object} ctx { act, biome, isBoss, isSecret, isFinalBoss, isScripted, hasEntity, override,
- *   eclipsePhase (0 Pale .. 4 Hollow), battleSeed, row, timeOverride ('day'|'night') }
- * @returns {{ gradeKey, label, grade, night:boolean, lighting:'day'|'night'|'indoor',
- *   timeOfDay:'day'|'night', lightOptions:object|null, biome }}
+ *   eclipsePhase (0 Pale .. 4 Hollow), battleSeed, row, timeOverride (a TIME_OF_DAY) }
+ * @returns {{ gradeKey, label, grade, night:boolean,
+ *   lighting:'day'|'night'|'dawn'|'dusk'|'indoor', timeOfDay:'day'|'night'|'dawn'|'dusk',
+ *   lightOptions:object|null, biome }}
  */
 export function resolveAtmosphere(ctx = {}) {
   const act = String(ctx.act || 'act1');
@@ -395,13 +529,19 @@ export function resolveAtmosphere(ctx = {}) {
     gradeKey = ATMOSPHERE_GRADES[act] ? act : 'act1';
     timeOfDay = gradeKey === act ? resolveTimeOfDay({ ...ctx, act, biome }) : 'day';
     if (timeOfDay === 'night') gradeKey = `${gradeKey}_night`;
-    else tune = BIOME_TUNES[biome] || null;
+    else if (timeOfDay === 'dawn' || timeOfDay === 'dusk') {
+      gradeKey = `${gradeKey}_${timeOfDay}`;
+      // Swamp keeps its wet saturation; its verdigris shade would fight the low sun.
+      if (biome === 'swamp') tune = { satScale: BIOME_TUNES.swamp.satScale };
+    } else tune = BIOME_TUNES[biome] || null;
   }
   if (!override && (gradeKey === 'act4' || gradeKey === 'rime' || gradeKey === 'throne')) {
     if (biome === 'castle') tune = BIOME_TUNES.castle;
     else if (biome === 'swamp') tune = BIOME_TUNES.swamp;
   }
   if (gradeKey.endsWith('_night')) timeOfDay = 'night';
+  else if (gradeKey.endsWith('_dawn')) timeOfDay = 'dawn';
+  else if (gradeKey.endsWith('_dusk')) timeOfDay = 'dusk';
   const base = ATMOSPHERE_GRADES[gradeKey];
   // The Eclipse phase darkens every mood a little more (never a prologue chapter or a dev
   // override, which exist to show the plain grade).
@@ -409,10 +549,11 @@ export function resolveAtmosphere(ctx = {}) {
   const grade = eclipseGrade(tuneGrade(base, tune), eclipse);
   const nightKey = NIGHT_PRESET_BY_GRADE[gradeKey] || null;
   const night = Boolean(nightKey);
+  const twilightKey = TWILIGHT_PRESET_BY_GRADE[gradeKey] || null;
   // Indoors (a castle map) by day: the hall's own torchlight. A castle at night keeps
   // its night preset and gains the hall's sconces.
   const indoor = biome === 'castle' && !ctx.isScripted && gradeKey !== 'deep';
-  const presetKey = nightKey || (indoor ? 'hall' : null);
+  const presetKey = nightKey || twilightKey || (indoor ? 'hall' : null);
   let lightOptions = presetKey ? { ...LIGHT_PRESETS[presetKey] } : null;
   if (lightOptions && indoor && presetKey !== 'hall') {
     lightOptions = {
@@ -431,7 +572,7 @@ export function resolveAtmosphere(ctx = {}) {
     label: base.label,
     grade,
     night,
-    lighting: night ? 'night' : indoor ? 'indoor' : 'day',
+    lighting: night ? 'night' : twilightKey ? timeOfDay : indoor ? 'indoor' : 'day',
     timeOfDay,
     lightPreset: presetKey,
     lightOptions,

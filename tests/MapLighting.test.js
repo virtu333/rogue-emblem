@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   ATMOSPHERE_GRADES,
   LIGHT_PRESETS,
+  DAWN_CHANCE,
+  DUSK_CHANCE,
   NIGHT_CHANCE,
   WALL_TORCHES,
   resolveAtmosphere,
@@ -15,6 +17,8 @@ import {
   cloudShadowsFor,
   planCloudShadows,
 } from '../src/art/cloudShadows.js';
+import { SKY_WASH, SKY_WASH_SIDE, skyWashCorners, skyWashFor } from '../src/art/skyWash.js';
+import { SKY_WASH_DEPTH, SkyWashLayer } from '../src/art/SkyWashLayer.js';
 import { resolveWeather, weatherKindFor, WEATHER_SPECS } from '../src/art/weatherConfig.js';
 
 // Day/night outdoors, torchlit halls, cloud shadows: presentation only (map lighting).
@@ -67,6 +71,105 @@ describe('resolveTimeOfDay', () => {
     expect(resolveTimeOfDay({ ...ctx, timeOverride: 'day' })).toBe('day');
     expect(resolveTimeOfDay({ ...ctx, biome: 'castle', timeOverride: 'night' })).toBe('day');
     expect(resolveTimeOfDay({ ...ctx, isScripted: true, timeOverride: 'night' })).toBe('day');
+  });
+});
+
+describe('resolveTimeOfDay — dawn and dusk', () => {
+  const seeds = Array.from({ length: 6000 }, (_, i) => (i * 2654435761) >>> 0);
+  const hour = (battleSeed) =>
+    resolveTimeOfDay({ act: 'act2', biome: 'swamp', battleSeed, row: 4 });
+
+  it('each falls on a small share of outdoor battles, the rest by day', () => {
+    const counts = { day: 0, night: 0, dawn: 0, dusk: 0 };
+    for (const s of seeds) counts[hour(s)]++;
+    expect(DUSK_CHANCE).toBe(0.08);
+    expect(DAWN_CHANCE).toBe(0.08);
+    for (const [key, share] of [
+      ['dusk', 0.08],
+      ['dawn', 0.08],
+      ['night', 0.25],
+      ['day', 0.59],
+    ]) {
+      expect(counts[key] / seeds.length).toBeGreaterThan(share - 0.03);
+      expect(counts[key] / seeds.length).toBeLessThan(share + 0.03);
+    }
+  });
+
+  it('never a dawn or dusk where night cannot fall', () => {
+    const dusk = seeds.find((s) => hour(s) === 'dusk');
+    const dawn = seeds.find((s) => hour(s) === 'dawn');
+    for (const battleSeed of [dusk, dawn]) {
+      const base = { act: 'act1', biome: 'grassland', battleSeed, row: 2 };
+      expect(resolveTimeOfDay({ ...base, isScripted: true })).toBe('day');
+      expect(resolveTimeOfDay({ ...base, biome: 'castle' })).toBe('day');
+      expect(resolveTimeOfDay({ ...base, act: 'act4' })).toBe('day');
+      expect(resolveTimeOfDay({ ...base, row: 0 })).toBe('day');
+    }
+  });
+
+  it('the dev override forces dawn or dusk', () => {
+    const ctx = { act: 'act3', biome: 'grassland', battleSeed: 1, row: 0 };
+    expect(resolveTimeOfDay({ ...ctx, timeOverride: 'dawn' })).toBe('dawn');
+    expect(resolveTimeOfDay({ ...ctx, timeOverride: 'dusk' })).toBe('dusk');
+    expect(resolveTimeOfDay({ ...ctx, biome: 'castle', timeOverride: 'dusk' })).toBe('day');
+  });
+});
+
+describe('resolveAtmosphere — dawn and dusk', () => {
+  it.each([
+    ['act1', 'dawn', 'Daybreak'],
+    ['act2', 'dawn', 'Grey Dawn'],
+    ['act3', 'dawn', 'Pale Dawn'],
+    ['act1', 'dusk', 'Last Light'],
+    ['act2', 'dusk', 'Red Sky'],
+    ['act3', 'dusk', 'Vesper'],
+  ])('%s at %s is %s: a light layer lighter than night, never night', (act, hour, label) => {
+    const r = resolveAtmosphere({ act, biome: 'grassland', timeOverride: hour, battleSeed: 1 });
+    expect(r.gradeKey).toBe(`${act}_${hour}`);
+    expect(r.label).toBe(label);
+    expect(r.night).toBe(false);
+    expect(r.lighting).toBe(hour);
+    expect(r.timeOfDay).toBe(hour);
+    expect(r.lightPreset).toBe(hour);
+    expect(r.lightOptions.darkness).toBe(LIGHT_PRESETS[hour].darkness);
+    expect(r.lightOptions.darkness).toBeLessThan(LIGHT_PRESETS.moonlit.darkness / 1.5);
+    // A low sun is warm: the highlight leans red.
+    const hl = parseInt(ATMOSPHERE_GRADES[r.gradeKey].highlight.slice(1), 16);
+    expect((hl >> 16) & 0xff).toBeGreaterThan(hl & 0xff);
+  });
+
+  it('dawn is lighter than dusk', () => {
+    expect(LIGHT_PRESETS.dawn.darkness).toBeLessThan(LIGHT_PRESETS.dusk.darkness);
+    expect(ATMOSPHERE_GRADES.act1_dawn.exposure).toBeGreaterThan(
+      ATMOSPHERE_GRADES.act1_dusk.exposure,
+    );
+  });
+
+  it('the dev grade override reaches them', () => {
+    expect(resolveAtmosphere({ act: 'act4', override: 'act2_dusk' }).gradeKey).toBe('act2_dusk');
+  });
+
+  it('weather: Iron Rain keeps raining, a clear dusk has fireflies, a dawn is clear', () => {
+    expect(weatherKindFor({ gradeKey: 'act2_dawn', biome: 'grassland' })).toBe('rain');
+    expect(weatherKindFor({ gradeKey: 'act2_dusk', biome: 'grassland' })).toBe('rain');
+    expect(weatherKindFor({ gradeKey: 'act1_dusk', biome: 'grassland' })).toBe('fireflies');
+    expect(weatherKindFor({ gradeKey: 'act3_dusk', biome: 'swamp' })).toBe('fireflies');
+    expect(weatherKindFor({ gradeKey: 'act1_dawn', biome: 'grassland' })).toBe('none');
+    expect(weatherKindFor({ gradeKey: 'act3_dawn', biome: 'grassland' })).toBe('none');
+  });
+
+  it('clouds still cross a low sun, but not under Iron Rain', () => {
+    for (const lighting of ['dawn', 'dusk']) {
+      expect(cloudShadowsFor({ gradeKey: `act1_${lighting}`, biome: 'grassland', lighting })).toBe(
+        true,
+      );
+      expect(cloudShadowsFor({ gradeKey: `act3_${lighting}`, biome: 'swamp', lighting })).toBe(
+        true,
+      );
+      expect(cloudShadowsFor({ gradeKey: `act2_${lighting}`, biome: 'grassland', lighting })).toBe(
+        false,
+      );
+    }
   });
 });
 
@@ -362,5 +465,93 @@ describe('BattleLightLayer — hall sconces and pillar shadows', () => {
       expect(layer.scene.grid.getTerrainAt(floor.col, floor.row).name).not.toBe('Wall');
     }
     expect(flames).toHaveLength(0);
+  });
+});
+
+describe('sky wash (dawn and dusk low sun)', () => {
+  it('only dawn and dusk have one', () => {
+    expect(skyWashFor('dawn')).toBe(SKY_WASH.dawn);
+    expect(skyWashFor('dusk')).toBe(SKY_WASH.dusk);
+    for (const other of ['day', 'night', 'indoor', undefined]) expect(skyWashFor(other)).toBe(null);
+  });
+
+  it('dawn rises at the right and dusk sets at the left, shade in the far corner', () => {
+    // fillGradientStyle order: tl, tr, bl, br.
+    const dawn = skyWashCorners(SKY_WASH.dawn);
+    expect(dawn.glow[1]).toBe(SKY_WASH.dawn.glowAlpha);
+    expect(dawn.glow[2]).toBe(0);
+    expect(dawn.shade[2]).toBe(SKY_WASH.dawn.shadeAlpha);
+    expect(dawn.shade[1]).toBe(0);
+    const dusk = skyWashCorners(SKY_WASH.dusk);
+    expect(dusk.glow[0]).toBe(SKY_WASH.dusk.glowAlpha);
+    expect(dusk.glow[3]).toBe(0);
+    expect(dusk.shade[3]).toBe(SKY_WASH.dusk.shadeAlpha);
+    expect(dusk.shade[0]).toBe(0);
+    // The side corners carry a share.
+    expect(dusk.glow[1]).toBeCloseTo(SKY_WASH.dusk.glowAlpha * SKY_WASH_SIDE);
+  });
+
+  it('reduced keeps it, lighter', () => {
+    const full = skyWashCorners(SKY_WASH.dusk);
+    const reduced = skyWashCorners(SKY_WASH.dusk, { reduced: true });
+    expect(reduced.glow[0]).toBeGreaterThan(0);
+    expect(reduced.glow[0]).toBeLessThan(full.glow[0]);
+  });
+
+  it('the layer paints two gradient quads over the map, drawn once, and tears down', () => {
+    const made = [];
+    const handlers = {};
+    const graphics = () => {
+      const g = {
+        fills: [],
+        clear() {
+          this.fills = [];
+          return this;
+        },
+        setDepth(d) {
+          this.depth = d;
+          return this;
+        },
+        setBlendMode(m) {
+          this.blend = m;
+          return this;
+        },
+        fillGradientStyle(...a) {
+          this.style = a;
+          return this;
+        },
+        fillRect(...r) {
+          this.fills.push(r);
+          return this;
+        },
+        destroy() {
+          this.destroyed = true;
+        },
+      };
+      made.push(g);
+      return g;
+    };
+    const grid = { cols: 10, rows: 8, offsetX: 5, offsetY: 7 };
+    const scene = {
+      grid,
+      add: { graphics },
+      events: {
+        on: (e, f) => (handlers[e] = f),
+        off: (e) => delete handlers[e],
+      },
+    };
+    const layer = new SkyWashLayer(scene, { wash: SKY_WASH.dusk }).create();
+    expect(made).toHaveLength(2);
+    const [shade, glow] = made;
+    expect(glow.blend).toBe(1);
+    expect(shade.depth).toBe(SKY_WASH_DEPTH);
+    expect(glow.fills).toEqual([[5, 7, 10 * 32, 8 * 32]]);
+    expect(glow.style.slice(4)).toEqual(skyWashCorners(SKY_WASH.dusk).glow);
+    expect(shade.style.slice(4)).toEqual(skyWashCorners(SKY_WASH.dusk).shade);
+    handlers.update();
+    expect(made).toHaveLength(2); // static: nothing rebuilt while the grid stands
+    layer.destroy();
+    expect(shade.destroyed && glow.destroyed).toBe(true);
+    expect(handlers.update).toBeUndefined();
   });
 });
