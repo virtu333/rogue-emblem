@@ -666,6 +666,7 @@ export const UPGRADE_ICON_REUSE = Object.freeze({
 export const WEAPON_ICON_REUSE = Object.freeze({
   Greycord: 'gravesong',
   "Hunter's Focus Scroll": 'encloser-scroll',
+  'Toppling Blow Scroll': 'lunge-scroll',
   // Epic weapons (docs/specs/epic-weapons.md) and the relic Daybreak: borrowed pictures until
   // they get art of their own; an Epic weapon wears the Rare rim (catalog.mjs weaponRim).
   'Prodding Spear': 'short-spear',
