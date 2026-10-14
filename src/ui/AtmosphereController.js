@@ -38,6 +38,17 @@ function devQuery() {
   return new URLSearchParams(globalThis.location?.search || '');
 }
 
+/**
+ * The dev route's hour: `?timeOfDay=` when given, else day on a `?devScene=battle` review
+ * battle, so its fixtures (and the browser specs that open them) keep the daylit look they
+ * were written against. A night or a low sun adds full-screen layers, which slow CI's
+ * software renderer enough to break timing-sensitive specs. Real runs are never forced.
+ */
+export function devTimeOverride(query) {
+  if (!query) return null;
+  return query.get('timeOfDay') || (query.get('devScene') === 'battle' ? 'day' : null);
+}
+
 /** Gather the pure resolver's inputs from a BattleScene (read-only). */
 export function atmosphereContextFromScene(scene) {
   const params = scene?.battleParams || {};
@@ -65,7 +76,7 @@ export function atmosphereContextFromScene(scene) {
       nodeId: scene?.nodeId,
     }),
     row: params.row ?? null,
-    timeOverride: query?.get('timeOfDay') || null,
+    timeOverride: devTimeOverride(query),
     // The Eclipse phase this battle was entered at (RunManager.getBattleParams).
     eclipsePhase: Math.max(0, Math.trunc(Number(params.eclipsePhaseIndex) || 0)),
   };

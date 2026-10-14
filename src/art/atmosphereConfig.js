@@ -412,9 +412,8 @@ const DEV_OVERRIDE_KEYS = Object.freeze([
 // Acts I-III are fought by day. Some outdoor battles fall at night, dusk or dawn instead:
 // presentation only (no vision, fog, AI or difficulty change). The pick is hashed from the
 // battle's own seed, never Math.random, so a resumed battle keeps its hour. The hash's
-// bands: night below NIGHT_CHANCE, dawn the top DAWN_CHANCE, dusk just below it, day
-// between. Adding the low suns moved no battle's night, and took them from the top of the
-// day band so the review seed's battles (seed 42, which most browser specs open) stay day.
+// bands: night below NIGHT_CHANCE, then dusk, then dawn, the rest day (so adding the low
+// suns moved no battle's night).
 export const TIME_OF_DAY = Object.freeze(['day', 'night', 'dawn', 'dusk']);
 export const NIGHT_CHANCE = 0.25;
 export const DUSK_CHANCE = 0.15;
@@ -445,8 +444,8 @@ export function resolveTimeOfDay(ctx = {}) {
   if (act === 'act1' && Number(ctx.row) === 0) return 'day';
   const h = hashTimeOfDay(ctx.battleSeed);
   if (h < NIGHT_CHANCE) return 'night';
-  if (h >= 1 - DAWN_CHANCE) return 'dawn';
-  if (h >= 1 - DAWN_CHANCE - DUSK_CHANCE) return 'dusk';
+  if (h < NIGHT_CHANCE + DUSK_CHANCE) return 'dusk';
+  if (h < NIGHT_CHANCE + DUSK_CHANCE + DAWN_CHANCE) return 'dawn';
   return 'day';
 }
 

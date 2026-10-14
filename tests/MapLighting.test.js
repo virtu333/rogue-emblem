@@ -107,18 +107,6 @@ describe('resolveTimeOfDay — dawn and dusk', () => {
     }
   });
 
-  it("the review route's battles keep the hour the browser specs were written against", () => {
-    // `?devScene=battle&seed=42`: battle_smoke's map (most browser specs) stays day, the
-    // combat_actions one stays the night it already was. A dusk lab battle renders two more
-    // full-screen layers, which pushed a CI phone spec past its time limit.
-    expect(
-      resolveTimeOfDay({ act: 'act2', biome: 'grassland', battleSeed: 1614542061, row: 1 }),
-    ).toBe('day');
-    expect(
-      resolveTimeOfDay({ act: 'act2', biome: 'grassland', battleSeed: 727163595, row: 0 }),
-    ).toBe('night');
-  });
-
   it('the dev override forces dawn or dusk', () => {
     const ctx = { act: 'act3', biome: 'grassland', battleSeed: 1, row: 0 };
     expect(resolveTimeOfDay({ ...ctx, timeOverride: 'dawn' })).toBe('dawn');
