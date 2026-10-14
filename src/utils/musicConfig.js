@@ -61,15 +61,14 @@ export const MUSIC = {
     finalBoss: 'music_boss_lieutenant',
   },
 
-  // Every named boss has its own theme wherever it is fought (the act's theme
-  // above plays only for a boss without one, such as the prologue's captain).
+  // A boss with a theme of its own plays it wherever it is fought. The act's theme
+  // above belongs to the boss it was written for (Act I the Iron Captain, Act II
+  // the Dark Rider, Act III the Blade Lord) and plays for a boss without one (the
+  // prologue's captain).
   bossByName: {
-    'Iron Captain': 'music_boss_iron_captain',
     Warchief: 'music_boss_warchief',
     'Knight Commander': 'music_boss_knight_commander',
     Archmage: 'music_boss_archmage',
-    'Dark Rider': 'music_boss_dark_rider',
-    'Blade Lord': 'music_boss_blade_lord',
     'Iron Wall': 'music_boss_iron_wall',
     'Berserker King': 'music_boss_berserker_king',
     'The Lieutenant': 'music_boss_lieutenant',

@@ -154,8 +154,8 @@ describe('AudioManager — seamless loops and adaptive layers', () => {
 
 describe('AudioManager — extra layers (a boss enrage layer)', () => {
   it('plays a boss theme with its enrage layer and crossfades to it on request', async () => {
-    const theme = 'music_boss_iron_captain';
-    const layer = 'music_boss_iron_captain_enrage_iron_captain';
+    const theme = 'music_boss_act1';
+    const layer = 'music_boss_act1_enrage_iron_captain';
     const sound = makeSound([theme, layer]);
     const audio = new AudioManager(sound);
     audio.setMusicIntensity('full', 0);

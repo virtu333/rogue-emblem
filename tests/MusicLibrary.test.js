@@ -194,18 +194,18 @@ describe('music library', () => {
     expect(new Set(eliteKeys).size).toBe(4);
   });
 
-  it('every boss gets its own theme, wherever it is fought', () => {
+  it('every boss gets a theme of its own, wherever it is fought', () => {
     const bossNames = new Set(
       Object.values(enemies.bosses)
         .flat()
         .map((b) => b.name),
     );
-    for (const name of bossNames) {
-      expect(MUSIC.bossByName[name], `${name} has a theme of its own`).toBeTruthy();
+    // no two bosses fight to the same theme (an act's theme belongs to one of its bosses)
+    const byTheme = new Map();
+    for (const { name, theme } of bossEnrage) {
+      expect(byTheme.get(theme), `${name} shares ${theme}`).toBeUndefined();
+      byTheme.set(theme, name);
     }
-    // no two bosses share one
-    const themes = Object.values(MUSIC.bossByName);
-    expect(new Set(themes).size).toBe(themes.length);
     for (const name of Object.keys(MUSIC.bossByName)) {
       expect(bossNames.has(name), `${name} is a boss in enemies.json`).toBe(true);
       expect(getBossMusicKey(name, 'act1')).toBe(MUSIC.bossByName[name]);
