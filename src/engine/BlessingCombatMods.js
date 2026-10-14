@@ -9,10 +9,13 @@
 //     stationary: { defBonus, avoidBonus },   // Hold the Line
 //     adjacentAllyDef: [{ perAlly, max }],    // Phalanx Rite
 //     isolated: [{ radius, avoidBonus, critBonus }],    // Duelist's Creed
-//     commanderAuras: [{ radius, hitBonus, avoidBonus }] }   // Standard of the Sun
+//     commanderAuras: [{ radius, hitBonus, avoidBonus }],   // Standard of the Sun
+//     trade: { deltas, damageScale, weightDelta, procMultiplier } | null }  // the act boss's
+//                                     // trade cards (engine/TradeBoons.js)
 // Only player-faction units ever receive anything; enemies and NPC allies get zeros.
 
 import { adjacentAllyDefBonus, isolatedCombatBonus } from './FormationBlessings.js';
+import { tradeCombatModsFor } from './TradeBoons.js';
 
 /**
  * Standard of the Sun (an earned blessing): Hit and Avoid for a unit within `radius` tiles
@@ -72,12 +75,18 @@ const ZERO = () => ({
   defBonus: 0,
   critBonus: 0,
   firstStrikeHitBonus: 0,
+  resBonus: 0,
+  atkBonus: 0,
+  spdBonus: 0,
+  damageScale: 1,
+  procChanceMultiplier: 1,
 });
 
 /**
  * What the run's blessings add to one side of a combat.
- * `side` = { unit, foe, initiating, turn, terrain, allies }: `allies` is the unit's own
- * side (self and the fallen ignored by any reader), for blessings that count nearby units.
+ * `side` = { unit, foe, initiating, turn, terrain, allies, weapon, weaponArt }: `allies` is the
+ * unit's own side (self and the fallen ignored by any reader), for blessings that count nearby
+ * units; `weapon` the weapon it fights with, `weaponArt` true when it uses an art.
  */
 export function blessingCombatModsFor(profile, side) {
   const out = ZERO();
@@ -109,6 +118,22 @@ export function blessingCombatModsFor(profile, side) {
   out.hitBonus += aura.hitBonus;
   out.avoidBonus += aura.avoidBonus;
 
+  // The act boss's trade cards (engine/TradeBoons.js): their combat numbers, the Levy's cut,
+  // Featherweight's speed and Gambler's Edge's odds.
+  const trade = tradeCombatModsFor(profile.trade, side);
+  for (const key of [
+    'hitBonus',
+    'avoidBonus',
+    'critBonus',
+    'atkBonus',
+    'defBonus',
+    'resBonus',
+    'spdBonus',
+  ])
+    out[key] += trade[key];
+  out.damageScale = trade.damageScale;
+  out.procChanceMultiplier = trade.procChanceMultiplier;
+
   return out;
 }
 
@@ -120,16 +145,36 @@ function addInto(mods, add) {
   mods.critBonus = (mods.critBonus || 0) + add.critBonus;
   if (add.firstStrikeHitBonus)
     mods.firstStrikeHitBonus = (mods.firstStrikeHitBonus || 0) + add.firstStrikeHitBonus;
+  if (add.resBonus) mods.resBonus = (mods.resBonus || 0) + add.resBonus;
+  if (add.atkBonus) mods.atkBonus = (mods.atkBonus || 0) + add.atkBonus;
+  if (add.spdBonus) mods.spdBonus = (mods.spdBonus || 0) + add.spdBonus;
+  // A share multiplies whatever the side already carries (Combat merges scales by product).
+  if (add.damageScale !== 1)
+    mods.damageScale = (Number(mods.damageScale) > 0 ? mods.damageScale : 1) * add.damageScale;
+  if (add.procChanceMultiplier !== 1) mods.procChanceMultiplier = add.procChanceMultiplier;
 }
 
 /**
  * Add the blessings' bonuses into the mutable mods `getSkillCombatMods` returned for the
- * attacker (the side that starts the combat) and the defender.
+ * attacker (the side that starts the combat) and the defender. `atkWeapon` / `defWeapon` are the
+ * weapons each fights with (absent: the unit's equipped one), `atkWeaponArt` true when the
+ * attacker uses a weapon art (a defender never does).
  */
 export function applyBlessingCombatMods(
   atkMods,
   defMods,
-  { profile, attacker, defender, atkTerrain, defTerrain, turn, alliesOf },
+  {
+    profile,
+    attacker,
+    defender,
+    atkTerrain,
+    defTerrain,
+    turn,
+    alliesOf,
+    atkWeapon,
+    defWeapon,
+    atkWeaponArt = false,
+  },
 ) {
   if (!profile) return;
   addInto(
@@ -141,6 +186,8 @@ export function applyBlessingCombatMods(
       turn,
       terrain: atkTerrain,
       allies: alliesOf?.(attacker) || [],
+      weapon: atkWeapon === undefined ? attacker?.weapon : atkWeapon,
+      weaponArt: atkWeaponArt === true,
     }),
   );
   addInto(
@@ -152,6 +199,8 @@ export function applyBlessingCombatMods(
       turn,
       terrain: defTerrain,
       allies: alliesOf?.(defender) || [],
+      weapon: defWeapon === undefined ? defender?.weapon : defWeapon,
+      weaponArt: false,
     }),
   );
 }

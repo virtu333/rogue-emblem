@@ -107,6 +107,8 @@ function resolveDifficultyRules(config, difficultyId) {
  *     extraMaxAffixes     +N max affixes per unit (Totality and Hollow)
  *     guaranteedCount     eclipsed nodes: at least this many enemies carry an affix
  *     guaranteedTier      highest affix tier the guarantee draws from
+ *   chanceMultiplier (optional, battleParams.affixChanceMultiplier): the rolled chance scaled
+ *     (Gambler's Edge's cost, engine/TradeBoons.js)
  */
 export function assignAffixesToEnemySpawns(enemySpawns, options = {}) {
   if (options.allowAffixes === false) return enemySpawns;
@@ -202,7 +204,13 @@ function ensureGuaranteedAffixes(enemySpawns, options) {
 }
 
 function assignRolledAffixes(enemySpawns, options = {}) {
-  const { affixConfig = null, difficultyId = 'normal', act = 'act1', eclipse = null } = options;
+  const {
+    affixConfig = null,
+    difficultyId = 'normal',
+    act = 'act1',
+    eclipse = null,
+    chanceMultiplier = 1,
+  } = options;
   if (!Array.isArray(enemySpawns) || enemySpawns.length === 0) return enemySpawns || [];
   const config = affixConfig;
   if (!config || !Array.isArray(config.affixes)) return enemySpawns;
@@ -218,7 +226,14 @@ function assignRolledAffixes(enemySpawns, options = {}) {
     return enemySpawns;
   }
 
-  const chance = Math.max(0, Math.min(1, rules.affixChance * resolveActMultiplier(config, act)));
+  // `chanceMultiplier` (Gambler's Edge's cost) scales the rung's own chance; an act or rung that
+  // rolls none (excluded, a chance of 0) still rolls none.
+  const share = Number(chanceMultiplier);
+  const scale = Number.isFinite(share) && share > 0 ? share : 1;
+  const chance = Math.max(
+    0,
+    Math.min(1, rules.affixChance * resolveActMultiplier(config, act) * scale),
+  );
   if (chance <= 0) return enemySpawns;
 
   const tierPool = new Set(rules.tierPool);

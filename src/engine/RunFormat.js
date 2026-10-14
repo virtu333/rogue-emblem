@@ -127,6 +127,10 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     riteBand: 'rite',
     riteLevel: 'rite',
     riteMods: 'rite',
+    // The act boss's trade cards (engine/TradeBoons.js), only while one is held: Gambler's
+    // Edge's affix odds and Chronicle's XP roles. An older client plays the battle without them.
+    affixChanceMultiplier: 'inert',
+    xpRoleMultipliers: 'inert',
   }),
   // A locked battle config.
   battleConfig: Object.freeze({

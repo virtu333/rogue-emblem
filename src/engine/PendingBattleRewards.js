@@ -8,6 +8,7 @@ import { gambleSummary } from './BattleGoldGamble.js';
 import { applyLotteryCards, lotteryDrawParams } from './LotteryLoot.js';
 import { dawnTitheGold, shrineBoonsOf } from './ShrineBoons.js';
 import { lootGoldMultiplierOf } from './TwistedBoons.js';
+import { lootActAheadOf, lootChoiceDeltaOf } from './TradeBoons.js';
 import { lootActFor } from './Descent.js';
 import {
   LOOT_CHOICES,
@@ -27,8 +28,9 @@ export function rewardDrawParams(run, ctx) {
   const pressure = Number(ctx.victoryPressureState?.goldMultiplier ?? 1);
   return {
     // The tables the draw reads: the act's own, but in the Descent the act before it
-    // (lootTables.finalBoss pays gold only; act-v-descent §2.3 rule 3).
-    actId: lootActFor(run),
+    // (lootTables.finalBoss pays gold only; act-v-descent §2.3 rule 3). Collector's Eye draws
+    // from a later act's (engine/TradeBoons.js), never past Act IV.
+    actId: lootActAheadOf(run, lootActFor(run)),
     isElite: ctx.isElite === true,
     isBoss: ctx.isBoss === true,
     lootWeaponQualityBonus: meta?.lootWeaponQualityBonus ?? meta?.lootWeaponWeightBonus ?? 0,
@@ -39,9 +41,22 @@ export function rewardDrawParams(run, ctx) {
     // Hollow Sun's Favor: what gold loot cards are worth (engine/TwistedBoons.js); absent without
     // it, so an unblessed draw (and every record saved before) is exactly as it was.
     ...(lootGoldMultiplierOf(run) !== 1 ? { lootGoldMultiplier: lootGoldMultiplierOf(run) } : {}),
+    // Collector's Eye's cost: fewer cards to choose from (engine/TradeBoons.js); absent without it,
+    // so an unblessed draw (and every record saved before) is exactly as it was.
+    ...(lootChoiceDeltaOf(run) !== 0 ? { choiceCountDelta: lootChoiceDeltaOf(run) } : {}),
     // Lottery Loot: which table its card comes from (engine/LotteryLoot.js); absent without it.
     ...(lotteryDrawParams(run, { nodeId: ctx.nodeId || run.currentNodeId }) || {}),
   };
+}
+
+/**
+ * How many cards a battle's loot offers: three, four for an elite, fewer with Collector's Eye
+ * (the draw's `choiceCountDelta`), never fewer than one.
+ */
+export function rewardChoiceCount(draw) {
+  const base = draw?.isElite ? ELITE_LOOT_CHOICES : LOOT_CHOICES;
+  const delta = Math.trunc(Number(draw?.choiceCountDelta) || 0);
+  return Math.max(1, base + Math.min(0, delta));
 }
 
 /**
@@ -57,7 +72,7 @@ export function rollBattleRewardChoices(run, data, draw, { round = 0 } = {}) {
     data.lootTables,
     data.weapons,
     run.getConsumableCatalog(),
-    draw.isElite ? ELITE_LOOT_CHOICES : LOOT_CHOICES,
+    rewardChoiceCount(draw),
     draw.lootWeaponQualityBonus || 0,
     data.accessories,
     data.whetstones,

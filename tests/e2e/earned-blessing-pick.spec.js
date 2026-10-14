@@ -27,7 +27,7 @@ test('the boss gives two earned blessings: one taken, the act advances, the paus
   expect(atVictory).toMatchObject({ status: 'owed', actId: 'act1' });
   const offered = await pickIds(pick);
   expect(offered).toEqual(atVictory.offered);
-  expect(offered).toHaveLength(2);
+  expect(offered).toHaveLength(3);
 
   const take = pick.getByRole('button', { name: 'Take', exact: true });
   await expect(take).toBeDisabled(); // nothing chosen yet

@@ -43,7 +43,13 @@ const reload = (rm) => RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON()
 
 const player = (extra = {}) => ({ name: 'Edric', faction: 'player', ...extra });
 const enemy = (extra = {}) => ({ name: 'Bandit', faction: 'enemy', ...extra });
-const BOON = { weaponArtHpCostDelta: 0, playerArtHpCostDelta: -1, playerArtMapUsesBonus: 1 };
+const BOON = {
+  weaponArtHpCostDelta: 0,
+  playerArtHpCostDelta: -1,
+  playerArtMapUsesBonus: 1,
+  // Way of the Art (an act boss's trade card) is not held.
+  playerArtHpFree: false,
+};
 
 describe('Bloodless Art: the card', () => {
   it('is a tier II card with the art boon, the two promised prices and its own lore', () => {
@@ -86,6 +92,7 @@ describe('Bloodless Art: the boon lands on the run and survives a save', () => {
       weaponArtHpCostDelta: 0,
       playerArtHpCostDelta: 0,
       playerArtMapUsesBonus: 0,
+      playerArtHpFree: false,
     });
   });
 
@@ -129,6 +136,7 @@ describe('Bloodless Art: the boon lands on the run and survives a save', () => {
       weaponArtHpCostDelta: 0,
       playerArtHpCostDelta: 0,
       playerArtMapUsesBonus: 0,
+      playerArtHpFree: false,
     });
     expect(weaponArtRunOptions({})).toEqual(weaponArtRunOptions(undefined));
   });

@@ -74,7 +74,11 @@ import { PostCombatController } from '../src/ui/PostCombatController.js';
 import { LootFlowController } from '../src/ui/LootFlowController.js';
 import { NodeMapScene } from '../src/scenes/NodeMapScene.js';
 import { EarnedBlessingPick } from '../src/ui/EarnedBlessingPick.js';
-import { earnedPickFooter, earnedPickModel } from '../src/ui/earnedBlessingPickModel.js';
+import {
+  earnedPickFooter,
+  earnedPickModel,
+  earnedSkipConfirm,
+} from '../src/ui/earnedBlessingPickModel.js';
 import { blessingTarotCard } from '../src/ui/choiceCards.js';
 import { blessingCardContent } from '../src/ui/choiceContent.js';
 import { transitionToScene } from '../src/utils/SceneRouter.js';
@@ -253,10 +257,11 @@ describe('which victories owe a pick (completeBattle prepares it with the victor
       const entry = rm.earnedBlessingPicks[rm.currentAct];
       if (entry) {
         offered.push(rm.currentAct);
-        // Nothing held yet (every pick below is left): the odds are 1, so a pair is owed.
+        // Three cards, owed every time (§6.8): taking the first holds more and more earned
+        // blessings, and the next boss offers anyway (no odds roll that thins with what is held).
         expect(entry).toMatchObject({ status: 'owed', actId: rm.currentAct });
-        expect(entry.offered).toHaveLength(2);
-        expect(skipEarnedBlessing(rm, rm.currentAct).ok).toBe(true);
+        expect(entry.offered).toHaveLength(3);
+        expect(takeEarnedBlessing(rm, rm.currentAct, entry.offered[0]).ok).toBe(true);
       }
       if (act < rm.actSequence.length - 1) rm.advanceAct();
     }
@@ -300,7 +305,7 @@ describe('the pick survives a reload, once', () => {
     const rm = freshRun({ seed: 9200 });
     winAct(rm);
     const owed = earnedPickOwed(rm);
-    expect(owed?.offered).toHaveLength(2);
+    expect(owed?.offered).toHaveLength(3);
     const loaded = RunManager.fromJSON(JSON.parse(JSON.stringify(rm.toJSON())), data);
     expect(earnedPickOwed(loaded)).toEqual(owed);
   });
@@ -885,6 +890,20 @@ describe('the pick menu: nothing skips it silently', () => {
     expect(dawn.terms.map((t) => t.term)).toEqual(['Vision']);
     const lantern = data.blessings.blessings.find((b) => b.id === 'ember_lantern');
     expect(earnedPickFooter(model, 'ember_lantern')).toEqual({ kind: 'lore', text: lantern.lore });
+  });
+
+  it("an act boss's three cards: 'leave them all' and 'Leave all three blessings', never 'both'", () => {
+    // Failure: the act boss's offer of three still asks to leave "both".
+    const rm = freshRun({ seed: 9503 });
+    winAct(rm);
+    expect(rm.earnedBlessingPicks.act1.offered).toHaveLength(3);
+    const model = earnedPickModel(rm);
+    expect(earnedPickFooter(model, null).text).toBe(
+      'Won from the Act I boss. Take one, or leave them all.',
+    );
+    expect(earnedSkipConfirm(3).heading).toBe('Leave all three blessings');
+    expect(earnedSkipConfirm(2).heading).toBe('Leave both blessings');
+    expect(earnedSkipConfirm(1).heading).toBe('Leave the blessing');
   });
 });
 

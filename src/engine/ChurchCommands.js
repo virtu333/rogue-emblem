@@ -25,6 +25,7 @@ import { churchVowBlock, commitChurchVow } from './ChurchVow.js';
 import { endWoundByHealing, injuryPhrase } from './Burdens.js';
 import { healUnitFully } from './UnitHealth.js';
 import { applyKingmakerBonus, kingmakerOf } from './TwistedBoons.js';
+import { churchPromotionTermsOf } from './TradeBoons.js';
 /**
  * What a church charges to promote this unit: lords pay more than everyone else; nothing while
  * the run holds Kingmaker's Oath (docs/specs/blessings-v3.md §6.2). `run` may be left out (no
@@ -45,7 +46,14 @@ export function churchPromotionBlock(run, unit, nodeId, gameData) {
   // One vow per church: an altar that gave a blessing promotes no one.
   const vowed = churchVowBlock(run, nodeId, 'promote');
   if (vowed) return vowed;
-  const limit = run.getDifficultyModifier('churchPromotionLimit', -1);
+  // Kingmaker's Oath's terms (engine/TradeBoons.js): a level floor, and a limit a visit that
+  // holds beside the rung's own (the lower one counts).
+  const terms = churchPromotionTermsOf(run);
+  if (terms?.minLevel && (Number(unit.level) || 0) < terms.minLevel)
+    return `Kingmaker's Oath: promotes from level ${terms.minLevel}.`;
+  const rungLimit = run.getDifficultyModifier('churchPromotionLimit', -1);
+  const limits = [rungLimit, terms?.perVisit ?? -1].filter((n) => Number.isFinite(n) && n >= 0);
+  const limit = limits.length ? Math.min(...limits) : -1;
   if (limit >= 0 && run.getChurchPromotionCount(nodeId) >= limit) return 'Promotion limit reached.';
   if (run.gold < churchPromoteCost(unit, run)) return 'Not enough gold.';
   return '';

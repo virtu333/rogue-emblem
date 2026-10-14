@@ -13,8 +13,8 @@ test.setTimeout(150_000);
 const { defaultBrowserType: _browser, ...use } = phone({ width: 667, height: 375 });
 test.use(use);
 
-const TWISTED = 'hollow_sun_favor';
-const PAIR = [TWISTED, 'captains_whistle'];
+const TWISTED = 'hollow_sun_favor_ii';
+const PAIR = [TWISTED, 'unbroken_banner', 'forced_march'];
 
 /** The pause list's held blessing entries: their name lines and their price lines. */
 async function pauseBlessings(page) {

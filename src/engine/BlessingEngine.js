@@ -23,6 +23,7 @@ import { adjacentAllyDefBonusErrors, isolatedCombatBonusErrors } from './Formati
 import { EARNED_BOON_TYPES, earnedBoonErrors } from './EarnedBoons.js';
 import { shrineBoonErrors } from './ShrineBoons.js';
 import { TWISTED_BOON_TYPES, TWISTED_TWIST_TYPES, twistedEffectErrors } from './TwistedBoons.js';
+import { TRADE_ROLES, TRADE_TWIST_TYPES, tradeEffectErrors } from './TradeBoons.js';
 import { BURDEN_IDS, TWIST_BURDEN_IDS } from './Burdens.js';
 import { ACT_SEQUENCE } from '../utils/constants.js';
 
@@ -62,6 +63,8 @@ export const EARNED_REQUIRES_KEYS = Object.freeze(['eclipse']);
  * PR D3 adds the twisted cards' own types (engine/TwistedBoons.js): the Eclipse's faster gain and
  * the ban on Master Seals. A twist's burden may have no countdown of its own (`permanent`, or a
  * Hunted's `actsAhead`): only a twist may, and no church lifts one (Burdens.isCleansable).
+ * The act boss's trade cards (engine/TradeBoons.js, §6.8) add their costs, and a smaller army
+ * (`deploy_cap_delta`, below 0 as a twist: The Chosen Few).
  */
 export const TWIST_EFFECT_TYPES = Object.freeze([
   'burden',
@@ -70,7 +73,9 @@ export const TWIST_EFFECT_TYPES = Object.freeze([
   'xp_multiplier_delta',
   'shop_price_discount',
   'forge_cost_multiplier',
+  'deploy_cap_delta',
   ...TWISTED_TWIST_TYPES,
+  ...TRADE_TWIST_TYPES,
 ]);
 /** The burden params only a twist may carry: a span with no countdown (Burdens.isTwistBurden). */
 const TWIST_SPAN_KEYS = Object.freeze(['permanent', 'actsAhead', 'untilAct']);
@@ -189,8 +194,20 @@ const EARNED_BOON_VALUE_TYPES = new Set([
  * ships as a "valid" blessing). Each runs through the parser the handler uses; the bounds the
  * parser leaves loose are checked here. Appends to `errors`.
  */
-function validateBoonParams(effect, path, errors) {
-  if (effect.type === 'lord_stat_arc') {
+function validateBoonParams(effect, path, errors, { role = 'boon' } = {}) {
+  if (Object.hasOwn(TRADE_ROLES, effect.type)) {
+    // engine/TradeBoons.js: the parser its handler and the save's sanitizer read, and the side of
+    // the card (boon or cost) the type may stand on, pointing the right way.
+    for (const message of tradeEffectErrors(effect, role))
+      errors.push(`${path}.${message} (${effect.type})`);
+  } else if (role === 'twist' && effect.type === 'deploy_cap_delta') {
+    // As a cost a deploy cap change only narrows the army.
+    const value = effect.params?.value;
+    if (!(Number.isInteger(value) && value < 0))
+      errors.push(
+        `${path}.params.value must be a whole number below 0 as a cost (deploy_cap_delta)`,
+      );
+  } else if (effect.type === 'lord_stat_arc') {
     if (!parseLordStatArc(effect.params, ACT_SEQUENCE))
       errors.push(
         `${path}.params is not a usable lord_stat_arc (stats, integer dip/rise, dipAct/riseAct in ${ACT_SEQUENCE.join('/')})`,
@@ -687,7 +704,7 @@ function validateEarnedFields(blessing, path, errors) {
         else {
           // The twist's own params, read as its handler reads them.
           validateBurdenSpan(effect, where, errors, { twist: true });
-          validateBoonParams(effect, where, errors);
+          validateBoonParams(effect, where, errors, { role: 'twist' });
         }
       });
     }

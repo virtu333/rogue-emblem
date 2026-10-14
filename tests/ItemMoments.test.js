@@ -68,6 +68,20 @@ const PAINTING_PENDING = [
   'blood_covenant',
   'kingmakers_oath',
   'hollow_sun_favor',
+  'chronicle_ii',
+  'kingmakers_oath_ii',
+  'hollow_sun_favor_ii',
+  'forced_march',
+  'bulwark',
+  'way_of_the_art',
+  'gamblers_edge',
+  'the_chosen_few',
+  'the_levy',
+  'stone_vow',
+  'collectors_eye',
+  'featherweight',
+  'reckless_edge',
+  'shield_wall',
 ];
 const paintedBlessings = data.blessings.blessings.filter((b) => !PAINTING_PENDING.includes(b.id));
 

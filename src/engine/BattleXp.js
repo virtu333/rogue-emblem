@@ -125,16 +125,28 @@ export function combatXpAwards({
 /**
  * A base award after the battle's multipliers. Every award is at least 1.
  * @param {number} baseXp
+ * `unitXpMultiplier` is this unit's own share (Chronicle's lowest- and highest-level unit:
+ * TradeBoons.xpRoleMultiplierFor).
  * @param {{ parXpMultiplier?: number, xpMultiplier?: number, blessingXpDelta?: number,
- *   traitXpMultiplier?: number }} rates
+ *   traitXpMultiplier?: number, unitXpMultiplier?: number }} rates
  */
 export function scaledXp(
   baseXp,
-  { parXpMultiplier = 1, xpMultiplier = 1, blessingXpDelta = 0, traitXpMultiplier = 1 } = {},
+  {
+    parXpMultiplier = 1,
+    xpMultiplier = 1,
+    blessingXpDelta = 0,
+    traitXpMultiplier = 1,
+    unitXpMultiplier = 1,
+  } = {},
 ) {
+  const unitShare =
+    Number.isFinite(unitXpMultiplier) && unitXpMultiplier > 0 ? unitXpMultiplier : 1;
   return Math.max(
     1,
-    Math.floor(baseXp * parXpMultiplier * (xpMultiplier + blessingXpDelta) * traitXpMultiplier),
+    Math.floor(
+      baseXp * parXpMultiplier * (xpMultiplier + blessingXpDelta) * traitXpMultiplier * unitShare,
+    ),
   );
 }
 

@@ -73,6 +73,8 @@ const PROFILE = {
   adjacentAllyDef: [PHALANX],
   isolated: [DUELIST],
 };
+// The fields the act boss's trade cards add (engine/TradeBoons.js), at their "none" values.
+const NO_TRADE = { resBonus: 0, atkBonus: 0, spdBonus: 0, damageScale: 1, procChanceMultiplier: 1 };
 const PHALANX_ONLY = { ...PROFILE, isolated: [] };
 const DUELIST_ONLY = { ...PROFILE, adjacentAllyDef: [] };
 
@@ -187,6 +189,7 @@ describe('Phalanx Rite: DEF per ally on a cardinal neighbour tile', () => {
         defBonus: 0,
         critBonus: 0,
         firstStrikeHitBonus: 0,
+        ...NO_TRADE,
       });
     }
   });
@@ -330,6 +333,7 @@ describe("Duelist's Creed: Avoid and Crit with no ally within the radius", () =>
       defBonus: 0,
       critBonus: 7,
       firstStrikeHitBonus: 0,
+      ...NO_TRADE,
     });
   });
 

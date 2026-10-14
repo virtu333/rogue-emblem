@@ -34,9 +34,18 @@ export const EARNED_SKIP_CONFIRM_ONE = Object.freeze({
   closeLabel: 'Back',
 });
 
+const COUNT_WORDS = Object.freeze({ 3: 'three', 4: 'four', 5: 'five' });
+/** "both" for two cards, "all three" for three (the act boss's offer), "all" past the words. */
+function allOf(count) {
+  if (count === 2) return 'both';
+  return COUNT_WORDS[count] ? `all ${COUNT_WORDS[count]}` : 'all';
+}
+
 /** The skip confirmation's words for a pick of `count` cards. */
 export function earnedSkipConfirm(count) {
-  return count === 1 ? EARNED_SKIP_CONFIRM_ONE : EARNED_SKIP_CONFIRM;
+  if (count === 1) return EARNED_SKIP_CONFIRM_ONE;
+  if (count === 2) return EARNED_SKIP_CONFIRM;
+  return Object.freeze({ ...EARNED_SKIP_CONFIRM, heading: `Leave ${allOf(count)} blessings` });
 }
 
 function catalogIndex(run) {
@@ -107,8 +116,11 @@ export function earnedPickFooter(model, chosenId = null) {
   const card = model?.cards?.find((c) => c.id === chosenId) || null;
   if (!card) {
     const source = model?.source || "the act's boss";
+    const count = model?.cards?.length || 0;
     const choice =
-      model?.cards?.length === 1 ? 'Take it, or leave it.' : 'Take one, or leave them both.';
+      count === 1
+        ? 'Take it, or leave it.'
+        : `Take one, or leave them ${count === 2 ? 'both' : 'all'}.`;
     return { kind: 'prompt', text: `Won from ${source}. ${choice}` };
   }
   if (card.terms.length) return { kind: 'terms', terms: card.terms };

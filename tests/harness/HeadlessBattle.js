@@ -204,6 +204,7 @@ import {
   combatHpLost,
   scaledXp,
 } from '../../src/engine/BattleXp.js';
+import { xpRoleMultiplierFor } from '../../src/engine/TradeBoons.js';
 import { selectEnemyWeaponArt } from '../../src/engine/EnemyArtScoring.js';
 import { deriveNodeBattleSeed } from '../../src/engine/BattleScout.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
@@ -976,6 +977,12 @@ export class HeadlessBattle {
         : 1,
       blessingXpDelta: Number(this.battleParams?.blessingXpDelta) || 0,
       traitXpMultiplier: getTraitXpMultiplier(unit, this.gameData?.traits || null),
+      // Chronicle (engine/TradeBoons.js): the lowest- and highest-level unit on the field.
+      unitXpMultiplier: xpRoleMultiplierFor(
+        unit,
+        this.playerUnits,
+        this.battleParams?.xpRoleMultipliers,
+      ),
     });
     applyXpGain(unit, xp, {
       classes: this.gameData.classes,
@@ -1842,6 +1849,7 @@ export class HeadlessBattle {
       defTerrain,
       turn: this.turnManager?.turnNumber,
       alliesOf: getAllies,
+      atkWeaponArt: Boolean(weaponArt),
     });
 
     return {

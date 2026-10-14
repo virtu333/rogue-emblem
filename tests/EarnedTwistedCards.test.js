@@ -72,6 +72,15 @@ afterEach(() => {
 });
 
 const TWISTED = ['darkened_dawn', 'blood_covenant', 'kingmakers_oath', 'hollow_sun_favor'];
+// The act boss rework retired the first Kingmaker's Oath and Hollow Sun's Favor (weight 0: kept
+// so a run that holds one loads and plays it) for their reworked rows; these four are drawn.
+const DRAWN_TWISTED = [
+  'darkened_dawn',
+  'blood_covenant',
+  'kingmakers_oath_ii',
+  'hollow_sun_favor_ii',
+];
+const RETIRED_TWISTED = ['kingmakers_oath', 'hollow_sun_favor'];
 const card = (id) => data.blessings.blessings.find((b) => b.id === id);
 
 function freshRun({ seed = 31, difficultyId = 'dusk', eclipse = true, gameData = data } = {}) {
@@ -147,12 +156,12 @@ describe('the four twisted cards', () => {
       ...data.skills.map((s) => s.name),
     ]);
     const blessingNames = data.blessings.blessings.map((b) => b.name);
-    for (const id of TWISTED) {
+    for (const id of [...DRAWN_TWISTED, ...RETIRED_TWISTED]) {
       const b = card(id);
       expect(b.earned, id).toBe(true);
       expect(b.sources, id).toEqual([{ kind: 'act_boss' }]);
       expect(b.twist?.effects?.length, id).toBeGreaterThan(0);
-      expect(b.weight, id).toBe(0.6);
+      expect(b.weight, id).toBe(RETIRED_TWISTED.includes(id) ? 0 : 1);
       expect(b.description.length, id).toBeLessThanOrEqual(90);
       expect(b.lore.length, id).toBeLessThanOrEqual(85);
       expect(b.lore.toLowerCase(), id).not.toBe(b.description.toLowerCase());
@@ -167,7 +176,7 @@ describe('the four twisted cards', () => {
       requires: { eclipse: true },
     });
     expect(card('blood_covenant').requires).toEqual({ eclipse: true });
-    for (const id of ['kingmakers_oath', 'hollow_sun_favor'])
+    for (const id of ['kingmakers_oath', 'hollow_sun_favor', ...DRAWN_TWISTED.slice(2)])
       expect(card(id).requires, id).toBeUndefined();
   });
 
@@ -175,26 +184,31 @@ describe('the four twisted cards', () => {
     // Failure: a twisted card is drawn by a source the player cannot see it coming from.
     const rm = freshRun();
     for (const kind of ['eclipsed_elite', 'sanctum', 'colosseum', 'event'])
-      for (const b of earnedPoolFor(rm, kind)) expect(TWISTED, kind).not.toContain(b.id);
+      for (const b of earnedPoolFor(rm, kind))
+        expect([...TWISTED, ...DRAWN_TWISTED], kind).not.toContain(b.id);
     expect(
       earnedPoolFor(rm, 'act_boss')
         .map((b) => b.id)
-        .filter((id) => TWISTED.includes(id)),
-    ).toEqual(TWISTED);
+        .filter((id) => TWISTED.includes(id) || DRAWN_TWISTED.includes(id)),
+    ).toEqual(DRAWN_TWISTED);
   });
 
-  it('an act boss pair over 400 seeds holds one twisted card at most, and offers each', () => {
-    // Failure: a pair of two curses (D-3), or a twisted card that can never be drawn.
+  it('an act boss offer over 400 seeds is always three cards, and offers each twisted card', () => {
+    // Failure: an offer short of three (the old odds roll, the one-curse rule), a retired card
+    // drawn, or a twisted card that can never be drawn.
     const rm = freshRun();
     const seen = new Set();
     for (let seed = 1; seed <= 400; seed++) {
       rm.runSeed = seed;
       const roll = rollActBossEarnedOffer(rm);
-      const twisted = roll.offered.filter((id) => TWISTED.includes(id));
-      expect(twisted.length, `seed ${seed}`).toBeLessThanOrEqual(1);
-      for (const id of twisted) seen.add(id);
+      expect(roll.status, `seed ${seed}`).toBe('owed');
+      expect(new Set(roll.offered).size, `seed ${seed}`).toBe(3);
+      for (const id of roll.offered) {
+        expect(RETIRED_TWISTED, `seed ${seed}`).not.toContain(id);
+        if (DRAWN_TWISTED.includes(id)) seen.add(id);
+      }
     }
-    expect([...seen].sort()).toEqual([...TWISTED].sort());
+    expect([...seen].sort()).toEqual([...DRAWN_TWISTED].sort());
   });
 
   it('taking one from the pick charges its twist once: held as a Twist, never again on a load', () => {

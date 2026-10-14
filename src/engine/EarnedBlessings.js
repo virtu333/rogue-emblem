@@ -51,10 +51,13 @@ export const EARNED_PICK_SOURCES = Object.freeze([
 ]);
 export const EARNED_PICK_STATUSES = Object.freeze(['owed', 'taken', 'skipped', 'none', 'open']);
 
-/** What the data names when it names nothing: two cards, and a gentle fall in the odds. */
+/**
+ * What the data names when it names nothing: three cards, always offered (§6.8: every act boss
+ * but the last offers a pick, whatever the run holds; every card carries its cost instead).
+ */
 export const DEFAULT_EARNED_OFFER = Object.freeze({
-  actBoss: 2,
-  weightByHeld: Object.freeze([1, 0.85, 0.7]),
+  actBoss: 3,
+  weightByHeld: Object.freeze([1]),
 });
 
 /** The other sources' numbers when the data names none (decisions D-4, D-5, D-6). */
@@ -233,8 +236,8 @@ function drawCards(pool, count, rand, allow = () => true) {
 
 /**
  * The odds an act boss offers an earned pick at all, given how many earned blessings the run
- * already holds (the snowball guard: 1, 0.85, 0.7 with the shipped data). One function, so the
- * meaning of "held" changes in one place.
+ * already holds (the snowball guard; the shipped data's `[1]` offers every time, §6.8). One
+ * function, so the meaning of "held" changes in one place.
  */
 export function earnedOfferChance(heldCount, config = DEFAULT_EARNED_OFFER) {
   const list = Array.isArray(config?.weightByHeld) ? config.weightByHeld : [];
@@ -348,10 +351,11 @@ export function actBossPickDue(run, node) {
 /**
  * Roll this act's boss offer: `{ status: 'owed', offered: [id, ...] }` or
  * `{ status: 'none', offered: [] }`. Deterministic in (run seed, act, what the run holds):
- * the first draw is the odds roll (always spent, so the pair does not depend on the odds), then
- * the cards are drawn without replacement by `weight` among the earned blessings an act boss may
- * offer in this act (`earnedPoolFor(run, 'act_boss')`). A pair holds at most one twisted card
- * (D-3): once one is drawn, the next draw leaves the twisted out. Never `Math.random`.
+ * the first draw is the odds roll (always spent, so the cards do not depend on the odds; 1 with
+ * the shipped data, so the roll never misses), then `actBoss` cards are drawn without replacement
+ * by `weight` among the earned blessings an act boss may offer in this act
+ * (`earnedPoolFor(run, 'act_boss')`). Since §6.8 every act boss card carries a cost, so an offer
+ * may hold any number of twisted cards (D-3's one-twisted rule is gone). Never `Math.random`.
  */
 export function rollActBossEarnedOffer(run) {
   const config = earnedOfferConfig(run?.gameData?.blessings);
@@ -360,12 +364,7 @@ export function rollActBossEarnedOffer(run) {
   const roll = rand();
   if (!(roll < chance)) return { status: 'none', offered: [] };
   const pool = earnedPoolFor(run, EARNED_PICK_SOURCE_ACT_BOSS);
-  const offered = drawCards(
-    pool,
-    config.actBoss,
-    rand,
-    (card, drawn) => !isTwistedBlessing(card) || !drawn.some(isTwistedBlessing),
-  ).map((b) => b.id);
+  const offered = drawCards(pool, config.actBoss, rand).map((b) => b.id);
   return offered.length > 0 ? { status: 'owed', offered } : { status: 'none', offered: [] };
 }
 

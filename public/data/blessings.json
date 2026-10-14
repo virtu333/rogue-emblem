@@ -26,8 +26,8 @@
     "4": 0.25
   },
   "earnedOffer": {
-    "actBoss": 2,
-    "weightByHeld": [1, 0.85, 0.7],
+    "actBoss": 3,
+    "weightByHeld": [1],
     "eclipsedEliteChance": 0.3333,
     "sanctum": {
       "chance": 0.5
@@ -1396,7 +1396,7 @@
       "id": "ember_lantern",
       "name": "Ember Lantern",
       "earned": true,
-      "weight": 1,
+      "weight": 0,
       "sources": [
         {
           "kind": "act_boss"
@@ -1418,7 +1418,7 @@
       "id": "captains_whistle",
       "name": "Captain's Whistle",
       "earned": true,
-      "weight": 1,
+      "weight": 0,
       "sources": [
         {
           "kind": "act_boss"
@@ -1487,9 +1487,9 @@
     },
     {
       "id": "chronicle",
-      "name": "Chronicle",
+      "name": "Chronicle (old)",
       "earned": true,
-      "weight": 1,
+      "weight": 0,
       "sources": [
         {
           "kind": "act_boss",
@@ -1710,7 +1710,7 @@
       "id": "darkened_dawn",
       "name": "Darkened Dawn",
       "earned": true,
-      "weight": 0.6,
+      "weight": 1,
       "sources": [
         {
           "kind": "act_boss"
@@ -1761,7 +1761,7 @@
       "id": "blood_covenant",
       "name": "Blood Covenant",
       "earned": true,
-      "weight": 0.6,
+      "weight": 1,
       "sources": [
         {
           "kind": "act_boss"
@@ -1797,9 +1797,9 @@
     },
     {
       "id": "kingmakers_oath",
-      "name": "Kingmaker's Oath",
+      "name": "Kingmaker's Oath (old)",
       "earned": true,
-      "weight": 0.6,
+      "weight": 0,
       "sources": [
         {
           "kind": "act_boss"
@@ -1829,9 +1829,9 @@
     },
     {
       "id": "hollow_sun_favor",
-      "name": "Hollow Sun's Favor",
+      "name": "Hollow Sun's Favor (old)",
       "earned": true,
-      "weight": 0.6,
+      "weight": 0,
       "sources": [
         {
           "kind": "act_boss"
@@ -1872,6 +1872,510 @@
                 ],
                 "xpMultiplier": 0.5
               }
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "chronicle_ii",
+      "name": "Chronicle",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss",
+          "acts": [
+            "act2"
+          ]
+        }
+      ],
+      "description": "Your lowest-level unit in each battle earns double XP.",
+      "lore": "Every page a road walked. Whoever has walked the least learns the most.",
+      "boons": [
+        {
+          "type": "xp_role_multiplier",
+          "params": {
+            "role": "lowest",
+            "value": 2
+          }
+        }
+      ],
+      "twist": {
+        "label": "Your highest-level unit in each battle earns half XP",
+        "effects": [
+          {
+            "type": "xp_role_multiplier",
+            "params": {
+              "role": "highest",
+              "value": 0.5
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "kingmakers_oath_ii",
+      "name": "Kingmaker's Oath",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Church promotions are free and add +2 to the class's best stat.",
+      "lore": "Kings were once made at altars, not by seals. The old priests remember how.",
+      "boons": [
+        {
+          "type": "kingmaker_promotion",
+          "params": {
+            "bonus": 2,
+            "stats": 1
+          }
+        }
+      ],
+      "twist": {
+        "label": "No Master Seals; churches promote from level 15, at most 2 a visit",
+        "effects": [
+          {
+            "type": "master_seals_forbidden",
+            "params": {}
+          },
+          {
+            "type": "church_promotion_terms",
+            "params": {
+              "minLevel": 15,
+              "perVisit": 2
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "hollow_sun_favor_ii",
+      "name": "Hollow Sun's Favor",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "tags": [
+        "gold"
+      ],
+      "description": "+30% battle gold and +30% gold from loot cards.",
+      "lore": "The dark sun pays its debts in coin. It collects in other ways.",
+      "boons": [
+        {
+          "type": "battle_gold_multiplier_delta",
+          "params": {
+            "value": 0.3
+          }
+        },
+        {
+          "type": "loot_gold_multiplier_delta",
+          "params": {
+            "value": 0.3
+          }
+        }
+      ],
+      "twist": {
+        "label": "Hunted through the next act: a wave of 3 foes in each battle",
+        "effects": [
+          {
+            "type": "burden",
+            "params": {
+              "id": "hunted",
+              "actsAhead": 1,
+              "wave": {
+                "turn": 3,
+                "count": [
+                  3,
+                  3
+                ],
+                "xpMultiplier": 0.5
+              }
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "forced_march",
+      "name": "Forced March",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Every unit has +1 Move in battle.",
+      "lore": "No rest, no fires, no stopping for the wounded. The army arrives tired, but first.",
+      "boons": [
+        {
+          "type": "army_mov_delta",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "twist": {
+        "label": "Your units take 2 more damage from each hit",
+        "effects": [
+          {
+            "type": "army_combat_delta",
+            "params": {
+              "def": -2,
+              "res": -2
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "bulwark",
+      "name": "Bulwark",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Your units take 2 less damage from each hit.",
+      "lore": "Plate over mail over padding. Nothing gets through, and nobody gets anywhere fast.",
+      "boons": [
+        {
+          "type": "army_combat_delta",
+          "params": {
+            "def": 2,
+            "res": 2
+          }
+        }
+      ],
+      "twist": {
+        "label": "Every unit has -1 Move in battle",
+        "effects": [
+          {
+            "type": "army_mov_delta",
+            "params": {
+              "value": -1
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "way_of_the_art",
+      "name": "Way of the Art",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Your units' weapon arts cost no HP.",
+      "lore": "The old masters taught forms, not blows. Their pupils forgot how to simply swing.",
+      "boons": [
+        {
+          "type": "weapon_art_hp_free",
+          "params": {}
+        }
+      ],
+      "twist": {
+        "label": "Attacks without a weapon art deal 2 less damage",
+        "effects": [
+          {
+            "type": "army_combat_delta",
+            "params": {
+              "might": -2,
+              "when": "plain"
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "gamblers_edge",
+      "name": "Gambler's Edge",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Your units' skills activate 1.5 times as often.",
+      "lore": "A loaded die cut from a saint's knuckle. It favours whoever holds it, and the house.",
+      "boons": [
+        {
+          "type": "proc_chance_multiplier",
+          "params": {
+            "value": 1.5
+          }
+        }
+      ],
+      "twist": {
+        "label": "Foes are twice as likely to carry an affix",
+        "effects": [
+          {
+            "type": "enemy_affix_chance_multiplier",
+            "params": {
+              "value": 2
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "the_chosen_few",
+      "name": "The Chosen Few",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Every unit, recruits included, has +2 to every stat but Move.",
+      "lore": "Fewer banners, finer blades. The captains choose who marches and who stays.",
+      "boons": [
+        {
+          "type": "army_stat_bonus",
+          "params": {
+            "value": 2
+          }
+        }
+      ],
+      "twist": {
+        "label": "Deploy 2 fewer units in each battle",
+        "effects": [
+          {
+            "type": "deploy_cap_delta",
+            "params": {
+              "value": -2
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "the_levy",
+      "name": "The Levy",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Deploy 2 more units in each battle.",
+      "lore": "Every village sends its sons. Half have never held a spear, but they are many.",
+      "boons": [
+        {
+          "type": "deploy_cap_delta",
+          "params": {
+            "value": 2
+          }
+        }
+      ],
+      "twist": {
+        "label": "Your units deal 10% less damage",
+        "effects": [
+          {
+            "type": "damage_dealt_scale",
+            "params": {
+              "value": 0.9
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "stone_vow",
+      "name": "Stone Vow",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Your units have +3 DEF and RES when a foe attacks them.",
+      "lore": "Sworn on the castle's first stone: we hold. Nobody swore anything about charging.",
+      "boons": [
+        {
+          "type": "army_combat_delta",
+          "params": {
+            "def": 3,
+            "res": 3,
+            "when": "enemy_phase"
+          }
+        }
+      ],
+      "twist": {
+        "label": "Your units deal 2 less damage when they attack",
+        "effects": [
+          {
+            "type": "army_combat_delta",
+            "params": {
+              "might": -2,
+              "when": "player_phase"
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "collectors_eye",
+      "name": "Collector's Eye",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss",
+          "acts": [
+            "act1",
+            "act2"
+          ]
+        }
+      ],
+      "description": "Battle loot is drawn from the next act's tables.",
+      "lore": "A jeweller's loupe that sees what a thing will be worth. It is picky about it.",
+      "boons": [
+        {
+          "type": "loot_act_ahead",
+          "params": {
+            "value": 1
+          }
+        }
+      ],
+      "twist": {
+        "label": "One fewer loot card to choose from",
+        "effects": [
+          {
+            "type": "loot_choice_delta",
+            "params": {
+              "value": -1
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "featherweight",
+      "name": "Featherweight",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Your units' weapons weigh 3 less.",
+      "lore": "Hollow-forged steel from the river smiths. Quick in the hand, light on the bone.",
+      "boons": [
+        {
+          "type": "weapon_weight_delta",
+          "params": {
+            "value": -3
+          }
+        }
+      ],
+      "twist": {
+        "label": "Your units' weapons have -2 Might",
+        "effects": [
+          {
+            "type": "army_combat_delta",
+            "params": {
+              "might": -2
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "reckless_edge",
+      "name": "Reckless Edge",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Your units have +10 Crit.",
+      "lore": "Swing for the throat and pray. It works more often than it should.",
+      "boons": [
+        {
+          "type": "army_combat_delta",
+          "params": {
+            "crit": 10
+          }
+        }
+      ],
+      "twist": {
+        "label": "Your units have -10 Hit",
+        "effects": [
+          {
+            "type": "army_combat_delta",
+            "params": {
+              "hit": -10
+            }
+          }
+        ]
+      },
+      "costs": []
+    },
+    {
+      "id": "shield_wall",
+      "name": "Shield Wall",
+      "earned": true,
+      "weight": 1,
+      "sources": [
+        {
+          "kind": "act_boss"
+        }
+      ],
+      "description": "Your units have +3 DEF and RES beside an ally.",
+      "lore": "Shoulder to shoulder, rim over rim. The line holds as long as it is a line.",
+      "boons": [
+        {
+          "type": "army_combat_delta",
+          "params": {
+            "def": 3,
+            "res": 3,
+            "when": "beside_ally"
+          }
+        }
+      ],
+      "twist": {
+        "label": "Your units have -15 Hit and Avoid with no ally within 2 tiles",
+        "effects": [
+          {
+            "type": "army_combat_delta",
+            "params": {
+              "hit": -15,
+              "avoid": -15,
+              "when": "alone",
+              "radius": 2
             }
           }
         ]

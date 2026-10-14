@@ -1022,6 +1022,45 @@ Reliquary counted (`Combat.getStaffHealBase`, the rule the heal itself reads, an
 `getEffectiveStaffRange`); the colosseum's "Requires N gold." names the Ledger's fee; the
 Wandering Smith's intro offers his three jobs ("One job a customer").
 
+### 6.8 As built: the act boss rework (trade cards)
+
+Owner's call (2026-10-14): the act boss's earned pick was a coin flip that could miss silently
+(70% with two earned blessings held). Modelled now on Slay the Spire's boss relics:
+
+- **Every act boss but the last offers three cards, every time** (`earnedOffer.actBoss` 3,
+  `weightByHeld` [1]). Skip stays (it always asks first). The one-twisted-card-per-offer rule is
+  gone: nearly every act boss card now carries a cost.
+- **Every new card is a trade**: a real boon, and a cost taken with it as its `twist` (held as its
+  price, as the twisted cards'). The effects are `engine/TradeBoons.js`; each type is a boon, a
+  cost or either (`TRADE_ROLES`), and the validator refuses a sign that points the wrong way.
+- **Retired** (weight 0, kept so a run that holds one loads and plays it; hidden from the
+  Compendium): Ember Lantern and Captain's Whistle; the first Chronicle, Kingmaker's Oath and
+  Hollow Sun's Favor, renamed "(old)" and replaced by `_ii` rows with new terms.
+
+| Card | Boon | Cost |
+| --- | --- | --- |
+| Chronicle (Act II boss) | Lowest-level unit on the field: 2x battle XP | Highest-level unit: 0.5x |
+| Kingmaker's Oath | Free church promotions, +2 to the class's best stat | No Master Seals; promotes from level 15, at most 2 a visit |
+| Hollow Sun's Favor | +30% battle gold and loot-card gold | Hunted through the next act: a wave of 3 |
+| Forced March | +1 Move in battle | -2 DEF and RES |
+| Bulwark | +2 DEF and RES | -1 Move in battle |
+| Way of the Art | Weapon arts cost no HP | -2 Might on plain attacks |
+| Gambler's Edge | Skill proc odds x1.5 (at most 100) | Foes roll affixes twice as often |
+| The Chosen Few | +2 to every stat but Move (Blood Covenant's grant) | Deploy 2 fewer |
+| The Levy | Deploy 2 more | Your units deal 10% less damage (floored, at least 1) |
+| Stone Vow | +3 DEF and RES in combats a foe starts | -2 Might in combats you start |
+| Collector's Eye (Acts I-II) | Loot from the next act's tables (never past Act IV) | One loot card fewer (at least one) |
+| Featherweight | Weapons weigh 3 less (as Attack Speed) | -2 Might |
+| Reckless Edge | +10 Crit | -10 Hit |
+| Shield Wall | +3 DEF and RES beside an ally | -15 Hit and Avoid with no ally within 2 |
+
+Darkened Dawn and Blood Covenant are drawn at weight 1 beside them. Two escape templates
+(`river_flight`, `hunters_woods`) took a taller player spawn zone so Act II's largest army
+(The Levy's +2 on the deploy bonus) still fits.
+
+Parked for a later wave: Standard of the Sun's cost, Oathbound Steel, Siegebreaker, Smith's
+Exile, Vanguard Oath, Night March, Bounty Road.
+
 ## 7. Gifts with a catch (run start)
 
 Cut in review: Gilded Chest (gold now, a bigger Debt later) read as a loan, not a gift.
