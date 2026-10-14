@@ -1,6 +1,6 @@
 # Epic weapons
 
-Status: owner-approved concepts, 2026-10-14 (the "unique weapons" thread). Building in two PRs.
+Status: owner-approved concepts, 2026-10-14 (the "unique weapons" thread). Built in two PRs (#410 and the second batch).
 
 Between a plain Silver Sword and a relic there was nothing with a personality, and nothing
 named before Act III. **Epic** is a new weapon tier: one of a kind, a proper name, one rule of
@@ -31,6 +31,13 @@ Defaults picked while building (not owner calls; change freely):
   every foe on the player phase. Thornwood Bow's forest bonus is Hit and Might (a range change
   would touch every reach preview). Unrelieved Line's catch is −2 Mt after moving (a Move
   penalty from a weapon has no clean place to live; MOV is written in place).
+- Second batch: Second Push moves 2 tiles after a fight even with no movement left. Frightened
+  Acclaim locks once it is the held weapon (a unit may still take it up from its bag). Futuresold's
+  upkeep counts every copy the army carries, convoy included, and never takes gold below 0.
+  Hollowsong costs its shadow only for a battle it struck in (carrying it is free). Gorgemaw takes
+  nothing on turn 1. Wakelight's mark lasts the phase it was made in (a contact, cleared as the
+  enemy phase starts; one made on the enemy phase lasts into the player phase). Holder of the
+  Breach's slow is a timed buff, so a foe's own stronger MOV buff wins over it.
 
 ## 1. The tier
 
@@ -60,8 +67,23 @@ Conditions (`when`): `initiating`, `defending`, `foeFullHp`, `fullHp`, `below50`
 `holdingGround` (`isHoldingGround`, needs the battle's turn in the combat context), `moved`,
 `onForest`, `foeWields` (with `weaponTypes`). `per`: `adjacentAlly`.
 
-PR B adds `turnStartToll`, `slowAdjacentFoes`, `battleKills`, `lockedInHand`, `victoryGold`,
-`battleShadow`, `canto`, `grows`, `vision`.
+The second batch adds:
+
+| Kind | Fields | Where it acts |
+|---|---|---|
+| `canto` | `tiles` | `CantoRule.cantoAllowance`: after a fight, that many tiles whatever movement is left (a root still stops it); `cantoRuleFor` reads it as `any` |
+| `vision` | `bonus` | `Grid.unitVisionRange` (scene and harness grids alike) |
+| `lockedInHand` | — | `WeaponSwapLock.weaponSwapLocked`, only while the unit carries the battle's mark (`_inBattle`, stamped by `TradeBoons.stampArmyBattleRules`, dropped by `serializeUnit`), so the roster never sees it |
+| `slowAdjacentFoes` | `mov` (< 0) | `SkillSystem.getTurnStartEffects`' `foes`: each foe beside a wielder as its phase starts takes a timed MOV buff until the wielder's side's next phase |
+| `turnStartToll` | `percent` | `getTurnStartEffects`: the wielder's own phase start from turn 2, unless it killed in the turn before (`_epicFedTurn`); never below 1 HP |
+| `grows` | `every`, `gains` | `PostCombatEffects` `epic_combat_record`: kills counted on the instance (`_tally`), a gain every `every`th kill keyed by uid and kill number |
+| `battleShadow` | `shadow` | the same step stamps the weapon used (`_epicBattleUsed`) when its side struck; `RunManager.completeBattle` adds the shadow and clears the stamp |
+| `victoryUpkeep` | `gold` | `completeBattle`, after the gold: paid for each carried (roster bags and convoy), never below 0 gold |
+
+A `mods` rule's `per` may also be `battleKill` (`_epicBattleKills`, the same step's count).
+`afterCombat`'s `reveal` effect (Wakelight) shows the foe hit for the rest of the phase
+(`Grid.revealContact`, through the post-combat world's `revealContact`). The victory band reads
+`run.lastEpicVictory.lines` ("Hollowsong +1 shadow", "Futuresold −200 G").
 
 ## 3. The weapons
 
@@ -71,13 +93,13 @@ PR B adds `turnStartToll`, `slowAdjacentFoes`, `battleKills`, `lockedInHand`, `v
 |---|---|---|---|---|
 | Treatybreaker | Warchief | Axe | +5 Atk against a foe at full HP | −15 Hit when defending |
 | Unrelieved Line | Iron Captain | Lance | +4 DEF/RES when attacked having held its ground | −2 Atk after moving |
-| Second Push | Knight Commander | Lance | Canto 2 after attacking (PR B) | −10 Avoid |
+| Second Push | Knight Commander | Lance | Moves 2 tiles after a fight (Canto) | −10 Avoid |
 | The Middle Pages | Archmage | Tome | Range 1–3 | 6 casts per battle |
 | Sealed Orders | Dark Rider | Tome | A hit Silences the foe for a phase | 3 HP after each combat it starts |
 | Proof of the Halls | Blade Lord | Sword | Vantage at full HP | — |
-| Holder of the Breach | Iron Wall | Axe | Adjacent foes −2 Move on their phase (PR B) | Weight 15 |
-| Frightened Acclaim | Berserker King | Axe | +3 Atk per kill this battle, up to +9 (PR B) | Locked in hand for the battle |
-| Futuresold | The Emperor | Sword | +2 Atk/DEF/RES/AS, +5 Hit/Avoid (PR B) | 200 gold each victory while carried |
+| Holder of the Breach | Iron Wall | Axe | Adjacent foes −2 Move on their phase | Weight 15 |
+| Frightened Acclaim | Berserker King | Axe | +3 Atk per kill this battle, up to +9 | Locked in hand for the battle |
+| Futuresold | The Emperor | Sword | +2 Atk/DEF/RES/AS, +5 Hit/Avoid | 200 gold each victory while carried |
 
 ### Finds (`epicWeapons` in the act tables)
 
@@ -93,10 +115,10 @@ PR B adds `turnStartToll`, `slowAdjacentFoes`, `battleKills`, `lockedInHand`, `v
 | Phalanx Pike | Lance | +1 Atk, +2 DEF per adjacent ally (up to 2) | — | II–IV |
 | Mirrorglass | Tome | Strikes with the foe's weapon Might (at least 5) | — | II–IV |
 | Cinderstring | Bow | +30 Crit below half HP | −10 Avoid | III–IV |
-| Tallyblade | Sword | Grows every 4 kills (PR B) | Starts Iron-weak | II–IV |
-| Gorgemaw | Axe | 15 Mt | −15% max HP each turn it didn't kill last turn (PR B) | III–IV |
-| Hollowsong | Tome | Conflagration + 3 | +1 Eclipse shadow per battle used in (PR B) | III–IV |
-| Wakelight | Light | +2 fog vision; foes it hits stay seen (PR B) | Low Might | II–IV |
+| Tallyblade | Sword | Every 4 kills: +1 Mt, +5 Crit or +5 Hit, uncapped | Starts Iron-weak | II–IV |
+| Gorgemaw | Axe | 15 Mt | −15% max HP each turn start after a turn without a kill | III–IV |
+| Hollowsong | Tome | Conflagration + 3 | +1 Eclipse shadow per battle it struck in | III–IV |
+| Wakelight | Light | +2 fog vision; a foe it hits stays shown for the phase | Low Might | II–IV |
 
 ### Daybreak (relic sword, Act III+ `legendaryWeapon`)
 

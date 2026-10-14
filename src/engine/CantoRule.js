@@ -1,10 +1,13 @@
 import defaults from '../../data/skills.json' with { type: 'json' };
 import { isRooted } from './StatusConditionSystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
+import { epicCantoTiles } from './EpicWeapons.js';
 
 // Skill data owns the movement rule. A root overrides every Canto skill.
 export function cantoRuleFor(unit, skillsData = defaults) {
   if (!unit || isRooted(unit)) return null;
+  // Second Push (an Epic weapon) moves on after a fight: Canto that applies to any action.
+  if (epicCantoTiles(unit.weapon) > 0) return 'any';
   const rules = effectiveSkills(unit).map(
     (id) => skillsData?.find((skill) => skill.id === id)?.cantoRule,
   );
@@ -16,7 +19,8 @@ export function cantoRuleFor(unit, skillsData = defaults) {
  * How far a unit may move after acting: the movement it has left, scaled by the best
  * Canto skill it holds that applies to this action (a skill's `cantoShare`, default 1,
  * rounded down: Parting Step, half_canto, turns 5 left into 2). 0 means no Canto. `noncombat` skills
- * apply only when the action was not a fight; a root stops every one.
+ * apply only when the action was not a fight; a root stops every one. A held weapon with a
+ * `canto` rule (Second Push) gives its tiles after a fight, whatever movement is left.
  */
 export function cantoAllowance(
   unit,
@@ -35,5 +39,6 @@ export function cantoAllowance(
     if (!(share > 0)) continue;
     best = Math.max(best, Math.floor(left * Math.min(1, share)));
   }
+  if (afterCombat) best = Math.max(best, epicCantoTiles(unit.weapon));
   return best;
 }

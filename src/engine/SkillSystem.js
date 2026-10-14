@@ -14,7 +14,7 @@ import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
 import { getUnitMarkFor, markActivation, markProcs, roadBuffEntry } from './MarkSystem.js';
 import { combatDistance } from './EntitySystem.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
-import { epicCombatMods } from './EpicWeapons.js';
+import { epicCombatMods, epicTurnStartEffects } from './EpicWeapons.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -714,8 +714,11 @@ export function checkAstra(attacker, skillsData, procMultiplier = 1) {
  * With `marksData` and a `turn`, a player unit's Mark of the Road rolls here, on the battle's
  * Math.random, and a hit is `{ type: 'buff', target, entry, source, sourceUnit }`: `entry`
  * goes to TimedWeaponArtBuffs.applyTimedBuffEntry (+1 MOV until its phase ends).
+ * Then the Epic weapons' (EpicWeapons.epicTurnStartEffects): Gorgemaw's `toll` on its own
+ * wielder and, from `foes` (the other side's units), Holder of the Breach's slow (a `buff`
+ * with `slow: true`).
  */
-export function getTurnStartEffects(units, skillsData, marksData = null, turn = 1) {
+export function getTurnStartEffects(units, skillsData, marksData = null, turn = 1, foes = []) {
   const effects = [];
 
   const resolvedSkillsData = Array.isArray(skillsData) ? skillsData : [];
@@ -824,6 +827,7 @@ export function getTurnStartEffects(units, skillsData, marksData = null, turn = 
     }
   }
 
+  effects.push(...epicTurnStartEffects(units, foes, turn));
   return effects;
 }
 

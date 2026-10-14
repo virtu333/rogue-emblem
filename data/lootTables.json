@@ -186,7 +186,7 @@
       "innateChance": {"Iron": 0.25, "Steel": 0.2},
       "scrollSlots": {"Iron": 2, "Steel": 11}
     },
-    "epicWeapons": ["Prodding Spear", "Parrying Blade", "Rook's Bow", "Pilgrim's Lamp", "Tollkeeper's Knife", "Thornwood Bow", "Haulhook", "Phalanx Pike", "Mirrorglass"],
+    "epicWeapons": ["Prodding Spear", "Parrying Blade", "Rook's Bow", "Pilgrim's Lamp", "Tollkeeper's Knife", "Thornwood Bow", "Haulhook", "Phalanx Pike", "Mirrorglass", "Tallyblade", "Wakelight"],
     "epicChance": 0.15,
     "legendaryWeapon": [],
     "accessories": [
@@ -332,7 +332,7 @@
       "innateChance": {"Iron": 0.1, "Steel": 0.25},
       "scrollSlots": {"Iron": 1, "Steel": 8}
     },
-    "epicWeapons": ["Tollkeeper's Knife", "Thornwood Bow", "Haulhook", "Phalanx Pike", "Mirrorglass", "Cinderstring"],
+    "epicWeapons": ["Tollkeeper's Knife", "Thornwood Bow", "Haulhook", "Phalanx Pike", "Mirrorglass", "Cinderstring", "Tallyblade", "Wakelight", "Gorgemaw", "Hollowsong"],
     "epicChance": 0.15,
     "legendaryWeapon": [
       "Ragnarok",
@@ -492,7 +492,7 @@
       "innateChance": {"Iron": 0.05, "Steel": 0.15},
       "scrollSlots": {"Iron": 0, "Steel": 1}
     },
-    "epicWeapons": ["Haulhook", "Phalanx Pike", "Mirrorglass", "Cinderstring"],
+    "epicWeapons": ["Haulhook", "Phalanx Pike", "Mirrorglass", "Cinderstring", "Tallyblade", "Wakelight", "Gorgemaw", "Hollowsong"],
     "epicChance": 0.15,
     "legendaryWeapon": [
       "Ragnarok",

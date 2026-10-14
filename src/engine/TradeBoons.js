@@ -61,7 +61,7 @@ import { countAdjacentAllies, hasAllyWithin } from './SkillSystem.js';
 import { getXpEffectiveLevel } from './UnitManager.js';
 import { unitUidOf } from './UnitIdentity.js';
 import { RANGED_REACH_FIELD } from './WeaponReach.js';
-import { WEAPON_SWAP_LOCK_FIELD } from './WeaponSwapLock.js';
+import { IN_BATTLE_FIELD, WEAPON_SWAP_LOCK_FIELD } from './WeaponSwapLock.js';
 
 /** Which side of a card each type may stand on: a boon, a cost (`twist`), or either. */
 export const TRADE_ROLES = Object.freeze({
@@ -708,6 +708,9 @@ export function stampArmyBattleRules(units, battleParams) {
     else delete unit[RANGED_REACH_FIELD];
     if (player && locked) unit[WEAPON_SWAP_LOCK_FIELD] = true;
     else delete unit[WEAPON_SWAP_LOCK_FIELD];
+    // In battle: an Epic weapon's own lock (Frightened Acclaim) applies only here.
+    if (player) unit[IN_BATTLE_FIELD] = true;
+    else delete unit[IN_BATTLE_FIELD];
   }
   return units;
 }

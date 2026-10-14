@@ -14,11 +14,34 @@
 // it holds it. A locked unit may still heal: the Heal action takes the staff up for the cast and
 // hands the held weapon back (HealController.holdStaff / restoreCombatWeapon, never through these
 // gates), but neither the Equip menu nor a reorder may put the held weapon down for a staff. A unit leaves the battle without the lock (UnitSerialization.serializeUnit).
+//
+// An Epic weapon with a `lockedInHand` rule (Frightened Acclaim, engine/EpicWeapons.js) locks
+// itself the same way once taken up, but only in battle: `stampArmyBattleRules` marks every
+// player unit in a battle (`IN_BATTLE_FIELD`), so the roster and the route map never see it.
 
 /** The field the battle's lock rides on a unit (checkpoints and rewinds keep it). */
 export const WEAPON_SWAP_LOCK_FIELD = '_weaponSwapLocked';
 /** What the player is told when the lock refuses a change. */
 export const WEAPON_SWAP_LOCK_REASON = "Oathbound Steel: weapons can't be changed in battle";
+/** The battle's mark on each player unit (TradeBoons.stampArmyBattleRules), dropped as it leaves. */
+export const IN_BATTLE_FIELD = '_inBattle';
+
+/** True for a held weapon whose own rule keeps it in hand (read as data: this module imports nothing). */
+function locksItself(unit) {
+  const rules = unit?.weapon?.rules;
+  return (
+    unit?.[IN_BATTLE_FIELD] === true &&
+    Array.isArray(rules) &&
+    rules.some((rule) => rule?.kind === 'lockedInHand')
+  );
+}
+
+/** What the player is told when `unit`'s lock refuses a change. */
+export function weaponSwapLockReason(unit) {
+  if (unit?.[WEAPON_SWAP_LOCK_FIELD] !== true && locksItself(unit))
+    return `${unit.weapon.name} can't leave its bearer's hands in battle`;
+  return WEAPON_SWAP_LOCK_REASON;
+}
 
 const NOT_COMBAT = new Set(['Staff', 'Scroll', 'Consumable', 'Accessory']);
 
@@ -32,7 +55,7 @@ export function weaponSwapLocked(unit) {
   return Boolean(
     unit &&
     unit.faction === 'player' &&
-    unit[WEAPON_SWAP_LOCK_FIELD] === true &&
+    (unit[WEAPON_SWAP_LOCK_FIELD] === true || locksItself(unit)) &&
     isCombatWeapon(unit.weapon),
   );
 }

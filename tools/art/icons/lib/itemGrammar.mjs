@@ -683,6 +683,14 @@ export const WEAPON_ICON_REUSE = Object.freeze({
   'The Middle Pages': 'conflagration',
   'Sealed Orders': 'witchfire',
   'Proof of the Halls': 'silver-sword',
+  'Second Push': 'silver-lance',
+  'Holder of the Breach': 'hammer',
+  'Frightened Acclaim': 'keen-axe',
+  Futuresold: 'sunder-sword',
+  Tallyblade: 'steel-sword',
+  Gorgemaw: 'sunder-axe',
+  Hollowsong: 'wildfire',
+  Wakelight: 'crownlight',
   Daybreak: 'thunderbrand',
 });
 
