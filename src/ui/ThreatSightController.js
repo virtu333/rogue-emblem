@@ -37,7 +37,11 @@ import {
   threatWorldSignature,
 } from '../engine/ThreatForecast.js';
 import { ensureThreatSigilTexture } from '../art/threatSigil.js';
-import { enemyIntentSignature, predictEnemyIntents } from '../engine/EnemyIntent.js';
+import {
+  enemyIntentSignature,
+  predictBallistaTargets,
+  predictEnemyIntents,
+} from '../engine/EnemyIntent.js';
 
 // World depths (below SCREEN_UI so the phone's pinned UI camera leaves them alone).
 export const THREAT_SIGHT_DEPTHS = Object.freeze({
@@ -167,8 +171,19 @@ export class ThreatSightController {
     });
     const aimsAtMover = (intent) =>
       intent?.target === mover && (intent.kind === 'attack' || intent.kind === 'status');
+    // Ballistas are no AI unit: processBallistaFire shoots the army's nearest, lowest-HP unit.
+    const ballistaTargets = predictBallistaTargets({
+      ballistas: ctx.ballistas || [],
+      playerUnits: this.scene.playerUnits || [],
+      mover,
+      col,
+      row,
+    });
     let aimed = 0;
     for (const intent of intents.values()) if (aimsAtMover(intent)) aimed++;
+    for (const ballista of result.ballistas || []) {
+      if (ballistaTargets.get(ballista) === mover) aimed++;
+    }
     // A foe the AI sends at the mover is a threat to it whatever the reach check said.
     const listed = new Set([...result.damage, ...result.status]);
     const damage = [...result.damage];
@@ -178,7 +193,15 @@ export class ThreatSightController {
       (intent.kind === 'status' ? status : damage).push(foe);
     }
     const added = damage.length - result.damage.length;
-    return { ...result, damage, status, count: result.count + added, intents, aimed };
+    return {
+      ...result,
+      damage,
+      status,
+      count: result.count + added,
+      intents,
+      ballistaTargets,
+      aimed,
+    };
   }
 
   /** HUD line for a tile: "2 foes can reach" (null when the tile is not a move preview). */
@@ -277,7 +300,13 @@ export class ThreatSightController {
         kind: 'damage',
         ...this.aimOf(result, unit, mover),
       })),
-      ...result.ballistas.map((unit) => ({ unit, kind: 'damage', ballista: true, aim: 'mover' })),
+      ...result.ballistas.map((unit) => {
+        const pick = result.ballistaTargets?.get(unit);
+        // Its shot goes to the nearest unit in reach: the mover's tile may not be it.
+        if (result.ballistaTargets && pick && pick !== mover)
+          return { unit, kind: 'damage', ballista: true, aim: 'aside', target: pick };
+        return { unit, kind: 'damage', ballista: true, aim: 'mover' };
+      }),
       ...result.status.map((unit) => ({
         unit,
         kind: 'status',
