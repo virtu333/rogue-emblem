@@ -341,8 +341,8 @@ for (const size of SIZES) {
       await expect(dialog.locator('.ev-result[data-kind="gold"]')).toContainText('Gained 250 G');
       await expect(dialog.locator('.ev-failed')).toHaveCount(0);
       expect(await spoils(page)).toMatchObject({
-        live: { owed: false, gold: gold + 200 },
-        saved: { owed: false, gold: gold + 200 },
+        live: { owed: false, gold: gold + 250 },
+        saved: { owed: false, gold: gold + 250 },
       });
       await dialog.locator('.ev-primary').click();
       await expect(page.getByRole('dialog')).toHaveCount(0);
