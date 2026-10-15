@@ -3,6 +3,7 @@ import {
   installAudioResumeGate,
   failureCooldownMs,
   GESTURE_COOLDOWN_MS,
+  STALE_MS,
 } from '../src/utils/audioResumeGate.js';
 
 afterEach(() => vi.useRealTimers());
@@ -79,15 +80,52 @@ describe('audio resume gate', () => {
     const nativeResume = context.resume;
     const gate = installAudioResumeGate(context);
     const a = context.resume();
-    const b = gate.request({ gesture: true });
-    const c = context.resume();
+    const b = context.resume();
     expect(nativeResume).toHaveBeenCalledTimes(1);
     expect(b).toBe(a);
-    expect(c).toBe(a);
     settle();
     await a;
     context.resume();
     expect(nativeResume).toHaveBeenCalledTimes(2);
+    gate.dispose();
+  });
+
+  it('sends a gesture resume past a pending one, once a tap', async () => {
+    // Chromium and WebKit leave a resume made without a gesture pending until the
+    // page may play; only a resume made during a gesture starts the context.
+    let t = 0;
+    const context = makeContext();
+    context.resume.mockImplementation(() => new Promise(() => {}));
+    const nativeResume = context.resume;
+    let active = false;
+    const gate = installAudioResumeGate(context, { now: () => t, userActive: () => active });
+    const pending = context.resume();
+    t = 10;
+    const tap = gate.request({ gesture: true });
+    expect(tap).not.toBe(pending);
+    expect(nativeResume).toHaveBeenCalledTimes(2);
+    // The same tap's touchend shares it; Phaser's raw call during the tap too.
+    t = 60;
+    expect(gate.request({ gesture: true })).toBe(tap);
+    active = true;
+    expect(context.resume()).toBe(tap);
+    expect(nativeResume).toHaveBeenCalledTimes(2);
+    // A later tap sends again.
+    t = 60 + GESTURE_COOLDOWN_MS;
+    gate.request({ gesture: true });
+    expect(nativeResume).toHaveBeenCalledTimes(3);
+    // A raw call during user activation counts as a gesture.
+    t = 2000;
+    context.resume();
+    expect(nativeResume).toHaveBeenCalledTimes(4);
+    // Without activation, a pending request is shared until it is stale.
+    active = false;
+    t = 2100;
+    context.resume();
+    expect(nativeResume).toHaveBeenCalledTimes(4);
+    t = 2000 + STALE_MS;
+    context.resume();
+    expect(nativeResume).toHaveBeenCalledTimes(5);
     gate.dispose();
   });
 

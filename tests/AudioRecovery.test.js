@@ -58,17 +58,21 @@ describe('audio foreground recovery', () => {
     expect(nativeResume).toHaveBeenCalledTimes(3);
     dispose();
   });
-  it('sends one resume for a tap and a foreground return arriving together', async () => {
+  it('sends one resume for a foreground return and one for a tap', async () => {
     const { doc, win, nativeResume, dispose } = setup();
-    let settle;
-    nativeResume.mockImplementation(() => new Promise((resolve) => (settle = resolve)));
+    const settles = [];
+    nativeResume.mockImplementation(() => new Promise((resolve) => settles.push(resolve)));
     win.dispatchEvent(new Event('focus'));
     win.dispatchEvent(new Event('pageshow'));
     doc.dispatchEvent(new Event('visibilitychange'));
+    expect(nativeResume).toHaveBeenCalledTimes(1);
+    // A browser leaves a resume made without a gesture pending; the tap's own
+    // resume is the one that can start the device, so it is sent, once a tap.
     doc.dispatchEvent(new Event('pointerdown'));
     doc.dispatchEvent(new Event('touchend'));
-    expect(nativeResume).toHaveBeenCalledTimes(1);
-    settle();
+    doc.dispatchEvent(new Event('keydown'));
+    expect(nativeResume).toHaveBeenCalledTimes(2);
+    for (const settle of settles) settle();
     await flush();
     dispose();
   });

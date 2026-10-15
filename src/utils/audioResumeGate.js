@@ -3,7 +3,11 @@
 // the shared context's resume(), so the gate replaces that method on the instance:
 // - a call while a resume is in flight gets that same promise (one tap sends
 //   pointerdown and touchend; a return to the foreground sends focus, pageshow and
-//   visibilitychange);
+//   visibilitychange). A gesture is the exception: a browser leaves a resume made
+//   without one pending until the page is allowed to play, and only a resume made
+//   during a gesture starts it, so a gesture's request is sent unless the one in
+//   flight came from the same tap. An in-flight request older than STALE_MS is
+//   no longer shared;
 // - after a failure, further calls wait out a cooldown that doubles per failure up
 //   to a cap; a gesture waits only a short one, since iOS may need the gesture;
 // - every promise the gate hands out is already handled, so a refusal never reaches
@@ -13,9 +17,18 @@
 export const GESTURE_COOLDOWN_MS = 300;
 export const FAILURE_COOLDOWN_BASE_MS = 500;
 export const FAILURE_COOLDOWN_MAX_MS = 8000;
+export const STALE_MS = 1000;
 const MAX_ATTEMPTS_KEPT = 8;
 
 const noop = () => {};
+
+function browserUserActive() {
+  try {
+    return globalThis.navigator?.userActivation?.isActive === true;
+  } catch (_) {
+    return false;
+  }
+}
 
 function handled(promise) {
   promise.catch(noop);
@@ -31,13 +44,18 @@ export function failureCooldownMs(failures) {
  * Install the gate on `context` once (idempotent). Returns the gate:
  * `request({ gesture })`, `recentAttempts()`, `dispose()`.
  */
-export function installAudioResumeGate(context, { now = () => Date.now(), onFailure = noop } = {}) {
+export function installAudioResumeGate(
+  context,
+  { now = () => Date.now(), onFailure = noop, userActive = browserUserActive } = {},
+) {
   if (!context || typeof context.resume !== 'function') return null;
   if (context.__audioResumeGate) return context.__audioResumeGate;
 
   const nativeResume = context.resume;
   const nativeSuspend = typeof context.suspend === 'function' ? context.suspend : null;
   let inFlight = null;
+  let inFlightAt = -Infinity;
+  let inFlightGesture = false;
   let failures = 0;
   let lastFailureAt = -Infinity;
   let lastError = null;
@@ -57,8 +75,19 @@ export function installAudioResumeGate(context, { now = () => Date.now(), onFail
   const request = ({ gesture = false } = {}) => {
     const state = context.state;
     if (state === 'running') return Promise.resolve();
-    if (inFlight) return inFlight;
+    if (!gesture) {
+      try {
+        gesture = userActive() === true;
+      } catch (_) {
+        gesture = false;
+      }
+    }
     const t = now();
+    if (inFlight) {
+      const age = t - inFlightAt;
+      const sameTap = inFlightGesture && age < GESTURE_COOLDOWN_MS;
+      if (gesture ? sameTap : age < STALE_MS) return inFlight;
+    }
     if (state !== 'closed' && failures > 0) {
       const wait = gesture ? GESTURE_COOLDOWN_MS : failureCooldownMs(failures);
       if (t - lastFailureAt < wait) {
@@ -75,6 +104,8 @@ export function installAudioResumeGate(context, { now = () => Date.now(), onFail
       promise = Promise.reject(error);
     }
     inFlight = promise;
+    inFlightAt = t;
+    inFlightGesture = gesture;
     promise.then(
       () => {
         if (inFlight === promise) inFlight = null;
