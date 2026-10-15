@@ -34,6 +34,7 @@
     "sim:economy": "node sim/economy.js",
     "sim:fullrun": "node sim/fullrun.js",
     "sim:carry": "node sim/carry.js",
+    "sim:lords": "node sim/lords.js",
     "sim:colosseum": "node sim/colosseum.js",
     "sim:deeds": "node sim/deeds.js",
     "sim:traits": "node sim/traits.js",

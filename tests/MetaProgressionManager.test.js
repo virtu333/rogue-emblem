@@ -618,7 +618,7 @@ describe('MetaProgressionManager', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.purchasedUpgrades.heros_call = 2;
     const effects = meta.getActiveEffects();
-    expect(effects.lordRecruitChanceBonus).toBe(0.16);
+    expect(effects.lordRecruitChanceBonus).toBe(0.1);
   });
 
   it('getActiveEffects returns 0 lordRecruitChanceBonus when unpurchased', () => {

@@ -217,6 +217,8 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     ruinsRevivedByNodeId: 'inert',
     // Each church's revivals (ChurchCommands): an older client has no church limit.
     churchRevivesByNodeId: 'inert',
+    // Lord recruit odds v2 (engine/LordRecruitChance.js): an older client rolls the flat chance.
+    lordRecruitOdds: 'inert',
   }),
   // The route map's top level.
   nodeMap: Object.freeze({
