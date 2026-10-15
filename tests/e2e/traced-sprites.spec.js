@@ -168,8 +168,9 @@ test('every class, faction, lord and boss resolves to a traced texture on the sh
       if (!key.startsWith('traced-') || !f || t.getFrameNames().length !== 6) bad.push([p, key]);
       else {
         sources.add(t.source[0]);
-        // trimmed frame, logical square texture (96 px, the Entity 192)
-        if (![96, 192].includes(f.realWidth) || f.realHeight !== f.realWidth) bad.push([p, key]);
+        // trimmed frame, logical square texture (96 px, the 2x2 Iron Guardian 144, the Entity 192)
+        if (![96, 144, 192].includes(f.realWidth) || f.realHeight !== f.realWidth)
+          bad.push([p, key]);
       }
     }
     return {

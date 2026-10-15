@@ -417,7 +417,7 @@ for (const size of SIZES) {
     });
 
     // The shipped events (data/events.json, 2D) on the same page: their pages, tells and records.
-    test('the Sunken Mine: torches, a Thief\'s tell on "Feel your way out", a step and its trail', async ({
+    test('the Sunken Mine: torches, a step down, a Thief\'s tell on "Feel your way out", and its trail', async ({
       page,
     }, info) => {
       const errors = collectErrors(page);
@@ -426,6 +426,15 @@ for (const size of SIZES) {
       const dialog = page.getByRole('dialog', { name: 'The Sunken Mine', exact: true });
       await expect(dialog).toBeVisible();
       await expect(dialog.locator('.ev-counter')).toContainText('Torches 3/3');
+      // The shaft's mouth has no way out to feel for, so the Thief says nothing yet.
+      await expect(dialog.locator('.ev-tell')).toHaveCount(0);
+      await expectFits(page, '.ev-menu');
+      await page.screenshot({ path: info.outputPath('real-mine-1.png') });
+      await chooseThrough(page, dialog, /^Climb down/, { tap });
+      await expect(dialog.locator('.ev-recent')).toContainText('You chose: Climb down');
+      await expect(
+        dialog.locator('.ev-recent .ev-result[data-kind="counter"]').first(),
+      ).toContainText('Torches −1');
       // The tell stands under the one choice it speaks to, in the Thief's voice.
       const blind = dialog
         .locator('.ev-choice-row')
@@ -434,13 +443,6 @@ for (const size of SIZES) {
         "This tunnel breathes. There's a way out.",
       );
       await expect(dialog.locator('.ev-tell')).toHaveCount(1);
-      await expectFits(page, '.ev-menu');
-      await page.screenshot({ path: info.outputPath('real-mine-1.png') });
-      await chooseThrough(page, dialog, /^Go deeper/, { tap });
-      await expect(dialog.locator('.ev-recent')).toContainText('You chose: Go deeper');
-      await expect(
-        dialog.locator('.ev-recent .ev-result[data-kind="counter"]').first(),
-      ).toContainText('Torches −1');
       await expectFits(page, '.ev-menu');
       await page.screenshot({ path: info.outputPath('real-mine-2.png') });
       await chooseThrough(page, dialog, /^Take the chest and climb out/, { tap });
