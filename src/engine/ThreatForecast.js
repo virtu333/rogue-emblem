@@ -164,7 +164,7 @@ export function unitReach(
         if (d >= min && d <= max) attack.add(tileKey(t.col, t.row));
       }
     }
-  } else if (unit.faction === 'player' && unit.weapon) {
+  } else if (unit.faction === 'player') {
     // A player unit's fringe is what Attack would let it initiate: the union over every
     // weapon it can attack with (silence, per-battle uses, proficiency), each at the range
     // attack planning reads (AttackOptions.getAttackRange: Foresight, Siegebreaker). Counter

@@ -1125,7 +1125,7 @@ export class InputController {
         skillsData: scene.gameData?.skills || null,
       });
       scene.grid.showMovementRange(moveRange, unit.col, unit.row, moveColor, moveAlpha);
-      if (unit.weapon && !asleepPlayer) scene.grid.showAttackRange(attackTiles);
+      if (attackTiles.length && !asleepPlayer) scene.grid.showAttackRange(attackTiles);
       if (unit.faction === 'enemy') this._showInspectedThreat(unit);
     }
 

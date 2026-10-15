@@ -147,4 +147,12 @@ describe('the attack fringe agrees with legal initiation range', () => {
     expect(canCounter(unit, unit.weapon, 3)).toBe(false);
     expect(canCounter(unit, unit.weapon, 2)).toBe(true);
   });
+
+  it('attackability comes from the bag, not from an equipped reference', () => {
+    const unit = mage(['Fire'], { skills: ['foresight'] });
+    unit.weapon = null;
+    expect(getAttackWeapons(unit).length).toBe(1);
+    expect(sorted(distances(unit))).toEqual([1, 2, 3]);
+    expect(distances(unit)).toEqual(legalDistances(unit));
+  });
 });
