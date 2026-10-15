@@ -126,6 +126,9 @@ async function playEnemyPhase(grid, world, mover, col, row) {
       enemy.col = end.col;
       enemy.row = end.row;
     },
+    onBreak: async (enemy, tile) => {
+      grid.clearTemporaryTerrainAt(tile.col, tile.row);
+    },
     onAttack: async (enemy, target) =>
       hits.set(enemy.name, { kind: 'attack', target: target.name }),
     onStatusStaff: async (enemy, target) =>
@@ -216,6 +219,37 @@ describe('EnemyIntent projects an enemy Canto step before the next foe decides',
     expect(intents.get(a)).toMatchObject({ kind: 'attack' });
     expect(intents.get(b)).toMatchObject({ kind: 'none' });
     expect(named(intents)).toEqual(await playEnemyPhase(grid, world, null, 0, 0));
+  });
+});
+
+describe('EnemyIntent projects a broken wall before the next foe decides', () => {
+  // A temporary wall plugs the gap at (5,2). Foe A has no other road, so it breaks the wall;
+  // foe B, deciding after it, walks through the opened gap to the knight.
+  function pluggedGap() {
+    const layout = plainLayout(10, 5);
+    for (let r = 0; r < 5; r++) if (r !== 2) layout[r][5] = T.Wall;
+    const grid = makeGrid(layout);
+    grid.setTemporaryTerrain(5, 2, 'Wall', 5);
+    const a = unit('enemy', 4, 2, { name: 'A', stats: { HP: 40, DEF: 12, MOV: 5 } });
+    const b = unit('enemy', 2, 3, { name: 'B', stats: { HP: 40, DEF: 12, MOV: 5 } });
+    const knight = unit('player', 6, 2, {
+      name: 'Knight',
+      stats: { HP: 60, DEF: 20, STR: 2, MOV: 1 },
+    });
+    return { grid, a, b, knight, world: { enemies: [a, b], players: [knight], npcs: [] } };
+  }
+
+  it('B attacks through the broken gap, as the real phase does, and the board is untouched', async () => {
+    const { grid, b, knight, world } = pluggedGap();
+    const intents = predict(grid, world, null);
+    expect(intents.get(b)).toMatchObject({ kind: 'attack', target: knight });
+    // The preview never edits the battle's own map.
+    expect(grid.isTemporaryTerrainAt(5, 2)).toBe(true);
+    expect(grid.mapLayout[2][5]).toBe(T.Wall);
+    expect(grid.temporaryTerrains).toHaveLength(1);
+    const played = await playEnemyPhase(grid, world, null, 0, 0);
+    expect(played.get('B')).toEqual({ kind: 'attack', target: 'Knight' });
+    expect(named(intents)).toEqual(played);
   });
 });
 
