@@ -26,6 +26,7 @@
 // The AI writes to the units it decides for (a weapon swap, a guard post, a streak count):
 // every unit it may touch is a shallow copy, so the battle never changes.
 
+import { selectBallistaTarget } from './BallistaEngine.js';
 import { gridDistance, hasPerBattleUsesLeft, isInRange } from './Combat.js';
 import { planEnemyCanto } from './EnemyCanto.js';
 import { isEntity } from './EntitySystem.js';
@@ -225,6 +226,37 @@ export function predictEnemyIntents({
     intents.set(real, { kind, target: realTarget(target), reason: decision.reason || 'none' });
   }
   return intents;
+}
+
+/**
+ * Who each enemy ballista would shoot at the start of the next enemy phase, with `mover` set
+ * down on (col, row). The ballista is no AI unit: BattleScene.processBallistaFire fires it at
+ * the army alone (never an NPC ally) with BallistaEngine.selectBallistaTarget, the nearest unit
+ * in reach and the lowest HP on a tie, before any enemy moves, so this is that same call on the
+ * moved board. No RNG (the shot's hit roll is not read).
+ *
+ * @returns {Map<object, object|null>} real ballista -> the real unit it would shoot (or null)
+ */
+export function predictBallistaTargets({
+  ballistas = [],
+  playerUnits = [],
+  mover = null,
+  col,
+  row,
+}) {
+  const targets = new Map();
+  if (!ballistas.length) return targets;
+  const realOf = new Map();
+  const moverCopy = mover ? { ...mover, col, row } : null;
+  if (moverCopy) realOf.set(moverCopy, mover);
+  const players = (playerUnits || []).filter(alive).map((u) => (u === mover ? moverCopy : u));
+  if (moverCopy && !players.includes(moverCopy) && alive(mover)) players.push(moverCopy);
+  for (const ballista of ballistas) {
+    if (ballista?.owner !== 'enemy') continue;
+    const pick = selectBallistaTarget(ballista, players);
+    targets.set(ballista, pick ? realOf.get(pick) || pick : null);
+  }
+  return targets;
 }
 
 /**

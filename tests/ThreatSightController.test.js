@@ -488,6 +488,58 @@ describe('ThreatSightController: reach is not intent', () => {
     expect(images[0].threatAim).toBe('mover');
   });
 
+  describe('ballistas', () => {
+    // A ballista (range 3) at (8,2): the mage stands 2 away, the knight steps to 3 away.
+    // processBallistaFire shoots the nearest unit in reach, so the mage takes the bolt.
+    function withBallista(moverName) {
+      const made = setup(moverName);
+      const ballista = { col: 8, row: 2, owner: 'enemy', captured: false, range: 3 };
+      made.scene.enemyUnits = [];
+      made.scene.ballistas = [ballista];
+      const base = made.scene.threatContext;
+      made.scene.threatContext = function () {
+        return { ...base.call(this), ballistas: this.ballistas };
+      };
+      made.mage.col = 6;
+      made.mage.row = 2;
+      const mover = made.scene.selectedUnit;
+      made.scene.movementRange = made.scene.grid.getMovementRange(
+        mover.col,
+        mover.row,
+        mover.mov,
+        'Infantry',
+        made.scene.threatContext().positions(),
+        'player',
+      );
+      return { ...made, ballista };
+    }
+
+    it('a knight stepping into reach: the eye dims and the thread goes to the nearer mage', () => {
+      const { scene, mage, ballista, lines, images } = withBallista('Knight');
+      scene._threatFocusTile = { col: 5, row: 2 };
+      const sight = new ThreatSightController(scene).create();
+      sight.sync();
+      expect(sight.current.result.ballistas).toEqual([ballista]);
+      expect(sight.current.result.ballistaTargets.get(ballista)).toBe(mage);
+      expect(sight.describe(5, 2)).toBe('1 foe can reach · none target you');
+      expect(images).toHaveLength(1);
+      expect(images[0].threatAim).toBe('aside');
+      const at = scene.grid.gridToPixel(mage.col, mage.row);
+      const end = lines[lines.length - 1];
+      expect(Math.hypot(end.x2 - at.x, end.y2 - at.y)).toBeLessThan(scene.grid.tileSize ?? 32);
+    });
+
+    it('the unit nearest the ballista is the one aimed at: a bright eye', () => {
+      const { scene, knight, ballista, images } = withBallista('Knight');
+      scene._threatFocusTile = { col: 7, row: 2 };
+      const sight = new ThreatSightController(scene).create();
+      sight.sync();
+      expect(sight.current.result.ballistaTargets.get(ballista)).toBe(knight);
+      expect(sight.describe(7, 2)).toBe('1 foe can reach · 1 targets you');
+      expect(images[0].threatAim).toBe('mover');
+    });
+  });
+
   it('without a battle AI the answer is reach alone', () => {
     const { scene } = setup('Knight');
     scene.aiController = null;
