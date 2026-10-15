@@ -309,7 +309,7 @@ describe('P3: her lessons', () => {
     prologue.onUnitSelected(sera);
     await Promise.resolve();
     expect(notes().at(-1)).toContain(
-      'Sera heals with her staff: move next to Gaspar, choose Heal.',
+      'Sera heals with her staff: move next to Gaspar, choose Staff.',
     );
     await prologue.onHealed(sera, unit('Gaspar'));
     expect([...prologue.lessons.practised]).toContain('heal');

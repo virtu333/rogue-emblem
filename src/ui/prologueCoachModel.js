@@ -120,7 +120,7 @@ export function prologueCoachState(s) {
       id: 'heal',
       chapter: 'fight',
       goal: `Heal ${hurt.name}`,
-      detail: `${tap} a blue tile next to ${hurt.name}, then choose Heal.`,
+      detail: `${tap} a blue tile next to ${hurt.name}, then choose Staff.`,
       anchor: { kind: 'unit', name: hurt.name },
       canSkip: false,
     };
@@ -183,7 +183,7 @@ export function prologueCoachState(s) {
       id: 'heal',
       chapter: 'fight',
       goal: `Heal ${wounded.name}`,
-      detail: `${healer.name} carries a Heal staff: move next to ${wounded.name}, then choose Heal.`,
+      detail: `${healer.name} carries a Heal staff: move next to ${wounded.name}, then choose Staff.`,
       anchor: { kind: 'unit', name: healer.name },
       canSkip: false,
     };

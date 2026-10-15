@@ -6543,9 +6543,8 @@ export class BattleScene extends Phaser.Scene {
       const staffOptions = staffRunOptions(this.runManager, unit);
       const rem = getStaffRemainingUses(preferred, unit, staffOptions);
       const max = getStaffMaxUses(preferred, unit, staffOptions);
-      // Warp/Rescue staves relocate instead of healing — label generically.
-      const verb = preferred.relocate ? 'Staff' : 'Heal';
-      command('staff', `${verb} (${rem}/${max})`, staff);
+      // One label for every staff (heal, Warp, Rescue...), so it never reads as healing only.
+      command('staff', `Staff (${rem}/${max})`, staff);
     }
     if (silenced) {
       if (

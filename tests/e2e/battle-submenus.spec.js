@@ -342,7 +342,7 @@ test('a staff heals the caravan Merchant from the phone rail', async ({ page }) 
     s.showActionMenu(healer);
     window.caravanCase = { healer, staff, caravan };
   });
-  await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+  await hud.getByRole('button', { name: /^Staff \(/ }).tap();
   const row = hud.getByRole('group', { name: 'Heal targets' }).getByRole('button');
   await expect(row).toHaveCount(1);
   await expect(row).toContainText('Merchant');

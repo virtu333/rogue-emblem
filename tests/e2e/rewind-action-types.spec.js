@@ -165,7 +165,7 @@ const ACTIONS = [
     async (page) => {
       await select(page, 'Sera');
       await hud(page)
-        .getByRole('button', { name: /^Heal \(/ })
+        .getByRole('button', { name: /^Staff \(/ })
         .tap();
       await hud(page)
         .getByRole('button', { name: /^Heal / })
@@ -179,7 +179,7 @@ const ACTIONS = [
     async (page) => {
       await select(page, 'Sera');
       await hud(page)
-        .getByRole('button', { name: /^Heal \(/ })
+        .getByRole('button', { name: /^Staff \(/ })
         .tap();
       await hud(page)
         .getByRole('button', { name: /Warp Staff/ })
@@ -197,7 +197,7 @@ const ACTIONS = [
     async (page) => {
       await select(page, 'Sera');
       await hud(page)
-        .getByRole('button', { name: /^Heal \(/ })
+        .getByRole('button', { name: /^Staff \(/ })
         .tap();
       await hud(page)
         .getByRole('button', { name: /Restore/ })

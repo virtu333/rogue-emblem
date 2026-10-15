@@ -134,7 +134,7 @@ test('desktop: a staff heals the caravan Merchant by hover and click', async ({ 
   const steps = await page.evaluate(() =>
     window.__emblemRogueGame.scene
       .getScene('Battle')
-      ._menuFocus.items.findIndex((item) => /^Heal \(/.test(item.button?.text || '')),
+      ._menuFocus.items.findIndex((item) => /^Staff \(/.test(item.button?.text || '')),
   );
   expect(steps).toBeGreaterThanOrEqual(0);
   for (let i = 0; i < steps; i++) await page.keyboard.press('ArrowDown');

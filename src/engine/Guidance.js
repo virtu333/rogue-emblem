@@ -160,8 +160,8 @@ export function guidanceText(id, context = {}) {
     case 'guide_healer_heals':
       // Only an NPC ally is hurt (context.npc): staves mend green units too.
       if (npc)
-        return `${name} heals with a staff, and ${npcHealAdvice(npc)} and choose Heal. Keep ${name} out of enemy reach.`;
-      return `${name} heals with a staff: move next to a hurt ally and choose Heal. Early on, keep ${name} out of reach and heal ${lord}.`;
+        return `${name} heals with a staff, and ${npcHealAdvice(npc)} and choose Staff. Keep ${name} out of enemy reach.`;
+      return `${name} heals with a staff: move next to a hurt ally and choose Staff. Early on, keep ${name} out of reach and heal ${lord}.`;
     case 'guide_no_attack':
       return `No enemy is in reach of ${name} here, so Attack is greyed out. ${
         touch ? 'Tap Back' : 'Press Esc or right-click'
