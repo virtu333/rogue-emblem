@@ -31,7 +31,8 @@
         "battle-timeline.spec.js",
         "save-retry.spec.js",
         "contract-settlement.spec.js"
-      ]
+      ],
+      "shards": 2
     },
     {
       "name": "presentation",
@@ -60,7 +61,8 @@
         "zombie-remains.spec.js",
         "xp-gauge.spec.js",
         "entity-rally.spec.js"
-      ]
+      ],
+      "shards": 2
     },
     {
       "name": "mobile-ui",
@@ -106,12 +108,12 @@
         "portrait-descent-rite.spec.js",
         "portrait-descent-acceptance.spec.js"
       ],
-      "shards": 6
+      "shards": 7
     },
     {
       "name": "battle-input",
       "description": "Battle input on every device: attack flow, menus, touch, keyboard and gamepad, input isolation, camera",
-      "shards": 3,
+      "shards": 2,
       "specs": [
         "area-strike.spec.js",
         "attack-flow.spec.js",
@@ -226,7 +228,7 @@
         "prologue-resume.spec.js",
         "prologue-skip.spec.js"
       ],
-      "shards": 4
+      "shards": 3
     },
     {
       "name": "menus",

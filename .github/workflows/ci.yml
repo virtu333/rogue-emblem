@@ -92,7 +92,8 @@ jobs:
     name: e2e (${{ matrix.id }})
     needs: e2e-lanes
     runs-on: ubuntu-latest
-    # The longest lane shard takes about 21 minutes and a slow browser install up to ~18;
+    # Lane shards are split by measured time (tests/e2e/durations.json) to about 8
+    # minutes each; a slow browser install can take up to ~18;
     # a hung job must not hold a runner for the 6-hour default (Oct 2026: installs stalled
     # for hours and starved the queue).
     timeout-minutes: 60

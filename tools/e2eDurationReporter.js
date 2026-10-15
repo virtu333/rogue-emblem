@@ -101,11 +101,12 @@ export default class E2eDurationReporter {
     mkdirSync(dir, { recursive: true });
     const name = `${lane || 'all'}${shard ? `-${shard.replace('/', 'of')}` : ''}.json`;
     writeFileSync(join(dir, name), `${JSON.stringify(report, null, 2)}\n`);
-    const top = Object.entries(report.files)
-      .slice(0, 10)
-      .map(([file, entry]) => `  ${(entry.seconds / 60).toFixed(1).padStart(5)} min  ${file}`);
+    // Every spec, so the log alone can refresh tests/e2e/durations.json.
+    const lines = Object.entries(report.files).map(
+      ([file, entry]) => `  ${String(entry.seconds).padStart(6)} s  ${file}`,
+    );
     console.log(
-      `\n[e2e durations] work ${(report.workSeconds / 60).toFixed(1)} min:\n${top.join('\n')}`,
+      `\n[e2e durations] work ${(report.workSeconds / 60).toFixed(1)} min:\n${lines.join('\n')}`,
     );
     if (process.env.GITHUB_STEP_SUMMARY) {
       appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryMarkdown(report));
