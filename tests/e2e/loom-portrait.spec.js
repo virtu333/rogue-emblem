@@ -560,11 +560,18 @@ test.describe('upright 375x667: the card follows the knot', () => {
 
     // 4a. Read one recruit's card to the bottom, then look at the act's other recruit
     //     (as long a card): it opens at its top, on its Talk line.
+    //     Both are next steps (a recruit card names who waits only then), so the party's
+    //     node gets a road to the second as well.
     const other = await page.evaluate((first) => {
-      const rm = window.__emblemRogueGame.scene.getScene('NodeMap').runManager;
-      return rm.nodeMap.nodes.find(
+      const s = window.__emblemRogueGame.scene.getScene('NodeMap');
+      const rm = s.runManager;
+      const second = rm.nodeMap.nodes.find(
         (n) => n.type === 'recruit' && !n.completed && !n.eclipse && n.id !== first,
-      )?.id;
+      );
+      const here = rm.nodeMap.nodes.find((n) => n.id === rm.currentNodeId);
+      if (second && here && !here.edges.includes(second.id)) here.edges.push(second.id);
+      s.nodeView.render();
+      return second?.id;
     }, id);
     expect(other, "seed 42's act II has a second recruit knot").toBeTruthy();
     await card.evaluate((el) => (el.scrollTop = el.scrollHeight));
