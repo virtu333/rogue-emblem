@@ -1122,6 +1122,7 @@ export class InputController {
         mov,
         positions,
         costModifier: scene._getCostModifier(unit),
+        skillsData: scene.gameData?.skills || null,
       });
       scene.grid.showMovementRange(moveRange, unit.col, unit.row, moveColor, moveAlpha);
       if (unit.weapon && !asleepPlayer) scene.grid.showAttackRange(attackTiles);
