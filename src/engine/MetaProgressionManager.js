@@ -1098,11 +1098,15 @@ export class MetaProgressionManager {
     return null;
   }
 
-  /** Buy NG+: both currencies and the unlock in one write. Never refundable. */
+  /**
+   * Buy NG+: both currencies and the unlock in one write. Never refundable. Checked inside the
+   * commit, after a newer copy on disk is adopted, so a stale manager whose other copy already
+   * bought it is refused ('unlocked') rather than charged twice.
+   */
   unlockNgPlus() {
-    const reason = this.ngPlusUnlockBlock();
-    if (reason) return { ok: false, reason };
     return this._commitNgPlus(() => {
+      const reason = this.ngPlusUnlockBlock();
+      if (reason) return { ok: false, reason };
       this.totalValor -= NG_PLUS_COST.valor;
       this.totalSupply -= NG_PLUS_COST.supply;
       this.purchasedUpgrades[NG_PLUS_UNLOCK_KEY] = 1;

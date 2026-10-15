@@ -216,10 +216,14 @@ export function normalizeNgPlusState(raw) {
     const record = sanitizeRecord(entry);
     if (!record || seen.has(record.id)) continue;
     seen.add(record.id);
-    // One owner per kept item: an earlier record keeps it, a later copy is dropped (with the
-    // ride-log entry that would bring it back).
-    record.keptItems = record.keptItems.filter((item) => !ownedUids.has(item.uid));
-    for (const item of record.keptItems) ownedUids.add(item.uid);
+    // One owner per kept item, and one copy: the first copy seen keeps it (an earlier record,
+    // or the earlier entry of the same record), a later copy is dropped (with the ride-log
+    // entry that would bring it back).
+    record.keptItems = record.keptItems.filter((item) => {
+      if (ownedUids.has(item.uid)) return false;
+      ownedUids.add(item.uid);
+      return true;
+    });
     state.barracks.push(record);
   }
   for (const record of state.barracks)

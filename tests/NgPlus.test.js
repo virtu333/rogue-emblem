@@ -23,7 +23,12 @@ import { RunManager } from '../src/engine/RunManager.js';
 import { MetaProgressionManager } from '../src/engine/MetaProgressionManager.js';
 import { getMetaKey } from '../src/engine/SlotManager.js';
 import { learnSkill } from '../src/engine/UnitManager.js';
-import { requiredRunFormat } from '../src/engine/RunFormat.js';
+import { CLIENT_CAPABILITIES, requiredRunFormat, runFormatBlock } from '../src/engine/RunFormat.js';
+import {
+  applyGenerationFields,
+  battleGenerationSeed,
+  generateSeededBattle,
+} from '../src/engine/BattleScout.js';
 import { slotKindFor, swornOathSkillId } from '../src/engine/SkillSlots.js';
 import { INVENTORY_MAX } from '../src/utils/constants.js';
 import {
@@ -111,6 +116,28 @@ describe('the unlock', () => {
     expect(reloaded.totalValor).toBe(5000 - NG_PLUS_COST.valor);
     expect(reloaded.totalSupply).toBe(5000 - NG_PLUS_COST.supply);
     expect(meta.unlockNgPlus()).toEqual({ ok: false, reason: 'unlocked' });
+  });
+
+  it('a stale copy cannot buy it a second time', () => {
+    // Failure (the second review's P1): B checks its stale "locked" state before adopting the
+    // disk, so it charges the slot again after A already bought NG+ and earned more.
+    const a = freshMeta();
+    a.milestones.add('beatLunatic');
+    a.addValor(4000);
+    a.addSupply(4000);
+    const b = freshMeta();
+    expect(b.totalValor).toBe(4000);
+    expect(b.isNgPlusUnlocked()).toBe(false);
+    expect(a.unlockNgPlus()).toEqual({ ok: true });
+    a.addValor(1000);
+    const valorOnDisk = 4000 - NG_PLUS_COST.valor + 1000;
+    const supplyOnDisk = 4000 - NG_PLUS_COST.supply;
+    expect(b.unlockNgPlus()).toEqual({ ok: false, reason: 'unlocked' });
+    expect(b.isNgPlusUnlocked()).toBe(true);
+    const disk = freshMeta();
+    expect(disk.isNgPlusUnlocked()).toBe(true);
+    expect(disk.totalValor).toBe(valorOnDisk);
+    expect(disk.totalSupply).toBe(supplyOnDisk);
   });
 
   it('is never refunded by Home Base', () => {
@@ -481,6 +508,50 @@ describe('an NG+ run starts with its veterans and kits', () => {
     expect(plain.toJSON().requiresCapabilities || []).not.toContain('ngPlus');
   });
 
+  it('an NG+ run at the Entity keeps both its own and the Entity kit’s capability', () => {
+    // Failure (the second review's merge check): the two branches each listed only their own
+    // id, so a merged client either refuses its own NG+ finale or drops one marker on save.
+    const { meta } = metaWithBarracks();
+    const rm = new RunManager(data);
+    rm.startRun({
+      runSeed: 23,
+      applyBlessingsAtStart: false,
+      difficultyId: 'hard',
+      ngPlus: meta.ngPlusRunStart('hard'),
+    });
+    rm.actIndex = rm.actSequence.indexOf('finalBoss') - 1;
+    rm.advanceAct();
+    const boss = rm.nodeMap.nodes.find((n) => n.id === rm.nodeMap.bossNodeId);
+    const params = applyGenerationFields(rm.getBattleParams(boss), {
+      deployCount: 6,
+      isBoss: true,
+    });
+    expect(params.entityKit).toBeTruthy();
+    const seed = battleGenerationSeed(params, { runSeed: rm.runSeed, nodeId: boss.id });
+    rm.lockBattleConfig(boss.id, generateSeededBattle(params, data, seed));
+    const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+    expect(requiredRunFormat(saved).capabilities).toEqual(
+      expect.arrayContaining(['ngPlus', 'entityKit']),
+    );
+    expect(saved.requiresCapabilities).toEqual(expect.arrayContaining(['ngPlus', 'entityKit']));
+    // This build plays both; a client missing either refuses the run and names it.
+    expect(runFormatBlock(saved)).toBeNull();
+    const without = (id) => CLIENT_CAPABILITIES.filter((c) => c !== id);
+    expect(runFormatBlock(saved, { clientCapabilities: without('ngPlus') }).missing).toEqual([
+      'ngPlus',
+    ]);
+    expect(runFormatBlock(saved, { clientCapabilities: without('entityKit') }).missing).toEqual([
+      'entityKit',
+    ]);
+    // A load and a second save keep both, and the NG+ members.
+    const loaded = RunManager.fromJSON(saved, data);
+    expect(loaded.ngPlus).toEqual(rm.ngPlus);
+    expect(loaded.getLockedBattleConfig(boss.id).entityKit).toEqual(params.entityKit);
+    expect(loaded.toJSON().requiresCapabilities).toEqual(
+      expect.arrayContaining(['ngPlus', 'entityKit']),
+    );
+  });
+
   it('no NG+ start below Nightfall or before the unlock', () => {
     const { meta } = metaWithBarracks();
     expect(meta.ngPlusRunStart('dusk')).toBeNull();
@@ -841,6 +912,28 @@ describe('the Barracks state', () => {
     });
     expect(s.barracks[0].keptItems.map((i) => i.uid)).toEqual(['itm_shared']);
     expect(s.barracks[1].keptItems).toEqual([]);
+    expect(runStartOf(s).lordKits.flatMap((r) => r.keptItems)).toHaveLength(1);
+  });
+
+  it('one record holding the same uid twice keeps one copy', () => {
+    // Failure (the second review's P3): the dedupe reads only other records, so a record with
+    // two copies of one heirloom brings both into the run.
+    const axe = { ...weapon('Steel Axe'), uid: 'itm_twice' };
+    const s = normalizeNgPlusState({
+      v: 1,
+      barracks: [
+        {
+          id: lordRecordId('Edric'),
+          kind: 'lord',
+          name: 'Edric',
+          keptSkills: [],
+          skillKinds: {},
+          keptItems: [structuredClone(axe), structuredClone(axe)],
+          rides: 2,
+        },
+      ],
+    });
+    expect(s.barracks[0].keptItems.map((i) => i.uid)).toEqual(['itm_twice']);
     expect(runStartOf(s).lordKits.flatMap((r) => r.keptItems)).toHaveLength(1);
   });
 
