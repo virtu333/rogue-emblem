@@ -19,10 +19,6 @@ export default defineConfig({
   // has its own browser context and no spec shares state between tests (no serial
   // groups, no beforeAll), so the order inside a file never matters.
   fullyParallel: true,
-  // CI's runners have four cores; three browsers keep them busy without starving the
-  // dev server (Playwright's default is half the cores). Lanes are sized for it
-  // (tests/e2e/lanes.json shards against tests/e2e/durations.json).
-  workers: process.env.CI ? 3 : undefined,
   reporter: [[process.env.CI ? 'dot' : 'list'], ['./tools/e2eDurationReporter.js']],
   use: {
     baseURL: `http://localhost:${PORT}`,
