@@ -164,12 +164,13 @@ describe('a disk or cloud payload adopted live (balance revision 4)', () => {
     expect(m.canRefund('branching_threads').refundAmount).toBe(250);
   });
 
-  it('does not re-price a tier this copy already held, nor a rev-4 payload', () => {
-    // Local bought tier 3 itself (at 300); only tier 4 came from the old payload.
+  it('prices the adopted tiers as the adopted payload recorded them, and a rev-4 payload at today’s', () => {
+    // The disk copy's economy is adopted whole: its four tiers were all bought before the
+    // rise, as that payload says, whatever this copy held before.
     const m = adopt({ localLevel: 3, diskRevision: 3, diskLevel: 4 });
     expect(m.canRefund('branching_threads').refundAmount).toBe(250);
     m.refundUpgrade('branching_threads');
-    expect(m.canRefund('branching_threads').refundAmount).toBe(300);
+    expect(m.canRefund('branching_threads').refundAmount).toBe(250);
     const current = adopt({ localLevel: 2, diskRevision: 4, diskLevel: 4 });
     expect(current.canRefund('branching_threads').refundAmount).toBe(350);
   });

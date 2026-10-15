@@ -1,8 +1,8 @@
 // Regression tests for meta savedAt hardening (Wave 1):
 // - savedAt is monotonic across saves regardless of wall clock
 // - the per-slot clock floor written by CloudSync is respected
-// - a newer foreign payload on disk (cloud heal/fetch) is adopted via
-//   max-merge instead of being clobbered by a stale in-memory manager
+// - a newer foreign payload on disk (cloud heal/fetch) is adopted before the next
+//   change instead of being clobbered by a stale in-memory manager
 
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 import {
@@ -63,7 +63,7 @@ describe('MetaProgressionManager savedAt hardening', () => {
     expect(readSaved().savedAt).toBe(900_001);
   });
 
-  it('adopts a newer foreign disk payload via max-merge instead of clobbering it', () => {
+  it('adopts a newer foreign disk payload before the next change instead of clobbering it', () => {
     // Fresh manager (new device, empty slot).
     const meta = new MetaProgressionManager(upgradesData, KEY);
     meta.addValor(80); // a little local progress; writes savedAt = now
@@ -83,9 +83,8 @@ describe('MetaProgressionManager savedAt hardening', () => {
     meta.addSupply(20);
     const saved = readSaved();
     expect(saved.totalValor).toBe(5000);
-    // Conservative max-merge: the small in-session delta (+20 on a fresh 0)
-    // is absorbed by the restored balance — losing 20 supply beats losing 4000.
-    expect(saved.totalSupply).toBe(4000);
+    // The restored economy is adopted whole first, then the +20 lands on it.
+    expect(saved.totalSupply).toBe(4020);
     expect(saved.runsCompleted).toBe(40);
     // The settled revision rides inside purchasedUpgrades (BalanceRevisionMarker.js), and
     // the skill assigned is met (the Compendium's key rides beside the upgrade).

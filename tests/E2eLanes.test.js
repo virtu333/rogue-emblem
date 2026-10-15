@@ -2,12 +2,19 @@ import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_CONFIG,
   LANE_ENV,
+  SHARD_ENV,
   checkRepository,
   ciMatrix,
   laneCommand,
+  mergeDurations,
+  parseShard,
+  planShards,
+  readDurations,
   readLanes,
   specSelection,
+  validateDurations,
   validateLanes,
+  DEFAULT_SPEC_SECONDS,
 } from '../tools/e2eLanes.js';
 
 // A small, valid manifest; each test breaks one thing and expects the checker to say so.
@@ -177,12 +184,26 @@ describe('ciMatrix and laneCommand', () => {
     ]);
   });
 
+  it('lists the longest estimated jobs first, so they leave the runner queue first', () => {
+    const durations = { 'release.spec.js': 900, 'attack.spec.js': 10, 'sub/heal.spec.js': 400 };
+    expect(ciMatrix(manifest(), durations).map((job) => job.id)).toEqual([
+      'release',
+      'battle-1of2', // sub/heal.spec.js, 400 s: the longest spec opens shard 1
+      'smoke', // two unmeasured specs at the default
+      'battle-2of2',
+    ]);
+  });
+
   it('runs Playwright with the lane config, workers and the lane selected by env', () => {
     expect(laneCommand(manifest(), 'battle', ['--shard=1/2'])).toEqual({
       command: 'npx',
-      args: ['playwright', 'test', '--config', DEFAULT_CONFIG, '--workers=2', '--shard=1/2'],
-      env: { [LANE_ENV]: 'battle' },
+      // The shard goes to the config through the env (split by time), never to
+      // Playwright's own --shard (split by test count).
+      args: ['playwright', 'test', '--config', DEFAULT_CONFIG, '--workers=2'],
+      env: { [LANE_ENV]: 'battle', [SHARD_ENV]: '1/2' },
     });
+    expect(laneCommand(manifest(), 'smoke').env).toEqual({ [LANE_ENV]: 'smoke' });
+    expect(() => laneCommand(manifest(), 'battle', ['--shard=3/2'])).toThrow(/Bad shard/);
     // An explicit --workers from the caller wins over the lane default.
     expect(laneCommand(manifest(), 'battle', ['--workers=1']).args).toEqual([
       'playwright',
@@ -211,5 +232,89 @@ describe('the repository', () => {
     for (const lane of release) expect(lane.build).toBe(true);
     const { testIgnore } = specSelection(DEFAULT_CONFIG, { env: {} });
     for (const lane of release) for (const spec of lane.specs) expect(testIgnore).toContain(spec);
+  });
+});
+
+describe('shards split by measured time', () => {
+  const specs = ['a.spec.js', 'b.spec.js', 'c.spec.js', 'd.spec.js', 'e.spec.js'];
+
+  it('balances the work: longest first, each to the lightest shard', () => {
+    // Taken in lane order, d and e would share a shard with a small spec each (310 s and
+    // 410 s against 10 s). By time: e | d | a+b+c.
+    const durations = { 'a.spec.js': 10, 'b.spec.js': 10, 'c.spec.js': 10 };
+    Object.assign(durations, { 'd.spec.js': 300, 'e.spec.js': 400 });
+    expect(planShards(specs, 3, durations)).toEqual([
+      { specs: ['e.spec.js'], seconds: 400 },
+      { specs: ['d.spec.js'], seconds: 300 },
+      { specs: ['a.spec.js', 'b.spec.js', 'c.spec.js'], seconds: 30 },
+    ]);
+  });
+
+  it('puts every spec in exactly one shard, none empty, the same on every call', () => {
+    const durations = { 'b.spec.js': 50, 'd.spec.js': 50 };
+    for (let total = 1; total <= specs.length; total++) {
+      const plan = planShards(specs, total, durations);
+      expect(plan).toEqual(
+        planShards([...specs].reverse(), total, durations).map((shard) => ({
+          ...shard,
+          specs: specs.filter((s) => shard.specs.includes(s)),
+        })),
+      );
+      expect(plan.every((shard) => shard.specs.length > 0)).toBe(true);
+      expect(plan.flatMap((shard) => shard.specs).sort()).toEqual(specs);
+    }
+  });
+
+  it('counts an unmeasured spec at the default', () => {
+    const plan = planShards(['new.spec.js', 'old.spec.js'], 1, { 'old.spec.js': 5 });
+    expect(plan[0].seconds).toBe(5 + DEFAULT_SPEC_SECONDS);
+  });
+
+  it("selects the shard's specs from the env", () => {
+    const lane = {
+      name: 'big',
+      description: 'Big',
+      shards: 2,
+      specs: ['x.spec.js', 'y.spec.js', 'z.spec.js'],
+    };
+    const durations = () => ({ 'x.spec.js': 100, 'y.spec.js': 60, 'z.spec.js': 50 });
+    const select = (shard) =>
+      specSelection(DEFAULT_CONFIG, {
+        manifest: { lanes: [lane] },
+        env: { [LANE_ENV]: 'big', [SHARD_ENV]: shard },
+        durations,
+      }).testMatch;
+    expect(select('1/2')).toEqual(['x.spec.js']);
+    expect(select('2/2')).toEqual(['y.spec.js', 'z.spec.js']);
+    expect(() => select('1/4')).toThrow(/3 specs for 4 shards/);
+  });
+
+  it('parses i/n shards only', () => {
+    expect(parseShard('2/6')).toEqual({ index: 2, total: 6 });
+    for (const bad of ['0/6', '7/6', '2', '', undefined, 'a/b']) expect(parseShard(bad)).toBe(null);
+  });
+
+  it('refreshes durations from reports, keeping unmeasured specs and dropping deleted ones', () => {
+    const merged = mergeDurations(
+      { 'a.spec.js': 10, 'gone.spec.js': 5, 'b.spec.js': 7 },
+      [{ files: { 'a.spec.js': { seconds: 20.4 } } }, { files: { 'c.spec.js': { seconds: 3.6 } } }],
+      ['a.spec.js', 'b.spec.js', 'c.spec.js'],
+    );
+    expect(merged).toEqual({ 'a.spec.js': 20, 'b.spec.js': 7, 'c.spec.js': 4 });
+  });
+
+  it('flags durations for specs that do not exist', () => {
+    expect(validateDurations({ 'a.spec.js': 1, 'x.spec.js': 2 }, ['a.spec.js'])).toEqual([
+      'tests/e2e/durations.json names x.spec.js, which does not exist',
+    ]);
+    expect(validateDurations({ 'a.spec.js': 'slow' }, ['a.spec.js'])).toHaveLength(1);
+  });
+
+  it('has a measurement for most of the real suite', () => {
+    const durations = readDurations();
+    const measured = readLanes()
+      .lanes.flatMap((lane) => lane.specs)
+      .filter((s) => s in durations);
+    expect(measured.length).toBeGreaterThan(0);
   });
 });

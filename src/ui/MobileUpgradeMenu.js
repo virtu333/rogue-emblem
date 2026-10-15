@@ -359,9 +359,13 @@ export class MobileUpgradeMenu {
     return icon;
   }
   purchase(u) {
-    if (!this.meta.purchaseUpgrade(u.id)) {
-      this.status.textContent = 'Purchase unavailable.';
+    const bought = this.meta.buyUpgrade(u.id);
+    if (!bought.ok) {
       this.render();
+      this.status.textContent =
+        bought.reason === 'save_failed'
+          ? 'Could not save. Nothing was spent; try again.'
+          : 'Purchase unavailable.';
       return;
     }
     // Stamp the new tier across the detail; the row's socket flares and its gem ignites.
@@ -379,7 +383,9 @@ export class MobileUpgradeMenu {
     this.render();
     this.status.textContent = r.success
       ? `${u.name}: one tier refunded.`
-      : 'Refund unavailable. Your upgrades are unchanged.';
+      : r.reason === 'save_failed'
+        ? 'Could not save. Your upgrades are unchanged; try again.'
+        : 'Refund unavailable. Your upgrades are unchanged.';
   }
   destroy() {
     if (this.visible) {

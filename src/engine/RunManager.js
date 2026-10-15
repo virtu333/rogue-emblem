@@ -5226,7 +5226,11 @@ export class RunManager {
     // One write carries the currencies, records and paid marker; only mark the
     // summary applied once it is on disk, so a failed meta write leaves the
     // payout to retry instead of recording it as paid.
+    // The receipt is checked again inside the payout's transaction, after it adopts the
+    // latest copy on disk: a stale session whose other copy already paid this run (and
+    // perhaps picked its NG+ ride) pays nothing and changes nothing.
     const pay = (m) => {
+      if (runId && m.hasSettledRun?.(runId)) return;
       if (runId) m.markRunSettled?.(runId);
       m.addValor(summary.valor);
       m.addSupply(summary.supply);
