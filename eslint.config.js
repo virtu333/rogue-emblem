@@ -44,6 +44,7 @@ export default [
       'src/engine/SpecialCharacterPolicy.js',
       'src/engine/CantoRule.js',
       'src/engine/SkillSlots.js',
+      'src/engine/MetaProgressionManager.js',
       'src/utils/audioAssets.js',
     ],
     languageOptions: { ecmaVersion: 2025 },

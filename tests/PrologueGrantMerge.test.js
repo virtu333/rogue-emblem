@@ -7,8 +7,8 @@
 // (MetaProgressionManager.reconcilePickedPrologue). The invariant every case checks: the
 // resulting economy is the kept payload's own plus the grant exactly when its own
 // lineage never received it, and finishing the prologue afterwards pays nothing more.
-// The local adopt-merge (_adoptForeignDiskStateIfNewer) keeps both economies at their
-// max, so there the receipt is a union, and an unpaid newer copy never pays twice.
+// The local adopt (_adoptForeignDiskStateIfNewer) also keeps the newer disk copy's economy
+// whole and reconciles the receipt the same way, so an unpaid newer copy never pays twice.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const store = new Map();
@@ -265,7 +265,7 @@ describe('reconcilePickedPrologue (pure)', () => {
   });
 });
 
-describe('the local adopt-merge keeps both economies, so the receipt is a union', () => {
+describe('the local adopt keeps the disk economy whole and reconciles the receipt', () => {
   it('a paid live copy and a newer unpaid copy on disk: one grant, never two', () => {
     store.set(KEY, JSON.stringify(payload({ savedAt: 100, state: 'complete' })));
     const meta = new MetaProgressionManager(upgradesData, KEY);
