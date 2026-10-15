@@ -3,17 +3,25 @@
 import { expect } from '@playwright/test';
 
 /**
- * Skip the auth gate if it's visible (click "Play offline").
- * No-op if auth overlay is already hidden (no Supabase configured).
+ * Skip the auth gate if it's shown (click "Play offline").
+ * The gate shows only on a cloud build; a local build (CI's, with no Supabase
+ * configured) boots straight past it. Wait for whichever comes first, the gate or the
+ * game, so a local build never sits out a timeout waiting for a gate that never shows.
  */
 export async function skipAuth(page) {
-  const skip = page.locator('#auth-skip');
-  try {
-    await skip.waitFor({ state: 'visible', timeout: 5_000 });
-    await skip.click();
-  } catch (_) {
-    // Auth overlay not present or already dismissed — continue
-  }
+  const gate = await page
+    .waitForFunction(
+      () => {
+        if (window.__sceneState?.ready === true) return 'game';
+        const skip = document.getElementById('auth-skip');
+        return skip && skip.getClientRects().length > 0 ? 'gate' : false;
+      },
+      null,
+      { timeout: 20_000 },
+    )
+    .then((handle) => handle.jsonValue())
+    .catch(() => null);
+  if (gate === 'gate') await page.locator('#auth-skip').click();
 }
 
 /**
