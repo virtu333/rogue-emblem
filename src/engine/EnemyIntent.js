@@ -11,7 +11,9 @@
 //   - blows land or miss: nobody falls in the preview, so a foe whose target an earlier foe
 //     would kill still shows it (and an enemy that acts is read to survive its action, so it
 //     takes its Canto step: AIController._cantoStep's plan, applied to the copied board
-//     before the next foe decides, as a foe vacating a chokepoint opens it for the next);
+//     before the next foe decides, as a foe vacating a chokepoint opens it for the next;
+//     a wall it breaks is cleared on a copy of the map for the foes after it, never on the
+//     battle's own grid);
 //   - foes the fog hides: never evaluated, and never a blocker (they would give themselves
 //     away), the Danger overlay's rule (ThreatForecast);
 //   - whatever the phase start adds (reinforcements, a raise, a caravan step).
@@ -53,6 +55,23 @@ function copyUnit(unit) {
     _conditions: unit._conditions ? unit._conditions.map((c) => ({ ...c })) : unit._conditions,
     guardPost: unit.guardPost ? { ...unit.guardPost } : unit.guardPost,
   };
+}
+
+/**
+ * A view of `grid` whose terrain edits stay on the view: its own copy of the layout and of the
+ * temporary-terrain list, and a setTerrainAt that only writes the copy (no redraw, no listener,
+ * no revision). Grid's own clearTemporaryTerrainAt then runs on it unchanged.
+ */
+function overlayGrid(grid) {
+  const overlay = Object.create(grid);
+  overlay.mapLayout = grid.mapLayout.map((row) => [...row]);
+  overlay.temporaryTerrains = [...(grid.temporaryTerrains || [])];
+  overlay.setTerrainAt = (col, row, index) => {
+    if (!overlay.mapLayout[row] || !overlay.terrainData[index]) return false;
+    overlay.mapLayout[row][col] = index;
+    return true;
+  };
+  return overlay;
 }
 
 /** The tile an enemy ends on after `decision` (an attack names it; a walk may slide on ice). */
@@ -173,6 +192,12 @@ export function predictEnemyIntents({
       )
         target = view._selectBestInRangeTarget(enemy, [...players, ...npcs]);
       if (target) kind = 'attack';
+    }
+    // AIController breaks the wall before the next foe acts (BattleScene.executeEnemyBreak):
+    // later decisions read the map without it.
+    if (decision.breakTile) {
+      if (view.grid === ai.grid) view.grid = overlayGrid(ai.grid);
+      view.grid.clearTemporaryTerrainAt?.(decision.breakTile.col, decision.breakTile.row);
     }
     // The step after the action (AIController._processOneEnemy / _cantoStep), on the same
     // board: only a foe that acted steps, and it is read to survive what it did.
