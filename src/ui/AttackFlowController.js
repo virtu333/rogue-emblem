@@ -33,7 +33,7 @@ import {
 } from '../engine/Combat.js';
 import { guidanceText, isArmoredFoe } from '../engine/Guidance.js';
 import { playerKnowledgeOf } from './battleKnowledge.js';
-import { combatDistance, getFootprint, isEntity } from '../engine/EntitySystem.js';
+import { combatDistance, getFootprint } from '../engine/EntitySystem.js';
 import {
   getAttackWeapons,
   weaponsForDistance,
@@ -244,7 +244,7 @@ export class AttackFlowController {
       scene.events?.on?.('update', this._onUpdate);
     }
     // Multi-tile entities: frame the whole footprint.
-    const tiles = isEntity(target) ? getFootprint(target) : [target];
+    const tiles = getFootprint(target);
     const cols = tiles.map((t) => t.col);
     const rows = tiles.map((t) => t.row);
     const [c0, c1, r0, r1] = [

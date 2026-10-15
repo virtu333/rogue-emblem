@@ -1401,7 +1401,7 @@ export class HeadlessBattle {
   _buildUnitPositionMap(moverFaction) {
     const map = new Map();
     for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
-      for (const t of isEntity(u) ? getFootprint(u) : [u])
+      for (const t of getFootprint(u))
         map.set(`${t.col},${t.row}`, unitPositionEntry(u));
     }
     return map;

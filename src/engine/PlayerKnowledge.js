@@ -10,11 +10,11 @@
 // through the fog (the recruit's beacon, passed in as `revealed`).
 
 import { canInspectUnit } from './BattleInformation.js';
-import { getFootprint, isEntity } from './EntitySystem.js';
+import { getFootprint } from './EntitySystem.js';
 
 const tileKey = (col, row) => `${col},${row}`;
 const isLive = (u) => Boolean(u) && !u._removing && u.currentHP > 0;
-const tilesOf = (u) => (isEntity(u) ? getFootprint(u) : [u]);
+const tilesOf = (u) => getFootprint(u);
 
 /**
  * The entry a unit-position map holds for a unit: its faction, plus the Merchant

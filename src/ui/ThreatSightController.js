@@ -29,7 +29,7 @@
 import { TILE_SIZE } from '../utils/constants.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { withPresentationRandom } from '../utils/presentationRandom.js';
-import { getFootprint, isEntity } from '../engine/EntitySystem.js';
+import { getFootprint, isLargeUnit } from '../engine/EntitySystem.js';
 import {
   moverReachSignature,
   threatsOnTile,
@@ -262,7 +262,7 @@ export class ThreatSightController {
 
   sourcePoint(source) {
     const grid = this.scene.grid;
-    if (isEntity(source)) {
+    if (isLargeUnit(source)) {
       const tiles = getFootprint(source);
       const col = tiles.reduce((sum, t) => sum + t.col, 0) / tiles.length;
       const row = tiles.reduce((sum, t) => sum + t.row, 0) / tiles.length;

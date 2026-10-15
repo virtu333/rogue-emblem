@@ -42,18 +42,55 @@ export function isEntity(unit) {
   return unit?.isEntity === true;
 }
 
-/** Returns array of {col, row} tiles for an Entity's 3x3 footprint.
+/** The largest body a unit may have on either side (a 3x3 is the Entity's). */
+export const MAX_BODY_SPAN = 3;
+
+const isSpan = (n) => Number.isInteger(n) && n >= 1 && n <= MAX_BODY_SPAN;
+
+/**
+ * A unit's body in tiles, { width, height }: the Entity's 3x3 (ENTITY_FOOTPRINT), else the
+ * unit's own `footprint` ({ width, height }, each a whole 1..MAX_BODY_SPAN: a big unit such as
+ * the Iron Guardian's 2x2), else one tile. Anything malformed reads as one tile.
+ */
+export function footprintSize(unit) {
+  if (isEntity(unit)) return { width: ENTITY_FOOTPRINT.width, height: ENTITY_FOOTPRINT.height };
+  const fp = unit?.footprint;
+  if (fp && isSpan(fp.width) && isSpan(fp.height)) return { width: fp.width, height: fp.height };
+  return { width: 1, height: 1 };
+}
+
+/**
+ * Does the unit fill more than one tile (the Entity, or any unit with a larger `footprint`)?
+ * The body rules (what stands where, distance, forced moves) ask this; the Entity's own rules
+ * (its splash, limbs, crit and proc odds, music) ask isEntity.
+ */
+export function isLargeUnit(unit) {
+  const { width, height } = footprintSize(unit);
+  return width * height > 1;
+}
+
+/** Returns array of {col, row} tiles for a unit's body (footprintSize).
  *  Anchor (unit.col, unit.row) is the top-left corner.
- *  Non-entity units return a single tile. */
+ *  A one-tile unit returns its single tile. */
 export function getFootprint(unit) {
-  if (!isEntity(unit)) return [{ col: unit.col, row: unit.row }];
+  const { width, height } = footprintSize(unit);
+  if (width * height === 1) return [{ col: unit.col, row: unit.row }];
   const tiles = [];
-  for (let dr = 0; dr < ENTITY_FOOTPRINT.height; dr++) {
-    for (let dc = 0; dc < ENTITY_FOOTPRINT.width; dc++) {
+  for (let dr = 0; dr < height; dr++) {
+    for (let dc = 0; dc < width; dc++) {
       tiles.push({ col: unit.col + dc, row: unit.row + dr });
     }
   }
   return tiles;
+}
+
+/**
+ * The body's middle in tile units from its anchor: { col, row } fractions for drawing (a 2x2's
+ * middle lies between tiles, at +0.5). A one-tile unit's is its tile.
+ */
+export function bodyCenter(unit) {
+  const { width, height } = footprintSize(unit);
+  return { col: unit.col + (width - 1) / 2, row: unit.row + (height - 1) / 2 };
 }
 
 /** Returns "col,row" key strings for all occupied tiles */
@@ -61,7 +98,7 @@ export function getFootprintKeys(unit) {
   return getFootprint(unit).map((t) => `${t.col},${t.row}`);
 }
 
-/** Minimum Manhattan distance from any Entity body tile to a target tile */
+/** Minimum Manhattan distance from any body tile of a unit (the Entity, or any large unit) to a target tile */
 export function entityDistanceTo(entity, targetCol, targetRow) {
   let minDist = Infinity;
   for (const tile of getFootprint(entity)) {
@@ -79,8 +116,16 @@ export function entityDistanceTo(entity, targetCol, targetRow) {
  * Entity's top-left anchor alone.
  */
 export function combatDistance(unit1, unit2) {
-  if (isEntity(unit1)) return entityDistanceTo(unit1, unit2.col, unit2.row);
-  if (isEntity(unit2)) return entityDistanceTo(unit2, unit1.col, unit1.row);
+  const large1 = isLargeUnit(unit1);
+  const large2 = isLargeUnit(unit2);
+  if (large1 && large2) {
+    // Two bodies: the nearest pair of tiles.
+    let best = Infinity;
+    for (const t of getFootprint(unit2)) best = Math.min(best, entityDistanceTo(unit1, t.col, t.row));
+    return best;
+  }
+  if (large1) return entityDistanceTo(unit1, unit2.col, unit2.row);
+  if (large2) return entityDistanceTo(unit2, unit1.col, unit1.row);
   return gridDistance(unit1.col, unit1.row, unit2.col, unit2.row);
 }
 

@@ -3650,8 +3650,7 @@ export class BattleScene extends Phaser.Scene {
     return (
       all.find((u) => {
         if (!u || u.currentHP <= 0 || u._removing) return false;
-        if (isEntity(u)) return getFootprintKeys(u).includes(`${col},${row}`);
-        return u.col === col && u.row === row;
+        return getFootprintKeys(u).includes(`${col},${row}`);
       }) || null
     );
   }
@@ -3676,13 +3675,7 @@ export class BattleScene extends Phaser.Scene {
     const occupied = new Set();
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       if (!unit || unit === excludeUnit || unit._removing || unit.currentHP <= 0) continue;
-      if (isEntity(unit)) {
-        for (const tile of getFootprint(unit)) {
-          occupied.add(`${tile.col},${tile.row}`);
-        }
-      } else {
-        occupied.add(`${unit.col},${unit.row}`);
-      }
+      for (const tile of getFootprint(unit)) occupied.add(`${tile.col},${tile.row}`);
     }
     return occupied;
   }
@@ -3710,9 +3703,7 @@ export class BattleScene extends Phaser.Scene {
           u !== unit &&
           !u._removing &&
           u.currentHP > 0 &&
-          (isEntity(u)
-            ? getFootprint(u).some((t) => t.col === col && t.row === row)
-            : u.col === col && u.row === row),
+          getFootprint(u).some((t) => t.col === col && t.row === row),
       ) || null;
     const knowledge = playerKnowledgeOf(this);
     const costMod = this._getCostModifier(unit);

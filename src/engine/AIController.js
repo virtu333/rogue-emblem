@@ -32,7 +32,14 @@ import {
   parseStaffRange,
   isHealStaff,
 } from './StatusConditionSystem.js';
-import { isEntity, canEntityStrike, combatDistance, pickBestWeapon } from './EntitySystem.js';
+import {
+  isEntity,
+  canEntityStrike,
+  combatDistance,
+  getFootprint,
+  isLargeUnit,
+  pickBestWeapon,
+} from './EntitySystem.js';
 import { isAcidTerrainIndex } from './TerrainHazards.js';
 import { createScopedLogger } from '../utils/logger.js';
 import { setUnitHP } from './UnitHealth.js';
@@ -182,6 +189,17 @@ export class AIController {
       if (decision?.target) {
         await callbacks.onAttack(enemy, decision.target);
       }
+      await callbacks.onUnitDone(enemy, decision);
+      return decision;
+    }
+
+    // Any other big body (the Iron Guardian's 2x2): it never steps, and strikes whoever its
+    // weapon reaches from its nearest body tile.
+    if (isLargeUnit(enemy)) {
+      const decision = this._decideBodyAction(enemy, playerUnits, npcUnits);
+      enemy._lastAiDecision = decision;
+      callbacks.onDecision?.(enemy, decision);
+      if (decision?.target) await callbacks.onAttack(enemy, decision.target);
       await callbacks.onUnitDone(enemy, decision);
       return decision;
     }
@@ -365,6 +383,28 @@ export class AIController {
   }
 
   /**
+   * A big body that is not the Entity (EntitySystem.isLargeUnit): no path, the best target its
+   * weapon reaches from its nearest body tile (combatDistance), scored as any attack. A body
+   * never walks: movement for a footprint is not built (docs/specs/large-units.md).
+   */
+  _decideBodyAction(unit, playerUnits, npcUnits) {
+    if (!unit.weapon || !hasPerBattleUsesLeft(unit.weapon, unit))
+      return { path: null, target: null, reason: 'no_weapon' };
+    let bestTarget = null;
+    let bestScore = -Infinity;
+    for (const target of [...(playerUnits || []), ...(npcUnits || [])]) {
+      if (!target || target.currentHP <= 0 || target._removing) continue;
+      if (!isInRange(unit.weapon, combatDistance(unit, target))) continue;
+      const score = this._scoreAttackTarget(unit, target, false);
+      if (score > bestScore) {
+        bestScore = score;
+        bestTarget = target;
+      }
+    }
+    return { path: null, target: bestTarget, reason: bestTarget ? 'body_attack' : 'no_in_range' };
+  }
+
+  /**
    * A per-battle weapon whose uses are spent this battle (an enemy Breachbolt after its
    * shots) cannot attack or counter (Combat.canCounter, AttackOptions). Swap to the
    * first carried combat weapon that can still strike; with none, keep it: attack
@@ -443,7 +483,8 @@ export class AIController {
     for (const u of [...allEnemies, ...playerUnits, ...(npcUnits || [])]) {
       if (u === enemy) continue;
       if (!u || u._removing || u.currentHP <= 0) continue;
-      unitPositions.set(`${u.col},${u.row}`, { faction: u.faction });
+      // Every tile of a big body blocks (the Entity, the Iron Guardian), not only its anchor.
+      for (const t of getFootprint(u)) unitPositions.set(`${t.col},${t.row}`, { faction: u.faction });
     }
 
     const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);

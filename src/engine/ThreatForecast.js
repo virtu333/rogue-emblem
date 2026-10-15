@@ -28,7 +28,13 @@
 //                           foes that reach a tile carry one.
 
 import { canInspectUnit, statusStaffThreat } from './BattleInformation.js';
-import { entityDistanceTo, getFootprint, isEntity, livingEntityLimbs } from './EntitySystem.js';
+import {
+  entityDistanceTo,
+  getFootprint,
+  isEntity,
+  isLargeUnit,
+  livingEntityLimbs,
+} from './EntitySystem.js';
 import { willRemainRootedNextPhase } from './StatusConditionSystem.js';
 import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_LIMB_REACH, ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
@@ -97,6 +103,13 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
       if (!damage.has(key)) counter.add(key);
     return { damage, status, counter };
   }
+  // Any other big body never steps (AIController._decideBodyAction): its weapon's reach from
+  // its nearest body tile, as combat measures it; the body itself is never a target tile.
+  if (isLargeUnit(enemy)) {
+    const weapon = strikingWeapon(enemy);
+    for (const key of bodyReachTiles(grid, enemy, weapon)) damage.add(key);
+    return { damage, status, counter };
+  }
   // No movement while it stays rooted (willRemainRootedNextPhase, not isRooted: a root
   // expiring at the enemy's next phase start must not understate its threat range), nor
   // while it holds its post (siege artillery and status-staff casters, SiegeArtillery.js).
@@ -131,6 +144,24 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
 }
 
 /**
+ * The tiles a big body's weapon reaches without a step: a tile is in reach when the combat
+ * distance (entityDistanceTo, the nearest body tile) is in the weapon's range, as combat
+ * measures it. The body itself is never a target tile. Keys "col,row".
+ */
+function bodyReachTiles(grid, unit, weapon) {
+  const keys = new Set();
+  if (!weapon) return keys;
+  const { min, max } = parseRange(weapon.range);
+  for (const tile of getFootprint(unit)) {
+    for (const t of grid.getAttackRange(tile.col, tile.row, weapon)) {
+      const d = entityDistanceTo(unit, t.col, t.row);
+      if (d >= min && d <= max) keys.add(tileKey(t.col, t.row));
+    }
+  }
+  return keys;
+}
+
+/**
  * Where a unit can stop with `mov` movement, and the tiles its weapon reaches
  * beyond them (the attack fringe the move preview draws in red; none for a staff).
  * @returns {{ moveRange: Map, attackTiles: Array<{col,row}> }}
@@ -153,17 +184,9 @@ export function unitReach(
   );
   const attack = new Set();
   const weapon = strikingWeapon(unit);
-  if (weapon && isEntity(unit)) {
-    // The Entity never steps and fights from its whole body: a tile is in its reach when the
-    // combat distance (entityDistanceTo, the nearest body tile) is in its weapon's range, as
-    // combat measures it. The body itself is never a target tile.
-    const { min, max } = parseRange(weapon.range);
-    for (const tile of getFootprint(unit)) {
-      for (const t of grid.getAttackRange(tile.col, tile.row, weapon)) {
-        const d = entityDistanceTo(unit, t.col, t.row);
-        if (d >= min && d <= max) attack.add(tileKey(t.col, t.row));
-      }
-    }
+  if (weapon && isLargeUnit(unit)) {
+    // A big body (the Entity, a 2x2) never steps and fights from its whole body.
+    for (const key of bodyReachTiles(grid, unit, weapon)) attack.add(key);
   } else if (unit.faction === 'player') {
     // A player unit's fringe is what Attack would let it initiate: the union over every
     // weapon it can attack with (silence, per-battle uses, proficiency), each at the range
@@ -226,7 +249,7 @@ export function computeDangerTiles(ctx, { onlyEnemy = null, counter = false } = 
   let positions = null;
   for (const enemy of onlyEnemy ? [onlyEnemy] : ctx.enemyUnits || []) {
     if (!isThreatSourceVisible(ctx.grid, enemy)) continue;
-    if (!isEntity(enemy)) positions ||= ctx.positions();
+    if (!isLargeUnit(enemy)) positions ||= ctx.positions();
     const { damage, status, counter: counterOnly } = enemyThreatTiles(ctx, enemy, positions);
     addDamageSource(damage);
     for (const key of status) statusThreatened.add(key);
@@ -349,8 +372,8 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
     if (!isThreatSourceVisible(ctx.grid, enemy)) continue;
     // Cheap exact prune: every step costs at least 1, so without ice slides an
     // enemy farther than movement + reach cannot strike the tile.
-    if (!slides && !isEntity(enemy) && !withinBareReach(enemy, col, row)) continue;
-    if (!isEntity(enemy)) positions ||= positionsWithMoverAt(ctx.positions(), mover, col, row);
+    if (!slides && !isLargeUnit(enemy) && !withinBareReach(enemy, col, row)) continue;
+    if (!isLargeUnit(enemy)) positions ||= positionsWithMoverAt(ctx.positions(), mover, col, row);
     const tiles = enemyThreatTiles(ctx, enemy, positions);
     if (tiles.damage.has(key)) damage.push(enemy);
     else if (tiles.status.has(key)) status.push(enemy);
