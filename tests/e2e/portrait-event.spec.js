@@ -236,7 +236,7 @@ for (const viewport of PORTRAIT_PHONES.slice(0, 2)) {
       });
       expect(clear).toBeGreaterThanOrEqual(-0.5);
       await actions.getByRole('button', { name: 'Try again', exact: true }).tap();
-      await expect(dialog.locator('.ev-result[data-kind="gold"]')).toContainText('Gained 200 G');
+      await expect(dialog.locator('.ev-result[data-kind="gold"]')).toContainText('Gained 250 G');
       await expect(dialog.locator('.ev-failed')).toHaveCount(0);
       expect(errors.filter((e) => !/planted fault/.test(e))).toEqual([]);
     });

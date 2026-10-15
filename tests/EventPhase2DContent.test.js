@@ -425,22 +425,22 @@ describe('The Sunken Mine', () => {
     expect(eventChoiceBlock(run, node.id, 'blind')).toBe('');
   });
 
-  it("level two's chest pays 150 + 100 per act: 350 G in Act II, and ends the event", () => {
+  it("level two's chest pays the act's amount: 500 G in Act II, and ends the event", () => {
     const { run, node } = stand();
     expect(pick(run, node, 'deeper').ok).toBe(true);
     const gold = run.gold;
     const result = pick(run, node, 'take_chest');
     expect(result.ok, result.reason).toBe(true);
     expect(result.next).toBeNull();
-    expect(run.gold - gold).toBe(350);
+    expect(run.gold - gold).toBe(500);
   });
 
-  it('feeling your way out is an even coin: out with nothing, or an ambush that pays 100 + 50 per act', () => {
+  it('feeling your way out is an even coin: out with nothing, or an ambush that pays a purse by act', () => {
     const counts = tally('sunken_mine', 'blind', { seeds: 200, act: 1 });
     expect(counts.found / 200).toBeGreaterThan(0.4);
     expect(counts.found / 200).toBeLessThan(0.6);
     expect(counts.found + counts.ambush).toBe(200);
-    // The ambush: a fight whose spoils are 200 G in Act II (100 + 50 x 2), by hand.
+    // The ambush: a fight whose spoils are 250 G in Act II (the data's byAct), by hand.
     for (let seed = 1; seed <= 100; seed++) {
       const { run, node } = stand({ seed });
       const result = pick(run, node, 'blind');
@@ -449,7 +449,7 @@ describe('The Sunken Mine', () => {
       const before = run.gold;
       const settled = winFight(run, node);
       const spoil = settled.results.find((r) => r.kind === 'gold');
-      expect(spoil.value).toBe(200);
+      expect(spoil.value).toBe(250);
       expect(run.gold - before).toBeGreaterThanOrEqual(200);
       return;
     }
@@ -719,25 +719,25 @@ describe('The Mercenary Contract', () => {
     return run.lastContractSettlement;
   };
 
-  it('"under par" opens a contract: 300 + 200 per act if kept, a Debt of 200 + 150 per act if broken', () => {
+  it('"under par" opens a contract: 200 + 250 per act if kept, a Debt of 200 + 150 per act if broken', () => {
     const { run, node } = stand();
     const result = pick(run, node, 'par');
     expect(result.ok, result.reason).toBe(true);
     expect(run.contract).toMatchObject({
       goal: 'underPar',
       eventId: 'merc_contract',
-      reward: [{ type: 'gold', value: { base: 300, perAct: 200 } }],
+      reward: [{ type: 'gold', value: { base: 200, perAct: 250 } }],
       penalty: [{ type: 'burden', id: 'debt', params: { owed: { base: 200, perAct: 150 } } }],
     });
     expect(result.results.find((r) => r.kind === 'contract')).toMatchObject({ goal: 'underPar' });
   });
 
-  it('kept: the next victory by par pays 500 G in Act I and the contract is closed', () => {
+  it('kept: the next victory by par pays 450 G in Act I and the contract is closed', () => {
     const { run, node } = stand();
     pick(run, node, 'par');
     const settlement = winAs(run, node, { turnCount: 5, turnPar: 5 });
     expect(settlement).toMatchObject({ goal: 'underPar', kept: true });
-    expect(settlement.results.find((r) => r.kind === 'gold').value).toBe(500);
+    expect(settlement.results.find((r) => r.kind === 'gold').value).toBe(450);
     expect(run.contract).toBeNull();
     expect(run.burdens).toEqual([]);
   });
@@ -802,11 +802,11 @@ describe('The Mercenary Contract', () => {
     expect(run.gold).toBe(gold);
   });
 
-  it('the reward grows with the act (Act III: 300 + 3 x 200 = 900 G)', () => {
+  it('the reward grows with the act (Act III: 200 + 3 x 250 = 950 G)', () => {
     const { run, node } = stand({ act: 2 });
     pick(run, node, 'par');
     const settlement = winAs(run, node, { turnCount: 3, turnPar: 5 });
-    expect(settlement.results.find((r) => r.kind === 'gold').value).toBe(900);
+    expect(settlement.results.find((r) => r.kind === 'gold').value).toBe(950);
   });
 });
 
@@ -1059,7 +1059,7 @@ describe('The Chained Shelf', () => {
     expect(iona.skills).toHaveLength(5);
   });
 
-  it('burning it lifts 4 shadow; selling it pays 250 + 150 per act (550 G in Act II)', () => {
+  it('burning it lifts 4 shadow; selling it pays 600 G in Act II (the data byAct)', () => {
     const burn = stand();
     burn.run.eclipse = { ...burn.run.eclipse, shadow: 10 };
     expect(pick(burn.run, burn.node, 'burn').ok).toBe(true);
@@ -1067,7 +1067,7 @@ describe('The Chained Shelf', () => {
     const sell = stand();
     const gold = sell.run.gold;
     expect(pick(sell.run, sell.node, 'sell').ok).toBe(true);
-    expect(sell.run.gold - gold).toBe(550);
+    expect(sell.run.gold - gold).toBe(600);
   });
 });
 
@@ -1395,13 +1395,13 @@ describe("The Deserters' Revenge", () => {
     return { run, node: at(run, 'deserters_revenge') };
   };
 
-  it('standing and fighting is a fight one level harder, paying 250 + 150 per act (550 G in Act II)', () => {
+  it('standing and fighting is a fight one level harder, paying 700 G in Act II (the data byAct)', () => {
     const { run, node } = stand();
     const result = pick(run, node, 'fight');
     expect(result.battle).toBe(true);
     expect(node.battleParams.eventEnemyLevelBonus).toBe(1);
     const settled = winFight(run, node);
-    expect(settled.results.find((r) => r.kind === 'gold').value).toBe(550);
+    expect(settled.results.find((r) => r.kind === 'gold').value).toBe(700);
   });
 
   it('repaying costs 200 + 100 per act (400 G) and lifts 2 shadow', () => {
@@ -1447,13 +1447,13 @@ describe('The Collectors', () => {
     }
   });
 
-  it('fighting is an ELITE battle one level harder, paying 300 + 150 per act (600 G in Act II)', () => {
+  it('fighting is an ELITE battle one level harder, paying 700 G in Act II (the data byAct)', () => {
     const { run, node } = stand();
     const result = pick(run, node, 'fight');
     expect(result.battle).toBe(true);
     expect(node.battleParams).toMatchObject({ isElite: true, eventEnemyLevelBonus: 1 });
     const settled = winFight(run, node);
-    expect(settled.results.find((r) => r.kind === 'gold').value).toBe(600);
+    expect(settled.results.find((r) => r.kind === 'gold').value).toBe(700);
   });
 
   it('slipping away puts a Debt of 500 + 250 per act (1000 G in Act II) on the army', () => {

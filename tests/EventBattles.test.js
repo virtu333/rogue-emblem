@@ -65,6 +65,15 @@ describe('choosing a fight', () => {
     expect(run.getBattleParams(node)).toMatchObject({ objective: 'rout', isEventBattle: true });
   });
 
+  it('saves the spoils with a byAct purse resolved to a number (an older client reads byAct as 0)', () => {
+    const { run, node } = doorRun();
+    const gold = eventState(run, node.id).afterVictory.find((e) => e.type === 'gold');
+    // The data's byAct act1 purse, by hand from events.json: a plain number in the save.
+    expect(gold.value).toBe(250);
+    const saved = JSON.parse(JSON.stringify(run.toJSON()));
+    expect(JSON.stringify(saved)).not.toContain('byAct');
+  });
+
   it('records the fight as pending and the node stays the only node to enter', () => {
     const { run, node } = doorRun();
     expect(eventState(run, node.id)).toMatchObject({ battle: 'pending', choiceId: 'door' });
@@ -247,7 +256,7 @@ describe('victory', () => {
     expect(done.ok).toBe(true);
     expect(done.text).toMatch(/cellar cache/);
     expect(done.results.map((r) => r.kind)).toEqual(['item', 'gold']);
-    expect(run.gold - gold).toBe(200); // { base: 100, perAct: 100 } in act 1
+    expect(run.gold - gold).toBe(250); // the byAct act1 purse
     expect(armyItems()).toBe(itemsBefore + 1);
     expect(eventState(run, node.id).battle).toBe('won');
     expect(run.pendingEventNodeId).toBeNull();
@@ -276,9 +285,9 @@ describe('victory', () => {
     expect(getPendingEventSettlement(loaded)).toBe(node.id);
     const gold = loaded.gold;
     expect(completeEventBattle(loaded, node.id).ok).toBe(true);
-    expect(loaded.gold - gold).toBe(200);
+    expect(loaded.gold - gold).toBe(250);
     expect(completeEventBattle(loaded, node.id).ok).toBe(false);
-    expect(loaded.gold - gold).toBe(200);
+    expect(loaded.gold - gold).toBe(250);
   });
 
   it('refuses to settle before the fight is won, and to leave before it is settled', () => {
@@ -307,7 +316,7 @@ describe('victory', () => {
     const done = completeEventBattle(run, node.id);
     expect(done.ok).toBe(true);
     expect(done.results[0]).toMatchObject({ kind: 'note', of: 'item' });
-    expect(run.gold - gold).toBe(200); // the gold still comes
+    expect(run.gold - gold).toBe(250); // the gold still comes
   });
 
   it('a caught bluff (a fight whose spoils are only gold) settles and leaves cleanly', () => {

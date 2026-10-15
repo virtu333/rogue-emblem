@@ -48,6 +48,19 @@ describe('amounts and costs', () => {
     expect(resolveAmount({ base: -50, perAct: -50 }, 'act2')).toBe(-150);
   });
 
+  it('resolves { byAct } by the act: its own value, else the nearest listed act before it', () => {
+    const table = { byAct: { act2: 500, act4: 1100 } };
+    expect(resolveAmount(table, 'act2')).toBe(500);
+    expect(resolveAmount(table, 'act3')).toBe(500); // act3 unlisted: act2's
+    expect(resolveAmount(table, 'act4')).toBe(1100);
+    // Before the first listed act: the first listed (an Act II event met early never pays 0).
+    expect(resolveAmount(table, 'act1')).toBe(500);
+    // The final act reads as after Act IV, never as Act I.
+    expect(resolveAmount(table, 'finalBoss')).toBe(1100);
+    expect(resolveAmount({ byAct: { act1: 250.9 } }, 'act3')).toBe(250);
+    expect(resolveAmount({ byAct: {} }, 'act2')).toBe(0);
+  });
+
   it('scales a cost by the rung and rounds to 10 (hand-derived)', () => {
     const run = newRun({ difficulty: 'hard' });
     // act1: 100 + 100 = 200; x1.25 = 250

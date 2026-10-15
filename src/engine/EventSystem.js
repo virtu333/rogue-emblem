@@ -20,7 +20,10 @@
 //   event-route:${runSeed}:${nodeId}:..             a route edit's pick and its battle build
 //
 // Vocabulary shared with EventEffects, EventCommands and EventValidation:
-//   amount      a number, or { base, perAct } (act1 = base + perAct x 1 ... act4 = x 4)
+//   amount      a number, { base, perAct } (act1 = base + perAct x 1 ... act4 = x 4), or
+//               { byAct: { act1, ..., act4 } } (the act's own value; an act it leaves out takes
+//               the nearest listed act before it, else the first listed; the final act reads
+//               as after act4: AMOUNT_ACT_ORDER)
 //   byRung      a table keyed by difficulty id; the value of the highest rung at or below
 //               the run's wins ("Nightfall 45" also holds on Black Sun unless Black Sun has
 //               its own entry). costScale is the exception: every rung is listed.
@@ -223,9 +226,24 @@ export function actNumber(actId) {
   return match ? Math.max(1, Number(match[1])) : 1;
 }
 
-/** An amount ({ base, perAct } or a number) for an act, as a whole number. */
+/** The acts a `byAct` amount may name, in order (the final act reads as after Act IV). */
+export const AMOUNT_ACT_ORDER = Object.freeze(['act1', 'act2', 'act3', 'act4', 'finalBoss']);
+
+/** A `byAct` table's value for an act: its own, else the nearest listed act before it, else the first listed. */
+function byActAmount(table, actId) {
+  const listed = AMOUNT_ACT_ORDER.filter((id) => Number.isFinite(Number(table?.[id])));
+  if (listed.length === 0) return 0;
+  const here = AMOUNT_ACT_ORDER.indexOf(String(actId || ''));
+  let found = listed[0];
+  for (const id of listed) if (here >= 0 && AMOUNT_ACT_ORDER.indexOf(id) <= here) found = id;
+  return Math.trunc(Number(table[found]));
+}
+
+/** An amount (a number, { base, perAct } or { byAct }) for an act, as a whole number. */
 export function resolveAmount(value, actId) {
   if (typeof value === 'number') return Math.trunc(value);
+  if (value && typeof value === 'object' && value.byAct !== undefined)
+    return byActAmount(value.byAct, actId);
   if (value && typeof value === 'object')
     return (
       Math.trunc(Number(value.base) || 0) + Math.trunc(Number(value.perAct) || 0) * actNumber(actId)

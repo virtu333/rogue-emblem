@@ -576,25 +576,25 @@ describe('a fight', () => {
     const goldBefore = d.run.gold;
     // Back on the route map: the controller settles the spoils and opens the victory page.
     expect(d.controller.handleEvent(d.nodeNow)).toBe(true);
-    // The door's spoils: { base: 100, perAct: 100 } in Act I is 200 G, and a weapon.
-    expect(d.run.gold).toBe(goldBefore + 200);
+    // The door's spoils: the byAct act1 purse is 250 G, and a weapon.
+    expect(d.run.gold).toBe(goldBefore + 250);
     const text = d.text();
     expect(text).toContain('The fight is won.');
     expect(text).toContain(
       'The door gives way to a cellar cache nobody had touched. Weapons, and a strongbox.',
     );
-    expect(text).toContain('Gained 200 G');
+    expect(text).toContain('Gained 250 G');
     expect(d.menu.closeButton.textContent).toBe('Continue');
     expect(d.run.pendingEventNodeId).toBeNull();
     // A refresh on the victory page: it reopens (Continue was not pressed), nothing is paid again.
     d.reload();
-    expect(d.run.gold).toBe(goldBefore + 200);
+    expect(d.run.gold).toBe(goldBefore + 250);
     expect(d.run.canReenterService(d.node.id)).toBe(true);
     expect(d.controller.handleEvent(d.nodeNow)).toBe(true);
-    expect(d.text()).toContain('Gained 200 G');
-    expect(d.run.gold).toBe(goldBefore + 200);
+    expect(d.text()).toContain('Gained 250 G');
+    expect(d.run.gold).toBe(goldBefore + 250);
     d.press('Continue');
-    expect(d.run.gold).toBe(goldBefore + 200);
+    expect(d.run.gold).toBe(goldBefore + 250);
     expect(d.scene.checkActComplete).toHaveBeenCalledTimes(1);
     // Left: nothing more to reopen, here or after another refresh.
     expect(d.run.canReenterService(d.node.id)).toBe(false);
@@ -611,7 +611,7 @@ describe('a fight', () => {
     d.controller.handleEvent(d.nodeNow);
     d.controller.closeEventOverlay();
     d.controller.handleEvent(d.nodeNow); // e.g. a second return to the map
-    expect(d.run.gold).toBe(gold + 200);
+    expect(d.run.gold).toBe(gold + 250);
   });
 
   it('a refresh before the spoils are taken reopens as owed: the spoils apply once, on opening', () => {
@@ -624,7 +624,7 @@ describe('a fight', () => {
     expect(d.run.pendingEventNodeId).toBe(d.node.id);
     expect(d.run.canReenterService(d.node.id)).toBe(true);
     d.controller.handleEvent(d.nodeNow);
-    expect(d.run.gold).toBe(gold + 200);
+    expect(d.run.gold).toBe(gold + 250);
     expect(d.text()).toContain('The fight is won.');
   });
 

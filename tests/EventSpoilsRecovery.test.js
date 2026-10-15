@@ -2,7 +2,7 @@
 // fails, nothing may be lost: the engine rolls the attempt back, the node still owes them
 // (from the saved state alone, never from a marker), the party cannot walk on without them,
 // and the page offers Try again, Back to map and a confirmed Give up. The Abandoned Armory's
-// door is the fixture: its spoils are a weapon, then 200 G in Act I (two effects, so a fault
+// door is the fixture: its spoils are a weapon, then 250 G in Act I (two effects, so a fault
 // planted in the second proves the first was rolled back).
 //
 // Ways this can fail, a test (or a group) each:
@@ -125,7 +125,7 @@ describe('what the engine owes', () => {
     // The fault is gone: the full reward, exactly once.
     const retry = completeEventBattle(loaded, d.node.id);
     expect(retry.ok).toBe(true);
-    expect(loaded.gold).toBe(gold + 200);
+    expect(loaded.gold).toBe(gold + 250);
     expect(weaponsCarried(loaded)).toBe(weapons + 1);
     expect(retry.results.map((r) => r.kind)).toEqual(['item', 'gold']);
     // Again, and after another reload: nothing more.
@@ -133,7 +133,7 @@ describe('what the engine owes', () => {
     saveRun(loaded, null, 1);
     const again = loadRun(baseData, 1);
     expect(completeEventBattle(again, d.node.id)).toMatchObject({ ok: false, already: true });
-    expect(again.gold).toBe(gold + 200);
+    expect(again.gold).toBe(gold + 250);
     expect(weaponsCarried(again)).toBe(weapons + 1);
     expect(eventSpoilsOwed(again, d.node.id)).toBe(false);
     // Settled: the party may walk on once the page is left.
@@ -246,10 +246,10 @@ describe('the failure page', () => {
   it('Try again with the fault gone grants the whole reward once and shows the victory page', () => {
     const d = failedPage();
     d.press('Try again');
-    expect(d.run.gold).toBe(d.gold + 200);
+    expect(d.run.gold).toBe(d.gold + 250);
     expect(weaponsCarried(d.run)).toBe(d.weapons + 1);
     const text = d.text();
-    expect(text).toContain('Gained 200 G');
+    expect(text).toContain('Gained 250 G');
     expect(text).not.toContain('The spoils could not be taken.');
     expect(labels(d)).toContain('Continue');
     expect(labels(d)).not.toContain('Try again');
@@ -259,7 +259,7 @@ describe('the failure page', () => {
     d.reload();
     expect(d.controller.handleEvent(d.nodeNow)).toBe(true);
     d.press('Continue');
-    expect(d.run.gold).toBe(d.gold + 200);
+    expect(d.run.gold).toBe(d.gold + 250);
     expect(weaponsCarried(d.run)).toBe(d.weapons + 1);
     expect(d.scene.checkActComplete).toHaveBeenCalledTimes(1);
   });
@@ -273,8 +273,8 @@ describe('the failure page', () => {
     expect(eventSpoilsOwed(d.run, d.node.id)).toBe(true);
     expect(d.run.gold).toBe(d.gold);
     d.press('Try again'); // the fault was one-time: now it works
-    expect(d.text()).toContain('Gained 200 G');
-    expect(d.run.gold).toBe(d.gold + 200);
+    expect(d.text()).toContain('Gained 250 G');
+    expect(d.run.gold).toBe(d.gold + 250);
     expect(weaponsCarried(d.run)).toBe(d.weapons + 1);
   });
 
@@ -292,8 +292,8 @@ describe('the failure page', () => {
     expect(d.scene.eventOverlay).toBeNull();
     // Re-entering the node (a click) tries again: the fault is gone, the spoils arrive.
     expect(d.controller.handleEvent(d.nodeNow)).toBe(true);
-    expect(d.text()).toContain('Gained 200 G');
-    expect(d.run.gold).toBe(d.gold + 200);
+    expect(d.text()).toContain('Gained 250 G');
+    expect(d.run.gold).toBe(d.gold + 250);
   });
 
   it('ESC is Back to map too: it closes the page and keeps everything owed', () => {
@@ -319,7 +319,7 @@ describe('the failure page', () => {
     // Another scene start with the fault gone settles it.
     d.reload();
     expect(d.controller.handleEvent(d.nodeNow, { auto: true })).toBe(true);
-    expect(d.text()).toContain('Gained 200 G');
+    expect(d.text()).toContain('Gained 250 G');
   });
 
   it('Give up asks first: declining changes nothing, confirming is final', () => {
