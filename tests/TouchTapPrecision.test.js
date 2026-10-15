@@ -110,6 +110,29 @@ describe('tap or pan: no movement is neither', () => {
     expect(input.onClick).toHaveBeenCalledTimes(1);
     expect(camera.scrollY).toBe(0);
   });
+
+  it('a quick swipe with no move event (down, then lift) is still a tap or a pan', () => {
+    const undecided = [];
+    for (let css = 0; css <= 30; css += 0.5) {
+      const { input, camera } = makeTapScene();
+      const d = css * RATIO;
+      input.onPointerDown(touch(1, 200, 200, 'touchstart'));
+      input.onPointerUp(touch(1, 200 + d * 0.6, 200 + d * 0.8, 'touchend'));
+      const tapped = input.onClick.mock.calls.length === 1;
+      const panned = camera.scrollX !== 0 || camera.scrollY !== 0;
+      if (tapped === panned) undecided.push(css);
+    }
+    expect(undecided).toEqual([]);
+  });
+
+  it('the lift-only pan moves the camera by the swipe, like a dragged pan', () => {
+    const { input, camera } = makeTapScene();
+    input.onPointerDown(touch(1, 200, 200, 'touchstart'));
+    input.onPointerUp(touch(1, 170, 180, 'touchend'));
+    expect(camera.scrollX).toBe(30);
+    expect(camera.scrollY).toBe(20);
+    expect(input.onClick).not.toHaveBeenCalled();
+  });
 });
 
 // A small board as Grid draws it (pixelToGrid is the real one).
@@ -189,6 +212,44 @@ describe('the haptic tick is a receipt', () => {
     const input = new InputController(scene);
     tapAt(input, 4 * 32 + 16, 4 * 32 + 16);
     expect(hapticCalls.map((c) => c.kind)).toEqual(['tick']);
+  });
+
+  it('moving a chosen-center art to another legal tile ticks (same state, new lock)', () => {
+    const scene = makeBoardScene({ battleState: 'SELECTING_AREA_CENTER' });
+    const pending = { locked: { col: 1, row: 1 } };
+    scene._areaTargetingController = { pending };
+    scene._areaTargeting = () => ({
+      lock: (gp) => {
+        pending.locked = { col: gp.col, row: gp.row };
+      },
+    });
+    const input = new InputController(scene);
+    tapAt(input, 4 * 32 + 16, 4 * 32 + 16);
+    expect(pending.locked).toEqual({ col: 4, row: 4 });
+    expect(hapticCalls.map((c) => c.kind)).toEqual(['tick']);
+  });
+
+  it('a tap that only closes the end-turn confirm ticks', () => {
+    const scene = makeBoardScene();
+    scene._mobileBattleHud = {
+      endTurnPending: { at: 1 },
+      cancelEndTurn() {
+        this.endTurnPending = null;
+      },
+    };
+    tapAt(new InputController(scene), 4 * 32 + 16, 4 * 32 + 16);
+    expect(hapticCalls.map((c) => c.kind)).toEqual(['tick']);
+  });
+
+  it('an inspect-mode tap on empty ground with nothing shown gives no tick', () => {
+    const scene = makeBoardScene();
+    scene.isMobileInput = true;
+    scene.inspectMode = true;
+    const input = new InputController(scene);
+    input.clearInspectionVisuals = () => {};
+    input.refreshTileInfo = () => {};
+    tapAt(input, 4 * 32 + 16, 4 * 32 + 16);
+    expect(hapticCalls).toEqual([]);
   });
 });
 

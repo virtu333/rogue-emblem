@@ -491,8 +491,18 @@ export class InputController {
     const screenY = clickPos?.y ?? pointer?.y;
     const world = this._screenToWorld(screenX, screenY);
     if (!world) return;
-    const px = world.x;
-    const py = world.y;
+    // A tap on the board, or the gamepad / keyboard cursor's confirm (GridCursorController
+    // goes through here), ticks once it did something, after the state changed: a tap
+    // that changed nothing (an empty tile with nothing open, a refused placement) gives no
+    // tick, so the tick is a receipt the command took, and the native call never runs
+    // ahead of the game's own response.
+    const before = this._tapFeedbackKey();
+    this._routeBoardTap(pointer, world.x, world.y);
+    if (this._tapFeedbackKey() !== before) haptic('tick');
+  }
+
+  _routeBoardTap(pointer, px, py) {
+    const scene = this.scene;
     if (scene.isMobileInput && scene.inspectMode) {
       if (this.handleInspectModeTap(pointer, px, py)) return;
     }
@@ -508,14 +518,7 @@ export class InputController {
 
     if (scene.isMobileInput) this.refreshTileInfo(gp.col, gp.row);
 
-    // A tap on the board, or the gamepad / keyboard cursor's confirm (GridCursorController
-    // goes through here), ticks once it did something, after the state changed: a tap
-    // that changed nothing (an empty tile with nothing open, a refused placement) gives no
-    // tick, so the tick is a receipt the command took, and the native call never runs
-    // ahead of the game's own response.
-    const before = this._tapFeedbackKey();
     this._dispatchBoardTap(gp);
-    if (this._tapFeedbackKey() !== before) haptic('tick');
   }
 
   /**
@@ -560,8 +563,9 @@ export class InputController {
 
   /**
    * What a board tap can visibly change, as one string: the battle state, the selection,
-   * the open menu, forecast, inspected unit or ballista reach, and the formation's hand,
-   * pick, menus and placements. Read before and after a tap; any change is an accepted tap.
+   * the open menu, forecast, inspected unit or ballista reach, inspect mode, the unit
+   * detail, the end-turn confirm, a chosen-center art's locked tile, and the formation's
+   * hand, pick, menus and placements. Read before and after a tap; any change is an accepted tap.
    */
   _tapFeedbackKey() {
     const scene = this.scene;
@@ -569,6 +573,8 @@ export class InputController {
     const panel = scene.inspectionPanel;
     const f = scene._formation;
     const ballista = this._ballistaShown;
+    // A chosen-center art's locked tile: moving the lock is a new command in one state.
+    const locked = scene._areaTargetingController?.pending?.locked;
     return [
       scene.battleState,
       id(scene.selectedUnit),
@@ -577,6 +583,10 @@ export class InputController {
       panel?.visible ? `i:${id(panel._unit)}` : '',
       ballista ? `b:${ballista.col},${ballista.row}` : '',
       this._ballistaRangeShown ? 1 : 0,
+      scene.inspectMode ? 1 : 0,
+      scene.unitDetailOverlay?.visible ? 1 : 0,
+      scene._mobileBattleHud?.endTurnPending ? 1 : 0,
+      locked ? `a:${locked.col},${locked.row}` : '',
       f
         ? [
             id(f.heldUnit),
@@ -1139,7 +1149,10 @@ export class InputController {
   _handleCameraGesturePointerUp(pointer) {
     const scene = this.scene;
     if (!scene._battleCamera || !scene._isTouchPointer(pointer)) return false;
-    const result = scene._battleCamera.handlePointerUp(pointer);
+    const result = scene._battleCamera.handlePointerUp(
+      pointer,
+      scene.isCameraGestureAllowed?.() !== false,
+    );
     if (result?.endedGesture) scene._syncMobileResetViewButton();
     return Boolean(result?.consumed);
   }
