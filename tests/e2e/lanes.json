@@ -14,7 +14,6 @@
     {
       "name": "contracts",
       "description": "UX contracts: battle information, reload and save choices, mobile shell, management, forecast input, help, journeys, timeline",
-      "workers": 2,
       "specs": [
         "battle-contracts.spec.js",
         "unarmed-units.spec.js",
@@ -31,8 +30,7 @@
         "battle-timeline.spec.js",
         "save-retry.spec.js",
         "contract-settlement.spec.js"
-      ],
-      "shards": 2
+      ]
     },
     {
       "name": "presentation",
@@ -61,8 +59,7 @@
         "zombie-remains.spec.js",
         "xp-gauge.spec.js",
         "entity-rally.spec.js"
-      ],
-      "shards": 2
+      ]
     },
     {
       "name": "mobile-ui",
@@ -108,12 +105,11 @@
         "portrait-descent-rite.spec.js",
         "portrait-descent-acceptance.spec.js"
       ],
-      "shards": 7
+      "shards": 4
     },
     {
       "name": "battle-input",
       "description": "Battle input on every device: attack flow, menus, touch, keyboard and gamepad, input isolation, camera",
-      "shards": 2,
       "specs": [
         "area-strike.spec.js",
         "attack-flow.spec.js",
@@ -152,7 +148,6 @@
     {
       "name": "art",
       "description": "Rendering and art: battlefield, sprites, portraits, item art, combat effects, fonts and layout readability",
-      "shards": 2,
       "specs": [
         "battlefield-lab.spec.js",
         "battlefield-presentation.spec.js",
@@ -174,7 +169,7 @@
     {
       "name": "run-flow",
       "description": "The run around the battles: route, recruits, rewards, growth, guidance, saves, recovery and full journeys",
-      "shards": 3,
+      "shards": 2,
       "specs": [
         "battle-entry-music.spec.js",
         "choice-screens.spec.js",
@@ -228,12 +223,11 @@
         "prologue-resume.spec.js",
         "prologue-skip.spec.js"
       ],
-      "shards": 3
+      "shards": 2
     },
     {
       "name": "menus",
       "description": "Management menus and UX polish: party, roster, pause, upgrades, viewport, command rail, ceremonies framing",
-      "shards": 2,
       "specs": [
         "mobile-pause.spec.js",
         "build-info.spec.js",

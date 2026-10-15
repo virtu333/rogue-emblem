@@ -261,21 +261,29 @@ export function specSelection(
 }
 
 /**
- * The CI job matrix: one entry per lane, or per shard of a sharded lane.
+ * The CI job matrix: one entry per lane, or per shard of a sharded lane, longest
+ * estimated work first. Jobs past the account's runner limit wait in the queue in this
+ * order, so the long shards start at once and the short ones fill in behind them.
  * @returns {{ id: string, lane: string, shard: string, build: boolean }[]}
  */
-export function ciMatrix(manifest) {
-  return manifest.lanes.flatMap((lane) => {
+export function ciMatrix(manifest, durations = {}) {
+  const jobs = manifest.lanes.flatMap((lane) => {
     const shards = lane.shards || 1;
     const build = lane.build === true;
-    if (shards === 1) return [{ id: lane.name, lane: lane.name, shard: '', build }];
-    return Array.from({ length: shards }, (_, i) => ({
+    const plan = planShards(lane.specs, shards, durations);
+    if (shards === 1) {
+      return [{ id: lane.name, lane: lane.name, shard: '', build, seconds: plan[0].seconds }];
+    }
+    return plan.map((shard, i) => ({
       id: `${lane.name}-${i + 1}of${shards}`,
       lane: lane.name,
       shard: `${i + 1}/${shards}`,
       build,
+      seconds: shard.seconds,
     }));
   });
+  // Array.prototype.sort is stable: equal estimates keep the manifest's order.
+  return jobs.sort((a, b) => b.seconds - a.seconds).map(({ seconds, ...job }) => job);
 }
 
 /** The Playwright invocation for a lane. `extraArgs` may carry --shard=i/n or other flags. */
@@ -407,7 +415,7 @@ function main(argv) {
     return 0;
   }
   if (command === 'matrix') {
-    console.log(JSON.stringify(ciMatrix(readLanes())));
+    console.log(JSON.stringify(ciMatrix(readLanes(), readDurations())));
     return 0;
   }
   if (command === 'list') {

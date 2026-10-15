@@ -184,6 +184,16 @@ describe('ciMatrix and laneCommand', () => {
     ]);
   });
 
+  it('lists the longest estimated jobs first, so they leave the runner queue first', () => {
+    const durations = { 'release.spec.js': 900, 'attack.spec.js': 10, 'sub/heal.spec.js': 400 };
+    expect(ciMatrix(manifest(), durations).map((job) => job.id)).toEqual([
+      'release',
+      'battle-1of2', // sub/heal.spec.js, 400 s: the longest spec opens shard 1
+      'smoke', // two unmeasured specs at the default
+      'battle-2of2',
+    ]);
+  });
+
   it('runs Playwright with the lane config, workers and the lane selected by env', () => {
     expect(laneCommand(manifest(), 'battle', ['--shard=1/2'])).toEqual({
       command: 'npx',

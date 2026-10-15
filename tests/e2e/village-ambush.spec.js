@@ -7,6 +7,9 @@ import { attachSlot, phone, LANDSCAPE_PHONES, quietSettings } from './portraitHe
 import { reloadToRouteMap, savedRun } from './earnedPickHelpers.js';
 
 test.use(phone(LANDSCAPE_PHONES[1]));
+// Each test boots the game, wins a battle and (the last) reloads it twice: about 20 s on
+// CI, too close to the 30 s default on a loaded runner.
+test.describe.configure({ timeout: 90_000 });
 
 const REWARDS = 'Battle rewards';
 const VILLAGE = 'Village';
