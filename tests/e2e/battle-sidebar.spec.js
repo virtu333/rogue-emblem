@@ -81,14 +81,23 @@ for (const viewport of [
       .toBe(true);
     const box = await danger.boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    // Hold until the hold has pinned Danger, then lift: a fixed 650 ms hold (100 ms over
+    // the 550 ms threshold) lost to a busy page, whose queued release ran before the late
+    // hold timer and cancelled it.
     await page.mouse.down();
-    await page.waitForTimeout(650);
-    await page.mouse.up();
     await expect
       .poll(() =>
         page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').keepDangerVisible),
       )
       .toBe(true);
+    await page.mouse.up();
+    // The lifting finger's click is swallowed: it neither unpins nor steps Danger on.
+    expect(
+      await page.evaluate(() => {
+        const s = window.__emblemRogueGame.scene.getScene('Battle');
+        return [s.keepDangerVisible, s.dangerZone.visible];
+      }),
+    ).toEqual([true, true]);
     expect(
       await page.evaluate(() => window.__emblemRogueGame.scene.getScene('Battle').battleState),
     ).toBe('UNIT_ACTION_MENU');
