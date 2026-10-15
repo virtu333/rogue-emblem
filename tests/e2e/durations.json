@@ -48,7 +48,7 @@
     "enemy-phase-pacing.spec.js": 25,
     "enemy-planning.spec.js": 22,
     "entity-rally.spec.js": 578,
-    "escape-exits.spec.js": 57,
+    "escape-exits.spec.js": 70,
     "event-nodes.spec.js": 138,
     "event-pages.spec.js": 438,
     "fallen-recruit.spec.js": 46,

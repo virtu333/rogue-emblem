@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeDurations, summaryMarkdown } from '../tools/e2eDurationReporter.js';
+import {
+  nearTimeoutLines,
+  summarizeDurations,
+  summaryMarkdown,
+} from '../tools/e2eDurationReporter.js';
 
 const result = (file, title, durationMs, retry = 0) => ({
   file,
@@ -46,5 +50,52 @@ describe('e2e duration report', () => {
     );
     expect(md).toContain('### e2e durations: smoke');
     expect(md).toContain('| a.spec.js | 1.5 | 1 | 0 |');
+  });
+
+  it('lists the attempts that used 60% or more of their timeout, closest first', () => {
+    const near = (title, durationMs, timeoutMs, status = 'passed', retry = 0) => ({
+      ...result('a.spec.js', title, durationMs, retry),
+      status,
+      timeoutMs,
+    });
+    const report = summarizeDurations([
+      near('comfortable', 17_999, 30_000),
+      near('at the line', 18_000, 30_000),
+      near('close', 27_000, 30_000),
+      near('long but given room', 60_000, 120_000),
+      near('timed out', 30_100, 30_000, 'timedOut'),
+      near('retried close', 24_000, 30_000, 'passed', 1),
+      // No timeout known (an older result): never listed.
+      result('a.spec.js', 'unknown', 90_000),
+    ]);
+    expect(report.nearTimeout.map((t) => t.title)).toEqual([
+      'timed out',
+      'close',
+      'retried close',
+      'at the line',
+    ]);
+    expect(report.nearTimeout[1]).toEqual({
+      file: 'a.spec.js',
+      title: 'close',
+      seconds: 27,
+      timeoutSeconds: 30,
+      share: 0.9,
+      status: 'passed',
+      retry: 0,
+    });
+    const lines = nearTimeoutLines(report);
+    expect(lines[0]).toBe('[e2e near timeout] 4 attempt(s) used 60%+ of their timeout:');
+    expect(lines[1]).toContain('a.spec.js › timed out (timedOut)');
+    expect(lines[3]).toContain('(retry)');
+    expect(summaryMarkdown(report)).toContain('| a.spec.js › close | 27 | 30 | passed |');
+  });
+
+  it('prints nothing near the timeout when every test had room', () => {
+    const report = summarizeDurations([
+      { ...result('a.spec.js', 'one', 1_000), timeoutMs: 30_000 },
+    ]);
+    expect(report.nearTimeout).toEqual([]);
+    expect(nearTimeoutLines(report)).toEqual([]);
+    expect(summaryMarkdown(report)).not.toContain('Near their timeout');
   });
 });

@@ -5,6 +5,10 @@
 // a table of the slowest files to the job summary. A file's time is the sum of its
 // tests' times (every attempt, retries included): the work it gives the shard, whatever
 // the number of workers. The default reporter still prints progress.
+//
+// It also lists the tests that ran close to their timeout (NEAR_TIMEOUT_SHARE of it, or
+// timed out): CI's runners are about twice as slow as a laptop and vary from run to run,
+// so a test that passes with little to spare is the next flaky timeout.
 
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
@@ -15,10 +19,14 @@ export const DURATIONS_DIR = 'e2e-durations';
 /** Seconds, rounded to tenths. */
 const seconds = (ms) => Math.round(ms / 100) / 10;
 
+/** A test attempt that took at least this share of its timeout is reported as near it. */
+export const NEAR_TIMEOUT_SHARE = 0.6;
+
 /**
  * The report a run leaves: per spec file, its tests' summed time and count, and per
- * test (title path) its time. Pure, for tests.
- * @param {{ file: string, title: string, durationMs: number, status: string }[]} results
+ * test (title path) its time, and the attempts that came near their timeout (slowest
+ * share first). Pure, for tests.
+ * @param {{ file: string, title: string, durationMs: number, status: string, retry: number, timeoutMs?: number }[]} results
  */
 export function summarizeDurations(results, { lane = '', shard = '', wallMs = 0 } = {}) {
   const files = {};
@@ -42,7 +50,42 @@ export function summarizeDurations(results, { lane = '', shard = '', wallMs = 0 
     };
   }
   const workMs = results.reduce((n, r) => n + r.durationMs, 0);
-  return { lane, shard, wallSeconds: seconds(wallMs), workSeconds: seconds(workMs), files: out };
+  const nearTimeout = results
+    .filter(
+      (r) =>
+        r.timeoutMs > 0 &&
+        (r.status === 'timedOut' || r.durationMs >= r.timeoutMs * NEAR_TIMEOUT_SHARE),
+    )
+    .map((r) => ({
+      file: r.file,
+      title: r.title,
+      seconds: seconds(r.durationMs),
+      timeoutSeconds: seconds(r.timeoutMs),
+      share: Math.round((r.durationMs / r.timeoutMs) * 100) / 100,
+      status: r.status,
+      retry: r.retry,
+    }))
+    .sort((a, b) => b.share - a.share);
+  return {
+    lane,
+    shard,
+    wallSeconds: seconds(wallMs),
+    workSeconds: seconds(workMs),
+    files: out,
+    nearTimeout,
+  };
+}
+
+/** Log lines for the attempts that came near their timeout (none: no lines). */
+export function nearTimeoutLines(report) {
+  if (!report.nearTimeout?.length) return [];
+  return [
+    `[e2e near timeout] ${report.nearTimeout.length} attempt(s) used ${NEAR_TIMEOUT_SHARE * 100}%+ of their timeout:`,
+    ...report.nearTimeout.map(
+      (t) =>
+        `  ${String(Math.round(t.share * 100)).padStart(4)}%  ${t.seconds} s of ${t.timeoutSeconds} s  ${t.file} › ${t.title}${t.status === 'passed' ? '' : ` (${t.status})`}${t.retry ? ' (retry)' : ''}`,
+    ),
+  ];
 }
 
 /** Markdown for the job summary. */
@@ -60,6 +103,13 @@ export function summaryMarkdown(report, limit = 15) {
     lines.push(
       `| ${file} | ${(entry.seconds / 60).toFixed(1)} | ${entry.tests} | ${entry.retried} |`,
     );
+  }
+  if (report.nearTimeout?.length) {
+    lines.push('', `Near their timeout (${NEAR_TIMEOUT_SHARE * 100}%+):`, '');
+    lines.push('| Test | Seconds | Timeout | Status |', '| --- | ---: | ---: | --- |');
+    for (const t of report.nearTimeout) {
+      lines.push(`| ${t.file} › ${t.title} | ${t.seconds} | ${t.timeoutSeconds} | ${t.status} |`);
+    }
   }
   return `${lines.join('\n')}\n`;
 }
@@ -86,6 +136,7 @@ export default class E2eDurationReporter {
       durationMs: result.duration,
       status: result.status,
       retry: result.retry,
+      timeoutMs: test.timeout,
     });
   }
 
@@ -108,6 +159,8 @@ export default class E2eDurationReporter {
     console.log(
       `\n[e2e durations] work ${(report.workSeconds / 60).toFixed(1)} min:\n${lines.join('\n')}`,
     );
+    const near = nearTimeoutLines(report);
+    if (near.length) console.log(`\n${near.join('\n')}`);
     if (process.env.GITHUB_STEP_SUMMARY) {
       appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryMarkdown(report));
     }

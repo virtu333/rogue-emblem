@@ -2,40 +2,73 @@ import { test, expect } from '@playwright/test';
 import { waitForScene } from './helpers.js';
 
 test.use({ hasTouch: true, isMobile: true });
-for (const width of [667, 844]) {
-  test(`escape exits remain discoverable and usable at ${width}px, fresh and resumed`, async ({
-    page,
-  }, info) => {
-    await page.setViewportSize({ width, height: 390 });
-    const errors = [];
-    page.on('pageerror', (e) => errors.push(e.message));
-    await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
-    await waitForScene(page, 'Battle');
-    await page.waitForFunction(
-      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+// Every test here loads the game, starts the smoke battle and restarts the scene into the
+// escape battle (the resumed tests restart it once more from a checkpoint): about 8 s of
+// starting battles before the first check on a laptop, and twice that on a loaded CI
+// runner. The default 30 s left too little room for the checks themselves.
+test.describe.configure({ timeout: 60_000 });
+
+/**
+ * A real generated escape encounter (no battleLab map replacement), reached from the
+ * smoke battle by restarting the scene. Fog on the 667px run, off on the 844px one.
+ */
+async function openEscapeBattle(page, width) {
+  await page.setViewportSize({ width, height: 390 });
+  await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
+  await waitForScene(page, 'Battle');
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
+  );
+  await page.evaluate((fogEnabled) => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    s.scene.restart({
+      gameData: s.gameData,
+      battleParams: {
+        act: 'act2',
+        objective: 'escape',
+        templateId: 'hunters_woods',
+        battleSeed: 42,
+        fogEnabled,
+      },
+    });
+  }, width === 667);
+  await page.waitForFunction(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return (
+      s.battleConfig?.objective === 'escape' &&
+      s.battleState === 'PLAYER_IDLE' &&
+      !s.isStoryInputLocked()
     );
-    // Real generated encounter, no battleLab map replacement. Each browser has an isolated profile.
-    await page.evaluate((fogEnabled) => {
-      const s = window.__emblemRogueGame.scene.getScene('Battle');
-      s.scene.restart({
-        gameData: s.gameData,
-        battleParams: {
-          act: 'act2',
-          objective: 'escape',
-          templateId: 'hunters_woods',
-          battleSeed: 42,
-          fogEnabled,
-        },
-      });
-    }, width === 667);
-    await page.waitForFunction(() => {
-      const s = window.__emblemRogueGame.scene.getScene('Battle');
+  });
+}
+
+/** Every exit marker is drawn and lies wholly inside the camera's view. */
+const markersInView = (page) =>
+  page.evaluate(() => {
+    const s = window.__emblemRogueGame.scene.getScene('Battle');
+    return s._escapeController.markers.every((m) => {
+      const bounds = m.getBounds();
+      const tl = s._battleCamera.worldToScreen(bounds.left, bounds.top);
+      const br = s._battleCamera.worldToScreen(bounds.right, bounds.bottom);
       return (
-        s.battleConfig?.objective === 'escape' &&
-        s.battleState === 'PLAYER_IDLE' &&
-        !s.isStoryInputLocked()
+        m.visible &&
+        tl.x >= 0 &&
+        br.x <= s.cameras.main.width &&
+        tl.y >= 0 &&
+        br.y <= s.cameras.main.height
       );
     });
+  });
+
+// Each width runs as two tests (a fresh battle, then a resumed one), so neither carries
+// both halves' checks after three battle starts.
+for (const width of [667, 844]) {
+  test(`escape exits remain discoverable at ${width}px in a fresh battle`, async ({
+    page,
+  }, info) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await openEscapeBattle(page, width);
     const hud = page.getByRole('complementary', { name: 'Battle commands' });
     await hud.getByRole('button', { name: /^Objective details:/ }).tap();
     await expect(page.getByRole('dialog', { name: 'Battle objective', exact: true })).toContainText(
@@ -50,38 +83,30 @@ for (const width of [667, 844]) {
       const p = s.grid.gridToPixel(2, 4);
       s.cameras.main.centerOn(p.x, p.y);
       s._battleCamera.clampToBounds();
-      window.escapeConfig = structuredClone(s.battleConfig);
     });
-    const markersInView = () =>
-      page.evaluate(() => {
-        const s = window.__emblemRogueGame.scene.getScene('Battle');
-        return s._escapeController.markers.every((m) => {
-          const bounds = m.getBounds();
-          const tl = s._battleCamera.worldToScreen(bounds.left, bounds.top);
-          const br = s._battleCamera.worldToScreen(bounds.right, bounds.bottom);
-          return (
-            m.visible &&
-            tl.x >= 0 &&
-            br.x <= s.cameras.main.width &&
-            tl.y >= 0 &&
-            br.y <= s.cameras.main.height
-          );
-        });
-      });
-    expect(await markersInView()).toBe(false);
+    expect(await markersInView(page)).toBe(false);
     const commandOrder = await hud.locator('button').allTextContents();
     expect(commandOrder.indexOf('Show exits')).toBeGreaterThan(commandOrder.indexOf('End turn…'));
     await hud.getByRole('button', { name: 'Show exits', exact: true }).tap();
-    await expect.poll(markersInView).toBe(true);
+    await expect.poll(() => markersInView(page)).toBe(true);
     await page.screenshot({ path: info.outputPath('escape-overview.png') });
     await hud.getByRole('button', { name: 'End turn…', exact: true }).tap();
     await expect(hud.getByRole('button', { name: 'End turn now', exact: true })).toBeVisible();
     await expect(hud.getByRole('button', { name: 'Show exits', exact: true })).toHaveCount(0);
     await page.evaluate(() => window.__emblemRogueGame.events.emit('mobile:cancel'));
     await expect(hud.getByRole('button', { name: 'End turn now', exact: true })).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+
+  test(`escape exits remain usable at ${width}px in a resumed battle`, async ({ page }) => {
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await openEscapeBattle(page, width);
+    const hud = page.getByRole('complementary', { name: 'Battle commands' });
     // Reconstruct from the shipping checkpoint serializer and resume path.
     await page.evaluate(async () => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
+      window.escapeConfig = structuredClone(s.battleConfig);
       const { BattleSuspendController } = await import('/src/ui/BattleSuspendController.js');
       const cp = new BattleSuspendController(s)._buildCheckpoint(1, 42);
       cp.turnNumber = 8;
@@ -140,7 +165,7 @@ for (const width of [667, 844]) {
           };
         }),
       ).toEqual(before);
-      expect(await markersInView()).toBe(true);
+      expect(await markersInView(page)).toBe(true);
       // Escape wins the battle, so it wears the exits' green (--re-verdigris-deep), apart
       // from the plain commands.
       const escape = hud.getByRole('button', { name: 'Escape', exact: true });
@@ -178,33 +203,7 @@ test.describe('focused Escape ring', () => {
   test('stays distinguishable on the dark green, hovered and pressed', async ({ page }) => {
     const errors = [];
     page.on('pageerror', (e) => errors.push(e.message));
-    await page.setViewportSize({ width: 844, height: 390 });
-    await page.goto('/?devScene=battle&preset=battle_smoke&seed=42&mobilePreview=1');
-    await waitForScene(page, 'Battle');
-    await page.waitForFunction(
-      () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'PLAYER_IDLE',
-    );
-    await page.evaluate(() => {
-      const s = window.__emblemRogueGame.scene.getScene('Battle');
-      s.scene.restart({
-        gameData: s.gameData,
-        battleParams: {
-          act: 'act2',
-          objective: 'escape',
-          templateId: 'hunters_woods',
-          battleSeed: 42,
-          fogEnabled: false,
-        },
-      });
-    });
-    await page.waitForFunction(() => {
-      const s = window.__emblemRogueGame.scene.getScene('Battle');
-      return (
-        s.battleConfig?.objective === 'escape' &&
-        s.battleState === 'PLAYER_IDLE' &&
-        !s.isStoryInputLocked()
-      );
-    });
+    await openEscapeBattle(page, 844);
     await page.evaluate(() => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const u = s.playerUnits.find((u) => u.isLord);
