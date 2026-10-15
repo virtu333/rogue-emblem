@@ -1,4 +1,5 @@
 import { isTouchPointer } from './runtimeFlags.js';
+import { exceedsTouchSlop } from './touchSlop.js';
 
 const DEFAULT_MIN_ZOOM = 1;
 const DEFAULT_MAX_ZOOM = 3;
@@ -258,12 +259,9 @@ export class BattleCameraController {
       const pan = this._pan;
       const dx = pointer.x - pan.x,
         dy = pointer.y - pan.y;
-      // Phaser coordinates scale with the canvas; keep the threshold close to
-      // ten physical CSS pixels on a small phone rather than one tiny map tile.
-      const canvas = pointer.manager?.game?.canvas;
-      const rect = canvas?.getBoundingClientRect?.();
-      const ratio = rect?.width && canvas.width ? canvas.width / rect.width : 1;
-      if (!pan.active && Math.hypot(dx, dy) > 10 * ratio) pan.active = true;
+      // The pan begins exactly where a tap gives up (utils/touchSlop.js, also read by
+      // InputController.onPointerUp), so no wobble is neither a tap nor a pan.
+      if (!pan.active && exceedsTouchSlop(pointer, pan)) pan.active = true;
       if (pan.active) {
         this.camera.setScroll(pan.scrollX - dx / this.getZoom(), pan.scrollY - dy / this.getZoom());
         this.clampToBounds();
@@ -300,9 +298,30 @@ export class BattleCameraController {
     return { consumed: true };
   }
 
-  handlePointerUp(pointer) {
+  handlePointerUp(pointer, allowed = true) {
     if (!isTouchPointer(pointer)) return { consumed: false, endedGesture: false };
-    const panned = this._pan?.id === pointer.id && this._pan.active;
+    const pan = this._pan?.id === pointer.id ? this._pan : null;
+    // A quick swipe can lift with no move event past the slop (WebKit coalesces moves):
+    // the lift itself is the pan's only sample, so the pan is applied here. Otherwise the
+    // tap would give up (past the slop) and no pan would begin: the swipe would do nothing.
+    if (
+      pan &&
+      !pan.active &&
+      allowed &&
+      !this._gestureActive &&
+      this._touches.size <= 1 &&
+      exceedsTouchSlop(pointer, pan)
+    ) {
+      pan.active = true;
+      const zoom = this.getZoom();
+      this.camera.setScroll(
+        pan.scrollX - (pointer.x - pan.x) / zoom,
+        pan.scrollY - (pointer.y - pan.y) / zoom,
+      );
+      this.clampToBounds();
+      this._emitViewChanged();
+    }
+    const panned = Boolean(pan?.active);
     if (this._pan?.id === pointer.id) this._pan = null;
     this._touches.delete(pointer.id);
     this.pruneInactiveTouches(pointer);
