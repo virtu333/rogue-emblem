@@ -28,6 +28,18 @@ fifth lord a strong run, a sixth exceptional and a seventh rare, without a cap.
   (`getLordRecruitOdds('boss')`); the draft is rolled once and saved, so a reload keeps it.
 - Power of Friendship's arrival is untouched.
 
+## Hidden recruits
+
+A recruit node's route card names who waits there (name, class, stats, traits, "a lord") only
+once the node is a next step or the party stands on it (`loomModel.RECRUIT_SHOWN_STATES`:
+`live`, `current`; `recruitShownAt`). Further down the road, and on a road cut off, the card
+says "A potential ally" and "Someone waits here. You will see who when it is your next step."
+and `LoomPanels.renderLoomCard` does not build the unit. Nothing in the engine changes: the
+unit is fixed per node as before, so a card shows the same recruit once it comes into view, and
+an old save's previews read the same. Open Roll's second candidate shows with the first. Dave's
+call (2026-10-15), on top of the odds, to stop routing a whole act toward the lord cards; the
+sim's `near` policy (a lord seen only one step ahead) measured it.
+
 ## Old saves
 
 `run.lordRecruitOdds = { v: 2, lordsAtActStart }`, saved (`RUN_FORMAT_FIELDS.run`: inert; an

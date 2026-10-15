@@ -1,5 +1,5 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForScene, collectErrors, closeRoster } from './helpers.js';
+import { waitForScene, collectErrors, closeRoster, stepBeside } from './helpers.js';
 import {
   PORTRAIT_PHONES,
   DESKTOPS,
@@ -398,6 +398,7 @@ async function fullestSheet(page) {
     s.nodeView.render();
     return node.id;
   });
+  expect(await stepBeside(page, id)).toBe(true);
   const knot = page.locator(`.re-node[data-node="${id}"]`);
   await knot.scrollIntoViewIfNeeded();
   await knot.tap();
@@ -956,6 +957,7 @@ for (const viewport of [...LANDSCAPE_PHONES, ...DESKTOPS]) {
             .getScene('NodeMap')
             .runManager.nodeMap.nodes.find((n) => n.type === 'recruit' && !n.completed).id,
       );
+      expect(await stepBeside(page, id)).toBe(true);
       await route.locator(`.re-node[data-node="${id}"]`).click();
       await expect(route.locator('.re-loom-recruit')).toBeVisible();
       await expectPinned(page, size, ['side', 'actions', 'card', 'travel']);

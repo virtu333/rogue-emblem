@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene, collectErrors } from './helpers.js';
+import { waitForScene, collectErrors, stepBeside } from './helpers.js';
 
 // Strategy layer (docs/specs/strategy-layer.md): a recruit knot on the Loom names who
 // waits there (class, level, traits) and warns that it is an elite fight; the recruit
@@ -50,6 +50,7 @@ for (const vp of VIEWPORTS) {
     expect(expected, 'seed 42 act II has a recruit knot').not.toBeNull();
     expect(expected.stable).toBe(true);
 
+    expect(await stepBeside(page, expected.id)).toBe(true);
     await route.locator(`.re-node[data-node="${expected.id}"]`).click();
     const card = route.locator('.re-loom-card');
     const block = card.locator('.re-loom-recruit');
