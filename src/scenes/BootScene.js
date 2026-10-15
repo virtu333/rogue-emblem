@@ -359,6 +359,8 @@ export class BootScene extends Phaser.Scene {
       'enemy_hero',
       'enemy_hollowed',
       'enemy_hunter',
+      // the Iron Guardian (a boss-tier keeper with a 2x2 body), on the imperial plate
+      'enemy_iron_guardian',
       'enemy_knight',
       'enemy_mage',
       'enemy_mercenary',

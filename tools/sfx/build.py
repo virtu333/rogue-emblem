@@ -437,10 +437,39 @@ def sfx_page():
     return snes_air(sig), -26.0
 
 
+def sfx_hammerfall():
+    """The Iron Guardian's hammer meeting stone: a deep falling thump, the floor cracking, an
+    iron clang that rings dull, and grit raining back down."""
+    rng = np.random.default_rng(104)
+    dur = 1.1
+    t = t_axis(dur)
+    sig = np.zeros_like(t)
+    # the weight landing: a low sine falling from 78 to 38 Hz, felt more than heard
+    thump = glide(t, 78.0, 38.0) * exp_decay(t, 0.22) * attack(t, 0.003)
+    sig += thump * 0.9
+    sig += partial(t, 112.0, 0.09, 0.6)
+    # the floor cracking: a wide noise burst, low-passed as it dies
+    crack = svf(noise(rng, dur), 900.0, 0.8, 'bp') * exp_decay(t, 0.07)
+    sig += crack * 1.1
+    sig += svf(noise(rng, dur), 3600.0, 0.9, 'hp') * exp_decay(t, 0.025) * 0.5
+    # the iron: a heavy, inharmonic clang, dulled above 3 kHz
+    clang = metal(t, 196.0, (1.0, 2.41, 3.17, 4.53, 5.88),
+                  (0.38, 0.27, 0.19, 0.13, 0.09), (1.0, 0.6, 0.42, 0.26, 0.16))
+    sig += svf(clang, 3000.0, 0.7, 'lp') * 0.55
+    # grit: small stones falling back over the next half second, thinning out
+    grit_t = t_axis(0.05)
+    for _ in range(26):
+        at = 0.08 + 0.6 * (rng.random() ** 1.5)
+        tick = svf(noise(rng, 0.05), rng.uniform(1800.0, 4200.0), 2.0, 'bp')
+        place(sig, tick * exp_decay(grit_t, 0.008), at, rng.uniform(0.08, 0.25) * (1.2 - at))
+    return snes_air(soften(sig, 2.6)), -21.0
+
+
 CUES = {
     fn.__name__: fn
     for fn in (sfx_miss, sfx_nodamage, sfx_shatter, sfx_purchase, sfx_equip, sfx_menu_open,
-               sfx_menu_close, sfx_steal, sfx_turn, sfx_chime, sfx_loot, sfx_page)
+               sfx_menu_close, sfx_steal, sfx_turn, sfx_chime, sfx_loot, sfx_page,
+               sfx_hammerfall)
 }
 
 

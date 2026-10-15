@@ -106,6 +106,30 @@ export const CLASS_SHEETS = {
       'the soldier reference (a straight vertical shaft, narrow silhouette), the other arm hanging limp at the ' +
       'side. No shield. No gore, no wounds, no particles.',
   },
+  // Enemy-only boss-tier keeper of a buried hall under an old imperial mine: a 2x2-tile body
+  // (place.mjs kind 'guardian'), so the sheet's figure is drawn massive and squat.
+  'Iron Guardian': {
+    id: 'iron-guardian',
+    tier: 'boss',
+    move: 'Armored',
+    weapon: 'Axes (M)',
+    single: true,
+    refs: ['general', 'warrior'],
+    design:
+      'ONE enemy only. A colossal animated GUARDIAN of BLACK IRON, twice the height of a man and far broader: a ' +
+      'hulking, heavy, squat silhouette (a walking iron doorway), massive rounded pauldrons, a barrel chest built of ' +
+      'thick riveted iron PLATES layered like scales, thick armoured arms and wide planted legs. The iron is dark ' +
+      'blue-black with clearly lighter cold grey highlights on every plate edge and rivet (it must not sink into a ' +
+      'dark floor), worn and pitted, a few plates hanging slightly loose. A small featureless helm sunk between the ' +
+      'shoulders with a narrow visor slit and only a faint dull ember glow inside it, no face. Old imperial CRIMSON ' +
+      'cloth: a tattered crimson tabard hanging from the belt and a frayed crimson sash, plus small tarnished gold ' +
+      'trim on the helm and belt. BOTH gauntleted hands rest stacked on the top of the long iron haft of a huge ' +
+      'two-handed WAR MAUL whose heavy square iron head stands on the ground in front of its feet: a vigilant ' +
+      'sentry stance, perfectly still, guarding. Not a knight in a cape, not a skeleton, no shield, no spear, no ' +
+      'glowing runes, no particles, no objects on the ground. Draw it SMALL on the canvas: the figure about ' +
+      'half the canvas height, wide empty magenta margins on every side, never touching an edge, no border or ' +
+      'frame round the canvas.',
+  },
   Soldier: {
     id: 'soldier',
     tier: 'base',

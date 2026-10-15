@@ -136,6 +136,25 @@ describe('enemy-only classes (Phase 3, 3I; Act V)', () => {
   }
 });
 
+describe('the Iron Guardian (a boss-tier class with a 2x2 body)', () => {
+  it('bakes its enemy and corrupted keys on the 2x2 placement', () => {
+    const { density } = TRACED_MANIFEST;
+    for (const k of ['enemy_iron_guardian', 'enemy_iron_guardian-corrupt']) {
+      expect(sprites[k], k).toBeTruthy();
+      expect(sprites[k].kind, k).toBe('guardian');
+      // a 96 world-px texture centred on its 2x2 block of 32 px tiles, feet on row 76 of it
+      // (4 px above the block's bottom edge, the margin a 1x1 unit keeps)
+      expect(sprites[k].size, k).toBe(Math.round(96 * density));
+      expect(sprites[k].oy + sprites[k].h, k).toBe(Math.round(76 * density));
+    }
+    const enemy = { name: 'Iron Guardian', className: 'Iron Guardian', faction: 'enemy' };
+    expect(tracedKeyFor(enemy, sprites)).toBe('enemy_iron_guardian');
+    expect(tracedKeyFor({ ...enemy, affixes: ['vampiric'] }, sprites)).toBe(
+      'enemy_iron_guardian-corrupt',
+    );
+  });
+});
+
 describe('traced sprite keys', () => {
   it('maps lords, enemies, corrupted enemies, NPCs and bosses', () => {
     expect(
@@ -232,7 +251,13 @@ describe('traced atlas pages and manifest', () => {
       expect(s.ox + s.w).toBeLessThanOrEqual(s.size);
       expect(s.oy + s.h).toBeLessThanOrEqual(s.size);
       // every sprite stands on the shared baseline: the trim ends on the foot row
-      const foot = s.size === Math.round(64 * density) ? footRow : Math.round(106 * density);
+      // (the Entity's 3x3 texture: feet on 106 of 128; the Iron Guardian's 2x2: 76 of 96)
+      const foot =
+        s.size === Math.round(64 * density)
+          ? footRow
+          : s.size === Math.round(96 * density)
+            ? Math.round(76 * density)
+            : Math.round(106 * density);
       // (a strike can carry a blade a few pixels below the feet, never above them)
       expect(s.oy + s.h, k).toBeGreaterThanOrEqual(foot);
       expect(s.oy + s.h, k).toBeLessThanOrEqual(foot + 12);

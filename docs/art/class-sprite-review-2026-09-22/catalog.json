@@ -709,5 +709,21 @@
     ],
     "generator": "tools/art/sprite-trace/gen-class-sheet.mjs",
     "take": 2
+  },
+  {
+    "name": "Iron Guardian",
+    "tier": "boss",
+    "weapon": "Axes (M)",
+    "move": "Armored",
+    "id": "iron-guardian",
+    "count": 1,
+    "prompt": "Generate a IRON GUARDIAN tactical MAP SPRITE review sheet. Exactly ONE isolated enemy sprite, centered with generous padding. Image 1 is style: copy its SMALL on-map sprites' detailed late-16-bit craftsmanship, controlled dark contours, mature compact 4-head proportions and purposeful pixel clusters. Images 2 and 3 are review sheets of neighbouring creatures and classes from the same set: match their pixel scale, figure size, rendering and three-quarter pose exactly, but draw this creature's own anatomy, costume and weapon. Full body with all equipment visible, three-quarter idle view slightly from above facing right. Not smooth illustration, 3D render, giant battle portrait or tiny generic icon. Enemy uses CRIMSON accents. Intended final size about 34px infantry; a big readable silhouette, no tiny ornamental noise. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the whole canvas: no floor, shadow, gradient, glow, text, label, ring or frame. Do not use magenta or pink anywhere on the figure. Class Iron Guardian, tier boss, movement Armored, engine weapons Axes (M). Specific design: ONE enemy only. A colossal animated GUARDIAN of BLACK IRON, twice the height of a man and far broader: a hulking, heavy, squat silhouette (a walking iron doorway), massive rounded pauldrons, a barrel chest built of thick riveted iron PLATES layered like scales, thick armoured arms and wide planted legs. The iron is dark blue-black with clearly lighter cold grey highlights on every plate edge and rivet (it must not sink into a dark floor), worn and pitted, a few plates hanging slightly loose. A small featureless helm sunk between the shoulders with a narrow visor slit and only a faint dull ember glow inside it, no face. Old imperial CRIMSON cloth: a tattered crimson tabard hanging from the belt and a frayed crimson sash, plus small tarnished gold trim on the helm and belt. BOTH gauntleted hands rest stacked on the top of the long iron haft of a huge two-handed WAR MAUL whose heavy square iron head stands on the ground in front of its feet: a vigilant sentry stance, perfectly still, guarding. Not a knight in a cape, not a skeleton, no shield, no spear, no glowing runes, no particles, no objects on the ground. Draw it SMALL on the canvas: the figure about half the canvas height, wide empty magenta margins on every side, never touching an edge, no border or frame round the canvas.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/general.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/warrior.png"
+    ],
+    "generator": "tools/art/sprite-trace/gen-class-sheet.mjs",
+    "take": 1
   }
 ]
