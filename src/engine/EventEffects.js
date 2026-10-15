@@ -107,6 +107,7 @@ import { earnedGrantBlock, eventLedgerKey, grantEarnedBlessing } from './EarnedB
 import { weaponsNeverWearOf } from './EarnedBoons.js';
 import { applyRiteDelta, riteBand, riteConfigOf, sanitizeRite } from './Rite.js';
 import { arrivalCopy, forgeBlockReason } from './SmithsExile.js';
+import { ownedLegendaryNames, recordLegendaryGrant } from './LegendaryOwnership.js';
 import {
   START_PAGE,
   choiceCost,
@@ -437,9 +438,50 @@ function planAccessory(ctx, effect, index, lenient) {
   return { step: { type: 'item', item, dest: 'pool', worn: [] } };
 }
 
+/**
+ * The epic weapons a pool of `kind: 'epic'` can hand out here: the act's loot-table
+ * `epicWeapons` (docs/specs/epic-weapons.md), less the ones this run has been granted or holds
+ * (one of a kind: LegendaryOwnership), that someone in the army can wield. Sorted by name.
+ */
+export function epicPoolFor(run) {
+  const names = run?.gameData?.lootTables?.[run?.currentAct]?.epicWeapons || [];
+  const owned = ownedLegendaryNames(run);
+  const byName = new Map((run?.gameData?.weapons || []).map((w) => [w.name, w]));
+  return [...new Set(names)]
+    .filter((name) => !owned.has(name))
+    .map((name) => byName.get(name))
+    .filter((w) => w && w.tier === 'Epic' && (run.roster || []).some((u) => canEquip(u, w)))
+    .sort((a, b) => (a.name < b.name ? -1 : 1));
+}
+
+/**
+ * An epic weapon from the act's list. With none left to give (every one owned, or none the army
+ * can wield) the hoard holds an accessory a tier up instead, on the same effect's stream.
+ */
+function planEpic(ctx, effect, index, ledger, lenient) {
+  const candidates = epicPoolFor(ctx.run);
+  if (candidates.length === 0)
+    return planAccessory(
+      ctx,
+      { ...effect, pool: { kind: 'accessory', tierOffset: 1 } },
+      index,
+      lenient,
+    );
+  const placed = candidates.filter((w) => chooseDestination(ctx, w, effect.to || 'auto', ledger));
+  if (placed.length === 0)
+    return lenient
+      ? skipNote('item', NO_ROOM, { noRoom: true })
+      : { error: NO_ROOM, itemKind: 'weapon' };
+  const item = structuredClone(pickFrom(placed, rngFor(ctx, index, 'epic')));
+  const dest = chooseDestination(ctx, item, effect.to || 'auto', ledger);
+  reserve(ledger, item, dest);
+  return { step: { type: 'item', item, dest, worn: [] } };
+}
+
 function planItem(ctx, effect, index, ledger, lenient) {
   const { run } = ctx;
   if (effect.pool?.kind === 'accessory') return planAccessory(ctx, effect, index, lenient);
+  if (effect.pool?.kind === 'epic') return planEpic(ctx, effect, index, ledger, lenient);
   let template;
   if (effect.pool) {
     template = pickPoolWeapon(ctx, effect, index, ledger);
@@ -724,7 +766,9 @@ function planBattle(ctx, effect, index, ledger) {
  * fight is won in the act it was chosen in). Other amounts are kept as written.
  */
 export function freezeByActAmounts(effects, actId) {
-  return structuredClone(effects || []).map((effect) =>
+  // An effect for other acts is dropped and the `acts` key goes with it (effectsForAct), so the
+  // saved spoils hold only what this act pays, in words an older client already reads.
+  return effectsForAct(structuredClone(effects || []), actId).map((effect) =>
     effect?.type === 'gold' &&
     effect.value &&
     typeof effect.value === 'object' &&
@@ -732,6 +776,23 @@ export function freezeByActAmounts(effects, actId) {
       ? { ...effect, value: resolveAmount(effect.value, actId) }
       : effect,
   );
+}
+
+/**
+ * The effects of a list that act in `actId`: an effect may name `acts` (["act3", "act4"]) and
+ * then acts only there; the rest act everywhere. The kept ones lose the key (copies), so a plan,
+ * a preview or saved spoils never carry it. An unknown act keeps only the unrestricted ones.
+ */
+export function effectsForAct(effects, actId) {
+  const list = Array.isArray(effects) ? effects : [];
+  if (!list.some((e) => Array.isArray(e?.acts))) return list;
+  return list
+    .filter((e) => !Array.isArray(e?.acts) || e.acts.includes(actId))
+    .map((e) => {
+      if (!Array.isArray(e?.acts)) return e;
+      const { acts: _acts, ...rest } = e;
+      return rest;
+    });
 }
 
 // ── Weapon work: forge, wear, mend ──────────────────────────────────────
@@ -870,7 +931,7 @@ export function planEffects(
   { ledger = createLedger(ctx.run), lenient = false } = {},
 ) {
   const steps = [];
-  const list = Array.isArray(effects) ? effects : [];
+  const list = effectsForAct(effects, ctx.run?.currentAct);
   for (let index = 0; index < list.length; index++) {
     const effect = list[index];
     let planned;
@@ -975,10 +1036,12 @@ export function planEffects(
 // An effect list reduced to its items: every other effect becomes a no-op placeholder, so
 // each item keeps the index (and so the seeded pick) it has in the real plan.
 const NOTHING = Object.freeze({ type: 'flag', key: '_room', value: true });
+// A placeholder keeps its effect's `acts`, so the act filter drops the same entries in both.
 const itemsOnly = (effects) =>
-  (Array.isArray(effects) ? effects : []).map((effect) =>
-    effect?.type === 'item' ? effect : NOTHING,
-  );
+  (Array.isArray(effects) ? effects : []).map((effect) => {
+    if (effect?.type === 'item') return effect;
+    return Array.isArray(effect?.acts) ? { ...NOTHING, acts: effect.acts } : NOTHING;
+  });
 const spoilsOf = (effects) =>
   (Array.isArray(effects) ? effects : [])
     .filter((effect) => effect?.type === 'battle')
@@ -1121,6 +1184,8 @@ function applyItem(ctx, step) {
   const item = arrivalCopy(ctx.run, step.item);
   const result = applyRewardTarget(ctx.run, item, dest);
   if (!result.ok) throw new Error(`Event item "${step.item.name}" was not delivered.`);
+  // One of a kind: an epic (or Legend) weapon an event hands over joins the run's ledger.
+  recordLegendaryGrant(ctx.run, step.item);
   return [
     {
       kind: 'item',

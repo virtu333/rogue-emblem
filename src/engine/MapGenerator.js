@@ -1,4 +1,5 @@
 import { isDifficultyAtLeast, recruitAffixesAllowed } from './DifficultyEngine.js';
+import { hammerfallConfigFor } from './IronGuardian.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
 // MapGenerator.js — Procedural map generation from zone-based templates
 // Pure functions, no Phaser dependency.
@@ -589,6 +590,8 @@ export function generateBattleLayout(params, deps) {
     enemySpawns,
     // The Entity's kit (EntityKitConfig.js), locked with the map that seats it.
     ...entityKitConfig(params, enemySpawns),
+    // The Iron Guardian's slam (IronGuardian.js): flagged on a map that fields one.
+    ...hammerfallConfigFor(enemySpawns, classes),
     npcSpawn,
     caravanSpawn: caravanSpawn || undefined,
     villageTile: villageTile || undefined,
@@ -754,6 +757,8 @@ function generateSetPieceLayout(params, deps) {
     biome: setPiece.biome ?? null,
     playerSpawns,
     enemySpawns,
+    // The Iron Guardian's slam (IronGuardian.js): flagged on a map that fields one.
+    ...hammerfallConfigFor(enemySpawns, deps.classes),
     npcSpawn: null,
     thronePos,
     // The authored spawns past the deploy count: Formation offers these, never a draw.

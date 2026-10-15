@@ -203,8 +203,10 @@ import {
   getFootprintKeys,
   combatDistance,
   entitySplash,
-  getEntityCenter,
   entityHealth,
+  isLargeUnit,
+  footprintSize,
+  bodyCenter,
 } from '../engine/EntitySystem.js';
 import { bindEnemyAreaArt } from '../engine/EnemyAreaArts.js';
 import {
@@ -283,7 +285,6 @@ import {
   TERRAIN,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
-  ENTITY_FOOTPRINT,
   ENTITY_PRIMARY_ATTACK_RANGE,
 } from '../utils/constants.js';
 import { displayEdge, hasRoomRightOf } from '../utils/boardOrientation.js';
@@ -437,6 +438,8 @@ import { isNecromancer } from '../engine/Necromancy.js';
 import { createVigilState, isVoiceOf } from '../engine/Vigil.js';
 import { VigilController } from '../ui/VigilController.js';
 import { EntityLimbController } from '../ui/EntityLimbController.js';
+import { HammerfallController } from '../ui/HammerfallController.js';
+import { initialHammerfallState, markedTileKeys } from '../engine/IronGuardian.js';
 import { entityKitWorld, initialEntityKitState } from '../engine/EntityKit.js';
 import { classChangeItemBlock } from '../engine/TwistedBoons.js';
 import { HealController } from '../ui/HealController.js';
@@ -929,6 +932,7 @@ export class BattleScene extends Phaser.Scene {
       this._vigilCtrl = null;
     }
     this._entityLimbCtrl = this._entityLimbCtrl?.destroy() ?? null;
+    this._hammerfallCtrl = this._hammerfallCtrl?.destroy() ?? null;
     if (this._promotionController) {
       this._promotionController.destroy();
       this._promotionController = null;
@@ -1746,6 +1750,7 @@ export class BattleScene extends Phaser.Scene {
       // its own back (restoreBattleWorldState). PR 9's victory commit reads `.words`.
       this._vigilState = bc.vigil ? createVigilState() : null;
       this._entityKitState = initialEntityKitState(bc); // EntityKit.js: the limbs, as the Vigil
+      this._hammerfallState = initialHammerfallState(bc); // IronGuardian.js: its marks
 
       // Input lockout to prevent menu clicks bleeding through to map
       this._uiClickBlocked = false;
@@ -1889,6 +1894,8 @@ export class BattleScene extends Phaser.Scene {
       // The Vigil's sigil and circle markers (a Vigil map only).
       this._vigilCtrl?.destroy();
       this._vigilCtrl = bc.vigil ? new VigilController(this).create() : null;
+      this._hammerfallCtrl?.destroy();
+      this._hammerfallCtrl = bc.hammerfall ? new HammerfallController(this).create() : null;
 
       // Spawn NPC for recruit battles. RecruitNodeSystem builds the exact recruit the
       // Loom previewed (own seeded stream, so the battle RNG is not consumed).
@@ -3349,22 +3356,26 @@ export class BattleScene extends Phaser.Scene {
     placeBattlePortrait(this, unit); // stable face per unit (portrait variety)
     const color = FACTION_COLORS[unit.faction];
 
-    // Entity: 3x3 footprint, center graphic on middle tile
-    if (isEntity(unit)) {
-      const center = getEntityCenter(unit);
+    // A big body (the Entity's 3x3, the Iron Guardian's 2x2): one graphic over its middle
+    if (isLargeUnit(unit)) {
+      const body = footprintSize(unit);
+      const center = bodyCenter(unit);
       const cPos = this.grid.gridToPixel(center.col, center.row);
-      const entitySize = TILE_SIZE * ENTITY_FOOTPRINT.width;
+      const entitySize = TILE_SIZE * body.width;
       const spriteKey = this.getSpriteKey(unit);
       if (this.textures.exists(spriteKey)) {
         unit.graphic = this.add.image(cPos.x, cPos.y, contrastSpriteKey(this, spriteKey));
-        // rebuilt / traced Entity textures are 128 world px with their own foot baseline
+        // rebuilt / traced big bodies are one tile wider than the body (the Entity 128 world
+        // px), with their own foot baseline
         const baked = spriteKey.startsWith('rebuilt-') || spriteKey.startsWith('traced-');
-        unit.graphic.setDisplaySize(baked ? 128 : entitySize - 4, baked ? 128 : entitySize - 4);
+        const shown = baked ? entitySize + TILE_SIZE : entitySize - 4;
+        unit.graphic.setDisplaySize(shown, shown);
         unit.label = null;
       } else {
-        unit.graphic = this.add.rectangle(cPos.x, cPos.y, entitySize - 4, entitySize - 4, 0x440066);
+        const fill = isEntity(unit) ? 0x440066 : color;
+        unit.graphic = this.add.rectangle(cPos.x, cPos.y, entitySize - 4, entitySize - 4, fill);
         unit.label = this.add
-          .text(cPos.x, cPos.y, 'E', {
+          .text(cPos.x, cPos.y, isEntity(unit) ? 'E' : unit.className[0], {
             fontFamily: 'monospace',
             fontSize: '24px',
             color: UI_PALETTE.rarityEpic,
@@ -3376,7 +3387,8 @@ export class BattleScene extends Phaser.Scene {
       const ringY = cPos.y + entitySize / 2 - 10;
       unit.factionIndicator = createFactionRing(this, unit, cPos.x, ringY, {
         color,
-        entityWidthTiles: ENTITY_FOOTPRINT.width,
+        entityWidthTiles: body.width,
+        bodyWidthTiles: body.width,
       });
       const barWidth = entitySize - 8;
       const barHeight = 4;
@@ -3582,17 +3594,17 @@ export class BattleScene extends Phaser.Scene {
    */
   updateHPBar(unit, { ratio: shownRatio = null } = {}) {
     let pos, barWidth, barHeight;
-    if (isEntity(unit)) {
-      const center = getEntityCenter(unit);
-      pos = this.grid.gridToPixel(center.col, center.row);
-      barWidth = TILE_SIZE * ENTITY_FOOTPRINT.width - 8;
+    const body = footprintSize(unit);
+    const center = bodyCenter(unit);
+    pos = this.grid.gridToPixel(center.col, center.row);
+    if (isLargeUnit(unit)) {
+      barWidth = TILE_SIZE * body.width - 8;
       barHeight = 4;
     } else {
-      pos = this.grid.gridToPixel(unit.col, unit.row);
       barWidth = TILE_SIZE - 6;
       barHeight = 3;
     }
-    const entityH = isEntity(unit) ? TILE_SIZE * ENTITY_FOOTPRINT.height : TILE_SIZE;
+    const entityH = TILE_SIZE * body.height;
     const barY = pos.y + entityH / 2 - 4;
     const ratio = shownRatio ?? Math.max(0, unit.currentHP / unit.stats.HP);
     const fillWidth = barWidth * ratio;
@@ -3835,6 +3847,7 @@ export class BattleScene extends Phaser.Scene {
     this._recruitBeacon?.sync();
     this._remainsCtrl?.sync();
     this._vigilCtrl?.sync();
+    this._hammerfallCtrl?.sync();
     this._mobileBattleHud?.sync();
     this._portraitBattle?.update();
     if (!this._uiCamera) return;
@@ -8330,7 +8343,7 @@ export class BattleScene extends Phaser.Scene {
     { isPlayerInitiator = true, equipArtWeapon = false } = {},
   ) {
     const dist =
-      isEntity(attacker) || isEntity(defender)
+      isLargeUnit(attacker) || isLargeUnit(defender)
         ? combatDistance(attacker, defender)
         : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
@@ -9614,6 +9627,7 @@ export class BattleScene extends Phaser.Scene {
       // The Entity's limbs: a cut one wounds it; its fall withers them (EntityKit.js).
       await limbsOf(this).onEnemyFell(unit, killer);
       if (!isCurrentBattleSession(this, session)) return;
+      this._hammerfallCtrl?.onEnemyFell(unit);
     }
     safeBattlePresentation('death hover', () => this._inputController?.refreshHoverInfo(), {
       scene: this,
@@ -10076,6 +10090,7 @@ export class BattleScene extends Phaser.Scene {
           await this.processNecromancy();
           await this.processVigil();
           await limbsOf(this).processPhase();
+          await this._hammerfallCtrl?.processPhase(); // the Iron Guardian's slam (IronGuardian.js)
           await this.processBallistaFire(this.playerUnits, 'enemy');
           this.applyDueHybridOverridesForTurn(turn);
           await this.startEnemyPhase();
@@ -11639,6 +11654,7 @@ export class BattleScene extends Phaser.Scene {
       // Who the player knows of (the hold wake rule's targets): PlayerKnowledge.
       isKnown: (unit) => playerKnowledgeOf(this).isKnown(unit),
       costModifier: (unit) => this._getCostModifier(unit),
+      hammerfallMarks: markedTileKeys(this._hammerfallState),
       areaArtOf: (unit) =>
         (this._weaponArtController ||= new WeaponArtController(this)).enemyAreaArt(unit),
     };

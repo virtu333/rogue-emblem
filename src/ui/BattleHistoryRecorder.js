@@ -38,7 +38,9 @@ export function observeHistoryAction(
       type,
       actorId: a ? actor.battleEntityId : null,
       targetId: t ? target.battleEntityId : null,
-      actorPosition: a ? { col: actor.col, row: actor.row, size: footprintSize(actor).width } : null,
+      actorPosition: a
+        ? { col: actor.col, row: actor.row, size: footprintSize(actor).width }
+        : null,
       targetPosition: t
         ? { col: target.col, row: target.row, size: footprintSize(target).width }
         : null,

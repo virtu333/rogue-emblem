@@ -1817,5 +1817,23 @@
     "role": "The Entity's reach",
     "enemyWeapon": "Grasping Coil",
     "description": "A limb of the Entity, risen where it was struck from. The Entity strikes anyone beside one; cutting one down wounds the Entity."
+  },
+  {
+    "name": "Iron Guardian",
+    "lore": "Whoever buried the hall left it a keeper and no word to stop. It has not stopped.",
+    "tier": "boss",
+    "baseStats": { "HP": 68, "STR": 14, "MAG": 0, "SKL": 9, "SPD": 3, "DEF": 13, "RES": 2, "LCK": 0, "MOV": 0 },
+    "statsByAct": {
+      "act3": { "HP": 96, "STR": 18, "MAG": 0, "SKL": 12, "SPD": 5, "DEF": 17, "RES": 6, "LCK": 2, "MOV": 0 },
+      "act4": { "HP": 124, "STR": 22, "MAG": 0, "SKL": 15, "SPD": 6, "DEF": 21, "RES": 10, "LCK": 3, "MOV": 0 }
+    },
+    "moveType": "Armored",
+    "weaponProficiencies": "Axes (M)",
+    "role": "A buried hall's keeper",
+    "enemyWeapon": "Ironfall Maul",
+    "footprint": { "width": 2, "height": 2 },
+    "plates": { "count": 4, "defPerPlate": 3, "strPerPlate": 2 },
+    "hammerfall": { "might": 8 },
+    "description": "Black iron the size of a doorway. It never moves, sheds a plate for each quarter of its health it loses (softer, and angrier), and marks where its hammer falls next."
   }
 ]

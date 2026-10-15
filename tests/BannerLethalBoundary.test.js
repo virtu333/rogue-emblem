@@ -82,17 +82,20 @@ describe('every lethal damageUnit call hands the banner its chance', () => {
       new Set([
         'src/engine/Deathburst.js',
         'src/engine/EntitySystem.js',
+        'src/engine/IronGuardian.js',
         'src/engine/PostCombatEffects.js',
         'src/scenes/BattleScene.js',
       ]),
     );
     // The ballista in the scene; the area blows, the ram's crash and the after-combat blow in
     // the post-combat pipeline; the Entity's splash and the Deathburst in their engine steps
-    // (which the scene and the harness both drive).
+    // and the Iron Guardian's Hammerfall in their engine steps (which the scene and the harness
+    // both drive).
     expect(lethal.filter((c) => c.file === 'src/scenes/BattleScene.js')).toHaveLength(1);
     expect(lethal.filter((c) => c.file === 'src/engine/Deathburst.js')).toHaveLength(1);
     expect(lethal.filter((c) => c.file === 'src/engine/PostCombatEffects.js')).toHaveLength(3);
     expect(lethal.filter((c) => c.file === 'src/engine/EntitySystem.js')).toHaveLength(1);
+    expect(lethal.filter((c) => c.file === 'src/engine/IronGuardian.js')).toHaveLength(1);
   });
 
   it('the rule catches the forms a call takes', () => {

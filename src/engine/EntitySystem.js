@@ -121,7 +121,8 @@ export function combatDistance(unit1, unit2) {
   if (large1 && large2) {
     // Two bodies: the nearest pair of tiles.
     let best = Infinity;
-    for (const t of getFootprint(unit2)) best = Math.min(best, entityDistanceTo(unit1, t.col, t.row));
+    for (const t of getFootprint(unit2))
+      best = Math.min(best, entityDistanceTo(unit1, t.col, t.row));
     return best;
   }
   if (large1) return entityDistanceTo(unit1, unit2.col, unit2.row);

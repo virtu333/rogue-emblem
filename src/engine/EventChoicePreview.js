@@ -28,7 +28,7 @@ import { actLabel, romanNumeral } from '../utils/actNames.js';
 import { FORGE_BONUSES } from '../utils/constants.js';
 import { burdenPreview } from './Burdens.js';
 import { CONTRACT_GOAL_LINES } from './Contracts.js';
-import { accessoryTableActFor, eventWeaponTier } from './EventEffects.js';
+import { accessoryTableActFor, effectsForAct, eventWeaponTier } from './EventEffects.js';
 import { placeName, withArticle } from './EventResultWords.js';
 import { byRungValue, counterLabel, outcomeWeight, resolveAmount } from './EventSystem.js';
 
@@ -93,6 +93,7 @@ export function effectPreview(effect, ctx) {
       return value ? say(`${signed(value)} G`) : say('');
     }
     case 'item': {
+      if (effect.pool?.kind === 'epic') return say('An epic weapon someone can use');
       if (effect.pool?.kind === 'accessory') {
         const table = actLabel(accessoryTableActFor(run, effect.pool.tierOffset));
         return say(`An accessory${table ? ` from ${table} loot` : ''}`);
@@ -244,7 +245,9 @@ export function effectPreview(effect, ctx) {
       const recruit = effect.recruit
         ? `${withArticle(orList(effect.recruit.class ? [effect.recruit.class] : effect.recruit.classPool || []) || 'stranger')} to Talk into joining`
         : '';
-      const spoils = (effect.afterVictory || []).map((e) => effectPreview(e, ctx));
+      const spoils = effectsForAct(effect.afterVictory, ctx.run?.currentAct).map((e) =>
+        effectPreview(e, ctx),
+      );
       const won = spoils.map((s) => lower(s.text)).filter(Boolean);
       return say(
         [fight, recruit, won.length ? `win: ${won.join(', ')}` : ''].filter(Boolean).join(' · '),
@@ -259,7 +262,9 @@ export function effectPreview(effect, ctx) {
 
 /** A list of effects as one phrase ('' when none says anything) and their details. */
 function effectsPreview(effects, ctx) {
-  const parts = (effects || []).map((effect) => effectPreview(effect, ctx));
+  const parts = effectsForAct(effects, ctx.run?.currentAct).map((effect) =>
+    effectPreview(effect, ctx),
+  );
   return {
     text: parts
       .map((p) => p.text)
@@ -293,7 +298,9 @@ function fallbackCondition(effects) {
  * as what it can do at most).
  */
 function fallbackPreview(outcome, ctx) {
-  const fallback = (outcome.fallback || []).map((effect) => effectPreview(effect, ctx));
+  const fallback = effectsForAct(outcome.fallback, ctx.run?.currentAct).map((effect) =>
+    effectPreview(effect, ctx),
+  );
   const parts = fallback.map((p) => p.text).filter(Boolean);
   if (!parts.length) return null;
   const main = new Set((outcome.effects || []).map((effect) => effectPreview(effect, ctx).text));

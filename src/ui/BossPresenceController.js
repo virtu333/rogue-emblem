@@ -21,10 +21,10 @@
 // animation or "just lost" chunk. Removed on boss death, battle end and
 // scene shutdown. Presentation only: no RNG, no saves.
 
-import { ENTITY_FOOTPRINT, TILE_SIZE } from '../utils/constants.js';
+import { TILE_SIZE } from '../utils/constants.js';
 import { UI_HEX } from '../utils/uiStyles.js';
 import { getBossEnrageTurn } from '../engine/TurnBonusCalculator.js';
-import { isEntity } from '../engine/EntitySystem.js';
+import { footprintSize, isLargeUnit } from '../engine/EntitySystem.js';
 import { revivalStoneCount } from '../engine/RevivalStones.js';
 import { canInspectUnit } from '../engine/BattleInformation.js';
 import {
@@ -225,10 +225,10 @@ export class BossPresenceController {
     }
   }
 
-  /** Bar width (world px): wider than a unit's, spanning an Entity's footprint. */
+  /** Bar width (world px): wider than a unit's, spanning a big body (the Entity, a Guardian). */
   _width() {
     const boss = this.boss;
-    if (boss && isEntity(boss)) return TILE_SIZE * ENTITY_FOOTPRINT.width - 6;
+    if (boss && isLargeUnit(boss)) return TILE_SIZE * footprintSize(boss).width - 6;
     return TILE_SIZE + 4;
   }
 

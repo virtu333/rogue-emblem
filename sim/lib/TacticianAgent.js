@@ -50,7 +50,7 @@ import { enemyThreatTiles, positionsWithMoverAt } from '../../src/engine/ThreatF
 import { holdsPost } from '../../src/engine/SiegeArtillery.js';
 import { distanceFieldToAdjacent } from './RescueAgent.js';
 import { movementOptionsFor } from '../../src/engine/PassMovement.js';
-import { combatDistance, isEntity } from '../../src/engine/EntitySystem.js';
+import { combatDistance, isLargeUnit } from '../../src/engine/EntitySystem.js';
 import { objectiveTargetUnits } from '../../src/engine/BattleObjectives.js';
 
 const key = (c, r) => `${c},${r}`;
@@ -187,9 +187,10 @@ export class TacticianAgent {
       const weapon = nextStrikeWeapon(e);
       if (!weapon || isStaff(weapon) || e.currentHP <= 0) continue;
       const threat = { e, weapon, reach: [], range: parseRange(weapon.range) };
-      if (isEntity(e)) {
-        // The Entity never steps: it strikes from its body (enemyThreatTiles), and the tiles it
-        // reaches do not depend on where anyone stands, so they are read once.
+      if (isLargeUnit(e)) {
+        // A big body (the Entity, the Iron Guardian) never steps: it strikes from its body
+        // (enemyThreatTiles, a Guardian's Hammerfall marks too), and the tiles it reaches do not
+        // depend on where anyone stands, so they are read once.
         ctx ||= b._playerThreatContext();
         Object.assign(threat, { planted: true, strikes: enemyThreatTiles(ctx, e).damage });
         out.push(threat);

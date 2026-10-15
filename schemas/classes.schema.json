@@ -185,6 +185,40 @@
         "enemyWeapon": {
           "type": "string",
           "description": "The enemy-only weapon this boss-tier class wields (the Grasping Limb's Grasping Coil: weapons.json, price 0, in no loot table)."
+        },
+        "statsByAct": {
+          "type": "object",
+          "description": "A boss-tier class's stats in a later act (the Iron Guardian): the act's own block, else the nearest earlier one listed, else baseStats. Its level is then the spawn's (XP reads it).",
+          "propertyNames": { "enum": ["act2", "act3", "act4", "finalBoss"] },
+          "additionalProperties": { "$ref": "#/$defs/statBlock" }
+        },
+        "footprint": {
+          "type": "object",
+          "description": "A big body (EntitySystem.footprintSize; docs/specs/large-units.md): the tiles it fills from its top-left tile. The Entity's 3x3 is a constant, never this.",
+          "properties": {
+            "width": { "type": "integer", "minimum": 1, "maximum": 3 },
+            "height": { "type": "integer", "minimum": 1, "maximum": 3 }
+          },
+          "required": ["width", "height"],
+          "additionalProperties": false
+        },
+        "plates": {
+          "type": "object",
+          "description": "Iron Plates (engine/IronGuardian.js): a plate shed for each equal share of max HP lost, each one DEF down and STR up.",
+          "properties": {
+            "count": { "type": "integer", "minimum": 2, "maximum": 8 },
+            "defPerPlate": { "type": "integer", "minimum": 0, "maximum": 10 },
+            "strPerPlate": { "type": "integer", "minimum": 0, "maximum": 10 }
+          },
+          "required": ["count", "defPerPlate", "strPerPlate"],
+          "additionalProperties": false
+        },
+        "hammerfall": {
+          "type": "object",
+          "description": "Hammerfall (engine/IronGuardian.js): the might of the telegraphed slam.",
+          "properties": { "might": { "type": "integer", "minimum": 0, "maximum": 30 } },
+          "required": ["might"],
+          "additionalProperties": false
         }
       },
       "required": ["name", "tier", "baseStats", "moveType", "weaponProficiencies", "role"],

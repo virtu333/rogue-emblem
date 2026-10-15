@@ -108,6 +108,10 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
   if (isLargeUnit(enemy)) {
     const weapon = strikingWeapon(enemy);
     for (const key of bodyReachTiles(grid, enemy, weapon)) damage.add(key);
+    // The Iron Guardian's Hammerfall lands on the tiles it marked (IronGuardian.js) as the
+    // enemy phase starts, before anyone moves: they are its reach too.
+    if (enemy.hammerfall && ctx.hammerfallMarks)
+      for (const key of ctx.hammerfallMarks) damage.add(key);
     return { damage, status, counter };
   }
   // No movement while it stays rooted (willRemainRootedNextPhase, not isRooted: a root
@@ -431,6 +435,8 @@ export function threatWorldSignature(ctx, units = []) {
     const visible = !grid?.fogEnabled || grid.isVisible(b.col, b.row);
     parts.push(`B${b.col},${b.row}:${b.owner}:${visible ? 1 : 0}`);
   }
+  // Hammerfall's marks move each enemy phase while the Guardian stands still.
+  if (ctx.hammerfallMarks?.size) parts.push(`H${[...ctx.hammerfallMarks].sort().join(';')}`);
   return parts.join('|');
 }
 

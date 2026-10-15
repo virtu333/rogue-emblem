@@ -17,6 +17,7 @@ import {
   carriedItemInfo,
 } from '../engine/BattleInformation.js';
 import { entityReachInfo } from '../engine/EntityReach.js';
+import { guardianCardLines } from '../engine/IronGuardian.js';
 import { classChangePreview } from './classChangeDisplay.js';
 import {
   formatWeaponArtEffects,
@@ -749,6 +750,8 @@ export class MobileRosterSheet {
       );
     const reach = entityReachInfo(unit);
     if (reach) this.card('Reach', reach.text);
+    const guardian = guardianCardLines(unit, this.scene?._hammerfallState);
+    if (guardian.length) this.card('Iron Guardian', guardian.join('\n'));
     const statusStaff = statusStaffInfo(unit);
     if (statusStaff) this.card('Status staff', statusStaff.text);
     const carrying = carriedItemInfo(unit);

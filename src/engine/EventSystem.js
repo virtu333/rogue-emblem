@@ -70,6 +70,7 @@ export const REQUIRES_KEYS = Object.freeze([
   'notBurden',
   'blessingTier',
   'counterAtLeast',
+  'counterAtMost',
   'flagAct',
   'notContract',
   'roadAhead',
@@ -632,6 +633,9 @@ export function evaluateRequires(run, requires, ctx = {}) {
     } else if (key === 'counterAtLeast') {
       // The event's own counters (a page's choice only; an event-level gate has no state).
       if (!(counterValue(ctx.state, need?.key) >= Number(need?.n))) return fail('Not enough left.');
+    } else if (key === 'counterAtMost') {
+      // The way out in the dark is only offered once the light is gone.
+      if (!(counterValue(ctx.state, need?.key) <= Number(need?.n))) return fail('Not yet.');
     } else if (key === 'notBurden') {
       if ((run?.burdens || []).some((b) => b?.id === need))
         return fail('Something already weighs on you.');

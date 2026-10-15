@@ -78,6 +78,10 @@ export const RUN_CAPABILITIES = Object.freeze({
   // client would drop it on load, so the run's end would never settle the Barracks (a fallen
   // veteran kept, a win's items and ride never recorded).
   ngPlus: 2,
+  // The Iron Guardian (engine/IronGuardian.js, docs/specs/large-units.md): a locked config's
+  // `hammerfall` and a checkpoint's `hammerfallState`. An older client has no class for the
+  // Guardian, no big body, no plates and no slam.
+  hammerfall: 2,
 });
 
 export const CAPABILITY_IDS = Object.freeze(Object.keys(RUN_CAPABILITIES));
@@ -96,6 +100,7 @@ export const CLIENT_CAPABILITIES = Object.freeze([
   'defeatObjective',
   'entityKit',
   'ngPlus',
+  'hammerfall',
 ]);
 
 /** The terrain index the Gate takes (03 §5.7): terrain.json holds 0..18 today. */
@@ -183,6 +188,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     riteMods: 'rite',
     entitySplashCount: 'rite',
     entityKit: 'entityKit',
+    hammerfall: 'hammerfall',
   }),
   // A locked config's enemy spawn.
   enemySpawn: Object.freeze({
@@ -204,6 +210,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     bossState: 'bossKit',
     vigilState: 'vigil',
     entityKitState: 'entityKit',
+    hammerfallState: 'hammerfall',
   }),
   // The serialized run's top level.
   run: Object.freeze({
@@ -417,6 +424,7 @@ function scanBattleConfig(config, found) {
   if (present(config, 'npcAllies')) found.add('objectives');
   if (present(config, 'vigil')) found.add('vigil');
   if (present(config, 'entityKit')) found.add('entityKit');
+  if (present(config, 'hammerfall')) found.add('hammerfall');
   if (present(config, 'riteMods') || present(config, 'entitySplashCount')) found.add('rite');
   if (nonEmptyArray(config.structures)) found.add('gateTerrain');
   if (mapLayoutHasGate(config.mapLayout)) found.add('gateTerrain');
@@ -458,6 +466,7 @@ function scanBattleState(state, found) {
   if (mapLayoutHasGate(state.mapLayout)) found.add('gateTerrain');
   if (present(state, 'vigilState')) found.add('vigil');
   if (present(state, 'entityKitState')) found.add('entityKit');
+  if (present(state, 'hammerfallState')) found.add('hammerfall');
   for (const list of STATE_UNIT_LISTS) {
     for (const unit of Array.isArray(state[list]) ? state[list] : []) {
       if (unitHoldsEncounter(unit)) found.add('encounters');

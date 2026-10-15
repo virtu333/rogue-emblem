@@ -280,6 +280,9 @@ export function buildSetPieceBattle({
     const resolved = resolveSlot(slot, ctx);
     if (!resolved) continue;
     const spawn = { ...resolved, isBoss: Boolean(slot.captain) || slot.boss === true };
+    // A big body's tile is its top-left: mirrored, its far column becomes its first.
+    const fp = classes.find((c) => c?.name === spawn.className)?.footprint;
+    if (mirrored && fp?.width > 1) spawn.col -= fp.width - 1;
     if (slot.captain && typeof slot.captain.name === 'string') spawn.name = slot.captain.name;
     else if (typeof slot.name === 'string' && slot.name && slot.boss !== true)
       spawn.name = slot.name;
@@ -555,6 +558,30 @@ export function validateSetPiecesConfig(config, data = {}) {
     return lists.flatMap((list) => (Array.isArray(list) ? list : []));
   };
   /** Tiles a class list's move types can all stand on. */
+  // A slot whose classes fill more than one tile (classes.json `footprint`: the Iron Guardian):
+  // every class it may draw must share the one body, or the tiles it claims would depend on the
+  // draw. Returns { width, height } (1x1 for plain classes), or null after reporting a mix.
+  const bodyOf = (where, classesField) => {
+    const sizes = new Set();
+    for (const name of classNamesOf(classesField)) {
+      const fp = classByName.get(name)?.footprint;
+      sizes.add(fp ? `${fp.width}x${fp.height}` : '1x1');
+    }
+    if (sizes.size > 1) {
+      err(where, 'its classes must share one body size');
+      return null;
+    }
+    const [w, h] = (sizes.values().next().value || '1x1').split('x').map(Number);
+    return { width: w, height: h };
+  };
+  const bodyTiles = (slot, body) => {
+    const tiles = [];
+    for (let dr = 0; dr < body.height; dr++)
+      for (let dc = 0; dc < body.width; dc++)
+        tiles.push({ col: slot.col + dc, row: slot.row + dr });
+    return tiles;
+  };
+
   const moveTypesOf = (classesField) => {
     const types = new Set();
     for (const name of classNamesOf(classesField))
@@ -773,11 +800,22 @@ export function validateSetPiecesConfig(config, data = {}) {
           err(ew, 'hold and aiMode are exclusive (a holder holds)');
         if (slot.weapon !== undefined && !weaponNames.has(slot.weapon))
           err(ew, `unknown weapon "${slot.weapon}"`);
-        if (!claim(ew, slot)) continue;
-        for (const moveType of moveTypesOf(slot.classes))
-          if (!standable(terrain, mapLayout, slot, moveType))
-            err(ew, `a ${moveType} unit cannot stand on (${tileKey(slot)})`);
-        if (!reachable(slot))
+        const body = bodyOf(ew, slot.classes);
+        if (!body) continue;
+        const big = body.width > 1 || body.height > 1;
+        if (
+          big &&
+          (slot.hold !== undefined || slot.minRung !== undefined || slot.minAct !== undefined)
+        )
+          err(ew, 'a big body is always in play and never holds in a pack');
+        // Every tile of its body is claimed and must take it; one of them must be reachable.
+        const tiles = bodyTiles(slot, body);
+        if (!tiles.every((t) => claim(ew, t))) continue;
+        for (const t of tiles)
+          for (const moveType of moveTypesOf(slot.classes))
+            if (!standable(terrain, mapLayout, t, moveType))
+              err(ew, `a ${moveType} unit cannot stand on (${tileKey(t)})`);
+        if (!tiles.some(reachable))
           err(ew, `(${tileKey(slot)}) cannot be reached from the player spawns`);
       }
       if (captains > 1) err(vw, 'has more than one captain');
@@ -838,6 +876,9 @@ export function validateSetPiecesConfig(config, data = {}) {
             if (!WAVE_SPAWN_KEYS.has(key)) err(sw, `unknown key "${key}"`);
           checkClasses(sw, spawn.classes);
           checkGates(sw, spawn);
+          const waveBody = bodyOf(sw, spawn.classes);
+          if (waveBody && (waveBody.width > 1 || waveBody.height > 1))
+            err(sw, 'a wave never brings a big body (it is placed with the map)');
           if (!inBounds(spawn)) {
             err(sw, `tile (${spawn.col},${spawn.row}) is out of bounds`);
             continue;

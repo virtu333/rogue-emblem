@@ -116,9 +116,12 @@ import { applyEnemySpawnGear, applySpawnLoadout } from '../../src/engine/EnemySp
 import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
 import { crumbleFor, isNecromancer } from '../../src/engine/Necromancy.js';
 import { entityKitWorld, initialEntityKitState } from '../../src/engine/EntityKit.js';
+import { initialHammerfallState, markedTileKeys } from '../../src/engine/IronGuardian.js';
 import {
   entityLimbsOnFall,
+  hammerfallOnFall,
   processEntityLimbs,
+  processHammerfall,
   processNecromancy,
   processVigil,
 } from './headlessConjuring.js';
@@ -388,6 +391,7 @@ export class HeadlessBattle {
     // As BattleScene: a Vigil map counts its words and calls from a fresh state.
     this._vigilState = bc.vigil ? createVigilState() : null;
     this._entityKitState = initialEntityKitState(bc); // the Entity's limbs (EntityKit.js)
+    this._hammerfallState = initialHammerfallState(bc); // the Iron Guardian (IronGuardian.js)
     // The run's earned blessings that act in battle, as BattleScene reads them at a fresh
     // start (engine/BattleBlessings.js): from the run when one is attached, else from the
     // numbers a sim hands in `battleParams.battleBlessings`.
@@ -1262,6 +1266,7 @@ export class HeadlessBattle {
       positions: () => knowledge.positions(),
       isKnown: knowledge.isKnown,
       costModifier: (unit) => getTerrainCostReduction(unit, this.gameData?.skills),
+      hammerfallMarks: markedTileKeys(this._hammerfallState),
     };
   }
 
@@ -1401,8 +1406,7 @@ export class HeadlessBattle {
   _buildUnitPositionMap(moverFaction) {
     const map = new Map();
     for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
-      for (const t of getFootprint(u))
-        map.set(`${t.col},${t.row}`, unitPositionEntry(u));
+      for (const t of getFootprint(u)) map.set(`${t.col},${t.row}`, unitPositionEntry(u));
     }
     return map;
   }
@@ -2327,6 +2331,7 @@ export class HeadlessBattle {
       // no gold, no XP), before any battle-end check reads the roster.
       if (isNecromancer(unit)) crumbleFor(unit, this.enemyUnits);
       entityLimbsOnFall(this, unit, killer); // the Entity's limbs (EntityKit.js)
+      hammerfallOnFall(this, unit); // the Iron Guardian's marks (IronGuardian.js)
     }
     // As BattleScene.removeUnit: a Deathburst bursts last (engine/Deathburst.js), each victim
     // it fells removed with the burster's credit before the next is struck.
@@ -2439,6 +2444,7 @@ export class HeadlessBattle {
       this._processNecromancy();
       this._processVigil();
       processEntityLimbs(this);
+      processHammerfall(this);
       if (this.battleState === HEADLESS_STATES.BATTLE_END) return;
       this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
       this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();

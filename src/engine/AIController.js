@@ -484,7 +484,8 @@ export class AIController {
       if (u === enemy) continue;
       if (!u || u._removing || u.currentHP <= 0) continue;
       // Every tile of a big body blocks (the Entity, the Iron Guardian), not only its anchor.
-      for (const t of getFootprint(u)) unitPositions.set(`${t.col},${t.row}`, { faction: u.faction });
+      for (const t of getFootprint(u))
+        unitPositions.set(`${t.col},${t.row}`, { faction: u.faction });
     }
 
     const costMod = getTerrainCostReduction(enemy, this.gameData?.skills);

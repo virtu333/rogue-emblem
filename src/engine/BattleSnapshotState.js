@@ -6,6 +6,7 @@ import { restoreBattleBlessings, snapshotBattleBlessings } from './BattleBlessin
 import { normalizePendingTerrainTiles } from './TerrainPhases.js';
 import { sanitizeVigilState } from './Vigil.js';
 import { sanitizeEntityKitState } from './EntityKit.js';
+import { sanitizeHammerfallState } from './IronGuardian.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
 // in snapshot order; references into that table survive JSON and duplicate names.
 const UNIT_GROUPS = ['playerUnits', 'enemyUnits', 'npcUnits'];
@@ -44,6 +45,11 @@ export function captureBattleWorldState(scene) {
     // when the battle keeps one (a kit with limbs).
     ...(scene._entityKitState
       ? { entityKitState: sanitizeEntityKitState(scene._entityKitState) }
+      : {}),
+    // The Iron Guardian's marks (engine/IronGuardian.js): only on a map that fields one, so a
+    // resume shows the same marks and a rewind takes a slam back with the HP it took.
+    ...(scene._hammerfallState
+      ? { hammerfallState: sanitizeHammerfallState(scene._hammerfallState) }
       : {}),
   };
 }
@@ -100,6 +106,8 @@ export function restoreBattleWorldState(scene, snapshot) {
     scene._vigilState = sanitizeVigilState(snapshot.vigilState);
   if (snapshot.entityKitState !== undefined)
     scene._entityKitState = sanitizeEntityKitState(snapshot.entityKitState);
+  if (snapshot.hammerfallState !== undefined)
+    scene._hammerfallState = sanitizeHammerfallState(snapshot.hammerfallState);
   if ('latePressureWarningShown' in snapshot) {
     scene._latePressureWarningShown = snapshot.latePressureWarningShown === true;
   }
