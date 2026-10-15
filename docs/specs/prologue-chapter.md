@@ -1188,9 +1188,9 @@ its skills (`[]` for none), so no prologue enemy rolls a weapon tier or a skill.
   but without the grant in its currencies. The grant is lost there rather than ever paid
   twice, since a `none` record cannot be told apart from an old client's copy that already
   holds it (`MetaProgressionManager.reconcilePickedPrologue`). The local
-  adopt-merge (`_adoptForeignDiskStateIfNewer`) keeps both economies at their max, so its
-  receipt is the union (`mergePrologueState`): taking it from the newer copy there would pay
-  twice. No transaction id: at most one payload's economy survives a pick, and the boolean on
+  adopt (`_adoptForeignDiskStateIfNewer`) keeps the newer disk copy's economy whole too, so
+  it reconciles the receipt with the same rule (a completion only the live copy saw is paid
+  into the adopted economy once). No transaction id: at most one payload's economy survives a pick, and the boolean on
   it is its receipt (`tests/PrologueGrantMerge.test.js`).
 - **Built (Phase 2A):** `startPrologue` (the roster from the first-row chapter, Edric stamped
   commander, the route from `buildPrologueNodeMap`, every chapter pre-locked, `runStart`

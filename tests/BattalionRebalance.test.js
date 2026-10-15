@@ -231,7 +231,7 @@ describe('Expanded Ranks retired (the roster has no cap)', () => {
       savedAt: m.savedAt + 1000,
       purchasedUpgrades: { roster_cap: 1, recruit_xp: 1 },
     });
-    m.addSupply(5); // saves: adopts the disk copy by max-merge first
+    m.addSupply(5); // adopts the disk copy's economy whole first, as a reload would read it
     const saved = disk();
     expect(saved.purchasedUpgrades).toEqual({
       recruit_xp: 1,
@@ -239,9 +239,10 @@ describe('Expanded Ranks retired (the roster has no cap)', () => {
       __balance_settled: CURRENT_BALANCE_REVISION,
     });
     expect(saved.retiredUpgradeRefunds).toEqual({ roster_cap: 1 });
-    // max(275, 150) + 5; no second 175.
-    expect(saved.totalSupply).toBe(280);
-    expect(load().totalSupply).toBe(280);
+    // The disk copy's economy (150) gets its own refund once (+175, its ledger then set),
+    // then +5. Never max(275, 150): that would keep currency one copy has and the other not.
+    expect(saved.totalSupply).toBe(330);
+    expect(load().totalSupply).toBe(330);
   });
 
   it("the ledger from the disk copy is kept, so its refund isn't paid on this side either", () => {

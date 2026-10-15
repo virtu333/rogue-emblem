@@ -1,3 +1,4 @@
+import { grant as PROLOGUE_GRANT } from '../../data/prologue.json';
 import { isDifficultyId } from './DifficultyEngine.js';
 import {
   NG_PLUS_COST,
@@ -19,7 +20,6 @@ import {
   settledBalanceRevision,
   withBalanceRevisionMarker,
   withoutBalanceRevisionMarker,
-  isBalanceRevisionMarker,
 } from './BalanceRevisionMarker.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords, runRecordsUnderPressure } from './RunRecords.js';
@@ -57,7 +57,6 @@ import {
 import {
   discoveriesInRun,
   discoveriesOfMetaSave,
-  isDiscoveryKey,
   mergeDiscoveries,
   withDiscoveryKeys,
   withoutDiscoveryKeys,
@@ -862,17 +861,21 @@ export class MetaProgressionManager {
   }
 
   addValor(amount) {
-    if (!Number.isFinite(amount)) return;
-    const current = Number.isFinite(this.totalValor) ? this.totalValor : 0;
-    this.totalValor = Math.max(0, Math.floor(current + amount));
-    this._save();
+    if (!Number.isFinite(amount)) return { ok: false };
+    return this._commit(() => {
+      const current = Number.isFinite(this.totalValor) ? this.totalValor : 0;
+      this.totalValor = Math.max(0, Math.floor(current + amount));
+      return { ok: true };
+    });
   }
 
   addSupply(amount) {
-    if (!Number.isFinite(amount)) return;
-    const current = Number.isFinite(this.totalSupply) ? this.totalSupply : 0;
-    this.totalSupply = Math.max(0, Math.floor(current + amount));
-    this._save();
+    if (!Number.isFinite(amount)) return { ok: false };
+    return this._commit(() => {
+      const current = Number.isFinite(this.totalSupply) ? this.totalSupply : 0;
+      this.totalSupply = Math.max(0, Math.floor(current + amount));
+      return { ok: true };
+    });
   }
 
   getRunsCompleted() {
@@ -894,11 +897,13 @@ export class MetaProgressionManager {
   }
 
   incrementRunsCompleted() {
-    this.runsCompleted += 1;
-    // A finished run was necessarily started (covers runs begun before the
-    // started counter existed, or counted on another device).
-    if (this.runsStarted < this.runsCompleted) this.runsStarted = this.runsCompleted;
-    this._save();
+    return this._commit(() => {
+      this.runsCompleted += 1;
+      // A finished run was necessarily started (covers runs begun before the
+      // started counter existed, or counted on another device).
+      if (this.runsStarted < this.runsCompleted) this.runsStarted = this.runsCompleted;
+      return { ok: true };
+    });
   }
 
   getRunsStarted() {
@@ -963,32 +968,31 @@ export class MetaProgressionManager {
    * @returns {{ ok: boolean, paid: boolean }}
    */
   completePrologue({ grant = null, chaptersCompleted = [], practised = [] } = {}) {
-    this._adoptForeignDiskStateIfNewer();
-    const before = this._captureState();
-    const current = normalizePrologueState(this.prologue);
-    const paid = !current.grantPaid;
-    this.prologue = mergePrologueState(current, {
-      state: 'complete',
-      grantPaid: true,
-      chaptersCompleted,
-      practised,
+    let paid = false;
+    const result = this._commit(() => {
+      const current = normalizePrologueState(this.prologue);
+      paid = !current.grantPaid;
+      this.prologue = mergePrologueState(current, {
+        state: 'complete',
+        grantPaid: true,
+        chaptersCompleted,
+        practised,
+      });
+      if (paid) {
+        const { valor, supply } = prologueGrantAmounts(grant);
+        this.totalValor = Math.max(0, Math.floor((this.totalValor || 0) + valor));
+        this.totalSupply = Math.max(0, Math.floor((this.totalSupply || 0) + supply));
+      }
+      return { ok: true };
     });
-    if (paid) {
-      const { valor, supply } = prologueGrantAmounts(grant);
-      this.totalValor = Math.max(0, Math.floor((this.totalValor || 0) + valor));
-      this.totalSupply = Math.max(0, Math.floor((this.totalSupply || 0) + supply));
-    }
-    const result = this._save();
-    if (!result.ok) {
-      this._restoreState(before);
-      return { ok: false, paid: false };
-    }
-    return { ok: true, paid };
+    return result.ok ? { ok: true, paid } : { ok: false, paid: false };
   }
 
   incrementRunsStarted() {
-    this.runsStarted += 1;
-    this._save();
+    return this._commit(() => {
+      this.runsStarted += 1;
+      return { ok: true };
+    });
   }
 
   /**
@@ -1069,9 +1073,11 @@ export class MetaProgressionManager {
   }
 
   recordMilestone(milestone) {
-    if (this.milestones.has(milestone)) return;
-    this.milestones.add(milestone);
-    this._save();
+    if (this.milestones.has(milestone)) return { ok: true };
+    return this._commit(() => {
+      this.milestones.add(milestone);
+      return { ok: true };
+    });
   }
 
   getMilestones() {
@@ -1144,21 +1150,43 @@ export class MetaProgressionManager {
     return this._commitNgPlus((state) => ({ ok: true, ...applyRunEnd(state, end) }));
   }
 
-  /**
-   * Change the NG+ state (and anything else `change` touches) in one write: `change` gets the
-   * state and returns `{ ok }`; a refusal or a failed write leaves everything as it was.
-   * A newer copy on disk (another tab or manager) is adopted first, so the change is checked
-   * and applied against the latest state, never a stale one that the write would then lose
-   * or that would bring back what the other copy removed.
-   */
+  /** An NG+ change (`change` gets the NG+ state) as one transaction (`_commit`). */
   _commitNgPlus(change) {
-    this._adoptForeignDiskStateIfNewer();
+    return this._commit(() => change(this.ngPlus));
+  }
+
+  /**
+   * The one transaction every change to this save goes through. `change` runs against the
+   * latest state and returns `{ ok }` (anything else counts as a refusal): a newer copy on
+   * disk (another tab, a stale manager's peer, a cloud merge) is adopted first, so the
+   * change is checked and applied against it, never against a stale copy that would spend
+   * currency twice or bring back what the other copy removed. A refusal, a throw or a
+   * failed write leaves everything as it was, so nothing reads as done that is not on disk
+   * ('save_failed').
+   *
+   * Nested: a commit inside another (a payout's currencies, its NG+ end) neither adopts nor
+   * writes; it works on the outer transaction's state, and the outer one writes once. A
+   * nested refusal undoes only its own change.
+   */
+  _commit(change) {
+    const outer = !(this._txDepth > 0);
+    if (outer) this._adoptForeignDiskStateIfNewer();
     const before = this._captureState();
-    const result = change(this.ngPlus);
+    this._txDepth = (this._txDepth || 0) + 1;
+    let result;
+    try {
+      result = change();
+    } catch (err) {
+      this._txDepth -= 1;
+      this._restoreState(before);
+      throw err;
+    }
+    this._txDepth -= 1;
     if (!result?.ok) {
       this._restoreState(before);
       return result || { ok: false };
     }
+    if (!outer) return result;
     const saved = this._save();
     if (!saved.ok) {
       this._restoreState(before);
@@ -1197,8 +1225,10 @@ export class MetaProgressionManager {
   recordBossSlain(name) {
     if (typeof name !== 'string' || !name.trim()) return;
     const key = name.trim();
-    this.storyFlags.bossSlain[key] = this.getBossSlainCount(key) + 1;
-    this._save();
+    return this._commit(() => {
+      this.storyFlags.bossSlain[key] = this.getBossSlainCount(key) + 1;
+      return { ok: true };
+    });
   }
 
   /**
@@ -1288,40 +1318,42 @@ export class MetaProgressionManager {
     narrativeSeen = null,
   } = {}) {
     if (result !== 'victory' && result !== 'defeat') return;
-    if (result === 'victory' && victoryRecord)
-      this.runRecords = mergeRunRecords(this.runRecords, [victoryRecord]);
-    const foe = typeof defeatedBy === 'string' && defeatedBy ? defeatedBy : null;
-    this.storyFlags.lastRun = {
-      result,
-      act: typeof act === 'string' ? act : null,
-      difficultyId: typeof difficultyId === 'string' ? difficultyId : 'normal',
-      defeatedBy: foe,
-      endedAt: Date.now(),
-      lordsFell: Array.isArray(lordFalls)
-        ? [...new Set(lordFalls.filter((name) => typeof name === 'string' && name))]
-        : [],
-    };
-    this.storyFlags.lossStreak =
-      result === 'defeat'
-        ? Math.max(0, Math.floor(Number(this.storyFlags.lossStreak) || 0)) + 1
-        : 0;
-    if (narrativeSeen) {
-      this.storyFlags.narrativeSeen = normalizeNarrativeSeen({
-        ...this.storyFlags.narrativeSeen,
-        ...narrativeSeen,
-      });
-    }
-    if (result === 'defeat' && wasBossDefeat && foe) {
-      this.storyFlags.defeatedBy[foe] = this.getDefeatedByCount(foe) + 1;
-    }
-    if (Array.isArray(lordFalls)) {
-      for (const lordName of lordFalls) {
-        if (typeof lordName !== 'string' || !lordName) continue;
-        const current = Math.max(0, Math.floor(Number(this.storyFlags.lordFalls[lordName]) || 0));
-        this.storyFlags.lordFalls[lordName] = current + 1;
+    return this._commit(() => {
+      if (result === 'victory' && victoryRecord)
+        this.runRecords = mergeRunRecords(this.runRecords, [victoryRecord]);
+      const foe = typeof defeatedBy === 'string' && defeatedBy ? defeatedBy : null;
+      this.storyFlags.lastRun = {
+        result,
+        act: typeof act === 'string' ? act : null,
+        difficultyId: typeof difficultyId === 'string' ? difficultyId : 'normal',
+        defeatedBy: foe,
+        endedAt: Date.now(),
+        lordsFell: Array.isArray(lordFalls)
+          ? [...new Set(lordFalls.filter((name) => typeof name === 'string' && name))]
+          : [],
+      };
+      this.storyFlags.lossStreak =
+        result === 'defeat'
+          ? Math.max(0, Math.floor(Number(this.storyFlags.lossStreak) || 0)) + 1
+          : 0;
+      if (narrativeSeen) {
+        this.storyFlags.narrativeSeen = normalizeNarrativeSeen({
+          ...this.storyFlags.narrativeSeen,
+          ...narrativeSeen,
+        });
       }
-    }
-    this._save();
+      if (result === 'defeat' && wasBossDefeat && foe) {
+        this.storyFlags.defeatedBy[foe] = this.getDefeatedByCount(foe) + 1;
+      }
+      if (Array.isArray(lordFalls)) {
+        for (const lordName of lordFalls) {
+          if (typeof lordName !== 'string' || !lordName) continue;
+          const current = Math.max(0, Math.floor(Number(this.storyFlags.lordFalls[lordName]) || 0));
+          this.storyFlags.lordFalls[lordName] = current + 1;
+        }
+      }
+      return { ok: true };
+    });
   }
 
   // --- Prerequisite methods ---
@@ -1400,20 +1432,35 @@ export class MetaProgressionManager {
     return upgrade.requires.milestones.some((milestone) => !this.milestones.has(milestone));
   }
 
+  /** True only when the tier was bought and saved (`buyUpgrade` says why not). */
   purchaseUpgrade(id) {
-    if (!this.meetsPrerequisites(id)) return false;
-    if (!this.canAfford(id)) return false;
-    const cost = this.getNextCost(id);
-    const currency = this.getCurrencyForUpgrade(id);
-    if (currency === 'valor') {
-      this.totalValor -= cost;
-    } else {
-      this.totalSupply -= cost;
-    }
-    if (id === 'unlock_sol') this.solRefundBasis = cost;
-    this._setUpgradeLevel(id, this.getUpgradeLevel(id) + 1);
-    this._save();
-    return true;
+    return this.buyUpgrade(id).ok;
+  }
+
+  /**
+   * Buy the next tier: checked against the latest saved state, paid and written in one
+   * transaction (`_commit`). A failed write changes nothing.
+   * @returns {{ ok: boolean, reason?: 'unknown_upgrade' | 'maxed' | 'prerequisite_missing'
+   *   | 'unaffordable' | 'save_failed' }}
+   */
+  buyUpgrade(id) {
+    return this._commit(() => {
+      if (!this.upgradesData.some((u) => u.id === id))
+        return { ok: false, reason: 'unknown_upgrade' };
+      if (this.isMaxed(id)) return { ok: false, reason: 'maxed' };
+      if (!this.meetsPrerequisites(id)) return { ok: false, reason: 'prerequisite_missing' };
+      if (!this.canAfford(id)) return { ok: false, reason: 'unaffordable' };
+      const cost = this.getNextCost(id);
+      const currency = this.getCurrencyForUpgrade(id);
+      if (currency === 'valor') {
+        this.totalValor -= cost;
+      } else {
+        this.totalSupply -= cost;
+      }
+      if (id === 'unlock_sol') this.solRefundBasis = cost;
+      this._setUpgradeLevel(id, this.getUpgradeLevel(id) + 1);
+      return { ok: true };
+    });
   }
 
   // --- Skill assignment methods ---
@@ -1505,7 +1552,11 @@ export class MetaProgressionManager {
    * skill sits on one lord at a time: held by another lord, it is refused, or with
    * `{ move: true }` taken from that lord. Returns true on success.
    */
-  assignSkill(lordName, skillId, { move = false } = {}) {
+  assignSkill(lordName, skillId, opts = {}) {
+    return this._commit(() => ({ ok: this._assignSkill(lordName, skillId, opts) })).ok;
+  }
+
+  _assignSkill(lordName, skillId, { move = false } = {}) {
     const holder = this.getSkillHolder(skillId);
     if (holder === lordName) return false;
     if (holder && !move) return false;
@@ -1519,19 +1570,21 @@ export class MetaProgressionManager {
       if (held.length === 0) delete this.skillAssignments[holder];
     }
     this.skillAssignments[lordName] = [...slots, skillId];
-    this._save();
     return true;
   }
 
-  /** Unassign a skill from a lord. Returns true if found and removed. */
+  /** Unassign a skill from a lord. Returns true if found, removed and saved. */
   unassignSkill(lordName, skillId) {
+    return this._commit(() => ({ ok: this._unassignSkill(lordName, skillId) })).ok;
+  }
+
+  _unassignSkill(lordName, skillId) {
     const slots = this.skillAssignments[lordName];
     if (!slots) return false;
     const idx = slots.indexOf(skillId);
     if (idx === -1) return false;
-    slots.splice(idx, 1);
-    if (slots.length === 0) delete this.skillAssignments[lordName];
-    this._save();
+    this.skillAssignments[lordName] = slots.filter((_, i) => i !== idx);
+    if (this.skillAssignments[lordName].length === 0) delete this.skillAssignments[lordName];
     return true;
   }
 
@@ -1574,18 +1627,25 @@ export class MetaProgressionManager {
    * that commander.
    */
   setCommander(name) {
+    return this._commit(() => ({ ok: this._setCommander(name) })).ok;
+  }
+
+  _setCommander(name) {
     if (typeof name !== 'string' || name.length === 0) return false;
     if (this.getCommanderChoiceTier() < 1) return false;
     if (!this.hasMetLord(name)) return false;
     const partner =
       this.lordSelection?.partner === name ? defaultPartnerFor(name) : this.lordSelection?.partner;
     this.lordSelection = normalizeLordSelection({ commander: name, partner });
-    this._save();
     return true;
   }
 
   /** Pick the partner (requires tier >= 2 and a met lord; must differ from the commander). */
   setPartner(name) {
+    return this._commit(() => ({ ok: this._setPartner(name) })).ok;
+  }
+
+  _setPartner(name) {
     if (typeof name !== 'string' || name.length === 0) return false;
     if (this.getCommanderChoiceTier() < 2) return false;
     if (!this.hasMetLord(name)) return false;
@@ -1594,7 +1654,6 @@ export class MetaProgressionManager {
       commander: this.lordSelection?.commander,
       partner: name,
     });
-    this._save();
     return true;
   }
 
@@ -1874,6 +1933,16 @@ export class MetaProgressionManager {
    * @returns {{ success: boolean, reason?: string, detail?: string, refundAmount?: number, refundFee?: number }}
    */
   refundUpgrade(id) {
+    let outcome = null;
+    const result = this._commit(() => {
+      outcome = this._refundUpgrade(id);
+      return { ok: outcome.success };
+    });
+    if (outcome?.success && !result.ok) return { success: false, reason: result.reason };
+    return outcome;
+  }
+
+  _refundUpgrade(id) {
     const check = this.canRefund(id);
     if (!check.success) return check;
 
@@ -1917,11 +1986,17 @@ export class MetaProgressionManager {
       }
     }
 
-    this._save();
     return { success: true, refundAmount, refundFee: REFUND_FEE };
   }
 
   reset() {
+    return this._commit(() => {
+      this._resetFields();
+      return { ok: true };
+    });
+  }
+
+  _resetFields() {
     this.totalValor = 0;
     this.totalSupply = 0;
     this.purchasedUpgrades = {};
@@ -1940,7 +2015,6 @@ export class MetaProgressionManager {
     this.runRecords = [];
     this.settledRunIds = [];
     this.seenDialogueKeys = [];
-    this._save();
   }
 
   /**
@@ -1961,10 +2035,20 @@ export class MetaProgressionManager {
   }
 
   /**
-   * If another writer (cloud fetch merge, fresh-local heal) has put a newer
-   * payload on disk since this manager last read/wrote it, our in-memory state
-   * is a stale lineage. Adopt the disk state via a conservative max-merge so a
-   * fresh session can never erase restored progression by saving over it.
+   * If another writer (another tab or manager, a cloud fetch merge, a fresh-local heal) has
+   * put a newer payload on disk since this manager last read or wrote it, this copy is a
+   * stale lineage: adopt the disk copy before anything is checked or written.
+   *
+   * The economy is adopted WHOLE from disk, read as a fresh load reads it (migrations and
+   * balance credits included): the currencies, the upgrades and what they were paid, the
+   * skill assignments and lord picks, NG+, and the receipts that travel with them (the
+   * paid-run ids, the prologue grant's). Every change to these goes through `_commit`,
+   * which adopts first and rolls back a failed write, so this copy never holds an economic
+   * change the disk lacks, and a max of two balances would only bring back currency one copy
+   * spent (or a tier one copy refunded).
+   *
+   * Facts that only grow (milestones, run counters, records, discoveries, lords met, deeds,
+   * dialogue and story memory) are unioned, so a stale copy can never erase what it learned.
    */
   _adoptForeignDiskStateIfNewer() {
     let disk = null;
@@ -1976,121 +2060,78 @@ export class MetaProgressionManager {
     }
     const diskSavedAt = Number(disk?.savedAt);
     if (!Number.isFinite(diskSavedAt) || diskSavedAt <= this.savedAt) return;
+    // The disk copy as a fresh load of this slot reads it.
+    const fresh = new MetaProgressionManager(this.upgradesData, this.storageKey);
 
-    this.totalValor = Math.max(this.totalValor, Math.floor(Number(disk.totalValor) || 0));
-    this.totalSupply = Math.max(this.totalSupply, Math.floor(Number(disk.totalSupply) || 0));
-    this.runsCompleted = Math.max(this.runsCompleted, Number(disk.runsCompleted) || 0);
-    this.runsStarted = Math.max(
-      this.runsStarted,
-      Number(disk.runsStarted) || 0,
-      this.runsCompleted,
+    // The economy and its receipts: the disk copy's, whole.
+    this.totalValor = fresh.totalValor;
+    this.totalSupply = fresh.totalSupply;
+    this.purchasedUpgrades = fresh.purchasedUpgrades;
+    this.legacyTierCosts = fresh.legacyTierCosts;
+    this.retiredUpgradeRefunds = fresh.retiredUpgradeRefunds;
+    this.solRefundBasis = fresh.solRefundBasis;
+    this.balanceRevision = Math.max(this.balanceRevision, fresh.balanceRevision);
+    this.skillAssignments = fresh.skillAssignments;
+    this.lordSelection = fresh.lordSelection;
+    this.settledRunIds = fresh.settledRunIds;
+    // NG+: the newer write wins whole (NgPlusState.adoptNgPlusState).
+    this.ngPlus = adoptNgPlusState(this.ngPlus, disk.ngPlus);
+    // The prologue: the further state and the lists union; the grant's receipt travels with
+    // the economy kept (the disk copy's), and a completion only this copy saw is paid into
+    // it once, as the cloud fetch's whole-payload pick does (reconcilePickedPrologue).
+    const reconciled = reconcilePickedPrologue(
+      { prologue: fresh.prologue, totalValor: fresh.totalValor, totalSupply: fresh.totalSupply },
+      { prologue: this.prologue },
+      PROLOGUE_GRANT,
     );
-    // The tiers this copy did not hold: a disk payload from before a price rise bought them
-    // at the old price (a copy at or past the revision priced its own).
-    const ownedBefore = {};
-    for (const { from } of BALANCE_REVISIONS)
-      for (const id of Object.keys(from)) ownedBefore[id] = this.getUpgradeLevel(id);
-    if (disk.purchasedUpgrades && typeof disk.purchasedUpgrades === 'object') {
-      for (const [id, level] of Object.entries(disk.purchasedUpgrades)) {
-        // The markers are read on their own; discoveries are unioned below, with the lists.
-        if (isBalanceRevisionMarker(id) || isDiscoveryKey(id)) continue;
-        const diskLevel = Number(level) || 0;
-        const localLevel = Number(this.purchasedUpgrades[id]) || 0;
-        this.purchasedUpgrades[id] = Math.max(localLevel, diskLevel);
-      }
+    this.prologue = reconciled.prologue;
+    if (reconciled.economy) {
+      this.totalValor = reconciled.economy.totalValor;
+      this.totalSupply = reconciled.economy.totalSupply;
     }
-    this.balanceRevision = Math.max(this.balanceRevision, settledBalanceRevision(disk));
-    this._recordLegacyTierCosts(settledBalanceRevision(disk), (id) => {
-      const part = (key) => Math.max(0, Math.floor(Number(disk.purchasedUpgrades?.[key]) || 0));
-      return [(ownedBefore[id] || 0) + 1, part(id) + part(repeatTiersKey(id))];
-    });
-    // A tier bought before a price rise keeps its price, whichever copy recorded it; a tier
-    // the merged levels no longer hold has no record.
-    const diskLegacy = normalizeLegacyTierCosts(disk.legacyTierCosts);
-    for (const [id, tiers] of Object.entries(diskLegacy))
-      this.legacyTierCosts[id] = { ...tiers, ...this.legacyTierCosts[id] };
-    for (const id of Object.keys(this.legacyTierCosts)) {
-      for (const tier of Object.keys(this.legacyTierCosts[id]))
-        if (Number(tier) > this.getUpgradeLevel(id)) delete this.legacyTierCosts[id][tier];
-      if (Object.keys(this.legacyTierCosts[id]).length === 0) delete this.legacyTierCosts[id];
-    }
-    // A refund either copy paid stays paid; a retired key the merge brought back from
-    // a stale copy is dropped again (and paid only if neither copy has refunded it).
-    const diskRefunds = normalizeRetiredUpgradeRefunds(disk.retiredUpgradeRefunds);
-    for (const [id, levels] of Object.entries(diskRefunds))
-      this.retiredUpgradeRefunds[id] = Math.max(this.retiredUpgradeRefunds[id] || 0, levels);
-    this._settleRetiredUpgrades();
-    if (Array.isArray(disk.milestones)) {
-      for (const m of disk.milestones) this.milestones.add(m);
-    }
-    if (disk.skillAssignments && typeof disk.skillAssignments === 'object') {
-      for (const [lord, slots] of Object.entries(disk.skillAssignments)) {
-        if (this.skillAssignments[lord] === undefined) this.skillAssignments[lord] = slots;
-      }
-      this.skillAssignments = exclusiveSkillAssignments(this.skillAssignments);
-    }
-    // Adopt-if-default: a still-default local selection takes the disk's picks.
-    if (
-      disk.lordSelection &&
-      this.lordSelection.commander === DEFAULT_LORD_SELECTION.commander &&
-      this.lordSelection.partner === DEFAULT_LORD_SELECTION.partner
-    ) {
-      this.lordSelection = normalizeLordSelection(disk.lordSelection);
-    }
+
+    // Facts that only grow: unioned.
+    this.runsCompleted = Math.max(this.runsCompleted, fresh.runsCompleted);
+    this.runsStarted = Math.max(this.runsStarted, fresh.runsStarted, this.runsCompleted);
+    for (const m of fresh.milestones) this.milestones.add(m);
     if (Number(disk.hintState?.updatedAt) > Number(this.hintState?.updatedAt || 0))
       this.hintState = disk.hintState;
-    this.runRecords = mergeRunRecords(this.runRecords, disk.runRecords || []);
-    this.settledRunIds = mergeSettledRunIds(this.settledRunIds, disk.settledRunIds);
-    this.seenDialogueKeys = mergeSeenDialogueKeys(
-      this.seenDialogueKeys,
-      disk.seenDialogueKeys || [],
-    );
-    this.deedsEarned = mergeDeedIds(this.deedsEarned, disk.deedsEarned);
-    this.lordsMet = mergeLordNames(this.lordsMet, lordsMetOfMetaSave(disk));
+    this.runRecords = mergeRunRecords(this.runRecords, fresh.runRecords);
+    this.seenDialogueKeys = mergeSeenDialogueKeys(this.seenDialogueKeys, fresh.seenDialogueKeys);
+    this.deedsEarned = mergeDeedIds(this.deedsEarned, fresh.deedsEarned);
+    this.lordsMet = mergeLordNames(this.lordsMet, fresh.lordsMet);
     const seen = mergeDiscoveries(
       { items: this.itemsSeen, skills: this.skillsSeen },
-      discoveriesOfMetaSave(disk),
+      { items: fresh.itemsSeen, skills: fresh.skillsSeen },
     );
     this.itemsSeen = seen.items;
     this.skillsSeen = seen.skills;
-    if (disk.storyFlags && typeof disk.storyFlags === 'object') {
-      const diskFlags = normalizeStoryFlags(disk.storyFlags);
-      // Counters are monotonic, so per-name max can only over-remember —
-      // it can never resurrect a reverted event.
-      for (const mapKey of ['bossSlain', 'defeatedBy', 'lordFalls']) {
-        for (const [name, count] of Object.entries(diskFlags[mapKey])) {
-          const local = Math.max(0, Math.floor(Number(this.storyFlags[mapKey][name]) || 0));
-          this.storyFlags[mapKey][name] = Math.max(local, count);
-        }
+    const diskFlags = fresh.storyFlags;
+    // Counters are monotonic, so per-name max can only over-remember —
+    // it can never resurrect a reverted event.
+    for (const mapKey of ['bossSlain', 'defeatedBy', 'lordFalls']) {
+      for (const [name, count] of Object.entries(diskFlags[mapKey])) {
+        const local = Math.max(0, Math.floor(Number(this.storyFlags[mapKey][name]) || 0));
+        this.storyFlags[mapKey][name] = Math.max(local, count);
       }
-      // Either copy may hold lines the other has not played yet; local is the newer.
-      this.storyFlags.linesPlayed = mergeLinesPlayed(
-        diskFlags.linesPlayed,
-        this.storyFlags.linesPlayed,
-      );
-      const diskEndedAt = Number(diskFlags.lastRun?.endedAt) || 0;
-      const localEndedAt = Number(this.storyFlags.lastRun?.endedAt) || 0;
-      if (diskFlags.lastRun && diskEndedAt > localEndedAt) {
-        this.storyFlags.lastRun = diskFlags.lastRun;
-        this.storyFlags.lossStreak = diskFlags.lossStreak;
-      }
-      // A bag only the other copy has walked is kept; where both have one, local is newer.
-      this.storyFlags.narrativeSeen = normalizeNarrativeSeen({
-        ...diskFlags.narrativeSeen,
-        ...this.storyFlags.narrativeSeen,
-      });
     }
+    // Either copy may hold lines the other has not played yet; local is the newer.
+    this.storyFlags.linesPlayed = mergeLinesPlayed(
+      diskFlags.linesPlayed,
+      this.storyFlags.linesPlayed,
+    );
+    const diskEndedAt = Number(diskFlags.lastRun?.endedAt) || 0;
+    const localEndedAt = Number(this.storyFlags.lastRun?.endedAt) || 0;
+    if (diskFlags.lastRun && diskEndedAt > localEndedAt) {
+      this.storyFlags.lastRun = diskFlags.lastRun;
+      this.storyFlags.lossStreak = diskFlags.lossStreak;
+    }
+    // A bag only the other copy has walked is kept; where both have one, local is newer.
+    this.storyFlags.narrativeSeen = normalizeNarrativeSeen({
+      ...diskFlags.narrativeSeen,
+      ...this.storyFlags.narrativeSeen,
+    });
     if (isDifficultyId(disk.lastDifficulty)) this.lastDifficulty = disk.lastDifficulty;
-    // The prologue: the further state wins and a paid grant stays paid, so the grant
-    // can never be paid twice across devices or a cloud heal. A receipt is OR-ed here,
-    // unlike the cloud fetch's whole-payload pick (reconcilePickedPrologue), because
-    // this merge keeps both copies' economies (each currency and upgrade at its max):
-    // a paid copy's grant is in the result, and an unpaid newer copy must not pay again.
-    this.prologue = mergePrologueState(this.prologue, disk.prologue);
-    // NG+: the newer write wins whole (NgPlusState.adoptNgPlusState). Every NG+ change
-    // adopts before it applies (_commitNgPlus), so this copy holds no NG+ change the disk
-    // lacks, and a release or a pick the other copy made is never undone here.
-    this.ngPlus = adoptNgPlusState(this.ngPlus, disk.ngPlus);
     // A newer build's keys: the newer disk copy's values win, ours stay where it has none.
     this.unknownFields = { ...this.unknownFields, ...unknownMetaFields(disk) };
     this.savedAt = diskSavedAt;
@@ -2112,19 +2153,10 @@ export class MetaProgressionManager {
    * @returns {{ ok: boolean }}
    */
   applyRunPayout(apply) {
-    const before = this._captureState();
-    this._deferSaves = (this._deferSaves || 0) + 1;
-    try {
+    return this._commit(() => {
       apply(this);
-    } catch (err) {
-      this._deferSaves -= 1;
-      this._restoreState(before);
-      throw err;
-    }
-    this._deferSaves -= 1;
-    const result = this._save();
-    if (!result.ok) this._restoreState(before);
-    return result;
+      return { ok: true };
+    });
   }
 
   /**
@@ -2149,6 +2181,9 @@ export class MetaProgressionManager {
 
   _captureState() {
     return structuredClone({
+      balanceRevision: this.balanceRevision,
+      solRefundBasis: this.solRefundBasis,
+      unknownFields: this.unknownFields,
       totalValor: this.totalValor,
       totalSupply: this.totalSupply,
       purchasedUpgrades: this.purchasedUpgrades,
@@ -2180,8 +2215,8 @@ export class MetaProgressionManager {
   }
 
   _save({ lastDifficulty } = {}) {
-    // Inside applyRunPayout: the payout's one write happens when it finishes.
-    if (this._deferSaves > 0) return { ok: true, deferred: true };
+    // Inside a transaction (`_commit`): its one write happens when it finishes.
+    if (this._txDepth > 0) return { ok: true, deferred: true };
     this._adoptForeignDiskStateIfNewer();
     if (isDifficultyId(lastDifficulty)) this.lastDifficulty = lastDifficulty;
     const floor = this._readClockFloorSavedAt();

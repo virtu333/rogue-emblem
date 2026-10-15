@@ -208,7 +208,7 @@ describe('merging two records', () => {
     expect(mergePrologueState({ state: 'complete' }, null).state).toBe('complete');
   });
 
-  it('a newer foreign payload keeps the local completion too (max-merge on adopt)', () => {
+  it('a newer foreign payload keeps the local completion, its grant paid into it once', () => {
     const meta = new MetaProgressionManager(upgradesData, KEY);
     meta.completePrologue({ grant: GRANT });
     const foreign = {
@@ -218,9 +218,11 @@ describe('merging two records', () => {
       savedAt: saved().savedAt + 10_000,
     };
     store[KEY] = JSON.stringify(foreign);
-    meta.addValor(1); // any save adopts the newer disk copy first (max-merge)
+    meta.addValor(1); // any change adopts the newer disk copy (its economy whole) first
     expect(meta.getPrologue()).toMatchObject({ state: 'complete', grantPaid: true });
-    expect(meta.totalValor).toBe(500);
+    // The disk economy never held the grant, so it is paid into it once (as the cloud pick
+    // does, at the shipped grant).
+    expect(meta.totalValor).toBe(500 + prologueData.grant.valor + 1);
     expect(JSON.parse(store[KEY]).prologue.grantPaid).toBe(true);
   });
 });

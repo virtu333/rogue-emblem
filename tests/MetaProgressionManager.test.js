@@ -495,7 +495,7 @@ describe('MetaProgressionManager', () => {
     expect(meta.getRunsStarted()).toBe(0);
   });
 
-  it('adopts a newer foreign disk runsStarted via max-merge', () => {
+  it('adopts a newer foreign disk runsStarted before counting the next start', () => {
     const meta = new MetaProgressionManager(upgradesData);
     meta.incrementRunsStarted(); // local: 1, persists savedAt
     store['emblem_rogue_meta_save'] = JSON.stringify({
@@ -506,10 +506,9 @@ describe('MetaProgressionManager', () => {
       runsStarted: 6,
       savedAt: meta.savedAt + 1000,
     });
-    // The next save adopts the newer disk state; max-merge absorbs the
-    // racing local increment (same semantics as valor/runsCompleted).
+    // The next start adopts the newer disk state first, then counts itself on top.
     meta.incrementRunsStarted();
-    expect(meta.getRunsStarted()).toBe(6);
+    expect(meta.getRunsStarted()).toBe(7);
     expect(meta.getRunsCompleted()).toBe(4);
   });
 
