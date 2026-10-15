@@ -92,7 +92,8 @@ jobs:
     name: e2e (${{ matrix.id }})
     needs: e2e-lanes
     runs-on: ubuntu-latest
-    # The longest lane shard takes about 21 minutes and a slow browser install up to ~18;
+    # Lane shards are split by measured time (tests/e2e/durations.json) to about 8
+    # minutes each; a slow browser install can take up to ~18;
     # a hung job must not hold a runner for the 6-hour default (Oct 2026: installs stalled
     # for hours and starved the queue).
     timeout-minutes: 60
@@ -123,6 +124,15 @@ jobs:
       - if: matrix.build
         run: npm run build
       - run: node tools/e2eLanes.js run "${{ matrix.lane }}" ${{ matrix.shard && format('--shard={0}', matrix.shard) || '' }}
+      # Per-spec timings (tools/e2eDurationReporter.js), kept for every shard: they are
+      # what tests/e2e/durations.json, and so the shard balance, is refreshed from.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-durations-${{ matrix.id }}
+          path: e2e-durations/
+          if-no-files-found: ignore
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
