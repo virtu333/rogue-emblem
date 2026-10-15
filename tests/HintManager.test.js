@@ -133,7 +133,10 @@ it('disabled helpers do not consume hints, and reset affects memory and storage'
 });
 
 it('loads cloud lessons and persists an explicit reset without restoring tutorial defaults', () => {
-  const meta = { hintState: { seen: ['battle_triangle'], updatedAt: 1 }, _save: vi.fn() };
+  const meta = {
+    hintState: { seen: ['battle_triangle'], updatedAt: 1 },
+    _commit: vi.fn((change) => change()),
+  };
   const hints = new HintManager(1, () => true, meta);
   expect(hints.hasSeen('battle_triangle')).toBe(true);
   hints.reset();

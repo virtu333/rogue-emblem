@@ -76,7 +76,7 @@ describe('the record', () => {
   it('never steps back from complete, and refuses an unknown state', () => {
     const meta = new MetaProgressionManager(upgradesData, KEY);
     meta.completePrologue({ grant: GRANT });
-    expect(meta.setPrologueState('skipped')).toEqual({ ok: true });
+    expect(meta.setPrologueState('skipped')).toMatchObject({ ok: true });
     expect(meta.getPrologueState()).toBe('complete');
     expect(meta.setPrologueState('later')).toEqual({ ok: false });
   });

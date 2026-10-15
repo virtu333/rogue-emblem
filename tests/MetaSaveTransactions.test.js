@@ -12,10 +12,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 const store = {};
 let failMetaWrites = false;
+let metaWrites = 0;
 Object.defineProperty(globalThis, 'localStorage', {
   value: {
     getItem: (k) => (Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null),
     setItem: (k, v) => {
+      if (k.endsWith('_meta')) metaWrites += 1;
       if (failMetaWrites && k.endsWith('_meta')) throw new Error('QuotaExceededError');
       store[k] = String(v);
     },
@@ -168,6 +170,92 @@ describe('two managers on one slot conserve currency and ownership', () => {
     expect(reloaded.hasMilestone('beatAct1')).toBe(true);
     expect(reloaded.hasMilestone('beatAct2')).toBe(true);
     expect(reloaded.hasMetLord('Kira')).toBe(true);
+  });
+});
+
+describe('every record is kept only once it is saved', () => {
+  // Failure (second outside review): a record that wrote straight through `_save` kept its
+  // change in memory when the write failed, so the retry read "already recorded", reported
+  // success and wrote nothing, and the record was gone on reload.
+  const RECORDS = [
+    {
+      name: 'a prologue chapter',
+      record: (m) => m.recordPrologueChapter('P1'),
+      held: (m) => m.hasCompletedPrologueChapter('P1'),
+    },
+    {
+      name: 'a practised prologue lesson',
+      record: (m) => m.recordProloguePractised(['lesson_weapon_triangle']),
+      held: (m) => m.getPrologue().practised.includes('lesson_weapon_triangle'),
+    },
+    {
+      name: 'the prologue state',
+      record: (m) => m.setPrologueState('skipped'),
+      held: (m) => m.getPrologue().state === 'skipped',
+    },
+    {
+      name: 'a lord met',
+      record: (m) => m.recordLordsMet(['Kira']),
+      held: (m) => m.hasMetLord('Kira'),
+    },
+    {
+      name: 'a discovery',
+      record: (m) => m.recordDiscoveries({ items: ['Iron Sword'], skills: ['vantage'] }),
+      held: (m) => m.hasSeenItem('Iron Sword') && m.hasSeenSkill('vantage'),
+    },
+    {
+      name: 'a deed',
+      record: (m) => m.recordDeedsEarned(['first_blood']),
+      held: (m) => m.hasEarnedDeed('first_blood'),
+    },
+    {
+      name: 'a dialogue seen',
+      record: (m) => m.markDialogueSeen('intro_test'),
+      held: (m) => m.hasSeenDialogue('intro_test'),
+    },
+    {
+      name: 'a line played',
+      record: (m) => m.recordLinesPlayed(['line:test']),
+      held: (m) => JSON.stringify(m.getStoryFlags().linesPlayed || {}).includes('line:test'),
+    },
+    {
+      name: 'the last difficulty',
+      record: (m) => m.rememberDifficulty('hard'),
+      held: (m) => m.lastDifficulty === 'hard',
+    },
+  ];
+
+  for (const { name, record, held } of RECORDS) {
+    it(`${name}: a failed write holds nothing, the retry saves it, a reload keeps it`, () => {
+      seed();
+      const meta = freshMeta();
+      expect(held(meta)).toBe(false);
+      failMetaWrites = true;
+      const failed = record(meta);
+      if (failed !== undefined) expect(failed === false || failed?.ok === false).toBe(true);
+      expect(held(meta)).toBe(false);
+      expect(held(freshMeta())).toBe(false);
+
+      failMetaWrites = false;
+      const retried = record(meta);
+      if (retried !== undefined) expect(retried === true || retried?.ok === true).toBe(true);
+      expect(held(meta)).toBe(true);
+      expect(held(freshMeta())).toBe(true);
+    });
+  }
+
+  it('a record already held writes nothing (no write on every battle checkpoint)', () => {
+    seed();
+    const meta = freshMeta();
+    expect(meta.recordDiscoveries({ items: ['Iron Sword'] })).toBe(true);
+    expect(meta.recordPrologueChapter('P1').ok).toBe(true);
+    const writes = metaWrites;
+    expect(meta.recordDiscoveries({ items: ['Iron Sword'] })).toBe(false);
+    expect(meta.recordLordsMet(['Edric'])).toBe(false);
+    expect(meta.recordPrologueChapter('P1')).toEqual({ ok: true, unchanged: true });
+    expect(metaWrites).toBe(writes);
+    expect(meta.recordPrologueChapter('P2').ok).toBe(true); // a new record does write
+    expect(metaWrites).toBeGreaterThan(writes);
   });
 });
 
