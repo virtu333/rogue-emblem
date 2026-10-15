@@ -1,4 +1,4 @@
-import { grant as PROLOGUE_GRANT } from '../../data/prologue.json';
+import prologueData from '../../data/prologue.json' with { type: 'json' };
 import { isDifficultyId } from './DifficultyEngine.js';
 import {
   NG_PLUS_COST,
@@ -2082,7 +2082,7 @@ export class MetaProgressionManager {
     const reconciled = reconcilePickedPrologue(
       { prologue: fresh.prologue, totalValor: fresh.totalValor, totalSupply: fresh.totalSupply },
       { prologue: this.prologue },
-      PROLOGUE_GRANT,
+      prologueData.grant,
     );
     this.prologue = reconciled.prologue;
     if (reconciled.economy) {
