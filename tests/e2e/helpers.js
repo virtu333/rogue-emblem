@@ -44,6 +44,23 @@ export async function waitForScene(page, sceneKey) {
 }
 
 /**
+ * Wait until the route map is ready for input, skipping the run's opening lines if they
+ * play. `waitForScene` returns as soon as the scene is active, while the run-start lines
+ * open a moment later (after the audio unlock): a sheet opened in that gap ends up
+ * under the lines' dialogue, which then takes every press. Waits on state.
+ */
+export async function waitForRouteMapReady(page) {
+  const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
+  const mapReady = () =>
+    page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('NodeMap')?.isSceneReady === true,
+    );
+  await Promise.race([skip.waitFor({ state: 'visible' }), mapReady()]);
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+  await mapReady();
+}
+
+/**
  * Get current SceneGuard state snapshot.
  */
 export async function getSceneState(page) {

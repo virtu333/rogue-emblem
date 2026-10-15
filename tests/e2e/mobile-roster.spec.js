@@ -1,10 +1,17 @@
 import { test, expect, devices } from '@playwright/test';
-import { waitForGame, waitForScene, openRosterUnit, closeRoster } from './helpers.js';
+import {
+  waitForGame,
+  waitForScene,
+  waitForRouteMapReady,
+  openRosterUnit,
+  closeRoster,
+} from './helpers.js';
 test.use({ ...devices['iPhone 13'], viewport: { width: 667, height: 375 } });
 async function roster(page) {
   await page.goto('/?devScene=nodemap&preset=battle_smoke&seed=42');
   await waitForGame(page);
   await waitForScene(page, 'NodeMap');
+  await waitForRouteMapReady(page);
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());
   return page.getByRole('dialog', { name: 'Manage roster' });
 }
