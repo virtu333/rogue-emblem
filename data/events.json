@@ -387,8 +387,12 @@
                     {
                       "type": "gold",
                       "value": {
-                        "base": 100,
-                        "perAct": 100
+                        "byAct": {
+                          "act1": 250,
+                          "act2": 400,
+                          "act3": 650,
+                          "act4": 900
+                        }
                       }
                     }
                   ]
@@ -470,8 +474,12 @@
                   {
                     "type": "gold",
                     "value": {
-                      "base": 300,
-                      "perAct": 150
+                      "byAct": {
+                        "act1": 450,
+                        "act2": 650,
+                        "act3": 950,
+                        "act4": 1250
+                      }
                     }
                   },
                   {
@@ -591,8 +599,12 @@
                 {
                   "type": "gold",
                   "value": {
-                    "base": 150,
-                    "perAct": 100
+                    "byAct": {
+                      "act1": 250,
+                      "act2": 400,
+                      "act3": 650,
+                      "act4": 900
+                    }
                   }
                 },
                 {
@@ -749,8 +761,12 @@
                 {
                   "type": "gold",
                   "value": {
-                    "base": 150,
-                    "perAct": 100
+                    "byAct": {
+                      "act1": 250,
+                      "act2": 400,
+                      "act3": 650,
+                      "act4": 900
+                    }
                   }
                 },
                 {
@@ -832,8 +848,12 @@
                     {
                       "type": "gold",
                       "value": {
-                        "base": 100,
-                        "perAct": 50
+                        "byAct": {
+                          "act1": 150,
+                          "act2": 250,
+                          "act3": 400,
+                          "act4": 550
+                        }
                       }
                     }
                   ]
@@ -855,8 +875,12 @@
                 {
                   "type": "gold",
                   "value": {
-                    "base": 200,
-                    "perAct": 100
+                    "byAct": {
+                      "act1": 300,
+                      "act2": 500,
+                      "act3": 800,
+                      "act4": 1100
+                    }
                   }
                 },
                 {
@@ -977,8 +1001,11 @@
                   {
                     "type": "gold",
                     "value": {
-                      "base": 200,
-                      "perAct": 150
+                      "byAct": {
+                        "act1": 350,
+                        "act2": 550,
+                        "act3": 850
+                      }
                     }
                   },
                   {
@@ -1009,8 +1036,11 @@
                       {
                         "type": "gold",
                         "value": {
-                          "base": 200,
-                          "perAct": 150
+                          "byAct": {
+                            "act1": 350,
+                            "act2": 550,
+                            "act3": 850
+                          }
                         }
                       },
                       {
@@ -1129,8 +1159,12 @@
                     {
                       "type": "gold",
                       "value": {
-                        "base": 150,
-                        "perAct": 100
+                        "byAct": {
+                          "act1": 250,
+                          "act2": 400,
+                          "act3": 650,
+                          "act4": 900
+                        }
                       }
                     }
                   ]
@@ -1274,8 +1308,11 @@
                     {
                       "type": "gold",
                       "value": {
-                        "base": 300,
-                        "perAct": 150
+                        "byAct": {
+                          "act1": 450,
+                          "act2": 650,
+                          "act3": 950
+                        }
                       }
                     }
                   ]
@@ -1569,8 +1606,12 @@
                     {
                       "type": "gold",
                       "value": {
-                        "base": 100,
-                        "perAct": 50
+                        "byAct": {
+                          "act1": 150,
+                          "act2": 250,
+                          "act3": 400,
+                          "act4": 550
+                        }
                       }
                     }
                   ]
@@ -1604,8 +1645,11 @@
                     {
                       "type": "gold",
                       "value": {
-                        "base": 150,
-                        "perAct": 100
+                        "byAct": {
+                          "act2": 500,
+                          "act3": 800,
+                          "act4": 1100
+                        }
                       }
                     }
                   ]
@@ -1702,8 +1746,12 @@
                         {
                           "type": "gold",
                           "value": {
-                            "base": 100,
-                            "perAct": 50
+                            "byAct": {
+                              "act1": 150,
+                              "act2": 250,
+                              "act3": 400,
+                              "act4": 550
+                            }
                           }
                         }
                       ]
@@ -1808,8 +1856,12 @@
                         {
                           "type": "gold",
                           "value": {
-                            "base": 100,
-                            "perAct": 50
+                            "byAct": {
+                              "act1": 150,
+                              "act2": 250,
+                              "act3": 400,
+                              "act4": 550
+                            }
                           }
                         }
                       ]
@@ -1893,8 +1945,12 @@
                 {
                   "type": "gold",
                   "value": {
-                    "base": 200,
-                    "perAct": 100
+                    "byAct": {
+                      "act1": 300,
+                      "act2": 500,
+                      "act3": 800,
+                      "act4": 1100
+                    }
                   }
                 },
                 {
@@ -2043,8 +2099,8 @@
                     {
                       "type": "gold",
                       "value": {
-                        "base": 300,
-                        "perAct": 200
+                        "base": 200,
+                        "perAct": 250
                       }
                     }
                   ],
@@ -2214,8 +2270,12 @@
                 {
                   "type": "gold",
                   "value": {
-                    "base": 150,
-                    "perAct": 100
+                    "byAct": {
+                      "act1": 250,
+                      "act2": 400,
+                      "act3": 650,
+                      "act4": 900
+                    }
                   }
                 },
                 {
@@ -2321,8 +2381,11 @@
                 {
                   "type": "gold",
                   "value": {
-                    "base": 250,
-                    "perAct": 150
+                    "byAct": {
+                      "act2": 600,
+                      "act3": 950,
+                      "act4": 1300
+                    }
                   }
                 }
               ]
@@ -2744,8 +2807,11 @@
                     {
                       "type": "gold",
                       "value": {
-                        "base": 250,
-                        "perAct": 150
+                        "byAct": {
+                          "act2": 700,
+                          "act3": 1000,
+                          "act4": 1300
+                        }
                       }
                     }
                   ]
@@ -2853,8 +2919,11 @@
                     {
                       "type": "gold",
                       "value": {
-                        "base": 300,
-                        "perAct": 150
+                        "byAct": {
+                          "act2": 700,
+                          "act3": 1000,
+                          "act4": 1300
+                        }
                       }
                     },
                     {
@@ -3138,9 +3207,7 @@
     {
       "id": "last_lantern",
       "title": "The Last Lantern",
-      "acts": [
-        "finalBoss"
-      ],
+      "acts": ["finalBoss"],
       "pool": "descent",
       "weight": 1,
       "intro": "A lantern on the stair, still lit, set square in the middle of a step. Scratched into its hood: IF I AM NOT BACK BY THIRD BELL, LEAVE IT BURNING. Nobody down here has heard a bell in a long time.",
@@ -3203,9 +3270,7 @@
     {
       "id": "seers_last_page",
       "title": "The Seers' Last Page",
-      "acts": [
-        "finalBoss"
-      ],
+      "acts": ["finalBoss"],
       "pool": "descent",
       "weight": 1,
       "intro": "A reading desk at the turn of the stair, stacked with copies of one notebook in a dozen hands. Every copy stops on the same line, at the same word: AND WHEN THE LAST WORD IS SPOKEN, THE",

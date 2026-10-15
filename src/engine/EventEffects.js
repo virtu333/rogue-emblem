@@ -709,12 +709,29 @@ function planBattle(ctx, effect, index, ledger) {
       type: 'battle',
       enemyLevelBonus: Math.trunc(Number(effect.enemyLevelBonus) || 0),
       victoryText: typeof effect.victoryText === 'string' ? effect.victoryText : '',
-      afterVictory: structuredClone(effect.afterVictory || []),
+      afterVictory: freezeByActAmounts(effect.afterVictory, ctx.run?.currentAct),
       elite: effect.elite === true,
       recruit,
       ...(typeof effect.setPiece === 'string' ? { setPiece: effect.setPiece } : {}),
     },
   };
+}
+
+/**
+ * A copy of a battle's spoils with every `byAct` gold amount resolved at the act it was chosen in.
+ * The spoils are saved in the event state until the victory; a client from before byAct reads a
+ * byAct amount as 0, so the saved copy holds the plain number (the same gold either way: the
+ * fight is won in the act it was chosen in). Other amounts are kept as written.
+ */
+export function freezeByActAmounts(effects, actId) {
+  return structuredClone(effects || []).map((effect) =>
+    effect?.type === 'gold' &&
+    effect.value &&
+    typeof effect.value === 'object' &&
+    effect.value.byAct !== undefined
+      ? { ...effect, value: resolveAmount(effect.value, actId) }
+      : effect,
+  );
 }
 
 // ── Weapon work: forge, wear, mend ──────────────────────────────────────

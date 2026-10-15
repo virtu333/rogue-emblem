@@ -39,7 +39,9 @@
 //   join        a class that is unknown, enemy-only, a boss, in no recruit pool, or promoted
 //               and not in the pool of every act the choice can play in; both or neither of
 //               `class` / `classPool`; a bad name, `levelOffset` or `trait`
-//   contract    an unknown goal, an effect in its reward or penalty that needs a chosen unit
+//   contract    an unknown goal, an effect in its reward or penalty that needs a chosen unit, a
+//               byAct amount in its terms (saved in run.contract; older clients read only
+//               { base, perAct })
 //               or is not one of CONTRACT_EFFECT_TYPES, a contract beside a battle in the same
 //               choice, a contract in a battle's spoils
 //   routeEdit   an unknown op or type, one at choice level or in a battle's spoils, an
@@ -70,6 +72,7 @@ import {
   eventWeaponCatalog,
 } from './EventEffects.js';
 import {
+  AMOUNT_ACT_ORDER,
   EVENT_ACTS,
   EVENT_ACT_IDS,
   FILTER_KEYS,
@@ -83,6 +86,7 @@ import {
   choiceMayOpenContract,
   isSafeEventBlessing,
   isTeachableSkill,
+  resolveAmount,
 } from './EventSystem.js';
 import { CONTRACT_EFFECT_TYPES, CONTRACT_GOALS } from './Contracts.js';
 import { joinClassBlock } from './EventJoin.js';
@@ -464,6 +468,14 @@ export function validateEventsConfig(config, data = {}) {
 
   function isAmount(value) {
     if (typeof value === 'number') return Number.isFinite(value);
+    if (isObject(value) && value.byAct !== undefined) {
+      if (Object.keys(value).length !== 1 || !isObject(value.byAct)) return false;
+      const entries = Object.entries(value.byAct);
+      return (
+        entries.length > 0 &&
+        entries.every(([act, n]) => AMOUNT_ACT_ORDER.includes(act) && Number.isFinite(n))
+      );
+    }
     return (
       isObject(value) && Number.isFinite(value.base ?? 0) && Number.isFinite(value.perAct ?? 0)
     );
@@ -502,7 +514,7 @@ export function validateEventsConfig(config, data = {}) {
 
   // ── Effects ───────────────────────────────────────────────────────────
   const checkAmount = (where, label, value) => {
-    if (!isAmount(value)) err(where, `${label} must be a number or { base, perAct }`);
+    if (!isAmount(value)) err(where, `${label} must be a number, { base, perAct } or { byAct }`);
   };
 
   const checkSkillIds = (where, ids) => {
@@ -888,7 +900,13 @@ export function validateEventsConfig(config, data = {}) {
             const at = `${where}.${list}[${i}]`;
             if (!isObject(inner) || !CONTRACT_EFFECT_TYPES.includes(inner.type))
               err(at, `a contract's ${list} may only hold ${CONTRACT_EFFECT_TYPES.join(', ')}`);
-            else checkEffect(at, inner, { event, choice: {}, phase: 'k' });
+            else {
+              checkEffect(at, inner, { event, choice: {}, phase: 'k' });
+              // run.contract saves these terms as written, and a client from before byAct reads
+              // a byAct amount as 0: a contract's amounts stay a number or { base, perAct }.
+              if (hasByActAmount(inner))
+                err(at, "a contract's terms are saved: write its amounts as { base, perAct }");
+            }
           }
         }
         break;
@@ -1295,10 +1313,12 @@ export function validateEventsConfig(config, data = {}) {
   if (fallbackCount !== 1)
     err('events', `expected exactly one fallback event, found ${fallbackCount}`);
 
+  function hasByActAmount(effect) {
+    return [effect?.value, effect?.params?.owed].some((v) => isObject(v) && v.byAct !== undefined);
+  }
+
   function resolveFirst(value) {
-    return typeof value === 'number'
-      ? value
-      : (Number(value?.base) || 0) + (Number(value?.perAct) || 0);
+    return resolveAmount(value, 'act1');
   }
 
   return { valid: errors.length === 0, errors };

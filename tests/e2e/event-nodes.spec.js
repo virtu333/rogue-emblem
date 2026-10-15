@@ -338,7 +338,7 @@ for (const size of SIZES) {
       await page.getByRole('button', { name: 'Return to the event', exact: true }).click();
 
       // Back in: it tries again, and now they come, once.
-      await expect(dialog.locator('.ev-result[data-kind="gold"]')).toContainText('Gained 200 G');
+      await expect(dialog.locator('.ev-result[data-kind="gold"]')).toContainText('Gained 250 G');
       await expect(dialog.locator('.ev-failed')).toHaveCount(0);
       expect(await spoils(page)).toMatchObject({
         live: { owed: false, gold: gold + 200 },

@@ -233,15 +233,15 @@ describe('back from a won event battle', () => {
   it('opens the victory page once, taking the spoils exactly once', () => {
     const { run, node, scene, goldBefore } = wonFight();
     expect(proto._maybeOpenPendingEventSettlement.call(scene)).toBe(true);
-    expect(run.gold).toBe(goldBefore + 200);
+    expect(run.gold).toBe(goldBefore + 250);
     expect(scene.eventOverlay).toBeTruthy();
     const text = scene._eventController.nativeMenu.surface.body.all().map(nodeText).join(' | ');
     expect(text).toContain('The fight is won.');
-    expect(text).toContain('Gained 200 G');
+    expect(text).toContain('Gained 250 G');
     expect(run.pendingEventNodeId).toBeNull();
     // A second look (another scene start while it is open) takes nothing and opens nothing.
     expect(proto._maybeOpenPendingEventSettlement.call(scene)).toBe(false);
-    expect(run.gold).toBe(goldBefore + 200);
+    expect(run.gold).toBe(goldBefore + 250);
     scene._eventController.continueEvent();
     expect(node.completed).toBe(true);
     expect(scene.checkActComplete).toHaveBeenCalledTimes(1);
@@ -282,7 +282,7 @@ describe('back from a won event battle', () => {
     saveRun(ctx.run, null, 1);
     const again = mapScene(ctx.run);
     expect(proto._maybeOpenPendingEventSettlement.call(again)).toBe(true);
-    expect(ctx.run.gold).toBe(ctx.goldBefore + 200);
+    expect(ctx.run.gold).toBe(ctx.goldBefore + 250);
     again._eventController.continueEvent();
     expect(proto._maybeOpenPendingEventSettlement.call(mapScene(ctx.run))).toBe(false);
   });
@@ -334,8 +334,8 @@ describe('back from a won event battle whose spoils cannot be taken', () => {
     expect(run.getAvailableNodes().map((n) => n.id)).toEqual([node.id]);
     // Clicking it (a plain Travel) tries again, and the fault is gone.
     proto.onNodeClick.call(scene, node);
-    expect(bodyText(scene)).toContain('Gained 200 G');
-    expect(run.gold).toBe(goldBefore + 200);
+    expect(bodyText(scene)).toContain('Gained 250 G');
+    expect(run.gold).toBe(goldBefore + 250);
   });
 
   it('a new scene (a reload) tries again on its own', () => {
@@ -345,8 +345,8 @@ describe('back from a won event battle whose spoils cannot be taken', () => {
     saveRun(run, null, 1);
     const again = mapScene(run);
     expect(proto._maybeOpenPendingEventSettlement.call(again)).toBe(true);
-    expect(bodyText(again)).toContain('Gained 200 G');
-    expect(run.gold).toBe(goldBefore + 200);
+    expect(bodyText(again)).toContain('Gained 250 G');
+    expect(run.gold).toBe(goldBefore + 250);
   });
 });
 

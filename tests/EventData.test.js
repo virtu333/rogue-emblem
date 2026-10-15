@@ -18,7 +18,11 @@ import Ajv from 'ajv';
 import { describe, expect, it } from 'vitest';
 import { validateEventsConfig, EVENT_TEXT_LIMITS } from '../src/engine/EventValidation.js';
 import { EVENT_EFFECT_TYPES } from '../src/engine/EventEffects.js';
-import { SAFE_BLESSING_BOON_TYPES, isSafeEventBlessing } from '../src/engine/EventSystem.js';
+import {
+  SAFE_BLESSING_BOON_TYPES,
+  isSafeEventBlessing,
+  resolveAmount,
+} from '../src/engine/EventSystem.js';
 import { RUN_START_BLESSING_EFFECTS } from '../src/engine/RunStartBlessingEffects.js';
 import { baseData } from './eventKit.js';
 
@@ -415,5 +419,66 @@ describe('every semantic check fires (one planted bug each)', () => {
     const stray = clone();
     event(stray, 'drill_yard').secret = true;
     expect(validateSchema(stray)).toBe(false);
+  });
+});
+
+describe('byAct amounts', () => {
+  it('accepts a byAct table of finite numbers keyed by act', () => {
+    const config = clone();
+    const oc = config.events.find((e) => e.id === 'twin_altar').choices.find((c) => c.id === 'offerings').outcomes[0]; // prettier-ignore
+    oc.effects[0].value = { byAct: { act1: 100, finalBoss: 900 } };
+    expect(validate(config).errors).toEqual([]);
+  });
+
+  it('refuses an unknown act, a non-number, an empty table or extra keys beside byAct', () => {
+    for (const bad of [
+      { byAct: { act9: 100 } },
+      { byAct: { act2: '500' } },
+      { byAct: {} },
+      { byAct: { act2: 500 }, base: 100 },
+      { byAct: [500] },
+    ]) {
+      plant((config) => {
+        const oc = config.events.find((e) => e.id === 'twin_altar').choices.find((c) => c.id === 'offerings').outcomes[0]; // prettier-ignore
+        oc.effects[0].value = bad;
+      }, 'gold value must be a number');
+    }
+  });
+});
+
+describe('gold rewards keep pace with the act (Dave, 2026-10-15: +550 G in Act IV felt like nothing)', () => {
+  // Battle gold roughly doubles from Act II to Act IV (kill gold by enemy level), so an event's
+  // gold reward must grow by well over the old linear { base, perAct } step (350 -> 550, x1.57).
+  const goldRewards = [];
+  const walk = (node, eventId, inReward) => {
+    if (Array.isArray(node)) return node.forEach((n) => walk(n, eventId, inReward));
+    if (!node || typeof node !== 'object') return;
+    if (node.type === 'gold' && node.value !== undefined && !node.refund)
+      goldRewards.push({ eventId, value: node.value });
+    for (const [key, child] of Object.entries(node))
+      if (key !== 'penalty' && key !== 'params') walk(child, eventId, inReward);
+  };
+  for (const ev of data.events.events) walk(ev, ev.id, false);
+
+  it('every gold reward of an event met in Act IV pays at least 1.7x its Act II amount there', () => {
+    const late = goldRewards.filter(({ eventId }) => {
+      const acts = data.events.events.find((e) => e.id === eventId).acts;
+      return !acts || acts.includes('act4');
+    });
+    expect(late.length).toBeGreaterThan(5);
+    for (const { eventId, value } of late) {
+      const act2 = resolveAmount(value, 'act2');
+      if (act2 <= 0) continue; // a price handed back or a loss, not a reward
+      expect(resolveAmount(value, 'act4'), eventId).toBeGreaterThanOrEqual(Math.ceil(act2 * 1.7));
+    }
+  });
+});
+
+describe('a contract holds no byAct amount', () => {
+  it('refuses one in its reward: run.contract saves the terms and older clients read byAct as 0', () => {
+    plant((config) => {
+      const contract = outcome(config, 'merc_contract', 'par', 'signed').effects[0];
+      contract.reward[0].value = { byAct: { act1: 450 } };
+    }, "a contract's terms are saved");
   });
 });

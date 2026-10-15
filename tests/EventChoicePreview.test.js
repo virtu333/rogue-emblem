@@ -267,7 +267,7 @@ describe('the numbers are the ones the engine applies', () => {
       const run = newRun({ difficulty });
       const node = arriveAs(run, 'twin_altar');
       const said = preview(run, 'twin_altar', 'offerings')[0].text;
-      const expected = offerings.base + offerings.perAct; // Act I
+      const expected = offerings.byAct.act1; // Act I
       expect(said).toContain(`+${expected} G`);
       const result = chooseEventOption(run, node.id, 'offerings');
       expect(result.results.find((r) => r.kind === 'gold').value).toBe(expected);
@@ -336,7 +336,7 @@ describe('the numbers are the ones the engine applies', () => {
   it('a fight says its foes, an elite and what winning gives', () => {
     const run = newRun();
     expect(preview(run, 'collectors', 'fight')[0].text).toBe(
-      "An elite fight (foes +1 level) · win: +450 G, earned blessing: Thief's Lantern",
+      "An elite fight (foes +1 level) · win: +700 G, earned blessing: Thief's Lantern",
     );
     expect(preview(run, 'old_faces', 'ride')[0].text).toMatch(
       /^A fight · a Mercenary, Soldier, Fighter or Archer to Talk into joining · win: /,
@@ -348,7 +348,7 @@ describe('the numbers are the ones the engine applies', () => {
     expect(line.text).toBe('Contract: Under par');
     expect(line.details).toEqual([
       'Win the next battle by turn par or sooner.',
-      'If kept: +500 G. If broken: Debt (350 G).',
+      'If kept: +450 G. If broken: Debt (350 G).',
       "Debt: 350 G owed: the lender takes 25% of each victory's gold until it is paid.",
     ]);
   });
