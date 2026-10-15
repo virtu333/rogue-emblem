@@ -36,8 +36,23 @@ describe('recruit lord claims', () => {
     let lordNodes = 0;
     for (const seed of SEEDS) {
       const rm = run(seed);
+      // The flat odds (a run from before lord odds v2), so every node holds a lord.
+      rm.lordRecruitOdds = null;
       const lords = recruitNodes(rm).map((n) => lordOf(rm, n));
       expect(lords.every(Boolean)).toBe(true);
+      lordNodes += lords.length;
+      expect(new Set(lords).size).toBe(lords.length);
+    }
+    expect(lordNodes).toBeGreaterThan(SEEDS.length * 2 - 1);
+  });
+
+  it('under lord odds v2 the lord nodes still never preview the same lord', () => {
+    let lordNodes = 0;
+    for (const seed of SEEDS) {
+      const rm = run(seed);
+      const lords = recruitNodes(rm)
+        .map((n) => lordOf(rm, n))
+        .filter(Boolean);
       lordNodes += lords.length;
       expect(new Set(lords).size).toBe(lords.length);
     }
@@ -120,6 +135,7 @@ describe('recruit lord claims', () => {
         recruitRoster: structuredClone(ctx.roster),
         startingLordNames: ctx.startingLordNames,
         recruitClaimedLords: ctx.claimedLordNames,
+        recruitLordOdds: ctx.lordOdds,
         recruitLevelBonus: ctx.recruitLevelBonus,
         deployBonus: ctx.deployBonus,
         deployCount: rm.roster.length,

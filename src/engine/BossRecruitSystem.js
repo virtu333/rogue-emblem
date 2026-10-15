@@ -4,7 +4,6 @@
  */
 
 import {
-  BOSS_RECRUIT_LORD_CHANCE,
   BOSS_RECRUIT_COUNT,
   BASE_CLASS_LEVEL_CAP,
   RECRUIT_SKILL_POOL,
@@ -36,6 +35,7 @@ import {
   normalizeEquippedFirst,
 } from './UnitManager.js';
 import { serializeUnit } from './UnitSerialization.js';
+import { lordRecruitChance } from './LordRecruitChance.js';
 import { VULNERARY_NAME, consumableTemplateFor } from './VulneraryRecipe.js';
 import { rollMark } from './MarkSystem.js';
 import { applyRecruitLevelBonus } from './RecruitJoinLevel.js';
@@ -304,7 +304,8 @@ export function createBossLordUnit(
  * @param {Array} [fallenUnits=[]] - units that died this run (their names stay taken)
  * @param {Array<string>} [reservedNames=[]] - names no candidate may take (RunManager.getTakenUnitNames: pending recruit-node previews, names used this run)
  * @param {number|null} [runSeed=null] - the run's seed: the Mark roll's stream (UnitManager.createRecruitUnit); none = no Marks
- * @param {{ recruitLevelBonus?: number }} [options] - `recruitLevelBonus`: Nomad's Pact, extra levels
+ * @param {{ recruitLevelBonus?: number, lordOdds?: object|null }} [options] - `lordOdds`: the run's lord
+ *   odds v2 record (RunManager.getLordRecruitOdds('boss')), null for the flat chance. `recruitLevelBonus`: Nomad's Pact, extra levels
  *   every candidate (the lord included) joins with, raised after the unit is built on its own
  *   keyed stream (engine/RecruitJoinLevel.js) so classes, names and the lord slot are the same
  *   with and without it; the candidate's equipment keeps reading the level before the bonus
@@ -318,7 +319,7 @@ export function generateBossRecruitCandidates(
   fallenUnits = [],
   reservedNames = [],
   runSeed = null,
-  { recruitLevelBonus = 0 } = {},
+  { recruitLevelBonus = 0, lordOdds = null } = {},
 ) {
   const actId = resolveActId(actRef);
 
@@ -361,8 +362,13 @@ export function generateBossRecruitCandidates(
     fallenUnits,
     resolveStartingLordNames(metaEffects),
   );
-  const lordChanceBonus = metaEffects?.lordRecruitChanceBonus || 0;
-  const effectiveLordChance = Math.min(1, Math.max(0, BOSS_RECRUIT_LORD_CHANCE + lordChanceBonus));
+  // 25% (+ Hero's Call), falling as the army's lords grow (odds v2; a run from before them, or
+  // a caller with no run, keeps the flat chance).
+  const effectiveLordChance = lordRecruitChance({
+    source: 'boss',
+    bonus: metaEffects?.lordRecruitChanceBonus,
+    odds: lordOdds,
+  });
   const lordSlot = availLords.length > 0 && Math.random() < effectiveLordChance;
   const chosenLord = lordSlot ? availLords[Math.floor(Math.random() * availLords.length)] : null;
   const takenNames = new Set(

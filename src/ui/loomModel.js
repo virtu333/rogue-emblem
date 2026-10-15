@@ -405,6 +405,17 @@ const SANCTUM_LINES = {
   spent: SANCTUM_SPENT_TEXT,
   none: SANCTUM_EMPTY_TEXT,
 };
+/**
+ * Who waits at a recruit node shows only once it is a next step (or the party stands on it):
+ * a card further down the road says only that an ally may wait there, so a player cannot route
+ * the whole act toward the cards that show a lord (docs/specs/lord-recruit-odds.md, "Hidden
+ * recruits"). The unit itself is fixed per node either way; only the card waits.
+ */
+export const RECRUIT_SHOWN_STATES = Object.freeze(['live', 'current']);
+export const recruitShownAt = (state) => RECRUIT_SHOWN_STATES.includes(state);
+export const RECRUIT_HIDDEN_TEXT =
+  'Someone waits here. You will see who when it is your next step.';
+
 const SERVICE = {
   shop: 'Buy, sell and forge equipment.',
   church: 'Heal, revive allies and promote units.',
@@ -552,8 +563,10 @@ export function describeLoomNode(
   const eclipsed = !!node.eclipse;
   // A Dark Omen is eclipsed yet still an event: it reads as one ("Dark Omen") and opens as one.
   const darkOmen = eclipsed && node.darkOmen === true;
-  // Who waits at a recruit node (describeRecruitPreview), shown until it is walked.
-  const recruitView = node.type === 'recruit' && !eclipsed && state !== 'done' ? recruit : null;
+  // Who waits at a recruit node (describeRecruitPreview), shown only once it is a next step.
+  const recruitView =
+    node.type === 'recruit' && !eclipsed && recruitShownAt(state) ? recruit : null;
+  const recruitHidden = node.type === 'recruit' && !eclipsed && !recruitView && state !== 'done';
   // Only real encounters reveal battle details. A service node may carry hidden
   // battleParams (a village that turns out to be an ambush) and must stay a village.
   const params = BATTLE_TYPES.has(node.type) ? node.battleParams || null : null;
@@ -646,16 +659,18 @@ export function describeLoomNode(
           ? ECLIPSED_TEXT[node.eclipse.fromType] || ECLIPSED_TEXT.battle
           : recruitView
             ? `Hunters are closing on ${recruitView.name}. Reach them with a lord and Talk.`
-            : node.type === 'ruins' && ruinsChoice
-              ? chosenLine(ruinsChoice)
-              : node.type === 'event' && eventChoice
-                ? `You chose: ${eventChoice}`
-                : // An authored node (the prologue's) says what it holds itself.
-                  (typeof node.preview === 'string' && node.preview) ||
-                  (isSanctum(node) ? SANCTUM_LINES[sanctumStatus] || SANCTUM_TEXT : null) ||
-                  SERVICE[node.type] ||
-                  objective?.[1] ||
-                  '';
+            : recruitHidden
+              ? RECRUIT_HIDDEN_TEXT
+              : node.type === 'ruins' && ruinsChoice
+                ? chosenLine(ruinsChoice)
+                : node.type === 'event' && eventChoice
+                  ? `You chose: ${eventChoice}`
+                  : // An authored node (the prologue's) says what it holds itself.
+                    (typeof node.preview === 'string' && node.preview) ||
+                    (isSanctum(node) ? SANCTUM_LINES[sanctumStatus] || SANCTUM_TEXT : null) ||
+                    SERVICE[node.type] ||
+                    objective?.[1] ||
+                    '';
   // A visited event keeps its chosen line, not the road's flavour (the card stays short).
   const pool =
     state === 'cut' || eclipsed || eventChoice ? null : flavorPool(node, dialogue, actId);
