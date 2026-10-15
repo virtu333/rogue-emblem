@@ -314,17 +314,17 @@ export const REPAIR_COST_RATIO = 0.5;
 // clearing Act I pays little and every later act more, and a victory carries a large bonus.
 // A battle's worth is banked as it is won (RunManager.metaBattlePoints).
 export const META_BATTLE_REWARD_BY_ACT = Object.freeze({
-  act1: 5,
-  act2: 20,
-  act3: 25,
-  act4: 30,
-  finalBoss: 35,
+  act1: 7,
+  act2: 15,
+  act3: 20,
+  act4: 25,
+  finalBoss: 30,
 });
 export const META_FIRST_BATTLE_REWARD = 0;
 // Paid per act reached: entry i is the act cleared at index i (Act I, Act II, ...); acts past
 // the list take its last entry.
 export const META_ACT_CLEAR_REWARDS = Object.freeze([25, 75, 75, 75]);
-export const META_VICTORY_BONUS = 600;
+export const META_VICTORY_BONUS = 300;
 // Reaching the first act's boss (one milestone per run).
 export const META_FIRST_BOSS_MILESTONE = 15;
 // What a save from before metaBattlePoints is credited per battle won (the old flat rate).

@@ -1501,8 +1501,8 @@ describe('MetaProgressionManager', () => {
 
 describe('calculateCurrencies', () => {
   // The back-loaded payout (constants.js): acts reached pay 25, then 75 each; a won battle
-  // banks 0 (the run's first), 5 in Act I, 20/25/30 in Acts II-IV, 35 in the final act; a
-  // victory adds 600. Written out here by hand so a retune is a deliberate test change.
+  // banks 0 (the run's first), 7 in Act I, 15/20/25 in Acts II-IV, 30 in the final act; a
+  // victory adds 300. Written out here by hand so a retune is a deliberate test change.
   it('pays the acts reached: Act I clear is cheap, every later act more', () => {
     expect(calculateCurrencies(0, 0, false)).toEqual({ valor: 0, supply: 0 });
     expect(calculateCurrencies(1, 0, false)).toEqual({ valor: 25, supply: 25 });
@@ -1517,12 +1517,12 @@ describe('calculateCurrencies', () => {
   });
 
   it('awards a large victory bonus to both currencies', () => {
-    expect(calculateCurrencies(0, 0, true)).toEqual({ valor: 600, supply: 600 });
+    expect(calculateCurrencies(0, 0, true)).toEqual({ valor: 300, supply: 300 });
   });
 
   it('combines all components and applies the rung multiplier, floored', () => {
-    // (25 + 75 + 75) acts + 400 points + 600 victory = 1175; x0.8 = 940
-    expect(calculateCurrencies(3, 400, true, 0.8)).toEqual({ valor: 940, supply: 940 });
+    // (25 + 75 + 75) acts + 400 points + 300 victory = 875; x0.8 = 700
+    expect(calculateCurrencies(3, 400, true, 0.8)).toEqual({ valor: 700, supply: 700 });
     // (25 + 75) + 33 = 133; x1.15 = 152.95 -> 152
     expect(calculateCurrencies(2, 33, false, 1.15)).toEqual({ valor: 152, supply: 152 });
   });
@@ -1534,12 +1534,12 @@ describe('battleMetaReward', () => {
   });
 
   it('rises with the act the battle was fought in', () => {
-    expect(battleMetaReward('act1')).toBe(5);
-    expect(battleMetaReward('act2')).toBe(20);
-    expect(battleMetaReward('act3')).toBe(25);
-    expect(battleMetaReward('act4')).toBe(30);
-    expect(battleMetaReward('finalBoss')).toBe(35);
-    expect(battleMetaReward('postAct')).toBe(35);
+    expect(battleMetaReward('act1')).toBe(7);
+    expect(battleMetaReward('act2')).toBe(15);
+    expect(battleMetaReward('act3')).toBe(20);
+    expect(battleMetaReward('act4')).toBe(25);
+    expect(battleMetaReward('finalBoss')).toBe(30);
+    expect(battleMetaReward('postAct')).toBe(30);
   });
 });
 

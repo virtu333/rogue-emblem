@@ -46,16 +46,16 @@ describe('back-loaded run payout', () => {
   it('banks each battle by the act it was fought in, and an Act I clear pays little', () => {
     const rm = newRun('normal');
     const battles = clearAct(rm);
-    // Act I: the first battle 0, every other 5.
-    expect(rm.metaBattlePoints).toBe((battles - 1) * 5);
+    // Act I: the first battle 0, every other 7.
+    expect(rm.metaBattlePoints).toBe((battles - 1) * 7);
     rm.advanceAct();
     // Abandoning at Act II's start: 25 for Act I + the battles, x0.8 (this walk never enters a
     // battle, so the boss milestone, set at battle entry, is not in it).
-    const owed = Math.floor(((battles - 1) * 5 + 25) * 0.8);
+    const owed = Math.floor(((battles - 1) * 7 + 25) * 0.8);
     expect(rm.previewEndRunRewards('defeat')).toEqual({ valor: owed, supply: owed });
     const before = rm.metaBattlePoints;
     winNode(rm, rm.getAvailableNodes()[0]);
-    expect(rm.metaBattlePoints - before).toBe(20); // an Act II battle
+    expect(rm.metaBattlePoints - before).toBe(15); // an Act II battle
   });
 
   it('a won run pays far more per battle than restarting after Act I', () => {
@@ -69,8 +69,8 @@ describe('back-loaded run payout', () => {
       if (!rm.isRunComplete()) rm.advanceAct();
     }
     const win = rm.previewEndRunRewards('victory').valor;
-    // Black Sun x2: the victory alone is worth 1200.
-    expect(win - rm.previewEndRunRewards('defeat').valor).toBe(1200);
+    // Black Sun x2: the victory alone is worth 600.
+    expect(win - rm.previewEndRunRewards('defeat').valor).toBe(600);
     expect(win / battles).toBeGreaterThan(2.5 * (act1Payout / act1Battles));
   });
 
