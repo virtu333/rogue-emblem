@@ -210,3 +210,37 @@ describe('a run is paid once across sessions', () => {
     expect(runB.endRunRewards.appliedToMeta).toBe(true);
   });
 });
+
+describe('NG+ tab upgrades go through the same transaction', () => {
+  /** A saved slot with NG+ bought and `left` of each currency after the unlock. */
+  function unlockedSlot(left = 2000) {
+    const meta = seed(left + NG_PLUS_COST.valor);
+    meta.recordMilestone('beatLunatic');
+    expect(meta.unlockNgPlus().ok).toBe(true);
+    return meta;
+  }
+
+  it('a failed write leaves both balances and the tier as they were, and says why', () => {
+    const meta = unlockedSlot();
+    failMetaWrites = true;
+    expect(meta.buyNgPlusUpgrade('barracks_wing')).toEqual({ ok: false, reason: 'save_failed' });
+    expect(meta.ngPlusUpgradeTier('barracks_wing')).toBe(0);
+    expect([meta.totalValor, meta.totalSupply]).toEqual([2000, 2000]);
+    failMetaWrites = false;
+    const reread = freshMeta();
+    expect(reread.ngPlusUpgradeTier('barracks_wing')).toBe(0);
+    expect([reread.totalValor, reread.totalSupply]).toEqual([2000, 2000]);
+  });
+
+  it('A buys a tier, then stale B saves for another reason: A’s spend and tier stand', () => {
+    unlockedSlot();
+    const a = freshMeta();
+    const b = freshMeta();
+    // Seer's Lantern tier 1: 600 of each.
+    expect(a.buyNgPlusUpgrade('seers_lantern')).toEqual({ ok: true, tier: 1 });
+    b.recordMilestone('beatGame');
+    const final = freshMeta();
+    expect([final.totalValor, final.totalSupply]).toEqual([1400, 1400]);
+    expect(final.ngPlusUpgradeTier('seers_lantern')).toBe(1);
+  });
+});
