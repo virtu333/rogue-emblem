@@ -403,12 +403,12 @@ describe('who can use it', () => {
     expect(r.roster[0].skills).not.toContain('steal');
   });
 
-  it('a Steal Scroll teaches it (Act II and later), and an accessory can never lend it', () => {
+  it('the Steal Scroll item stays defined (old saves) but no loot table offers it; an accessory can never lend Steal', () => {
     const scroll = data.weapons.find((w) => w.name === 'Steal Scroll');
     expect(scroll).toMatchObject({ type: 'Scroll', skillId: 'steal', tier: 'Rare', price: 2500 });
-    for (const act of ['act2', 'act3', 'act4'])
-      expect(data.lootTables[act].skillScroll, act).toContain('Steal Scroll');
-    for (const act of ['act1', 'finalBoss'])
+    // Pulled from play for now (Steal is underbaked): to bring it back, list it in the Act II-IV
+    // `skillScroll` pools of lootTables.json again and flip the two scroll-source tests below.
+    for (const act of ['act1', 'act2', 'act3', 'act4', 'finalBoss'])
       expect(data.lootTables[act].skillScroll, act).not.toContain('Steal Scroll');
     const config = data.lootTables.accessorySkills;
     expect(config.neverBound).toContain('steal');
@@ -416,7 +416,7 @@ describe('who can use it', () => {
     for (const pool of Object.values(config.poolByAct)) expect(pool).not.toContain('steal');
   });
 
-  it('shops stock the Steal Scroll from Act II on, and never in Act I', () => {
+  it('shops never stock the Steal Scroll', () => {
     const seen = { act1: 0, act2: 0, act3: 0, act4: 0 };
     try {
       for (const act of Object.keys(seen)) {
@@ -429,8 +429,7 @@ describe('who can use it', () => {
     } finally {
       restoreMathRandom();
     }
-    expect(seen.act1).toBe(0);
-    for (const act of ['act2', 'act3', 'act4']) expect(seen[act], act).toBeGreaterThan(0);
+    for (const act of Object.keys(seen)) expect(seen[act], act).toBe(0);
   });
 
   it('an enemy Thief never steals: nothing in the AI reads it', () => {
