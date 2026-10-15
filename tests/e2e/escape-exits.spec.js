@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test';
 import { waitForScene } from './helpers.js';
 
 test.use({ hasTouch: true, isMobile: true });
+// Each test plays a battle, restarts it and reloads it to resume: about 20 s on a
+// quiet machine, past the 30 s default on a loaded CI runner.
+test.describe.configure({ timeout: 90_000 });
 for (const width of [667, 844]) {
   test(`escape exits remain discoverable and usable at ${width}px, fresh and resumed`, async ({
     page,

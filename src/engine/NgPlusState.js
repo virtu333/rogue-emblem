@@ -14,7 +14,7 @@
 //                   //   growths, traits, traitAttackStat, markId, portraitVariant). `rideLog`
 //                   //   is each ride's keeps, newest last, so a lost run can take back the
 //                   //   commander's latest ride (undoLastRide)
-//     bring,        // up to BRING_LIMIT recruit record ids taken into the next NG+ run
+//     bring,        // up to bringLimitFor(Barracks Wing) recruit record ids for the next NG+ run
 //     pendingRide,  // the last eligible win's survivors, until picked or passed:
 //                   //   { runId, difficultyId, endedAt, candidates: [candidate], picked: [ref] }
 //                   //   (`picked`: the refs already sent to the Barracks from this ride; the
@@ -41,7 +41,65 @@ export const NG_PLUS_MILESTONE = 'beatLunatic';
 export const NG_PLUS_RUNGS = Object.freeze(['hard', 'lunatic']);
 export const RIDE_LORD_PICKS = 1;
 export const RIDE_RECRUIT_PICKS = 2;
+/** Recruit veterans an NG+ run brings before any Barracks Wing tier. */
 export const BRING_LIMIT = 2;
+
+/**
+ * The NG+ tab's own upgrades: repeatable currency sinks, bought with both currencies once NG+
+ * is unlocked and never refunded. Tier n (from 1) costs `base + step * (n - 1)` of each, up to
+ * `maxTier`. The tier is stored in `purchasedUpgrades[key]` beside the unlock (so the cloud
+ * and the adopt-merge max-merge it, and an older client keeps it untouched). A tier adds one:
+ * Barracks Wing a recruit veteran to bring, Seer's Lantern a Vision charge in every run.
+ */
+export const NG_PLUS_UPGRADES = Object.freeze({
+  barracks_wing: Object.freeze({
+    id: 'barracks_wing',
+    key: 'ng_plus_barracks_wing',
+    name: 'Barracks Wing',
+    base: 800,
+    step: 400,
+    maxTier: 4,
+  }),
+  seers_lantern: Object.freeze({
+    id: 'seers_lantern',
+    key: 'ng_plus_seers_lantern',
+    name: 'Seer’s Lantern',
+    base: 600,
+    step: 400,
+    maxTier: 5,
+  }),
+});
+export const NG_PLUS_UPGRADE_IDS = Object.freeze(Object.keys(NG_PLUS_UPGRADES));
+
+/** An upgrade's tier from its stored level, clamped to the tiers that exist. */
+export function ngPlusUpgradeTier(id, storedLevel) {
+  const upgrade = NG_PLUS_UPGRADES[id];
+  if (!upgrade) return 0;
+  return Math.min(upgrade.maxTier, count(storedLevel));
+}
+
+/** The price of an upgrade's next tier, or null at its last. */
+export function ngPlusUpgradeNextCost(id, tier) {
+  const upgrade = NG_PLUS_UPGRADES[id];
+  const t = count(tier);
+  if (!upgrade || t >= upgrade.maxTier) return null;
+  const price = upgrade.base + upgrade.step * t;
+  return { valor: price, supply: price };
+}
+
+/** Recruit veterans an NG+ run brings at a Barracks Wing tier. */
+export function bringLimitFor(barracksWingTier) {
+  return BRING_LIMIT + ngPlusUpgradeTier('barracks_wing', barracksWingTier);
+}
+
+/** The most any slot can bring (every Barracks Wing tier): what a saved Bring list keeps. */
+export const MAX_BRING_LIMIT = BRING_LIMIT + NG_PLUS_UPGRADES.barracks_wing.maxTier;
+
+/** Vision charges Seer's Lantern adds to every run at a tier. */
+export function ngPlusVisionBonus(seersLanternTier) {
+  return ngPlusUpgradeTier('seers_lantern', seersLanternTier);
+}
+
 /** What one character may hold across runs: kept skills by slot kind, kept items by kind. */
 export const KEPT_SKILL_CAPS = Object.freeze({ skill: 10, ability: 5 });
 /** How many rides a record remembers for undoLastRide (older ones can no longer be undone). */
@@ -233,7 +291,7 @@ export function normalizeNgPlusState(raw) {
   const recruits = new Set(state.barracks.filter((r) => r.kind === 'recruit').map((r) => r.id));
   state.bring = [
     ...new Set((Array.isArray(raw.bring) ? raw.bring : []).filter((id) => recruits.has(id))),
-  ].slice(0, BRING_LIMIT);
+  ].slice(0, MAX_BRING_LIMIT);
   state.pendingRide = sanitizePendingRide(raw.pendingRide);
   state.wins = count(raw.wins);
   return state;
@@ -298,10 +356,10 @@ export function releaseRecord(state, id) {
   return removeRecords(state, [id]).length > 0;
 }
 
-/** The recruit veterans to bring into the next NG+ run (at most BRING_LIMIT). */
-export function setBring(state, ids) {
+/** The recruit veterans to bring into the next NG+ run (at most `limit`: bringLimitFor). */
+export function setBring(state, ids, limit = BRING_LIMIT) {
   const list = [...new Set(Array.isArray(ids) ? ids : [])];
-  if (list.length > BRING_LIMIT) return { ok: false, reason: 'too_many' };
+  if (list.length > limit) return { ok: false, reason: 'too_many' };
   for (const id of list)
     if (findRecord(state, id)?.kind !== 'recruit') return { ok: false, reason: 'unknown' };
   state.bring = list;
@@ -539,10 +597,13 @@ export function passRide(state) {
  * What an NG+ run starts with: the recruits chosen to bring and every lord's kit (a lord's
  * applies when they are in the run). Deep copies.
  */
-export function runStartOf(state) {
+export function runStartOf(state, { bringLimit = BRING_LIMIT } = {}) {
   const s = normalizeNgPlusState(state);
   return {
-    veterans: s.bring.map((id) => structuredClone(findRecord(s, id))).filter(Boolean),
+    veterans: s.bring
+      .slice(0, bringLimit)
+      .map((id) => structuredClone(findRecord(s, id)))
+      .filter(Boolean),
     lordKits: s.barracks.filter((r) => r.kind === 'lord').map((r) => structuredClone(r)),
   };
 }
