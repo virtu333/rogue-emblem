@@ -217,6 +217,9 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     ruinsRevivedByNodeId: 'inert',
     // Each church's revivals (ChurchCommands): an older client has no church limit.
     churchRevivesByNodeId: 'inert',
+    // The won battles' worth toward the run-end payout: an older client pays its own
+    // flat per-battle rate instead.
+    metaBattlePoints: 'inert',
   }),
   // The route map's top level.
   nodeMap: Object.freeze({

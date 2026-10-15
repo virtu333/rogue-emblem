@@ -177,7 +177,8 @@ it('boss-reaching payout is once per run, durable, and shared by settlement/prev
   const s = setup(),
     run = s.runManager;
   run.completedBattles = 4;
-  // First Light earns x0.8: floor(4 battles x 15 x 0.8) = 48; the milestone adds floor(15 x 0.8) = 12.
+  run.metaBattlePoints = 60;
+  // First Light earns x0.8: floor(60 banked x 0.8) = 48; the milestone adds floor(15 x 0.8) = 12.
   expect(run.previewEndRunRewards()).toMatchObject({ valor: 48, supply: 48 });
   run.beginBattleInProgress('boss', { isBoss: true });
   run.beginBattleInProgress('boss', { isBoss: true });

@@ -89,6 +89,7 @@ export function serializeRun(rm, blessings) {
     pendingBossRecruit: rm.pendingBossRecruit || null,
     pendingThirdLord: rm.pendingThirdLord || null,
     reachedFirstActBoss: rm.reachedFirstActBoss === true,
+    metaBattlePoints: Math.max(0, Number(rm.metaBattlePoints) || 0),
     activeCaravanShop: rm.activeCaravanShop || null,
     endRunRewards: rm.endRunRewards || null,
     metaUnlockedWeaponArts: rm.metaUnlockedWeaponArts || [],
