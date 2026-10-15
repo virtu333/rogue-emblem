@@ -177,6 +177,48 @@ describe('EnemyIntent: a unit entering reach does not by itself draw the attack'
   });
 });
 
+describe('EnemyIntent projects an enemy Canto step before the next foe decides', () => {
+  // A wall with a one-tile gap at (5,2); the army holds the far side. Foe A walks into the
+  // gap to strike the knight, then its Canto steps it back out of the knight's reach, which
+  // opens the gap for foe B behind it. A fight nobody dies in, so occupancy is the only
+  // difference between the preview and the phase.
+  function chokepoint(cantoSkills) {
+    const layout = plainLayout(10, 5);
+    for (let r = 0; r < 5; r++) if (r !== 2) layout[r][5] = T.Wall;
+    const grid = makeGrid(layout);
+    const a = unit('enemy', 4, 2, {
+      name: 'A',
+      skills: cantoSkills,
+      stats: { HP: 40, DEF: 12, MOV: 5 },
+    });
+    const b = unit('enemy', 2, 3, { name: 'B', stats: { HP: 40, DEF: 12, MOV: 5 } });
+    const knight = unit('player', 6, 2, {
+      name: 'Knight',
+      stats: { HP: 60, DEF: 20, STR: 2, MOV: 1 },
+    });
+    return { grid, a, b, knight, world: { enemies: [a, b], players: [knight], npcs: [] } };
+  }
+
+  it('B takes the gap A vacated, as the real phase does', async () => {
+    const { grid, a, b, knight, world } = chokepoint(['canto']);
+    const intents = predict(grid, world, null);
+    expect(intents.get(a)).toMatchObject({ kind: 'attack', target: knight });
+    expect(intents.get(b)).toMatchObject({ kind: 'attack', target: knight });
+    const played = await playEnemyPhase(grid, world, null, 0, 0);
+    expect(played.get('A')).toEqual({ kind: 'attack', target: 'Knight' });
+    expect(played.get('B')).toEqual({ kind: 'attack', target: 'Knight' });
+    expect(named(intents)).toEqual(played);
+  });
+
+  it('without Canto A keeps the gap and B has no one to strike, in both', async () => {
+    const { grid, a, b, world } = chokepoint([]);
+    const intents = predict(grid, world, null);
+    expect(intents.get(a)).toMatchObject({ kind: 'attack' });
+    expect(intents.get(b)).toMatchObject({ kind: 'none' });
+    expect(named(intents)).toEqual(await playEnemyPhase(grid, world, null, 0, 0));
+  });
+});
+
 describe('EnemyIntent agrees with the real enemy phase', () => {
   // A seeded sweep of small boards: walls, mixed weapons, several foes and units. For every
   // destination of the mover, the prediction must equal what processEnemyPhase does.
