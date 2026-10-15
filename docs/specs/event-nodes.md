@@ -279,7 +279,20 @@ calls it inside the seeded swap so a refresh rebuilds the same battle; it does n
 `node.type`.
 
 Gold amounts may be written as `{ "base": 100, "perAct": 100 }` (act 1 = base + perAct ×
-1); costs are multiplied by `costScale[difficulty]` and rounded to 10.
+1) or `{ "byAct": { "act2": 500, "act3": 800, "act4": 1100 } }` (the act's own value; an
+unlisted act takes the nearest listed act before it, else the first listed; the final act
+reads as after Act IV); costs are multiplied by `costScale[difficulty]` and rounded to 10.
+
+**Reward sizing (2026-10-15).** Battle gold roughly doubles from Act II to Act IV (kill gold
+follows enemy level), so the linear `{ base, perAct }` step left late rewards at a quarter of
+a battle. Event gold rewards use `byAct`, sized as a share of an act's battle gold (estimates
+from the kill-gold formula: Act I ~450, Act II ~1,000, Act III ~1,600, Act IV ~2,000): a
+small free purse 250 / 400 / 650 / 900, a larger one 300 / 500 / 800 / 1,100, a fight's
+purse (on top of the battle's own gold) 150 / 250 / 400 / 550 or 250 / 400 / 650 / 900, a
+payoff fight 700 / 1,000 / 1,300 (Acts II-IV). `tests/EventData.test.js` holds every reward
+of an event met in Act IV to at least 1.7x its Act II amount. A contract's reward stays
+`{ base, perAct }` (200 + 250 per act) because it is saved in `run.contract`, and an older
+client reads only that shape. Costs are unchanged.
 
 ## 6. Story flags
 
