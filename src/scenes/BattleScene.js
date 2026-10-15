@@ -2016,7 +2016,6 @@ export class BattleScene extends Phaser.Scene {
       this._selectedWeaponArt = null;
       this._lastPathPreviewKey = null;
       this._touchTapDown = null;
-      this._tapMoveThreshold = 12;
       this._touchHoldTimer = null;
       this._touchHoldStart = null;
       this._touchHoldTriggered = false;

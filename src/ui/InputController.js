@@ -10,6 +10,9 @@ import { computeEffectivePath } from '../engine/Grid.js';
 import { movementOptionsFor } from '../engine/PassMovement.js';
 import { unitReach } from '../engine/ThreatForecast.js';
 import { haptic } from '../utils/haptics.js';
+import { exceedsTouchSlop, gamePxPerCssPx } from '../utils/touchSlop.js';
+import { snapTapToUnitCell, TAP_SNAP_CSS_PX } from './tapSnap.js';
+import { TILE_SIZE } from '../utils/constants.js';
 import { holdsPost } from '../engine/SiegeArtillery.js';
 import { getBallistaDangerTiles, isBallistaTile } from '../engine/BallistaEngine.js';
 import {
@@ -396,9 +399,10 @@ export class InputController {
         scene._touchTapDown = null;
         return;
       }
-      const dx = pointer.x - scene._touchTapDown.x;
-      const dy = pointer.y - scene._touchTapDown.y;
-      if (dx * dx + dy * dy > scene._tapMoveThreshold * scene._tapMoveThreshold) {
+      // The same slop the camera's pan starts past (utils/touchSlop.js): a finger that
+      // moved no further is a tap, one that moved further is a pan (or, with panning
+      // off, a drag that does nothing). No distance is neither.
+      if (exceedsTouchSlop(pointer, scene._touchTapDown, scene.game?.canvas)) {
         scene._touchTapDown = null;
         return;
       }
@@ -492,7 +496,7 @@ export class InputController {
     if (scene.isMobileInput && scene.inspectMode) {
       if (this.handleInspectModeTap(pointer, px, py)) return;
     }
-    const gp = scene.grid.pixelToGrid(px, py);
+    const gp = this._snapTapToReadyUnit(pointer, px, py) ?? scene.grid.pixelToGrid(px, py);
     if (!gp) {
       if (!this._isPointerOverInteractive(pointer)) {
         scene.requestCancel({ allowPause: false });
@@ -505,9 +509,88 @@ export class InputController {
     if (scene.isMobileInput) this.refreshTileInfo(gp.col, gp.row);
 
     // A tap on the board, or the gamepad / keyboard cursor's confirm (GridCursorController
-    // goes through here): one tick.
-    haptic('tick');
+    // goes through here), ticks once it did something, after the state changed: a tap
+    // that changed nothing (an empty tile with nothing open, a refused placement) gives no
+    // tick, so the tick is a receipt the command took, and the native call never runs
+    // ahead of the game's own response.
+    const before = this._tapFeedbackKey();
+    this._dispatchBoardTap(gp);
+    if (this._tapFeedbackKey() !== before) haptic('tick');
+  }
 
+  /**
+   * A finger tap at idle that lands just off a ready ally (within TAP_SNAP_CSS_PX of its
+   * cell, with no other seen unit or ballista in reach) selects it (ui/tapSnap.js). Touch
+   * and PLAYER_IDLE only, so it only ever picks a unit up: never a move, target or
+   * placement. Returns the grid cell, or null to read the tap where it landed.
+   */
+  _snapTapToReadyUnit(pointer, px, py) {
+    const scene = this.scene;
+    if (scene.battleState !== 'PLAYER_IDLE' || !scene._isTouchPointer?.(pointer)) return null;
+    const grid = scene.grid;
+    const board = grid?.board;
+    if (!board?.fromDisplay) return null;
+    const zoom = Number(scene._battleCamera?.getZoom?.() ?? scene.cameras?.main?.zoom) || 1;
+    const margin = (TAP_SNAP_CSS_PX * gamePxPerCssPx(pointer, scene.game?.canvas)) / zoom;
+    const cellAt = (dc, dr) => {
+      const { col, row } = board.fromDisplay(dc, dr);
+      const unit = scene.getUnitAt(col, row);
+      if (unit) {
+        if (unit.faction === 'player') {
+          return !unit.hasActed && !isSleeping(unit) ? 'target' : 'other';
+        }
+        // A unit the player can't see is an empty cell to the player, and must stay one.
+        return canInspectUnit(grid, unit) ? 'other' : null;
+      }
+      return visibleBallistaAt(grid, scene.ballistas, col, row) ? 'other' : null;
+    };
+    const cell = snapTapToUnitCell({
+      px,
+      py,
+      offsetX: grid.offsetX,
+      offsetY: grid.offsetY,
+      tileSize: TILE_SIZE,
+      displayCols: board.displayCols,
+      displayRows: board.displayRows,
+      margin,
+      cellAt,
+    });
+    return cell ? board.fromDisplay(cell.dc, cell.dr) : null;
+  }
+
+  /**
+   * What a board tap can visibly change, as one string: the battle state, the selection,
+   * the open menu, forecast, inspected unit or ballista reach, and the formation's hand,
+   * pick, menus and placements. Read before and after a tap; any change is an accepted tap.
+   */
+  _tapFeedbackKey() {
+    const scene = this.scene;
+    const id = (u) => (u ? (u.battleEntityId ?? u.uid ?? u.name ?? '?') : '');
+    const panel = scene.inspectionPanel;
+    const f = scene._formation;
+    const ballista = this._ballistaShown;
+    return [
+      scene.battleState,
+      id(scene.selectedUnit),
+      scene.actionMenu ? 1 : 0,
+      id(scene.forecastTarget),
+      panel?.visible ? `i:${id(panel._unit)}` : '',
+      ballista ? `b:${ballista.col},${ballista.row}` : '',
+      this._ballistaRangeShown ? 1 : 0,
+      f
+        ? [
+            id(f.heldUnit),
+            f.selectedTile ?? '',
+            f.menu ? 1 : 0,
+            f.picker ? 1 : 0,
+            Array.isArray(f.formation?.at) ? f.formation.at.join(',') : '',
+          ].join('/')
+        : '',
+    ].join('|');
+  }
+
+  _dispatchBoardTap(gp) {
+    const scene = this.scene;
     switch (scene.battleState) {
       case 'PLAYER_IDLE':
         this.handleIdleClick(gp);
