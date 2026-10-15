@@ -31,6 +31,7 @@ import {
 } from '../src/engine/BattleScout.js';
 import { slotKindFor, swornOathSkillId } from '../src/engine/SkillSlots.js';
 import { INVENTORY_MAX } from '../src/utils/constants.js';
+import { deployLimitsForParams, resolveDeployLimits } from '../src/engine/BattleDeployCount.js';
 import {
   BRING_LIMIT,
   MAX_BRING_LIMIT,
@@ -1290,5 +1291,72 @@ describe('the NG+ tab upgrades (repeatable sinks)', () => {
       canBuy: false,
       blockText: '',
     });
+  });
+});
+
+describe('a full Barracks Wing: six recruit veterans ride', () => {
+  it('starts, deploys, saves, reloads and settles the Barracks with all six', () => {
+    // Failures at the cap: the run start drops veterans past some old limit, the first map
+    // cannot field the deploy screen's count or loses a unit off the bench, a reload forgets
+    // the members, or the run's end mis-settles a member it brought (a survivor dropped, a
+    // fallen one kept).
+    const { meta, ids } = metaWithRecruitVets(6);
+    fund(meta, 6000);
+    for (let t = 0; t < 4; t += 1) expect(meta.buyNgPlusUpgrade('barracks_wing').ok).toBe(true);
+    expect(meta.ngPlusBringLimit()).toBe(6);
+    expect(meta.setNgPlusBring(ids).ok).toBe(true);
+    expect(freshMeta().getNgPlus().bring).toEqual(ids);
+
+    // The start: every veteran, at level 1 in its base class, beside the lords.
+    const start = freshMeta().ngPlusRunStart('hard');
+    expect(start.veterans.map((v) => v.id)).toEqual(ids);
+    const rm = new RunManager(data);
+    rm.startRun({ runSeed: 31, applyBlessingsAtStart: false, difficultyId: 'hard', ngPlus: start });
+    // Two veterans may share a name (the roster renames the second "Bram II"): match by member.
+    const vetUnits = ids.map((id) => {
+      const member = rm.ngPlus.members.find((m) => m.id === id);
+      return rm.roster.find((u) => u.unitUid === member?.uid);
+    });
+    expect(vetUnits.every(Boolean)).toBe(true);
+    expect(new Set(vetUnits).size).toBe(6);
+    for (const u of vetUnits) expect(u.level).toBe(1);
+    expect(new Set(rm.roster.map((u) => u.name)).size).toBe(rm.roster.length);
+    expect(new Set(rm.roster.map((u) => u.unitUid)).size).toBe(rm.roster.length);
+
+    // The first battle: the deploy screen's count is fielded, the rest wait on the bench.
+    const node = rm.nodeMap.nodes.find((n) => n.row === 0);
+    const { max } = resolveDeployLimits({
+      base: deployLimitsForParams(rm.getBattleParams(node)),
+      deployBonus: rm.getDeployBonus(),
+    });
+    expect(rm.roster.length).toBeGreaterThan(max);
+    const params = applyGenerationFields(rm.getBattleParams(node), { deployCount: max });
+    const seed = battleGenerationSeed(params, { runSeed: rm.runSeed, nodeId: node.id });
+    const config = generateSeededBattle(params, data, seed);
+    expect(config.playerSpawns.length).toBeGreaterThanOrEqual(max);
+    rm.lockBattleConfig(node.id, config);
+
+    // Save and reload: the run keeps all six and its members.
+    const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+    const loaded = RunManager.fromJSON(saved, data);
+    expect(loaded.ngPlus).toEqual(rm.ngPlus);
+    for (const u of vetUnits) expect(loaded.roster.some((r) => r.unitUid === u.unitUid)).toBe(true);
+    expect(loaded.getLockedBattleConfig(node.id).playerSpawns).toEqual(config.playerSpawns);
+
+    // The end: one veteran falls, the run is won. Five stay, the fallen one leaves, and the
+    // ride offers every survivor.
+    const fallen = loaded.roster.find((u) => u.unitUid === vetUnits[2].unitUid);
+    loaded.roster = loaded.roster.filter((u) => u !== fallen);
+    loaded.fallenUnits.push(fallen);
+    winRun(loaded, meta);
+    const state = freshMeta().getNgPlus();
+    const kept = state.barracks.filter((r) => r.kind === 'recruit').map((r) => r.id);
+    expect(kept).toEqual(ids.filter((id) => id !== ids[2]));
+    expect(state.bring).toEqual(ids.filter((id) => id !== ids[2]));
+    expect(state.wins).toBe(1);
+    const survivors = state.pendingRide.candidates.filter(
+      (c) => c.recordId && kept.includes(c.recordId),
+    );
+    expect(survivors).toHaveLength(5);
   });
 });
