@@ -58,12 +58,14 @@ import {
   INVENTORY_MAX,
   XP_SPECIAL_ENEMY_MULTIPLIER,
   XP_UNDERDOG_CAP,
-  META_FIRST_BOSS_MILESTONE,
-  META_LEGACY_BATTLE_REWARD,
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
 import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapGenerator.js';
-import { calculateCurrencies, battleMetaReward } from './MetaProgressionManager.js';
+import {
+  battleMetaReward,
+  runEndMetaReward,
+  savedMetaBattlePoints,
+} from './MetaProgressionManager.js';
 import { lordNamesInRun } from './LordsMet.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import { buildDescentNodeMap, descentRouteIdFor, isDescentMap, isGateBossNode } from './Descent.js';
@@ -4524,9 +4526,7 @@ export class RunManager {
       if (item?.perBattleUses) item._usesSpent = 0;
     }
     this._suppressPersonalSkillsForCurrentRosterIfNeeded();
-    this.metaBattlePoints =
-      (Number(this.metaBattlePoints) || 0) +
-      battleMetaReward(this.currentAct, this.completedBattles === 0);
+    this.metaBattlePoints += battleMetaReward(this.currentAct, this.completedBattles === 0);
     this.completedBattles++;
     this.winStreak++;
     if (this.winStreak > this.maxWinStreak) this.maxWinStreak = this.winStreak;
@@ -5384,17 +5384,7 @@ export class RunManager {
   previewEndRunRewards(result = 'defeat') {
     if (this.endRunRewards) return { ...this.endRunRewards };
     const multiplier = this.getDifficultyModifier('currencyMultiplier', 1) || 1;
-    const reward = calculateCurrencies(
-      this.actIndex,
-      this.metaBattlePoints,
-      result === 'victory',
-      multiplier,
-    );
-    // One milestone per run, settled through the same defeat/abandon/victory path.
-    const milestone = this.reachedFirstActBoss
-      ? Math.floor(META_FIRST_BOSS_MILESTONE * multiplier)
-      : 0;
-    return { valor: reward.valor + milestone, supply: reward.supply + milestone };
+    return runEndMetaReward(this, result === 'victory', multiplier);
   }
 
   /** Serialize run state to a plain object for localStorage. */
@@ -5772,10 +5762,7 @@ export class RunManager {
     rm.nodeMap = saved.nodeMap;
     rm.currentNodeId = saved.currentNodeId;
     rm.completedBattles = saved.completedBattles;
-    // A save from before metaBattlePoints is credited the old flat rate per battle won.
-    rm.metaBattlePoints = Number.isFinite(saved.metaBattlePoints)
-      ? Math.max(0, saved.metaBattlePoints)
-      : Math.max(0, Number(saved.completedBattles) || 0) * META_LEGACY_BATTLE_REWARD;
+    rm.metaBattlePoints = savedMetaBattlePoints(saved);
     const ws = saved.winStreak;
     rm.winStreak = Number.isFinite(ws) && ws >= 0 ? Math.trunc(ws) : 0;
     const mws = saved.maxWinStreak;

@@ -46,6 +46,8 @@ import {
   META_FIRST_BATTLE_REWARD,
   META_ACT_CLEAR_REWARDS,
   META_VICTORY_BONUS,
+  META_FIRST_BOSS_MILESTONE,
+  META_LEGACY_BATTLE_REWARD,
   CATEGORY_CURRENCY,
   REFUND_FEE,
   MAX_STARTING_SKILLS,
@@ -2385,4 +2387,23 @@ export function calculateCurrencies(actIndex, battlePoints, isVictory, currencyM
   const base = actClearMetaReward(actIndex) + points + (isVictory ? META_VICTORY_BONUS : 0);
   const amount = Math.floor(base * multiplier);
   return { valor: amount, supply: amount };
+}
+
+/**
+ * A run's payout so far (RunManager.previewEndRunRewards): calculateCurrencies over the act
+ * reached and the banked battles, plus the first-boss milestone (once a run) at the same rate.
+ * @param {{ actIndex: number, metaBattlePoints: number, reachedFirstActBoss: boolean }} run
+ */
+export function runEndMetaReward(run, isVictory, multiplier = 1) {
+  const reward = calculateCurrencies(run.actIndex, run.metaBattlePoints, isVictory, multiplier);
+  const milestone = run.reachedFirstActBoss
+    ? Math.floor(META_FIRST_BOSS_MILESTONE * multiplier)
+    : 0;
+  return { valor: reward.valor + milestone, supply: reward.supply + milestone };
+}
+
+/** A save's banked points; a save from before them is credited the old flat rate a battle. */
+export function savedMetaBattlePoints(saved) {
+  if (Number.isFinite(saved?.metaBattlePoints)) return Math.max(0, saved.metaBattlePoints);
+  return Math.max(0, Number(saved?.completedBattles) || 0) * META_LEGACY_BATTLE_REWARD;
 }
