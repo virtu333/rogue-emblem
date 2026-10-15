@@ -429,7 +429,7 @@ for (const viewport of PORTRAIT_PHONES) {
         s.battleConfig.caravanSpawn = tile;
       });
       await openMenu(page, 'Sera');
-      // One usable staff reads "Heal (3/3)"; several open a staff list first.
+      // One usable staff reads "Staff (3/3)"; several open a staff list first.
       await hud
         .locator('.mb-actions')
         .getByRole('button', { name: /^(Heal|Staff)/ })

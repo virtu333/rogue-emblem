@@ -179,7 +179,7 @@ async function threeActionsOnPhone(page) {
   await idle(page);
   states.push(await digest(page));
   await select(page, 'Sera');
-  await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+  await hud.getByRole('button', { name: /^Staff \(/ }).tap();
   await hud.getByRole('button', { name: /^Heal / }).tap();
   await tapTile(page, 2, 4);
   await acted(page, 'Sera');

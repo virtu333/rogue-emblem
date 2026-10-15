@@ -104,7 +104,7 @@ describe('healer note for a hurt NPC ally', () => {
     expect(note).toMatchObject({ id: 'guide_healer_heals', anchor: sera });
     expect(note.context.npc).toBe(merchant);
     expect(guidanceText(note.id, note.context)).toBe(
-      'Sera heals with a staff, and staves mend the merchant caravan too: move within reach of it and choose Heal. Keep Sera out of enemy reach.',
+      'Sera heals with a staff, and staves mend the merchant caravan too: move within reach of it and choose Staff. Keep Sera out of enemy reach.',
     );
   });
 
@@ -114,7 +114,7 @@ describe('healer note for a hurt NPC ally', () => {
     const note = pick();
     expect(note.context.npc).toBe(garrick);
     expect(guidanceText(note.id, note.context)).toBe(
-      'Sera heals with a staff, and staves mend green units too: move within reach of Garrick and choose Heal. Keep Sera out of enemy reach.',
+      'Sera heals with a staff, and staves mend green units too: move within reach of Garrick and choose Staff. Keep Sera out of enemy reach.',
     );
   });
 
@@ -124,7 +124,7 @@ describe('healer note for a hurt NPC ally', () => {
     const note = pick();
     expect(note.context.npc).toBeUndefined();
     expect(guidanceText(note.id, note.context)).toBe(
-      'Sera heals with a staff: move next to a hurt ally and choose Heal. Early on, keep Sera out of reach and heal Edric.',
+      'Sera heals with a staff: move next to a hurt ally and choose Staff. Early on, keep Sera out of reach and heal Edric.',
     );
   });
 

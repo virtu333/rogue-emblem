@@ -828,13 +828,13 @@ export function driver(page, { touch = false } = {}) {
 
     /**
      * Heal `target` with `healer`'s staff: move beside it (`to`, or stay), the staff
-     * command (Heal (n/m)), then click the target.
+     * command (Staff (n/m)), then click the target.
      */
     async heal(healer, target, { to = null } = {}) {
       const h = await d.unit(healer);
       const dest = to || { col: h.col, row: h.row };
       await d.moveTo(healer, dest.col, dest.row);
-      await d.menu(/^Heal \(/);
+      await d.menu(/^Staff \(/);
       await d.drain(() => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'SELECTING_HEAL_TARGET'); // prettier-ignore
       if (touch) {
         const rail = page.getByRole('complementary', { name: 'Battle commands' });
@@ -898,7 +898,7 @@ export function driver(page, { touch = false } = {}) {
       }
       await d.trace(`${healer} heals ${pick.target} from ${pick.col},${pick.row}`);
       await d.moveSelected(pick.col, pick.row);
-      await d.menu(/^Heal \(/);
+      await d.menu(/^Staff \(/);
       await d.drain(() => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'SELECTING_HEAL_TARGET'); // prettier-ignore
       const t = await d.unit(pick.target);
       if (touch) {

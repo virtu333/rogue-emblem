@@ -148,7 +148,7 @@ export const PROLOGUE_NOTES = Object.freeze({
     `${ctx?.npc || 'Sera'} (${ctx?.npcClass || 'Light Sage'}) under the gold banner can join you. Move a Lord next to her and choose Talk before enemies reach her.\n` +
     `Only the Soldier beside her can reach her this turn. Lords alone can Talk.`,
   p3_heal: (ctx) =>
-    `${ctx?.npc || 'Sera'} heals with her staff: move next to ${ctx?.ally || 'a hurt ally'}, choose Heal.\n` +
+    `${ctx?.npc || 'Sera'} heals with her staff: move next to ${ctx?.ally || 'a hurt ally'}, choose Staff.\n` +
     'Staff uses refill after every battle; a Vulnerary is spent for good.',
   p3_plan_cancel: (ctx) =>
     `Nothing is in reach from here, so Attack is greyed out.\n${ctx?.touch ? 'Back' : 'Esc or right-click'} undoes the move: nothing is final until you confirm. Try a tile 2 away from a foe.`,
