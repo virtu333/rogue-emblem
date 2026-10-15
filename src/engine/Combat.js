@@ -39,6 +39,14 @@ const PHYSICAL_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow']);
 const MAGICAL_TYPES = new Set(['Tome', 'Light', 'Breath']);
 const IS_DEV = Boolean(import.meta?.env?.DEV);
 
+/**
+ * Is this unit behind a ward (engine/Vigil.js `applyVigilWards`, the one writer of the stamp)?
+ * A warded unit takes no damage from a strike, a counter or a forecast.
+ */
+export function isWardedUnit(unit) {
+  return unit?.warded === true;
+}
+
 function normalizeCombatStatScaling(value) {
   if (!value || typeof value !== 'object') return null;
   const stat = typeof value.stat === 'string' ? value.stat.trim().toUpperCase() : '';
@@ -956,6 +964,8 @@ export function calculateDamage(
     Number.isFinite(effectivenessMultiplier) ? effectivenessMultiplier : null,
   );
   const { def, terrainDef } = strikeDefense(defender, atkWeapon, defenderTerrain, options);
+  // A warded Voice (engine/Vigil.js) takes nothing while its ward stands.
+  if (isWardedUnit(defender)) return 0;
   const result = Math.max(0, atk - def - terrainDef);
   if (IS_DEV && Number.isNaN(result)) {
     console.warn('[Combat] NaN damage:', { attacker: attacker?.name, weapon: atkWeapon?.name });
@@ -1019,7 +1029,7 @@ export function strikeDamage(
   defMods = null,
   { effectivenessCap = null } = {},
 ) {
-  if (!atkWeapon) return 0;
+  if (!atkWeapon || isWardedUnit(defender)) return 0;
   const ignoreTriangle = Boolean(atkMods?.ignoreWeaponTriangle || defMods?.ignoreWeaponTriangle);
   const hitsRes = strikeHitsRes(atkWeapon, atkMods);
   const defWeaponDef = defWeapon
@@ -1757,6 +1767,8 @@ export function getCombatForecast(
       // the exchange (the projection says "Breaks a bar").
       stones: revivalStoneCount(defender).remaining,
       ...(bannerReadyFor(skillCtx?.battleBlessings, defender) ? { banner: true } : {}),
+      // A warded Voice (engine/Vigil.js): every strike on it deals 0 while the ward stands.
+      ...(isWardedUnit(defender) ? { warded: true } : {}),
       canCounter: defCanCounter,
       damage: defDmg,
       hit: defHit,
@@ -1948,6 +1960,11 @@ function rollStrike(
     mergeActivations(defResult.activated);
   }
 
+  // A warded Voice (engine/Vigil.js) takes nothing, whatever rolled above (a crit, Luna, a
+  // Lethality proc, the Hunt): the blow lands and is turned aside, so nothing is drained.
+  const warded = isWardedUnit(targetUnit);
+  if (warded) finalDmg = 0;
+
   // Drain resolution: highest resulting heal wins across skill/weapon/art sources.
   if (finalDmg > 0) {
     if (weaponSpecial?.includes('Drains HP')) {
@@ -1997,6 +2014,7 @@ function rollStrike(
     commandersGambit,
     reflectDamage,
     warpRange,
+    ...(warded ? { warded: true } : {}),
     ...(absorbed?.stoneBroken ? { stoneBroken: true, hpBeforeBreak: targetHP } : {}),
     ...(absorbed?.bannerHeld ? { bannerHeld: true, hpBeforeHold: targetHP } : {}),
   };

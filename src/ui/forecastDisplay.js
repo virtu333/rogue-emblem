@@ -156,6 +156,9 @@ function laterStrikesDiffer(side) {
   );
 }
 
+/** The forecast's note on a warded Voice (the Vigil's shields). */
+export const WARDED_FORECAST_NOTE = 'Warded: no damage until its ward breaks';
+
 // Shared readout for the canvas and DOM forecasts. Keep assumptions beside estimates.
 /**
  * Short notes under a forecast side. `weapons` ({ planned, equipped }) lets the
@@ -168,6 +171,8 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
   const notes = [];
   const { planned, equipped } = weapons || {};
   if (attacking && planned && planned !== equipped) notes.push(`Confirming equips ${planned.name}`);
+  // A warded Voice (engine/Vigil.js) takes nothing: say why before the player spends a turn.
+  if (attacking && forecast?.defender?.warded) notes.push(WARDED_FORECAST_NOTE);
   if (projection) {
     const side = attacking ? 'attacker' : 'defender';
     notes.push(`If all hits land: ${projectedHpText(projection, side)} (no crits/procs)`);

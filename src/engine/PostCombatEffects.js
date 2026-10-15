@@ -611,6 +611,8 @@ function* allyHeal(step, sourceUnit, world) {
 function* setHp(step, sourceUnit, targetUnit) {
   if (!sourceUnit || sourceUnit.currentHP <= 0) return;
   if (!targetUnit || targetUnit.currentHP <= 0) return;
+  // A warded Voice (engine/Vigil.js) keeps its HP: an art's "HP -> N" is turned aside too.
+  if (targetUnit.warded === true) return;
   const value = Math.max(1, Math.trunc(Number(step?.value) || 0));
   if (value <= 0) return;
   const maxHp = Math.max(1, Math.trunc(Number(targetUnit.stats?.HP) || 1));

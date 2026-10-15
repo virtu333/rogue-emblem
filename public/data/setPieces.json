@@ -324,7 +324,7 @@
     {
       "id": "the_vigil",
       "title": "The Vigil",
-      "lore": "Four voices, one ring, no pause for breath. Whatever they are saying, the floor is listening.",
+      "lore": "Four voices on four stones over nothing. Each is warded by a circle across the dark; the last will not fall while any other speaks.",
       "objective": "rout",
       "objectives": {
         "version": 1,
@@ -340,43 +340,45 @@
       "acts": ["finalBoss"],
       "biome": null,
       "fog": false,
+      "parBonus": 2,
       "deploy": { "max": 8 },
       "variants": [
         {
-          "id": "ring_hall",
+          "id": "bridges_of_the_rite",
           "mirror": true,
           "map": {
-            "legend": { ".": "Floor", "#": "Wall", "P": "Pillar" },
+            "legend": { ".": "Floor", "~": "Abyss", "P": "Pillar" },
             "rows": [
-              "# # # # # # . . . # # # # # #",
-              "# # . . . . . . . . . . . # #",
-              "# . . P . . . . . . . P . . #",
-              "# . . . . # # . # # . . . . #",
-              ". . . . # . . . . . # . . . .",
-              ". . . . # . . . . . # . . . .",
-              ". . P . . . . . . . . . P . .",
-              ". . . . # . . . . . # . . . .",
-              ". . . . # . . . . . # . . . .",
-              "# . . . . # # . # # . . . . #",
-              "# . . P . . . . . . . P . . #",
-              "# # . . . . . . . . . . . # #",
-              "# # # # # # . . . # # # # # #"
+              "~ ~ ~ ~ ~ ~ P . . . ~ ~ ~ ~ ~ ~",
+              "~ ~ . . . . . . . . . . . . ~ ~",
+              "~ ~ . . ~ ~ . . . P ~ ~ . . ~ ~",
+              "~ ~ . ~ ~ ~ ~ ~ . ~ ~ ~ ~ . ~ ~",
+              "~ ~ . ~ ~ ~ ~ ~ . ~ ~ ~ ~ . ~ ~",
+              ". . . ~ ~ ~ ~ P . . ~ ~ ~ . . P",
+              ". . . ~ ~ ~ ~ . . . ~ ~ ~ . . .",
+              ". . . ~ ~ ~ ~ . . . . . . . . .",
+              ". . . ~ ~ ~ ~ . . P ~ ~ ~ . . P",
+              "~ ~ . ~ ~ ~ ~ ~ . ~ ~ ~ ~ . ~ ~",
+              "~ ~ . ~ ~ ~ ~ ~ . ~ ~ ~ ~ . ~ ~",
+              "~ ~ . . ~ ~ . . . P ~ ~ . . ~ ~",
+              "~ ~ . . . . . . . . . . . . ~ ~",
+              "~ ~ ~ ~ ~ ~ P . . . ~ ~ ~ ~ ~ ~"
             ]
           },
           "playerSpawns": [
-            { "col": 0, "row": 6 },
             { "col": 1, "row": 6 },
-            { "col": 0, "row": 5 },
-            { "col": 0, "row": 7 },
-            { "col": 1, "row": 5 },
             { "col": 1, "row": 7 },
-            { "col": 0, "row": 4 },
-            { "col": 0, "row": 8 }
+            { "col": 0, "row": 6 },
+            { "col": 0, "row": 7 },
+            { "col": 2, "row": 6 },
+            { "col": 2, "row": 7 },
+            { "col": 1, "row": 5 },
+            { "col": 1, "row": 8 }
           ],
           "enemies": [
             {
-              "col": 7,
-              "row": 4,
+              "col": 8,
+              "row": 1,
               "classes": ["Circle Adept"],
               "id": "voice_calling",
               "name": "Voice of the Calling",
@@ -384,7 +386,7 @@
               "aiMode": "post"
             },
             {
-              "col": 9,
+              "col": 14,
               "row": 6,
               "classes": ["Circle Adept"],
               "id": "voice_binding",
@@ -393,8 +395,8 @@
               "aiMode": "post"
             },
             {
-              "col": 7,
-              "row": 8,
+              "col": 8,
+              "row": 12,
               "classes": ["Circle Adept"],
               "id": "voice_feeding",
               "name": "Voice of the Feeding",
@@ -402,7 +404,7 @@
               "aiMode": "post"
             },
             {
-              "col": 5,
+              "col": 8,
               "row": 6,
               "classes": ["Circle Adept"],
               "id": "voice_waking",
@@ -418,34 +420,36 @@
               "level": -2,
               "aiMode": "guard"
             },
-            { "col": 11, "row": 3, "classes": ["Assassin"], "name": "Ritual Blade", "hold": 1 },
-            { "col": 11, "row": 9, "classes": ["Assassin"], "name": "Ritual Blade", "hold": 1 },
+            { "col": 3, "row": 2, "classes": ["General"], "aiMode": "guard", "minRung": "dusk" },
+            { "col": 3, "row": 11, "classes": ["Hero"], "aiMode": "guard", "minRung": "dusk" },
             { "col": 12, "row": 2, "classes": ["Sniper"] },
-            { "col": 12, "row": 10, "classes": ["Hero"] },
-            { "col": 6, "row": 1, "classes": ["Wyvern Lord"] },
-            { "col": 8, "row": 11, "classes": ["General"] },
-            { "col": 13, "row": 4, "classes": ["Swordmaster"], "minRung": "dusk" },
-            { "col": 13, "row": 8, "classes": ["Warrior"], "minRung": "hard" },
-            {
-              "col": 13,
-              "row": 6,
-              "classes": ["Sage"],
-              "name": "Ash Magus",
-              "minRung": "lunatic"
-            }
+            { "col": 13, "row": 2, "classes": ["Assassin"], "name": "Ritual Blade", "hold": 1 },
+            { "col": 12, "row": 11, "classes": ["Assassin"], "name": "Ritual Blade", "hold": 2 },
+            { "col": 15, "row": 7, "classes": ["Wyvern Lord"] },
+            { "col": 13, "row": 11, "classes": ["Swordmaster"], "hold": 2, "minRung": "dusk" },
+            { "col": 7, "row": 1, "classes": ["Warrior"], "minRung": "hard" },
+            { "col": 7, "row": 7, "classes": ["Sage"], "name": "Ash Magus", "minRung": "lunatic" }
           ],
           "vigil": {
+            "wards": true,
+            "choir": true,
             "sigils": [
-              { "id": "sigil_calling", "col": 7, "row": 4, "target": "voice_calling" },
-              { "id": "sigil_binding", "col": 9, "row": 6, "target": "voice_binding" },
-              { "id": "sigil_feeding", "col": 7, "row": 8, "target": "voice_feeding" },
-              { "id": "sigil_waking", "col": 5, "row": 6, "target": "voice_waking", "waking": true }
+              { "id": "sigil_calling", "col": 8, "row": 1, "target": "voice_calling" },
+              { "id": "sigil_binding", "col": 14, "row": 6, "target": "voice_binding" },
+              { "id": "sigil_feeding", "col": 8, "row": 12, "target": "voice_feeding" },
+              {
+                "id": "sigil_waking",
+                "col": 8,
+                "row": 6,
+                "target": "voice_waking",
+                "waking": true
+              }
             ],
             "circles": [
-              { "id": "circle_calling", "col": 12, "row": 1, "voice": "voice_calling" },
-              { "id": "circle_binding", "col": 12, "row": 11, "voice": "voice_binding" },
-              { "id": "circle_feeding", "col": 2, "row": 11, "voice": "voice_feeding" },
-              { "id": "circle_waking", "col": 2, "row": 1, "voice": "voice_waking" }
+              { "id": "circle_calling", "col": 2, "row": 12, "voice": "voice_calling" },
+              { "id": "circle_binding", "col": 2, "row": 1, "voice": "voice_binding" },
+              { "id": "circle_feeding", "col": 13, "row": 1, "voice": "voice_feeding" },
+              { "id": "circle_waking", "col": 13, "row": 12, "voice": "voice_waking" }
             ]
           }
         }

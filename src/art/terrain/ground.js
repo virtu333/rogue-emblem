@@ -594,6 +594,48 @@ function paintWall(S, x, y) {
   return t;
 }
 
+// The Abyss: a drop into the dark between platforms. A sheer stone face falls from any ground
+// above it (the near lip of the platform, lit at its edge, fading down into the black), thin
+// dark rims meet ground beside it, and the depth below is a near-black violet with a few faint
+// motes of unlight. Deterministic from the seed; no animation.
+const ABYSS_FACE_H = 11;
+function paintAbyss(S, x, y) {
+  const c = (x / CELL) | 0,
+    r = (y / CELL) | 0,
+    u = x - c * CELL,
+    v = y - r * CELL;
+  const ground = (cc, rr) => S.inMap(cc, rr) && S.groundAt(cc, rr) !== G.ABYSS;
+  const northGround = ground(c, r - 1);
+  const westGround = ground(c - 1, r);
+  const eastGround = ground(c + 1, r);
+  const southGround = ground(c, r + 1);
+  // The face under a platform: masonry courses, lit at the lip, sinking into the dark.
+  if (northGround && v < ABYSS_FACE_H) {
+    if (v === 0) return R('stone', 4);
+    const depth = v / ABYSS_FACE_H;
+    const course = Math.floor((v - 1) / 3),
+      k = (v - 1) % 3;
+    const off = course % 2 ? 4 : 0;
+    if (k === 2 || (x + off) % 8 === 0) return depth < 0.5 ? R('stone', 1) : R('ink', 1);
+    const h = hash2(Math.floor((x + off) / 8), course + r * 5, S.seed + 141) % 10;
+    if (depth < 0.35) return h < 7 ? R('stone', 3) : R('stone', 2);
+    if (depth < 0.7) return h < 7 ? R('stone', 2) : R('stone', 1);
+    return h < 6 ? R('stone', 1) : R('ink', 2);
+  }
+  // Rims where ground meets the drop beside or below: one dark line, then a lighter one.
+  if (westGround && u === 0) return R('ink', 0);
+  if (eastGround && u === CELL - 1) return R('ink', 0);
+  if (southGround && v === CELL - 1) return R('stone', 2);
+  // The depth: a slow drift of violet over near-black, darker toward the cell's middle.
+  const drift = S.nz.vn(x, y, 18, S.seed + 142);
+  let t = drift > 0.62 ? R('unlight', 0) : drift > 0.4 ? R('ink', 2) : R('ink', 1);
+  // Sparse motes of unlight, one or two a cell at most.
+  const mote = hash2(x, y, S.seed + 143) % 997;
+  if (mote === 0) t = R('unlight', 3);
+  else if (mote < 3) t = R('unlight', 2);
+  return t;
+}
+
 export function passGround(S, x0, y0, x1, y1) {
   const { W, style, mat, idx, anim, shadow, owner, cols } = S;
   // Per-cell flags for the cells this region touches: lava / lived-in
@@ -681,6 +723,9 @@ export function passGround(S, x0, y0, x1, y1) {
           break;
         case G.WALL:
           t = paintWall(S, x, y);
+          break;
+        case G.ABYSS:
+          t = paintAbyss(S, x, y);
           break;
         default:
           t = R('ink', 5);

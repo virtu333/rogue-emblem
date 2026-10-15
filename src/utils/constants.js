@@ -145,6 +145,7 @@ export const TERRAIN = {
   Bog: 16,
   AcidicSwamp: 17,
   AcidicBog: 18,
+  Abyss: 19, // the Vigil's drop between platforms: fliers only
 };
 export const ACID_TERRAIN_TYPES = new Set([TERRAIN.AcidicSwamp, TERRAIN.AcidicBog]);
 
@@ -564,4 +565,5 @@ export const TERRAIN_COLORS = {
   Bog: 0x6b7340,
   'Acidic Swamp': 0x3a5030,
   'Acidic Bog': 0x5b6330,
+  Abyss: 0x0e0b16,
 };

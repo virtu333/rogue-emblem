@@ -6,6 +6,7 @@ import {
   statusDescriptions,
   statusStaffInfo,
   carriedItemInfo,
+  wardInfo,
 } from '../engine/BattleInformation.js';
 import { entityReachInfo } from '../engine/EntityReach.js';
 import { UI_COLORS, UI_HEX } from '../utils/uiStyles.js';
@@ -51,6 +52,7 @@ export class UnitInspectionPanel {
     const pixelY = screenPos?.y ?? worldPos.y;
     const details = [
       entityReachInfo(unit)?.text,
+      wardInfo(unit)?.text,
       ...statusDescriptions(unit),
       statusStaffInfo(unit)?.text,
       carriedItemInfo(unit)?.text,

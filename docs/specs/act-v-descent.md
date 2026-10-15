@@ -130,6 +130,39 @@ on the slot (`captain`-like `name`, never `isBoss`):
 The Waking's word counts double (the Rite +2) while the other three still live: the player who
 reads the four plates learns to silence it first, or to ignore it and race the circles.
 
+#### 3.1.1 The bridges and the shields (as built, the difficulty rework)
+
+Playtests found the ring hall too easy: the Voices sat inside four doorways and the Waking could
+fall on turn 1. The Vigil is now **The Bridges of the Rite** (16x14, every rung): stone platforms
+over the **Abyss** (terrain index 19, appended: impassable on foot, Flying moves 1; the Gate's
+reserved index is 20), joined by bridges one tile wide, after FE6's "The Truth of the Legend".
+The army deploys on the west platform; the Calling holds the north platform, the Feeding the
+south, the Binding the east and the Waking the centre dais with the Warden; each circle stands on
+a corner landing across the dark from its Voice (a General and a Hero hold the two near landings,
+the far two have hold packs).
+
+- **Wards** (`vigil.wards: true`). A Voice is **warded** while a circle naming it still stands: it
+  takes no damage from anything (`unit.warded`, read by `Combat` strikes and forecasts,
+  `UnitHealth.damageUnitDetailed`, an art's set-HP). A player or NPC unit standing on a circle at
+  the enemy phase's start **breaks** it for good, before the words and the summons: the Voice's
+  ward falls and the circle calls no more. `vigilState.broken` = `{ circleId: turn }`, saved only
+  once a circle breaks.
+- **The choir** (`vigil.choir: true`). The Waking is warded while any other Voice lives, whatever
+  its circle.
+- **Stamps.** `applyVigilWards(vigil, state, enemyUnits)` is the one writer of `warded` /
+  `wardReason` (`circle` | `choir` | `both`): at battle start, after each phase step, after a
+  Voice leaves the roster, after a restore (scene and harness). The unit card, forecast note and a
+  "Warded" float say it; a break plays "A circle breaks." with `sfx_ward_break` where the player
+  sees it.
+- **Saves.** Run-format capabilities `vigilWards` (a locked vigil's `wards`/`choir`, a checkpoint's
+  `broken`) and `abyss` (an Abyss tile in a map).
+- **Tuning.** The piece carries `parBonus: 2` (breaking circles takes structural turns), and the
+  General and Hero by the two near landings stand from Dusk up, so First Light's near circles are
+  free. `npm run sim:descent -- --until vigil` from the same captured armies, old ring hall → new:
+  Nightfall endgame 99% → 92% cleared, 3.4 → 9.3 turns (under par); Nightfall half 84% → 78%;
+  Dusk half 88% → 90%; Black Sun half 75% → 67%; First Light quarter 61% → 58% (39% before the
+  First Light gates). The scripted player stalls more on the bridges than a person would.
+
 ### 3.2 Summoning circles elsewhere
 
 The Stair and the Mortuary Column have no Voices, but the Stair's lower landing has one circle

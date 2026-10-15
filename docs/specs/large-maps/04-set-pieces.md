@@ -1157,7 +1157,7 @@ specs add. Set pieces are one case. On a node that holds one but is not yet ente
 generate the kept procedural template with the rewritten `objective` (an elite seize
 template played as a rout). On a locked set-piece config or a suspend checkpoint inside one
 it would play the config with no group, objective or phase rules: a `defeat` map as a rout
-of every holder, and, from `03` PR 7, a `Gate` tile (terrain index 19) it does not know.
+of every holder, and, from `03` PR 7, a `Gate` tile (terrain index 20) it does not know.
 Saves cross clients through the cloud (`run_saves`): an iOS build that has not updated, or a
 stale web tab, fetches the row another device pushed.
 
@@ -1236,7 +1236,7 @@ top-level run fields.
 | `encounters` | — (the plan reaches generation through the run field) | `encounterGroups` holding a group that is not a legacy hold pack (id not `hold:<pack>`, a `wake` outside `[danger, hurt]`, or an `onWake.mode` other than `hunt`); `reinforcements.triggeredWaves` non-empty; a spawn with `patrolIndex` | `encounterState.groups` or `.fired` with a key not rooted in a `hold:` group; a unit with an `encounterGroupId` that is not `hold:`; `patrolIndex` | `difficultyModifiers.encounterPlan` with a non-null entry (`02` PR 2.6; `null` until then) |
 | `parModel` | — | `parModel` (any value) | via the config | — |
 | `objectives` | `battleParams.objectivePreview` | `objectives` that `normalizeObjectives` would not derive from the same config: more than one primary, a kind outside rout / seize / escape, any `phases`, a bonus other than the derived `village` / `caravan`, `parAdjust` ≠ 0; `npcAllies`; a spawn with `clampTile` or `objectiveRef` | `objectiveState` with `phase` > 0, an entry in `points`, `escorted`, `fled` or `floors`, a `thrones` or `status` id the derivation would not hold, or a `structures` entry | `bonusVisionActs` (`03` §12: saved only when Vision rewards are on) |
-| `gateTerrain` | — | `structures` non-empty | terrain index 19 anywhere in `mapLayout` | — |
+| `gateTerrain` | — | `structures` non-empty | terrain index 20 anywhere in `mapLayout` | — |
 | `bossKit` | a `boss` node of Act II or later, once the run field holds: an unentered boss node there is a kit boss (Act I's bosses are `kitless`) | `bossKit`, `bossSignature`; a boss spawn with `bossKit` | `bossState` with any entry (`signature.pending`, `firedTurns`, `count`, `marked`, `pillars`, `musicLatch`); a unit with `bossKit` | `difficultyModifiers.bossKits.enabled` is true (`05` §10.1's snapshot, taken at run start; true on any rung with kits switched on, First Light included) |
 | `arena` | `battleParams.arenaVariant` (`05` §4.4's post-pass writes it on every node it rewrites, variant 0 included, so detection never needs the template catalogue) | `arenaVariant` in the params the config came from | `battleInProgress.battleParams.arenaVariant` | — |
 | `setPiece` (assembled only, §16.5) | `battleParams.setPieceFallback`; `objectivePreview` | `setPieceVersion`, `setPieceChoices` or `setPieceChunks` | via the config | `setPiecesOffered` |
