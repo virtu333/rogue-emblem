@@ -489,7 +489,7 @@ const STATIC_HELP_TABS = [
           { text: 'Some foes carry an item (a sack pip', color: GRAY },
           { text: 'marks them; inspect one to see it).', color: GRAY },
           { text: '' },
-          { text: 'Steal (Thief, or a Steal Scroll):', color: GOLD },
+          { text: 'Steal (Thief):', color: GOLD },
           { text: '  Take an adjacent carrier’s item.' },
           { text: '  Your attack speed must be at least' },
           { text: '  theirs, or the row reads Too slow.' },
