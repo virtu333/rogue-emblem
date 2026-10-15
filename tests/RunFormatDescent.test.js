@@ -81,10 +81,11 @@ const DESCENT_IDS = ['descent', 'rite', 'vigil', 'defeatObjective'];
 
 describe('the Descent’s capabilities', () => {
   it('four ids at format 2, after the guard’s seven, and this build plays them', () => {
+    // The Entity's kit (EntityKit.js, Nightfall and Black Sun) follows them, then NG+'s one
+    // (NgPlus.test.js).
     expect(CAPABILITY_IDS.slice(7, 11)).toEqual(DESCENT_IDS);
     for (const id of DESCENT_IDS) expect(RUN_CAPABILITIES[id]).toBe(2);
-    // Then NG+'s one (NgPlusRunFormat.test.js).
-    expect([...CLIENT_CAPABILITIES]).toEqual([...DESCENT_IDS, 'ngPlus']);
+    expect([...CLIENT_CAPABILITIES]).toEqual([...DESCENT_IDS, 'entityKit', 'ngPlus']);
     // Not the large-maps model: a written objectives model beyond `defeat` is still refused.
     expect(CLIENT_CAPABILITIES).not.toContain('objectives');
   });
@@ -247,6 +248,10 @@ const DETECTION_ROWS = [
   ['a checkpoint’s Vigil count', 'vigil', { state: state({ vigilState: midVigilCheckpoint().vigilState }) }], // prettier-ignore
   ['a Vision snapshot’s Vigil count', 'vigil', { state: state({ visionSnapshot: state({ vigilState: { words: 1 } }) }) }], // prettier-ignore
   ['the pending Vision snapshot’s', 'vigil', { state: state({ pendingVisionSnapshot: state({ vigilState: { words: 0 } }) }) }], // prettier-ignore
+  // entityKit: the Entity's limbs and undertow, on a locked map or a checkpoint (never the params)
+  ['a locked Entity kit', 'entityKit', { config: config({ entityKit: { limbs: null, undertow: true } }) }], // prettier-ignore
+  ['a checkpoint’s limb count', 'entityKit', { state: state({ entityKitState: { strikes: [], sprouted: 1, severed: 0, lastProcessedTurn: 2 } }) }], // prettier-ignore
+  ['a Vision snapshot’s limb count', 'entityKit', { state: state({ visionSnapshot: state({ entityKitState: { strikes: [], sprouted: 0, severed: 0, lastProcessedTurn: 0 } }) }) }], // prettier-ignore
   // defeatObjective: the model this build plays, on a locked map or a node's params
   ['a defeat of @boss on a node', 'defeatObjective', { params: { objectives: structuredClone(DEFEAT_BOSS_OBJECTIVES) } }], // prettier-ignore
   ['a defeat of @boss locked', 'defeatObjective', { config: config({ objectives: structuredClone(DEFEAT_BOSS_OBJECTIVES) }) }], // prettier-ignore

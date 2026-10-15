@@ -201,6 +201,18 @@ function validRestoreFields(state, width, height) {
     )
   )
     return false;
+  // The Entity's limbs (engine/EntityKit.js): counts, and the tiles struck from.
+  if (
+    !optional(
+      state,
+      'entityKitState',
+      (kit) =>
+        record(kit) &&
+        ['sprouted', 'severed', 'lastProcessedTurn'].every((key) => integer(kit[key])) &&
+        list(kit.strikes, tile, 16),
+    )
+  )
+    return false;
   for (const key of ['playerDeathsThisBattle', 'goldEarned', 'checkpointIndex'])
     if (!optional(state, key, integer)) return false;
   for (const key of ['latePressureWarningShown', 'caravanExited'])

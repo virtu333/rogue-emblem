@@ -665,6 +665,8 @@ export const UPGRADE_ICON_REUSE = Object.freeze({
  */
 export const WEAPON_ICON_REUSE = Object.freeze({
   Greycord: 'gravesong',
+  // the Entity's Grasping Limbs (EntityKit.js) wield a coil of the Entity's own grasp
+  'Grasping Coil': 'eldritch-grasp',
   "Hunter's Focus Scroll": 'encloser-scroll',
   'Toppling Blow Scroll': 'lunge-scroll',
   // Epic weapons (docs/specs/epic-weapons.md) and the relic Daybreak: borrowed pictures until

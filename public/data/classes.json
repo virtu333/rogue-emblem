@@ -1796,5 +1796,26 @@
     "weaponProficiencies": "Swords (M), Tomes (M)",
     "role": "Eldritch final boss",
     "description": "The horror beneath the stillness fills a three-tile span and strikes from range with two weapons at once."
+  },
+  {
+    "name": "Grasping Limb",
+    "lore": "No one has seen where it ends. The floor gives way to it like water, and closes over it again like stone.",
+    "tier": "boss",
+    "baseStats": {
+      "HP": 22,
+      "STR": 18,
+      "MAG": 0,
+      "SKL": 14,
+      "SPD": 8,
+      "DEF": 12,
+      "RES": 8,
+      "LCK": 0,
+      "MOV": 0
+    },
+    "moveType": "Infantry",
+    "weaponProficiencies": "Swords (M)",
+    "role": "The Entity's reach",
+    "enemyWeapon": "Grasping Coil",
+    "description": "A limb of the Entity, risen where it was struck from. The Entity strikes anyone beside one; cutting one down wounds the Entity."
   }
 ]

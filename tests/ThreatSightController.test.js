@@ -299,9 +299,11 @@ describe('ThreatSightController', () => {
 });
 
 describe('ThreatSightController: "counters from here" follows the mover\'s weapons', () => {
-  // The Entity (a 3x3 body at 7..9, 0..2) cannot strike (4, 1), three tiles off, but it answers
-  // a blow from there: a note only for a unit carrying a weapon that reaches 3.
+  // The Entity (a 3x3 body at 7..9, 0..2) cannot strike (3, 1), four tiles off, but it answers
+  // a blow from there: a note only for a unit carrying a weapon that reaches 4 (no catalog
+  // weapon does; a reach bonus can, WeaponReach.js: here a bow drawn with that reach).
   const weapon = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));
+  const reachBow = () => ({ ...weapon('Longbow'), range: '2-4' });
   const entity = () => ({
     name: 'The Entity',
     faction: 'enemy',
@@ -317,7 +319,7 @@ describe('ThreatSightController: "counters from here" follows the mover\'s weapo
   });
   const archerless = () => ({
     ...sera(),
-    col: 4,
+    col: 3,
     row: 1,
     weapon: weapon('Iron Sword'),
     inventory: [weapon('Iron Sword')],
@@ -328,13 +330,13 @@ describe('ThreatSightController: "counters from here" follows the mover\'s weapo
     const player = archerless();
     const scene = makeScene({ enemies: [entity()], player });
     const sight = new ThreatSightController(scene).create();
-    expect(sight.describe(4, 1)).toBe('No foe can reach');
+    expect(sight.describe(3, 1)).toBe('No foe can reach');
     // The trade: a Longbow comes into the bag. Same tile, same turn, same foes.
-    player.inventory.push(weapon('Longbow'));
-    expect(sight.describe(4, 1)).toBe(COUNTERS);
+    player.inventory.push(reachBow());
+    expect(sight.describe(3, 1)).toBe(COUNTERS);
     // And the other way: it hands the bow on again.
     player.inventory.pop();
-    expect(sight.describe(4, 1)).toBe('No foe can reach');
+    expect(sight.describe(3, 1)).toBe('No foe can reach');
   });
 
   it('the drawn answer is asked again after a Trade or Equip that leaves the unit in place', () => {
@@ -344,7 +346,7 @@ describe('ThreatSightController: "counters from here" follows the mover\'s weapo
     sight.sync();
     expect(sight.current.result.counter).toEqual([]);
     // An Equip from the convoy: the Longbow is now the weapon in hand (and in the bag).
-    const bow = weapon('Longbow');
+    const bow = reachBow();
     player.inventory.push(bow);
     player.weapon = bow;
     sight.sync(); // the per-frame tick: the same call the scene's update makes
@@ -359,7 +361,7 @@ describe('ThreatSightController: "counters from here" follows the mover\'s weapo
 
   it('swapping which carried weapon is equipped does not change what it can reach', () => {
     const player = archerless();
-    player.inventory.push(weapon('Longbow'));
+    player.inventory.push(reachBow());
     const scene = makeScene({ enemies: [entity()], player, state: 'UNIT_ACTION_MENU' });
     const sight = new ThreatSightController(scene).create();
     sight.sync();

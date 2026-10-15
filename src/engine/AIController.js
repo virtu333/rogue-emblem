@@ -32,8 +32,7 @@ import {
   parseStaffRange,
   isHealStaff,
 } from './StatusConditionSystem.js';
-import { isEntity, combatDistance, pickBestWeapon } from './EntitySystem.js';
-import { ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
+import { isEntity, canEntityStrike, combatDistance, pickBestWeapon } from './EntitySystem.js';
 import { isAcidTerrainIndex } from './TerrainHazards.js';
 import { createScopedLogger } from '../utils/logger.js';
 import { setUnitHP } from './UnitHealth.js';
@@ -174,9 +173,10 @@ export class AIController {
       return decision;
     }
 
-    // Entity boss: stationary, dual weapon, range-2 primary attack
+    // Entity boss: stationary, dual weapon, strikes within ENTITY_PRIMARY_ATTACK_RANGE of its
+    // body or beside one of its Grasping Limbs (EntitySystem.canEntityStrike)
     if (isEntity(enemy)) {
-      const decision = this._decideEntityAction(enemy, playerUnits, npcUnits);
+      const decision = this._decideEntityAction(enemy, playerUnits, npcUnits, allEnemies);
       enemy._lastAiDecision = decision;
       callbacks.onDecision?.(enemy, decision);
       if (decision?.target) {
@@ -332,8 +332,8 @@ export class AIController {
     await callbacks.onMoveUnit(enemy, plan.path);
   }
 
-  /** Entity AI: stationary, picks best weapon, targets within ENTITY_PRIMARY_ATTACK_RANGE. */
-  _decideEntityAction(entity, playerUnits, npcUnits) {
+  /** Entity AI: stationary, picks best weapon, targets what canEntityStrike reaches. */
+  _decideEntityAction(entity, playerUnits, npcUnits, allEnemies = []) {
     const allTargets = [...(playerUnits || []), ...(npcUnits || [])].filter(
       (u) => u && u.currentHP > 0 && !u._removing,
     );
@@ -343,8 +343,7 @@ export class AIController {
     let bestScore = -Infinity;
 
     for (const target of allTargets) {
-      const dist = combatDistance(entity, target);
-      if (dist > ENTITY_PRIMARY_ATTACK_RANGE) continue;
+      if (!canEntityStrike(entity, target, allEnemies)) continue;
       const score = this._scoreAttackTarget(entity, target, false);
       if (score > bestScore) {
         bestScore = score;

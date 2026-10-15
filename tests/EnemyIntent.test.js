@@ -177,6 +177,48 @@ describe('EnemyIntent: a unit entering reach does not by itself draw the attack'
   });
 });
 
+describe('EnemyIntent projects an enemy Canto step before the next foe decides', () => {
+  // A wall with a one-tile gap at (5,2); the army holds the far side. Foe A walks into the
+  // gap to strike the knight, then its Canto steps it back out of the knight's reach, which
+  // opens the gap for foe B behind it. A fight nobody dies in, so occupancy is the only
+  // difference between the preview and the phase.
+  function chokepoint(cantoSkills) {
+    const layout = plainLayout(10, 5);
+    for (let r = 0; r < 5; r++) if (r !== 2) layout[r][5] = T.Wall;
+    const grid = makeGrid(layout);
+    const a = unit('enemy', 4, 2, {
+      name: 'A',
+      skills: cantoSkills,
+      stats: { HP: 40, DEF: 12, MOV: 5 },
+    });
+    const b = unit('enemy', 2, 3, { name: 'B', stats: { HP: 40, DEF: 12, MOV: 5 } });
+    const knight = unit('player', 6, 2, {
+      name: 'Knight',
+      stats: { HP: 60, DEF: 20, STR: 2, MOV: 1 },
+    });
+    return { grid, a, b, knight, world: { enemies: [a, b], players: [knight], npcs: [] } };
+  }
+
+  it('B takes the gap A vacated, as the real phase does', async () => {
+    const { grid, a, b, knight, world } = chokepoint(['canto']);
+    const intents = predict(grid, world, null);
+    expect(intents.get(a)).toMatchObject({ kind: 'attack', target: knight });
+    expect(intents.get(b)).toMatchObject({ kind: 'attack', target: knight });
+    const played = await playEnemyPhase(grid, world, null, 0, 0);
+    expect(played.get('A')).toEqual({ kind: 'attack', target: 'Knight' });
+    expect(played.get('B')).toEqual({ kind: 'attack', target: 'Knight' });
+    expect(named(intents)).toEqual(played);
+  });
+
+  it('without Canto A keeps the gap and B has no one to strike, in both', async () => {
+    const { grid, a, b, world } = chokepoint([]);
+    const intents = predict(grid, world, null);
+    expect(intents.get(a)).toMatchObject({ kind: 'attack' });
+    expect(intents.get(b)).toMatchObject({ kind: 'none' });
+    expect(named(intents)).toEqual(await playEnemyPhase(grid, world, null, 0, 0));
+  });
+});
+
 describe('EnemyIntent agrees with the real enemy phase', () => {
   // A seeded sweep of small boards: walls, mixed weapons, several foes and units. For every
   // destination of the mover, the prediction must equal what processEnemyPhase does.
@@ -385,5 +427,68 @@ describe('EnemyIntent: foes that will not move', () => {
     expect(run(false)).toMatchObject({ kind: 'none', reason: 'boss_hold_throne' });
     expect(run(true)).toMatchObject({ kind: 'attack', target: knight });
     expect(ai.aggressiveMode).toBe(false); // the battle's AI is untouched
+  });
+});
+
+describe("EnemyIntent: the Entity's Grasping Limbs (live and preview agree)", () => {
+  // The Entity's body at cols 1-3, rows 2-4; a limb at (9,3). The Entity strikes within 3 of
+  // its body or beside a living limb (EntitySystem.canEntityStrike).
+  const entityAt = (col, row) =>
+    unit('enemy', col, row, {
+      name: 'The Entity',
+      className: 'Entity',
+      isEntity: true,
+      isBoss: true,
+      mov: 0,
+      weaponName: 'Eldritch Grasp',
+      stats: { HP: 120, STR: 24, MAG: 22, SKL: 20, SPD: 12, DEF: 22, RES: 20, LCK: 15, MOV: 0 },
+      currentHP: 120,
+    });
+  const limbAt = (col, row, extra = {}) =>
+    unit('enemy', col, row, {
+      name: 'Grasping Limb',
+      className: 'Grasping Limb',
+      _summonedBy: 'entity:limb',
+      mov: 0,
+      weaponName: 'Grasping Coil',
+      stats: { HP: 22, STR: 18, SKL: 14, SPD: 8, DEF: 12, RES: 8, MOV: 0 },
+      ...extra,
+    });
+  const board = ({ limb = {}, fogHidesLimb = false } = {}) => {
+    const grid = makeGrid(plainLayout(14, 8));
+    if (fogHidesLimb) {
+      grid.fogEnabled = true;
+      grid.isVisible = (col, row) => !(col === 9 && row === 3);
+    }
+    const entity = entityAt(1, 2);
+    const knight = unit('player', 13, 7, { name: 'Knight', weaponName: 'Iron Bow' });
+    const world = { enemies: [entity, limbAt(9, 3, limb)], players: [knight], npcs: [] };
+    return { grid, entity, knight, world };
+  };
+  const entityPreview = (b, col, row) => predict(b.grid, b.world, b.knight, col, row).get(b.entity);
+  const entityLive = async (b, col, row) =>
+    (await playEnemyPhase(b.grid, b.world, b.knight, col, row)).get('The Entity') || null;
+
+  it('a mover set down beside a visible living limb is struck, in both', async () => {
+    const b = board();
+    expect(entityPreview(b, 10, 3)).toMatchObject({ kind: 'attack', target: b.knight });
+    expect(await entityLive(b, 10, 3)).toEqual({ kind: 'attack', target: 'Knight' });
+  });
+
+  it('a mover set down out of every reach is not, in both', async () => {
+    const b = board();
+    expect(entityPreview(b, 11, 3)).toMatchObject({ kind: 'none', target: null });
+    expect(await entityLive(b, 11, 3)).toBeNull();
+  });
+
+  it('a dead limb lends no reach, in both', async () => {
+    const b = board({ limb: { currentHP: 0 } });
+    expect(entityPreview(b, 10, 3)).toMatchObject({ kind: 'none', target: null });
+    expect(await entityLive(b, 10, 3)).toBeNull();
+  });
+
+  it('a limb the fog hides lends the preview nothing (it would name an unseen foe)', () => {
+    const b = board({ fogHidesLimb: true });
+    expect(entityPreview(b, 10, 3)).toMatchObject({ kind: 'none', target: null });
   });
 });

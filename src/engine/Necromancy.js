@@ -82,6 +82,8 @@ const NEVER_COPIED_CLASSES = new Set([
   SKELETON_CLASS,
   CIRCLE_ADEPT_CLASS,
   HOLLOWED_CLASS,
+  // The Entity's Grasping Limb (engine/EntityKit.js): it rises only from a strike on the Entity.
+  'Grasping Limb',
 ]);
 
 /** True for a class an arrival template or an arena bout may never copy or draw. */

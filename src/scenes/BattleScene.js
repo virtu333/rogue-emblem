@@ -198,6 +198,7 @@ import {
 } from '../engine/Combat.js';
 import {
   isEntity,
+  isEntityLimb,
   getFootprint,
   getFootprintKeys,
   combatDistance,
@@ -435,6 +436,8 @@ import { NecromancyController } from '../ui/NecromancyController.js';
 import { isNecromancer } from '../engine/Necromancy.js';
 import { createVigilState, isVoiceOf } from '../engine/Vigil.js';
 import { VigilController } from '../ui/VigilController.js';
+import { EntityLimbController } from '../ui/EntityLimbController.js';
+import { entityKitWorld, initialEntityKitState } from '../engine/EntityKit.js';
 import { classChangeItemBlock } from '../engine/TwistedBoons.js';
 import { HealController } from '../ui/HealController.js';
 import { InputController } from '../ui/InputController.js';
@@ -543,6 +546,11 @@ function necromancyOf(scene) {
 /** The battle's Vigil (VigilController: its markers, words and calls), made on first use. */
 function vigilOf(scene) {
   return (scene._vigilCtrl ||= new VigilController(scene));
+}
+
+/** The Entity's Grasping Limbs (EntityLimbController: rises, wounds, withering), made on first use. */
+function limbsOf(scene) {
+  return (scene._entityLimbCtrl ||= new EntityLimbController(scene));
 }
 
 /** Reset per-battle state on a unit at deploy time. */
@@ -920,6 +928,7 @@ export class BattleScene extends Phaser.Scene {
       this._vigilCtrl.destroy();
       this._vigilCtrl = null;
     }
+    this._entityLimbCtrl = this._entityLimbCtrl?.destroy() ?? null;
     if (this._promotionController) {
       this._promotionController.destroy();
       this._promotionController = null;
@@ -1736,6 +1745,7 @@ export class BattleScene extends Phaser.Scene {
       // The Vigil's words and calls (engine/Vigil.js): fresh here, a resume's checkpoint puts
       // its own back (restoreBattleWorldState). PR 9's victory commit reads `.words`.
       this._vigilState = bc.vigil ? createVigilState() : null;
+      this._entityKitState = initialEntityKitState(bc); // EntityKit.js: the limbs, as the Vigil
 
       // Input lockout to prevent menu clicks bleeding through to map
       this._uiClickBlocked = false;
@@ -5494,6 +5504,7 @@ export class BattleScene extends Phaser.Scene {
 
   findPullTargets(unit) {
     const targets = [];
+    if (isRooted(unit)) return targets; // a rooted unit moves nowhere, nor does a rooted ally
     const dirs = [
       { dc: 0, dr: -1 },
       { dc: 0, dr: 1 },
@@ -5504,7 +5515,7 @@ export class BattleScene extends Phaser.Scene {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
       const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally) continue;
+      if (!ally || isRooted(ally)) continue;
       // Unit retreats opposite direction
       const retreatC = unit.col - dc;
       const retreatR = unit.row - dr;
@@ -5546,6 +5557,7 @@ export class BattleScene extends Phaser.Scene {
 
   findSwapTargets(unit) {
     const targets = [];
+    if (isRooted(unit)) return targets; // both units move: a rooted one holds either end
     const dirs = [
       { dc: 0, dr: -1 },
       { dc: 0, dr: 1 },
@@ -5556,7 +5568,7 @@ export class BattleScene extends Phaser.Scene {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
       const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally) continue;
+      if (!ally || isRooted(ally)) continue;
 
       // Check if both positions are walkable by both units
       const unitCanWalkToAlly = this.grid.getMoveCost(ac, ar, unit.moveType) !== Infinity;
@@ -8884,6 +8896,7 @@ export class BattleScene extends Phaser.Scene {
       skillsData: this.gameData?.skills,
       marksData: this.gameData?.marks,
       ...(this._battleBlessings ? { battleBlessings: this._battleBlessings } : {}),
+      ...entityKitWorld(this),
     };
   }
 
@@ -9609,6 +9622,9 @@ export class BattleScene extends Phaser.Scene {
         await vigilOf(this).onVoiceFell(unit, { col: deathCol, row: deathRow });
         if (!isCurrentBattleSession(this, session)) return;
       }
+      // The Entity's limbs: a cut one wounds it; its fall withers them (EntityKit.js).
+      await limbsOf(this).onEnemyFell(unit, killer);
+      if (!isCurrentBattleSession(this, session)) return;
     }
     safeBattlePresentation('death hover', () => this._inputController?.refreshHoverInfo(), {
       scene: this,
@@ -10070,6 +10086,7 @@ export class BattleScene extends Phaser.Scene {
           await this.processZombieRevival();
           await this.processNecromancy();
           await this.processVigil();
+          await limbsOf(this).processPhase();
           await this.processBallistaFire(this.playerUnits, 'enemy');
           this.applyDueHybridOverridesForTurn(turn);
           await this.startEnemyPhase();
@@ -10503,7 +10520,7 @@ export class BattleScene extends Phaser.Scene {
     const burned = [];
     for (const unit of [...units]) {
       if (!unit || unit._removing || unit.currentHP <= 0) continue;
-      if (isEntity(unit)) continue; // Entity immune to terrain hazards
+      if (isEntity(unit) || isEntityLimb(unit)) continue; // the Entity (and its limbs) immune to terrain hazards
       const terrainIdx = this.grid.mapLayout[unit.row]?.[unit.col];
       if (isLavaCrackTerrainIndex(terrainIdx)) {
         if (!lavaBurnsUnit(unit)) continue; // Fliers pass over the crack unburned

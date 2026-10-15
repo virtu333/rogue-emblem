@@ -2,6 +2,7 @@
 
 import { REVIVAL_STONE_KINDS, hasRevivalStones } from './RevivalStones.js';
 import { actLabel } from '../utils/actNames.js';
+import { entityKitSummaryLines, validateEntityKitConfig } from './EntityKitConfig.js';
 
 export const DIFFICULTY_CONTRACT_VERSION = 1;
 
@@ -167,6 +168,9 @@ export const DIFFICULTY_DEFAULTS = Object.freeze({
   // Revival Stones a boss carries ({ actBoss, emperor, lieutenant, eliteCaptain }, RevivalStones.js;
   // null: none). Every rung in difficulty.json names all four; a run saved before them has none.
   revivalStones: null,
+  // The Entity's anti-kiting kit ({ limbs, undertow }, EntityKitConfig.js; null: none). Every
+  // rung in difficulty.json names it; a run saved before it fights the Entity without one.
+  entityKit: null,
   // Act id -> first node row that may hold a village ({ act1: 3 }: none in an act's first
   // three rows; null / a missing act: any row). Applied when a node map is generated.
   villageMinRow: null,
@@ -386,6 +390,7 @@ export function generateModifierSummary(
     if (parts.length > 0)
       lines.push(`Revival Stones (a boss refills when felled): ${parts.join(', ')}`);
   }
+  lines.push(...entityKitSummaryLines(mode.entityKit));
   if (mode.siegeWeaponConfig) {
     const cfg = mode.siegeWeaponConfig;
     const firstAct = ['act1', 'act2', 'act3', 'act4'].find((a) => cfg[a] > 0);
@@ -642,6 +647,8 @@ function validateBattlePacing(mode, path) {
     }
   }
   errors.push(...validateRevivalStones(mode, path));
+  // A rung without a kit plays the Entity as it always was (entityKitOf reads it as off).
+  if (mode.entityKit !== undefined) errors.push(...validateEntityKitConfig(mode.entityKit, path));
   const minRows = mode.villageMinRow;
   if (minRows !== undefined && minRows !== null) {
     if (!isObject(minRows)) {

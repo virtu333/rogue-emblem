@@ -70,6 +70,10 @@ export const RUN_CAPABILITIES = Object.freeze({
   // v2 set piece may name one). An older client would play the map as its legacy rout. Any other
   // model beyond the legacy derivation is `objectives` (spec 03), which this build does not play.
   defeatObjective: 2,
+  // The Entity's anti-kiting kit (engine/EntityKit.js): a locked config's `entityKit` and a
+  // checkpoint's `entityKitState`. An older client would fight the Entity without its limbs or
+  // its undertow, and a resumed battle would hold Grasping Limbs it has no class for.
+  entityKit: 2,
   // NG+ (docs/specs/ng-plus.md): `run.ngPlus`, the Barracks members playing the run. An older
   // client would drop it on load, so the run's end would never settle the Barracks (a fallen
   // veteran kept, a win's items and ride never recorded).
@@ -83,13 +87,14 @@ export const DESCENT_CAPABILITY = 'descent';
 
 /**
  * The capabilities this build plays: each writer's PR adds its id here. The guard shipped
- * before any; the Descent added its four, NG+ its one.
+ * before any; the Descent added its four, the Entity kit its one, NG+ its one.
  */
 export const CLIENT_CAPABILITIES = Object.freeze([
   'descent',
   'rite',
   'vigil',
   'defeatObjective',
+  'entityKit',
   'ngPlus',
 ]);
 
@@ -146,6 +151,9 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     foesTargetCommander: 'inert',
     weaponSwapLocked: 'inert',
     rangedRangeBonus: 'inert',
+    // The rung's Entity kit (RunManager.getBattleParams, final act only): read by the map
+    // generator, which locks it into the config of a map that seats the Entity (below).
+    entityKit: 'inert',
   }),
   // A locked battle config.
   battleConfig: Object.freeze({
@@ -174,6 +182,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     // What the Rite did to the map (RiteBattleMods): its record, and the Entity's splash count.
     riteMods: 'rite',
     entitySplashCount: 'rite',
+    entityKit: 'entityKit',
   }),
   // A locked config's enemy spawn.
   enemySpawn: Object.freeze({
@@ -194,6 +203,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     objectiveState: 'objectives',
     bossState: 'bossKit',
     vigilState: 'vigil',
+    entityKitState: 'entityKit',
   }),
   // The serialized run's top level.
   run: Object.freeze({
@@ -406,6 +416,7 @@ function scanBattleConfig(config, found) {
   if (objectives) found.add(objectives);
   if (present(config, 'npcAllies')) found.add('objectives');
   if (present(config, 'vigil')) found.add('vigil');
+  if (present(config, 'entityKit')) found.add('entityKit');
   if (present(config, 'riteMods') || present(config, 'entitySplashCount')) found.add('rite');
   if (nonEmptyArray(config.structures)) found.add('gateTerrain');
   if (mapLayoutHasGate(config.mapLayout)) found.add('gateTerrain');
@@ -446,6 +457,7 @@ function scanBattleState(state, found) {
     found.add('bossKit');
   if (mapLayoutHasGate(state.mapLayout)) found.add('gateTerrain');
   if (present(state, 'vigilState')) found.add('vigil');
+  if (present(state, 'entityKitState')) found.add('entityKit');
   for (const list of STATE_UNIT_LISTS) {
     for (const unit of Array.isArray(state[list]) ? state[list] : []) {
       if (unitHoldsEncounter(unit)) found.add('encounters');
