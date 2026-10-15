@@ -64,6 +64,12 @@ async function tapTile(page, col, row) {
 test('real touch movement, attack cancellation, combat and next turn remain playable', async ({
   page,
 }) => {
+  // Instant battle speed: at Normal the enemy phase's walks and blows took most of the
+  // 15 s wait for turn 2 on a loaded CI runner. This test is about the lab's touch
+  // flow and its stable viewport, not the animation's pace.
+  await page.addInitScript(() =>
+    localStorage.setItem('emblem_rogue_settings', JSON.stringify({ battleSpeed: 'instant' })),
+  );
   await boot(page);
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
