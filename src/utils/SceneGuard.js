@@ -1,5 +1,6 @@
 import { ownRecoveryInput } from './domInputBoundary.js';
 import { UI_PALETTE } from './uiStyles.js';
+import { isAudioDeviceFault, recordAudioFault } from './audioDeviceFaults.js';
 // SceneGuard — Lightweight scene lifecycle instrumentation.
 // Exposes window.__sceneState for Playwright E2E tests and dev debugging.
 // Hooks Phaser scene create/shutdown events, tracks active scene,
@@ -130,6 +131,10 @@ export function createRuntimeFatalRecovery({
   onReload = null,
   onSafeReload = null,
   overlayId = 'runtime-fatal-overlay',
+  // An audio device fault (iOS failing to start or resume its audio engine) costs
+  // sound, not the game: it is recorded and passed over, never shown as fatal.
+  isNonFatal = isAudioDeviceFault,
+  onNonFatal = (reason, info) => recordAudioFault(reason, info),
 } = {}) {
   let armed = false;
   let installed = false;
@@ -228,10 +233,35 @@ export function createRuntimeFatalRecovery({
     releaseInput = ownRecoveryInput(overlay, documentRef);
   };
 
-  const handleFatal = ({ type, reason, file = null, line = null, column = null }) => {
+  const handleFatal = ({ type, reason, file = null, line = null, column = null, event = null }) => {
     if (!armed) return;
     const ctx =
       typeof getSceneContext === 'function' ? getSceneContext() : { sceneKey: null, traceTail: [] };
+    let nonFatal = false;
+    try {
+      nonFatal = typeof isNonFatal === 'function' && isNonFatal(reason) === true;
+    } catch (_) {
+      nonFatal = false;
+    }
+    if (nonFatal) {
+      try {
+        event?.preventDefault?.();
+      } catch (_) {
+        /* the event may be a plain object */
+      }
+      const message = _normalizeRuntimeReason(reason).message;
+      safeMark('runtime_nonfatal_audio', {
+        kind: type || 'runtime',
+        message,
+        sceneKey: ctx?.sceneKey || null,
+      });
+      try {
+        onNonFatal?.(reason, { source: type || 'runtime', sceneKey: ctx?.sceneKey || null });
+      } catch (_) {
+        /* diagnostics never become fatal */
+      }
+      return;
+    }
     const normalized = _normalizeRuntimeReason(reason);
     const signature = [
       type || 'runtime',
@@ -280,6 +310,7 @@ export function createRuntimeFatalRecovery({
       file: event?.filename || null,
       line: event?.lineno || null,
       column: event?.colno || null,
+      event,
     });
   };
 
@@ -290,6 +321,7 @@ export function createRuntimeFatalRecovery({
       file: null,
       line: null,
       column: null,
+      event,
     });
   };
 
@@ -395,7 +427,9 @@ export function installSceneGuard(game) {
   function installCrashDump() {
     if (_crashDumpInstalled) return;
     _crashDumpInstalled = true;
-    const dump = () => {
+    const dump = (event) => {
+      // An audio device fault is recorded by the runtime recovery, not a crash.
+      if (isAudioDeviceFault(event?.error ?? event?.reason ?? event?.message)) return;
       const trace = state._ringBuffer.slice();
       const tail = trace.slice(-10);
       console.error('[SceneGuard] Crash trace (last 10):', tail);

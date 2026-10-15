@@ -1,10 +1,15 @@
+import { installAudioResumeGate } from './audioResumeGate.js';
+
 // Recover an existing AudioContext; never restart music, change volume, or
 // create a second context. iOS can reject a foreground resume until a gesture.
+// Every resume goes through the context's gate (audioResumeGate.js): one in
+// flight, a cooldown after a refusal, never an unhandled rejection.
 export function installAudioRecovery(
   context,
-  { document: doc, window: win, configure = () => {} },
+  { document: doc, window: win, configure = () => {}, onFailure },
 ) {
   if (!context) return () => {};
+  const gate = installAudioResumeGate(context, { onFailure });
   let disposed = false;
   let generation = 0;
   const timers = new Set();
@@ -19,10 +24,13 @@ export function installAudioRecovery(
     )
       return;
     configure();
-    try {
-      Promise.resolve(context.resume()).catch(() => {});
-    } catch (_) {
-      /* retry on input */
+    if (gate) gate.request({ gesture });
+    else {
+      try {
+        Promise.resolve(context.resume()).catch(() => {});
+      } catch (_) {
+        /* retry on input */
+      }
     }
   };
   const clear = () => {
@@ -58,6 +66,7 @@ export function installAudioRecovery(
   return () => {
     disposed = true;
     clear();
+    gate?.dispose();
     for (const [target, type, listener] of bindings)
       target.removeEventListener(type, listener, true);
   };

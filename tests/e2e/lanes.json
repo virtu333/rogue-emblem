@@ -47,6 +47,7 @@
         "selection-planning.spec.js",
         "hint-reading.spec.js",
         "reward-menu.spec.js",
+        "audio-device-fault.spec.js",
         "shop-reentry.spec.js",
         "compendium-stats.spec.js",
         "escape-exits.spec.js",
