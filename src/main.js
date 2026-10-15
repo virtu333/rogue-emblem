@@ -35,7 +35,8 @@ import { reportAsyncError } from './utils/errorReporter.js';
 import { createStartupViewportGuard } from './utils/startupViewportGuard.js';
 import { createViewportReconciler } from './utils/viewportReconciler.js';
 import { requireAuthUser } from './auth/requireAuthUser.js';
-import { createRuntimeFatalRecovery } from './utils/SceneGuard.js';
+import { createRuntimeFatalRecovery, getSceneGuardRuntimeContext } from './utils/SceneGuard.js';
+import { recordAudioFault } from './utils/audioDeviceFaults.js';
 import { registerSW } from 'virtual:pwa-register';
 import { readSlotMilestones, selectTitleVariant } from './art/keyart/titleVariant.js';
 import { throttledRead } from './utils/throttledRead.js';
@@ -412,6 +413,13 @@ const disposeAudioRecovery = installAudioRecovery(sharedAudioContext, {
   document,
   window,
   configure: configureAudioSessionForPlayback,
+  // A refused resume (iOS: "Failed to start the audio device") is kept locally;
+  // the next gesture or return to the foreground tries again after the cooldown.
+  onFailure: (error) =>
+    recordAudioFault(error, {
+      source: 'resume',
+      sceneKey: getSceneGuardRuntimeContext().sceneKey,
+    }),
 });
 if (import.meta.hot) import.meta.hot.dispose(disposeAudioRecovery);
 
@@ -426,7 +434,10 @@ function unlockAudio() {
   try {
     if (sharedAudioContext && sharedAudioContext.state !== 'running') {
       return Promise.race([
-        sharedAudioContext.resume().catch(() => {}),
+        (
+          sharedAudioContext.__audioResumeGate?.request({ gesture: true }) ??
+          sharedAudioContext.resume()
+        ).catch(() => {}),
         new Promise((resolve) => setTimeout(resolve, 250)),
       ]);
     }

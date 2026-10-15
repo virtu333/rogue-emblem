@@ -3,6 +3,7 @@ import {
   createRuntimeFatalRecovery,
   getSceneGuardRuntimeContext,
 } from '../src/utils/SceneGuard.js';
+import { isAudioDeviceFault, AUDIO_FAULTS_KEY } from '../src/utils/audioDeviceFaults.js';
 
 function createEventEnv() {
   const listeners = new Map();
@@ -64,6 +65,7 @@ function createDocumentHarness() {
 }
 
 afterEach(() => {
+  delete globalThis[AUDIO_FAULTS_KEY];
   delete globalThis.__sceneState;
   delete globalThis.__sceneTraceTail;
 });
@@ -169,5 +171,91 @@ describe('getSceneGuardRuntimeContext', () => {
     const ctx = getSceneGuardRuntimeContext({ tailSize: 2 });
     expect(ctx.sceneKey).toBe('Battle');
     expect(ctx.traceTail).toEqual([{ idx: 2 }, { idx: 3 }]);
+  });
+
+  describe('audio device faults', () => {
+    function webkitRefusal() {
+      const error = new Error('Failed to start the audio device');
+      error.name = 'InvalidStateError';
+      return error;
+    }
+    function armed() {
+      const env = createEventEnv();
+      const documentRef = createDocumentHarness();
+      const mark = vi.fn();
+      const report = vi.fn();
+      const recovery = createRuntimeFatalRecovery({
+        env,
+        documentRef,
+        mark,
+        report,
+        getSceneContext: () => ({ sceneKey: 'Battle', traceTail: [] }),
+      });
+      recovery.arm();
+      return { env, documentRef, mark, report, recovery };
+    }
+
+    it('passes over the WebKit refusal as a rejection: no modal, recorded locally', () => {
+      const { env, documentRef, mark, report, recovery } = armed();
+      const preventDefault = vi.fn();
+      env.emit('unhandledrejection', { reason: webkitRefusal(), preventDefault });
+      expect(documentRef.getElementById('runtime-fatal-overlay')).toBeNull();
+      expect(preventDefault).toHaveBeenCalledTimes(1);
+      expect(report).not.toHaveBeenCalled();
+      expect(mark).toHaveBeenCalledWith(
+        'runtime_nonfatal_audio',
+        expect.objectContaining({
+          message: 'Failed to start the audio device',
+          sceneKey: 'Battle',
+        }),
+      );
+      const faults = globalThis[AUDIO_FAULTS_KEY];
+      expect(faults).toHaveLength(1);
+      expect(faults[0]).toMatchObject({
+        source: 'unhandledrejection',
+        name: 'InvalidStateError',
+        message: 'Failed to start the audio device',
+        sceneKey: 'Battle',
+      });
+      recovery.destroy();
+    });
+
+    it('passes over the refusal as an error event and as a bare message', () => {
+      const { env, documentRef, recovery } = armed();
+      env.emit('error', { message: 'InvalidStateError: Failed to start the audio device' });
+      env.emit('error', { error: webkitRefusal(), message: 'Failed to start the audio device' });
+      env.emit('unhandledrejection', { reason: 'Failed to start the audio device' });
+      expect(documentRef.getElementById('runtime-fatal-overlay')).toBeNull();
+      recovery.destroy();
+    });
+
+    it('still shows the modal for a real game error after an audio fault', () => {
+      const { env, documentRef, report, recovery } = armed();
+      env.emit('unhandledrejection', { reason: webkitRefusal() });
+      env.emit('unhandledrejection', { reason: new TypeError("reading 'context' of undefined") });
+      expect(documentRef.getElementById('runtime-fatal-overlay')).toBeTruthy();
+      expect(report).toHaveBeenCalledTimes(1);
+      recovery.destroy();
+    });
+
+    it('recognises audio engine failures only', () => {
+      const dom = (name, message) => Object.assign(new Error(message), { name });
+      expect(isAudioDeviceFault(webkitRefusal())).toBe(true);
+      expect(isAudioDeviceFault(dom('Error', 'Failed to resume the audio device'))).toBe(true);
+      expect(
+        isAudioDeviceFault(dom('InvalidStateError', 'Cannot resume a closed AudioContext.')),
+      ).toBe(true);
+      expect(
+        isAudioDeviceFault(dom('NotAllowedError', 'The AudioContext was not allowed to start.')),
+      ).toBe(true);
+      // An InvalidStateError that is not about audio is a game error.
+      expect(
+        isAudioDeviceFault(dom('InvalidStateError', 'The object is in an invalid state.')),
+      ).toBe(false);
+      expect(isAudioDeviceFault(dom('TypeError', 'audio context is undefined'))).toBe(false);
+      expect(isAudioDeviceFault(new Error('battle crash'))).toBe(false);
+      expect(isAudioDeviceFault(null)).toBe(false);
+      expect(isAudioDeviceFault(undefined)).toBe(false);
+    });
   });
 });
