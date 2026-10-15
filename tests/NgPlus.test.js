@@ -1231,8 +1231,12 @@ describe('the NG+ tab upgrades (repeatable sinks)', () => {
     const start = meta.ngPlusRunStart('hard');
     expect(start.veterans.map((v) => v.id)).toEqual(ids.slice(0, 3));
     const rm = wonRun({ seed: 77, ngPlus: start });
-    const names = new Set(start.veterans.map((v) => v.name));
-    expect(rm.roster.filter((u) => names.has(u.name))).toHaveLength(3);
+    // By the run's member records, not by name: two veterans may share a rolled name, and the
+    // run renames the second.
+    const members = rm.ngPlus.members.filter((m) => ids.includes(m.id));
+    expect(members).toHaveLength(3);
+    const uids = new Set(rm.roster.map((u) => u.unitUid));
+    expect(members.every((m) => uids.has(m.uid))).toBe(true);
     const view = barracksView(meta.getNgPlus(), data, meta.ngPlusBringLimit());
     expect(view.bringCount).toBe('Bringing 3/3');
   });
