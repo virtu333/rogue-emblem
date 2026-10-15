@@ -449,7 +449,7 @@ describe('BossRecruitOverlay', () => {
       fallen,
       ['Edric', 'FallenHero', 'Linnet'],
       4242,
-      { recruitLevelBonus: 0 },
+      { recruitLevelBonus: 0, lordOdds: null },
     );
   });
 
@@ -466,6 +466,7 @@ describe('BossRecruitOverlay', () => {
       overlay.show(vi.fn());
       expect(generateBossRecruitCandidatesMock.mock.calls[0][7]).toEqual({
         recruitLevelBonus: asked,
+        lordOdds: null,
       });
     }
   });

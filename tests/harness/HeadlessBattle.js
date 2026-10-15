@@ -460,6 +460,7 @@ export class HeadlessBattle {
             metaEffects: this.battleParams?.metaEffects || null,
             startingLordNames: this.battleParams?.startingLordNames,
             claimedLordNames: this.battleParams?.recruitClaimedLords || [],
+            lordOdds: this.battleParams?.recruitLordOdds ?? null,
             recruitLevelBonus: Math.trunc(Number(this.battleParams?.recruitLevelBonus) || 0),
             deployBonus: Math.trunc(Number(this.battleParams?.deployBonus) || 0),
           });

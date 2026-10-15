@@ -359,3 +359,28 @@ export async function closeRoster(sheet, label = 'Close', { tap = false } = {}) 
 function escapeRegExp(text) {
   return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+/**
+ * Brings a route node one step ahead: the party stands on a node just before it (marked walked),
+ * and the route map redraws. A recruit card names who waits there only once it is a next step
+ * (`loomModel.recruitShownAt`, docs/specs/lord-recruit-odds.md), so a spec that reads one moves
+ * the party beside it first. Returns false if no such node exists.
+ */
+export async function stepBeside(page, nodeId) {
+  return page.evaluate((id) => {
+    const scene = window.__emblemRogueGame.scene.getScene('NodeMap');
+    const rm = scene.runManager;
+    const nodes = rm.nodeMap.nodes;
+    if (rm.getAvailableNodes().some((n) => n.id === id)) return true;
+    if (rm.nodeMap.startNodeId === id) {
+      rm.currentNodeId = null;
+    } else {
+      const parent = nodes.find((n) => (n.edges || []).includes(id));
+      if (!parent) return false;
+      parent.completed = true;
+      rm.currentNodeId = parent.id;
+    }
+    scene.nodeView.render();
+    return rm.getAvailableNodes().some((n) => n.id === id);
+  }, nodeId);
+}
