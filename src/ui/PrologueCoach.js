@@ -241,6 +241,7 @@ export class PrologueCoach {
             mov: isRooted(u) ? 0 : u.mov,
             positions,
             costModifier: s._getCostModifier?.(u) || 0,
+            skillsData: s.gameData?.skills || null,
           });
           return attackTiles.some((t) => foeTiles.has(`${t.col},${t.row}`));
         })

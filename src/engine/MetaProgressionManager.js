@@ -14,6 +14,11 @@ import {
   releaseRecord,
   runStartOf,
   setBring,
+  NG_PLUS_UPGRADES,
+  bringLimitFor,
+  ngPlusUpgradeNextCost,
+  ngPlusUpgradeTier,
+  ngPlusVisionBonus,
 } from './NgPlusState.js';
 import { DEFAULT_MARK_CHANCE } from './MarkSystem.js';
 import {
@@ -1120,10 +1125,50 @@ export class MetaProgressionManager {
     });
   }
 
+  /** An NG+ tab upgrade's tier (NgPlusState.NG_PLUS_UPGRADES), 0 when none is bought. */
+  ngPlusUpgradeTier(id) {
+    const upgrade = NG_PLUS_UPGRADES[id];
+    return upgrade ? ngPlusUpgradeTier(id, this.purchasedUpgrades[upgrade.key]) : 0;
+  }
+
+  /** Why the next tier cannot be bought ('unknown' | 'locked' | 'maxed' | 'valor' | 'supply'), or null. */
+  ngPlusUpgradeBlock(id) {
+    if (!NG_PLUS_UPGRADES[id]) return 'unknown';
+    if (!this.isNgPlusUnlocked()) return 'locked';
+    const cost = ngPlusUpgradeNextCost(id, this.ngPlusUpgradeTier(id));
+    if (!cost) return 'maxed';
+    if (this.totalValor < cost.valor) return 'valor';
+    if (this.totalSupply < cost.supply) return 'supply';
+    return null;
+  }
+
+  /**
+   * Buy an NG+ tab upgrade's next tier: both currencies and the tier in one write, never
+   * refunded. Checked inside the commit after a newer copy on disk is adopted, as the unlock,
+   * so a stale manager never buys a tier the other copy already bought at the old price.
+   */
+  buyNgPlusUpgrade(id) {
+    return this._commitNgPlus(() => {
+      const reason = this.ngPlusUpgradeBlock(id);
+      if (reason) return { ok: false, reason };
+      const tier = this.ngPlusUpgradeTier(id);
+      const cost = ngPlusUpgradeNextCost(id, tier);
+      this.totalValor -= cost.valor;
+      this.totalSupply -= cost.supply;
+      this.purchasedUpgrades[NG_PLUS_UPGRADES[id].key] = tier + 1;
+      return { ok: true, tier: tier + 1 };
+    });
+  }
+
+  /** Recruit veterans an NG+ run brings now (Barracks Wing). */
+  ngPlusBringLimit() {
+    return bringLimitFor(this.ngPlusUpgradeTier('barracks_wing'));
+  }
+
   /** What an NG+ run on `difficultyId` starts with (RunManager.startRun's `ngPlus`), or null. */
   ngPlusRunStart(difficultyId) {
     if (!this.isNgPlusUnlocked() || !isNgPlusRung(difficultyId)) return null;
-    return runStartOf(this.ngPlus);
+    return runStartOf(this.ngPlus, { bringLimit: this.ngPlusBringLimit() });
   }
 
   /** "Who rides again?": commit the picks (NgPlusState.applyRidePicks). */
@@ -1141,7 +1186,7 @@ export class MetaProgressionManager {
   }
 
   setNgPlusBring(ids) {
-    return this._commitNgPlus((state) => setBring(state, ids));
+    return this._commitNgPlus((state) => setBring(state, ids, this.ngPlusBringLimit()));
   }
 
   /** A run's end (NgPlusRun.ngPlusRunEnd), applied inside the run's payout write. */
@@ -1859,6 +1904,9 @@ export class MetaProgressionManager {
     if (effects.commanderChoiceTier > 0) {
       effects.startingLords = this.getLordSelection();
     }
+
+    // Seer's Lantern (the NG+ tab): Vision charges on top of Home Base's.
+    effects.visionChargesBonus += ngPlusVisionBonus(this.ngPlusUpgradeTier('seers_lantern'));
 
     // Trim startingSkills per lord to available slot count (each skill on one lord)
     const maxSlots = this.getStartingSkillSlots();

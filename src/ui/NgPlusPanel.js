@@ -8,6 +8,7 @@ import {
   ngPlusBlockText,
   rideView,
   unlockView,
+  upgradesView,
 } from './ngPlusModel.js';
 
 const node = (tag, cls, text) => {
@@ -80,7 +81,7 @@ export class NgPlusPanel {
         list.append(b);
       }
     }
-    const barracks = barracksView(state, this.gameData);
+    const barracks = barracksView(state, this.gameData, this.meta.ngPlusBringLimit());
     list.append(node('h3', 'ng-heading', `${barracks.title} · ${barracks.bringCount}`));
     for (const r of barracks.records) {
       const b = this.button(
@@ -99,12 +100,31 @@ export class NgPlusPanel {
       list.append(b);
     }
     if (!barracks.records.length) list.append(node('p', 'mu-help', barracks.lead));
+    const upgrades = upgradesView(this.meta);
+    list.append(node('h3', 'ng-heading', 'Upgrades'));
+    for (const u of upgrades) {
+      const b = this.button(
+        '',
+        () => {
+          this.focus = { kind: 'upgrade', id: u.id };
+          this.rerender(`ng-upgrade-${u.id}`);
+        },
+        { pressed: this.focus?.id === u.id, focus: `ng-upgrade-${u.id}`, cls: 'mh-skill' },
+      );
+      b.append(node('strong', '', u.name), node('span', '', `${u.tierLine} · ${u.now}`));
+      list.append(b);
+    }
 
     const focusedCandidate =
       this.focus?.kind === 'candidate' && ride?.candidates.find((c) => c.ref === this.focus.id);
     if (focusedCandidate && !focusedCandidate.sent)
       this.renderCandidate(copy, state, focusedCandidate);
     else if (this.focus?.kind === 'record') this.renderRecord(copy, barracks, this.focus.id);
+    else if (this.focus?.kind === 'upgrade')
+      this.renderUpgrade(
+        copy,
+        upgrades.find((u) => u.id === this.focus.id),
+      );
     else {
       copy.append(node('h2', '', 'New Game+'));
       copy.append(node('p', 'mu-help', barracks.lead));
@@ -132,6 +152,28 @@ export class NgPlusPanel {
         { focus: 'ng-unlock', cls: 'mu-buy', disabled: !unlock.canBuy },
       ),
     );
+  }
+
+  renderUpgrade(copy, u) {
+    if (!u) return;
+    // The price and the Buy button come first, so a short landscape phone shows them unscrolled.
+    copy.append(node('h2', '', u.name), node('p', '', `${u.tierLine} · ${u.now}`));
+    if (u.cost) copy.append(node('p', 'mu-help', u.cost));
+    if (u.blockText) copy.append(node('p', 'mu-requirements', u.blockText));
+    copy.append(
+      this.button(
+        u.buyLabel,
+        () => {
+          const result = this.meta.buyNgPlusUpgrade(u.id);
+          this.rerender(
+            `ng-buy-${u.id}`,
+            result.ok ? `${u.name}: tier ${result.tier}.` : ngPlusBlockText(result.reason),
+          );
+        },
+        { focus: `ng-buy-${u.id}`, cls: 'mu-buy', disabled: !u.canBuy },
+      ),
+    );
+    copy.append(node('p', 'mu-help', u.lead));
   }
 
   renderCandidate(copy, state, candidate) {

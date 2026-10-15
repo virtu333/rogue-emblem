@@ -176,3 +176,44 @@ for (const [width, height] of [
     expect(commit.height).toBeGreaterThanOrEqual(32);
     await page.screenshot({ path: `test-results/ng-plus-${width}.png` });
   });
+
+test('buy NG+ tab upgrades: a Barracks Wing tier and a Seer’s Lantern tier', async ({ page }) => {
+  await boot(page);
+  await seedWin(page);
+  await page.locator('[data-focus="ngplus"]').tap();
+  await page.locator('[data-focus="ng-unlock"]').tap();
+  await page.evaluate(() => {
+    const { meta } = window.__emblemRogueGame.scene.getScene('HomeBase');
+    meta.addValor(2000 - meta.totalValor);
+    meta.addSupply(2000 - meta.totalSupply);
+  });
+  await page.locator('[data-focus="ng-upgrade-barracks_wing"]').tap();
+  await expect(page.locator('.mh-screen')).toContainText('Next: 800 Valor + 800 Supply');
+  // The Buy button shows (at least a full tap's height) without scrolling the detail pane.
+  const buyBox = await page.locator('[data-focus="ng-buy-barracks_wing"]').boundingBox();
+  const paneBox = await page.locator('.mu-copy').boundingBox();
+  expect(paneBox.y + paneBox.height - buyBox.y).toBeGreaterThanOrEqual(32);
+  await page.locator('[data-focus="ng-buy-barracks_wing"]').tap();
+  await expect(page.locator('[data-focus="ng-upgrade-barracks_wing"]')).toContainText(
+    'Tier 1/4 · Brings 3 recruit veterans.',
+  );
+  await page.locator('[data-focus="ng-upgrade-seers_lantern"]').tap();
+  await page.locator('[data-focus="ng-buy-seers_lantern"]').tap();
+  await expect(page.locator('[data-focus="ng-upgrade-seers_lantern"]')).toContainText(
+    'Tier 1/5 · +1 Vision charge.',
+  );
+  // Both currencies paid (800 + 600 of each) and the tiers saved.
+  await page.reload();
+  await waitForScene(page, 'HomeBase');
+  const saved = await page.evaluate(() => {
+    const { meta } = window.__emblemRogueGame.scene.getScene('HomeBase');
+    return {
+      valor: meta.totalValor,
+      supply: meta.totalSupply,
+      wing: meta.ngPlusUpgradeTier('barracks_wing'),
+      lantern: meta.ngPlusUpgradeTier('seers_lantern'),
+      vision: meta.getActiveEffects().visionChargesBonus,
+    };
+  });
+  expect(saved).toEqual({ valor: 600, supply: 600, wing: 1, lantern: 1, vision: 1 });
+});

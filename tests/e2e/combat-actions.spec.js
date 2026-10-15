@@ -161,7 +161,7 @@ test('Shove onto ice slides the ally on, through real targeting', async ({ page 
 test('Heal restores HP and re-equips combat weapon', async ({ page }) => {
   const { hud, errors } = await boot(page);
   await select(page, 'Sera');
-  await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+  await hud.getByRole('button', { name: /^Staff \(/ }).tap();
   await hud.getByRole('button', { name: /^Heal / }).tap();
   await tapTile(page, 2, 4);
   await expect.poll(async () => (await unit(page, 'Sera')).acted).toBe(true);
@@ -175,7 +175,7 @@ for (const staff of ['Warp Staff', 'Rescue Staff']) {
   }) => {
     const { hud, errors } = await boot(page);
     await select(page, 'Sera');
-    await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+    await hud.getByRole('button', { name: /^Staff \(/ }).tap();
     await hud.getByRole('button', { name: new RegExp(staff) }).tap();
     const target = staff === 'Warp Staff' ? [2, 4] : [4, 4];
     const kind = staff === 'Warp Staff' ? 'Warp' : 'Rescue';
@@ -265,7 +265,7 @@ for (const staff of ['Warp Staff', 'Rescue Staff']) {
     expect(spent).toMatchObject({ acted: true, sprite: 1, hp: [1, 1], tinted: true });
 
     await select(page, 'Sera');
-    await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+    await hud.getByRole('button', { name: /^Staff \(/ }).tap();
     await hud.getByRole('button', { name: new RegExp(staff) }).tap();
     await select(page, moved);
     const dest = await page.evaluate(
@@ -314,7 +314,7 @@ test('Dance refreshes a spent ally, Restore cures a condition', async ({ page })
     ];
   });
   await select(page, 'Sera');
-  await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+  await hud.getByRole('button', { name: /^Staff \(/ }).tap();
   await hud.getByRole('button', { name: /Restore/ }).tap();
   await tapTile(page, 2, 4);
   await expect.poll(async () => (await unit(page, 'Sera')).acted).toBe(true);
@@ -334,7 +334,7 @@ for (const staff of ['Heal', 'Warp Staff', 'Rescue Staff']) {
   }) => {
     const { hud, errors } = await boot(page);
     await select(page, 'Sera');
-    await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+    await hud.getByRole('button', { name: /^Staff \(/ }).tap();
     await hud.getByRole('button', { name: new RegExp(`^${staff} `) }).tap();
     expect((await unit(page, 'Sera')).weapon).toBe(staff);
     await page.keyboard.press('Escape');
@@ -437,7 +437,7 @@ for (const staff of ['Heal', 'Restore']) {
         ];
       });
     await select(page, 'Sera');
-    await hud.getByRole('button', { name: /^Heal \(/ }).tap();
+    await hud.getByRole('button', { name: /^Staff \(/ }).tap();
     await hud.getByRole('button', { name: new RegExp(`^${staff} `) }).tap();
     await tapTile(page, 2, 4);
     // The action ends after its presentation: the healer is dimmed once the heal has played.

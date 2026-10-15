@@ -459,7 +459,7 @@ describe('BattleScene equip menu text', () => {
     BattleScene.prototype.showActionMenu.call(scene, unit);
 
     const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
-    expect(labels.some((label) => label.startsWith('Heal ('))).toBe(true);
+    expect(labels.some((label) => label.startsWith('Staff ('))).toBe(true);
     expect(scene.findHealTargets).toHaveBeenCalledWith(unit, heal);
     expect(scene.findHealTargets).toHaveBeenCalledWith(unit, physic);
   });
@@ -491,7 +491,7 @@ describe('BattleScene equip menu text', () => {
 
     BattleScene.prototype.showActionMenu.call(scene, unit);
     const healCall = scene._makeMenuTextButton.mock.calls.find((call) =>
-      call[2].startsWith('Heal ('),
+      call[2].startsWith('Staff ('),
     );
     expect(healCall).toBeTruthy();
     healCall[5]();
@@ -572,7 +572,7 @@ describe('BattleScene equip menu text', () => {
     expect(scene.startHealTargetSelection).toHaveBeenCalledWith(unit, [ally], rescue);
   });
 
-  it('keeps the "Heal (...)" label when the preferred staff heals (mixed kit)', () => {
+  it('labels the action "Staff (...)" even when the preferred staff heals (mixed kit)', () => {
     const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
 
@@ -602,8 +602,8 @@ describe('BattleScene equip menu text', () => {
     BattleScene.prototype.showActionMenu.call(scene, unit);
 
     const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
-    expect(labels).toContain('Heal (3/3)');
-    expect(labels.some((label) => label.startsWith('Staff ('))).toBe(false);
+    expect(labels).toContain('Staff (3/3)');
+    expect(labels.some((label) => label.startsWith('Heal ('))).toBe(false);
   });
 
   it('non-proficient rows render gray with (no prof) suffix', () => {

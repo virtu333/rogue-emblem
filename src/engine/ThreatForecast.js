@@ -43,6 +43,7 @@ import { entityCounterOnlyTiles } from './EntityReach.js';
 import { artilleryWeapon, holdsPost } from './SiegeArtillery.js';
 import { movementOptionsFor } from './PassMovement.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
+import { getAttackRange, getAttackWeapons } from './AttackOptions.js';
 
 const tileKey = (col, row) => `${col},${row}`;
 
@@ -134,7 +135,11 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
  * beyond them (the attack fringe the move preview draws in red; none for a staff).
  * @returns {{ moveRange: Map, attackTiles: Array<{col,row}> }}
  */
-export function unitReach(grid, unit, { mov = 0, positions = null, costModifier = 0 } = {}) {
+export function unitReach(
+  grid,
+  unit,
+  { mov = 0, positions = null, costModifier = 0, skillsData = null } = {},
+) {
   // A player unit with Pass walks through foes (never stopping on one): its reach reads it.
   const moveRange = grid.getMovementRange(
     unit.col,
@@ -159,18 +164,31 @@ export function unitReach(grid, unit, { mov = 0, positions = null, costModifier 
         if (d >= min && d <= max) attack.add(tileKey(t.col, t.row));
       }
     }
-  } else if (weapon) {
-    // Siegebreaker (engine/WeaponReach.js): a player unit's bow or tome reaches further.
-    const reach = rangedReachBonusOf(unit, weapon);
-    let reachWeapon = weapon;
-    if (reach > 0) {
-      const { min, max } = parseRange(weapon.range);
-      reachWeapon = { range: `${min}-${max + reach}` };
-    }
+  } else if (unit.faction === 'player') {
+    // A player unit's fringe is what Attack would let it initiate: the union over every
+    // weapon it can attack with (silence, per-battle uses, proficiency), each at the range
+    // attack planning reads (AttackOptions.getAttackRange: Foresight, Siegebreaker). Counter
+    // reach is separate (Combat.canCounter) and gets no skill bonus.
+    const reachWeapons = getAttackWeapons(unit).map((w) => {
+      const { min, max } = getAttackRange(unit, w, { skillsData });
+      return { range: `${min}-${max}` };
+    });
     for (const [key, entry] of moveRange) {
       if (entry?.stoppable === false) continue;
       const [mc, mr] = key.split(',').map(Number);
-      for (const t of grid.getAttackRange(mc, mr, reachWeapon)) {
+      for (const reachWeapon of reachWeapons) {
+        for (const t of grid.getAttackRange(mc, mr, reachWeapon)) {
+          const tk = tileKey(t.col, t.row);
+          if (!moveRange.has(tk)) attack.add(tk);
+        }
+      }
+    }
+  } else if (weapon) {
+    // Foes (and NPCs): the equipped weapon's printed range, as the AI plays it.
+    for (const [key, entry] of moveRange) {
+      if (entry?.stoppable === false) continue;
+      const [mc, mr] = key.split(',').map(Number);
+      for (const t of grid.getAttackRange(mc, mr, weapon)) {
         const tk = tileKey(t.col, t.row);
         if (!moveRange.has(tk)) attack.add(tk);
       }
