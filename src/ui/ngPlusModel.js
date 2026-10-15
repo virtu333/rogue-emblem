@@ -7,11 +7,14 @@ import {
   KEPT_SKILL_CAPS,
   NG_PLUS_COST,
   NG_PLUS_MILESTONE,
+  NG_PLUS_UPGRADES,
+  NG_PLUS_UPGRADE_IDS,
   RIDE_LORD_PICKS,
   RIDE_RECRUIT_PICKS,
   keptItemKind,
   keptItemsOfKind,
   keptOfKind,
+  ngPlusUpgradeNextCost,
   recordFor,
   ridePickBlock,
   rideSlotsLeft,
@@ -36,6 +39,8 @@ const PICK_BLOCK_TEXT = {
   already_picked: 'They are already in the Barracks from this win.',
   kept_by_other: 'Another Barracks veteran already keeps that item.',
   locked: 'Unlock New Game+ first.',
+  maxed: 'Fully upgraded.',
+  too_many: 'Bringing as many as the Barracks allows.',
   save_failed: 'Could not save. Please try again.',
 };
 
@@ -203,16 +208,16 @@ export function candidateDetail(state, ref, pick, gameData = {}) {
 }
 
 /** The Barracks: every record, the recruits marked when brought into the next NG+ run. */
-export function barracksView(state, gameData = {}) {
+export function barracksView(state, gameData = {}, bringLimit = BRING_LIMIT) {
   const skills = gameData.skills || [];
   const bring = new Set(state?.bring || []);
   const records = state?.barracks || [];
   return {
     title: 'Barracks',
     lead: records.length
-      ? `Bring up to ${BRING_LIMIT} recruits into each NG+ run. Lords bring their kit whenever they ride.`
+      ? `Bring up to ${bringLimit} recruits into each NG+ run. Lords bring their kit whenever they ride.`
       : 'Empty. Win on Nightfall or Black Sun to send someone here.',
-    bringCount: `Bringing ${bring.size}/${BRING_LIMIT}`,
+    bringCount: `Bringing ${bring.size}/${bringLimit}`,
     records: records.map((record) => ({
       id: record.id,
       name: record.name,
@@ -221,7 +226,7 @@ export function barracksView(state, gameData = {}) {
       skills: record.keptSkills.map((id) => skillName(id, skills)),
       items: record.keptItems.map((i) => itemDisplayName(i, skills)),
       brought: bring.has(record.id),
-      canBring: record.kind === 'recruit' && (bring.has(record.id) || bring.size < BRING_LIMIT),
+      canBring: record.kind === 'recruit' && (bring.has(record.id) || bring.size < bringLimit),
     })),
   };
 }
@@ -264,4 +269,45 @@ export function ngPlusResultNote(meta, run) {
   return ngPlusTabVisible(meta)
     ? 'Your survivors wait at Home Base: unlock New Game+ to choose who rides again.'
     : 'Your survivors are kept for New Game+, which a Black Sun win opens.';
+}
+
+const UPGRADE_WORDS = {
+  barracks_wing: {
+    lead: 'Bring one more recruit veteran into each NG+ run.',
+    now: (tier) => `Brings ${BRING_LIMIT + tier} recruit veterans.`,
+  },
+  seers_lantern: {
+    lead: 'One more Vision charge in every run, NG+ or not.',
+    now: (tier) => (tier ? `+${plural(tier, 'Vision charge')}.` : 'No extra Vision yet.'),
+  },
+};
+
+/**
+ * The NG+ tab's repeatable upgrades (NgPlusState.NG_PLUS_UPGRADES): each with its tier, what
+ * it gives now, the next tier's price and whether it can be bought.
+ */
+export function upgradesView(meta) {
+  return NG_PLUS_UPGRADE_IDS.map((id) => {
+    const upgrade = NG_PLUS_UPGRADES[id];
+    const words = UPGRADE_WORDS[id];
+    const tier = meta.ngPlusUpgradeTier(id);
+    const cost = ngPlusUpgradeNextCost(id, tier);
+    const block = meta.ngPlusUpgradeBlock(id);
+    return {
+      id,
+      name: upgrade.name,
+      tierLine: `Tier ${tier}/${upgrade.maxTier}`,
+      lead: words.lead,
+      now: words.now(tier),
+      cost: cost ? `Next: ${cost.valor} Valor + ${cost.supply} Supply · never refunded` : '',
+      buyLabel: cost ? `Buy tier ${tier + 1}` : 'Fully upgraded',
+      canBuy: block === null,
+      blockText:
+        block === 'valor' || block === 'supply'
+          ? `Needs ${cost[block]} ${block === 'valor' ? 'Valor' : 'Supply'}.`
+          : block && block !== 'maxed'
+            ? ngPlusBlockText(block)
+            : '',
+    };
+  });
 }

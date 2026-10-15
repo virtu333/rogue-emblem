@@ -33,6 +33,8 @@ import { slotKindFor, swornOathSkillId } from '../src/engine/SkillSlots.js';
 import { INVENTORY_MAX } from '../src/utils/constants.js';
 import {
   BRING_LIMIT,
+  MAX_BRING_LIMIT,
+  NG_PLUS_UPGRADES,
   KEPT_ITEM_CAPS,
   adoptNgPlusState,
   NG_PLUS_COST,
@@ -55,6 +57,7 @@ import {
   openRideWarning,
   rideView,
   unlockView,
+  upgradesView,
 } from '../src/ui/ngPlusModel.js';
 
 const data = loadGameData();
@@ -1135,5 +1138,157 @@ describe('a kept Oath', () => {
     expect(unit.skills).toContain('pavise');
     expect(swornOathSkillId(unit)).toBeNull();
     expect(slotKindFor(unit, 'pavise', data.skills)).not.toBe('oath');
+  });
+});
+
+/** A meta whose Barracks holds `n` recruit veterans (two per Nightfall win, keeping nothing). */
+function metaWithRecruitVets(n) {
+  const meta = unlockedMeta();
+  for (let won = 0; won * 2 < n; won += 1) {
+    const rm = wonRun({ seed: 40 + won });
+    const recruits = [addRecruit(rm), addRecruit(rm)].slice(0, n - won * 2);
+    winRun(rm, meta);
+    expect(meta.chooseNgPlusRide(recruits.map((u) => ({ ref: u.unitUid }))).ok).toBe(true);
+    if (meta.getNgPlus().pendingRide) expect(meta.chooseNgPlusRide([]).ok).toBe(true);
+  }
+  const ids = meta
+    .getNgPlus()
+    .barracks.filter((r) => r.kind === 'recruit')
+    .map((r) => r.id);
+  expect(ids).toHaveLength(n);
+  return { meta, ids };
+}
+
+const fund = (meta, amount) => {
+  meta.addValor(amount);
+  meta.addSupply(amount);
+};
+
+describe('the NG+ tab upgrades (repeatable sinks)', () => {
+  it('each tier costs 400 more of both currencies, up to the cap, and is saved', () => {
+    // Failure: a tier charges the wrong price or one currency, or buys past its cap.
+    const meta = unlockedMeta();
+    fund(meta, 20000);
+    const startValor = meta.totalValor;
+    const startSupply = meta.totalSupply;
+    const prices = [];
+    for (let t = 0; t < 4; t += 1) {
+      const before = meta.totalValor;
+      expect(meta.buyNgPlusUpgrade('barracks_wing')).toEqual({ ok: true, tier: t + 1 });
+      prices.push(before - meta.totalValor);
+    }
+    expect(prices).toEqual([800, 1200, 1600, 2000]);
+    expect(startSupply - meta.totalSupply).toBe(5600);
+    expect(meta.buyNgPlusUpgrade('barracks_wing')).toEqual({ ok: false, reason: 'maxed' });
+    expect(startValor - meta.totalValor).toBe(5600);
+    const reloaded = freshMeta();
+    expect(reloaded.ngPlusUpgradeTier('barracks_wing')).toBe(4);
+    expect(reloaded.ngPlusBringLimit()).toBe(6);
+    expect(reloaded.totalValor).toBe(meta.totalValor);
+    expect(NG_PLUS_UPGRADES.seers_lantern.maxTier).toBe(5);
+  });
+
+  it('needs NG+ unlocked and enough of each currency, and is never refunded', () => {
+    const meta = freshMeta();
+    fund(meta, 5000);
+    expect(meta.buyNgPlusUpgrade('seers_lantern')).toEqual({ ok: false, reason: 'locked' });
+    const unlocked = unlockedMeta();
+    unlocked.totalValor = 599;
+    unlocked.totalSupply = 5000;
+    expect(unlocked.buyNgPlusUpgrade('seers_lantern')).toEqual({ ok: false, reason: 'valor' });
+    unlocked.totalValor = 5000;
+    unlocked.totalSupply = 599;
+    expect(unlocked.buyNgPlusUpgrade('seers_lantern')).toEqual({ ok: false, reason: 'supply' });
+    expect(unlocked.totalValor).toBe(5000);
+    expect(unlocked.ngPlusUpgradeTier('seers_lantern')).toBe(0);
+    unlocked.totalSupply = 5000;
+    expect(unlocked.buyNgPlusUpgrade('seers_lantern').ok).toBe(true);
+    expect(unlocked.canRefund('ng_plus_seers_lantern').success).toBe(false);
+    expect(unlocked.buyNgPlusUpgrade('nope')).toEqual({ ok: false, reason: 'unknown' });
+  });
+
+  it('a stale copy cannot buy the same tier again at the old price', () => {
+    // Failure: B checks its stale tier 0 before adopting the disk and charges tier 1 twice.
+    const a = unlockedMeta();
+    fund(a, 3000);
+    const b = freshMeta();
+    expect(a.buyNgPlusUpgrade('barracks_wing')).toEqual({ ok: true, tier: 1 });
+    expect(b.buyNgPlusUpgrade('barracks_wing')).toEqual({ ok: true, tier: 2 });
+    const disk = freshMeta();
+    expect(disk.ngPlusUpgradeTier('barracks_wing')).toBe(2);
+  });
+
+  it('Barracks Wing lets an NG+ run bring more veterans', () => {
+    // Failure: the Bring list or the run start still stops at two.
+    const { meta, ids } = metaWithRecruitVets(4);
+    expect(meta.setNgPlusBring(ids.slice(0, 3))).toEqual({ ok: false, reason: 'too_many' });
+    fund(meta, 2000);
+    expect(meta.buyNgPlusUpgrade('barracks_wing').ok).toBe(true);
+    expect(meta.setNgPlusBring(ids.slice(0, 3)).ok).toBe(true);
+    expect(meta.setNgPlusBring(ids)).toEqual({ ok: false, reason: 'too_many' });
+    expect(freshMeta().getNgPlus().bring).toEqual(ids.slice(0, 3));
+    const start = meta.ngPlusRunStart('hard');
+    expect(start.veterans.map((v) => v.id)).toEqual(ids.slice(0, 3));
+    const rm = wonRun({ seed: 77, ngPlus: start });
+    const names = new Set(start.veterans.map((v) => v.name));
+    expect(rm.roster.filter((u) => names.has(u.name))).toHaveLength(3);
+    const view = barracksView(meta.getNgPlus(), data, meta.ngPlusBringLimit());
+    expect(view.bringCount).toBe('Bringing 3/3');
+  });
+
+  it('a saved Bring list keeps up to the most any slot can bring, and a run takes its limit', () => {
+    const template = metaWithRecruitVets(1)
+      .meta.getNgPlus()
+      .barracks.find((r) => r.kind === 'recruit');
+    const state = defaultNgPlusState();
+    const ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    state.barracks = ids.map((id) => ({ ...structuredClone(template), id, keptItems: [] }));
+    expect(setBring(state, ids.slice(0, 3))).toEqual({ ok: false, reason: 'too_many' });
+    expect(setBring(state, ids.slice(0, 3), 3).ok).toBe(true);
+    state.bring = ids;
+    const s = normalizeNgPlusState(state);
+    expect(s.bring).toHaveLength(MAX_BRING_LIMIT);
+    expect(runStartOf(s).veterans).toHaveLength(BRING_LIMIT);
+    expect(runStartOf(s, { bringLimit: 4 }).veterans).toHaveLength(4);
+  });
+
+  it('Seer’s Lantern adds a Vision charge per tier to every run', () => {
+    // Failure: the bonus replaces Home Base's (assigned, not added) or never reaches the run.
+    const meta = unlockedMeta();
+    meta.purchasedUpgrades.vision_charges_3 = 1; // Sera's Revelation: +2
+    expect(meta.getActiveEffects().visionChargesBonus).toBe(2);
+    fund(meta, 2000);
+    expect(meta.buyNgPlusUpgrade('seers_lantern').ok).toBe(true);
+    expect(meta.buyNgPlusUpgrade('seers_lantern').ok).toBe(true);
+    const effects = meta.getActiveEffects();
+    expect(effects.visionChargesBonus).toBe(4);
+    const rm = new RunManager(data, effects);
+    rm.startRun({ runSeed: 5, applyBlessingsAtStart: false, difficultyId: 'normal' });
+    expect(rm.visionChargesRemaining).toBe(5);
+  });
+
+  it('the tab lists each upgrade with its tier, next price and why it cannot be bought', () => {
+    const meta = unlockedMeta();
+    meta.totalValor = 700;
+    meta.totalSupply = 5000;
+    const [wing, lantern] = upgradesView(meta);
+    expect(wing).toMatchObject({
+      name: 'Barracks Wing',
+      tierLine: 'Tier 0/4',
+      now: 'Brings 2 recruit veterans.',
+      cost: 'Next: 800 Valor + 800 Supply · never refunded',
+      canBuy: false,
+      blockText: 'Needs 800 Valor.',
+    });
+    expect(lantern).toMatchObject({ tierLine: 'Tier 0/5', canBuy: true, blockText: '' });
+    meta.purchasedUpgrades.ng_plus_seers_lantern = 5;
+    const maxed = upgradesView(meta)[1];
+    expect(maxed).toMatchObject({
+      now: '+5 Vision charges.',
+      cost: '',
+      buyLabel: 'Fully upgraded',
+      canBuy: false,
+      blockText: '',
+    });
   });
 });
