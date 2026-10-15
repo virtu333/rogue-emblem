@@ -73,14 +73,16 @@ export class HintManager {
   }
 
   _save() {
-    if (this.meta) {
+    // One meta transaction: a failed write leaves the meta copy as it was (the next
+    // lesson read writes the whole set again).
+    this.meta?._commit(() => {
       this.meta.hintState = {
         seen: [...this.seen],
         updatedAt: Math.max(Date.now(), Number(this.meta.hintState?.updatedAt || 0) + 1),
       };
       this.updatedAt = this.meta.hintState.updatedAt;
-      this.meta._save();
-    }
+      return { ok: true };
+    });
     try {
       localStorage.setItem(getKey(this.slot), JSON.stringify([...this.seen]));
     } catch (_) {

@@ -934,19 +934,23 @@ export class MetaProgressionManager {
    */
   setPrologueState(state) {
     if (!PROLOGUE_STATES.includes(state)) return { ok: false };
-    const current = normalizePrologueState(this.prologue);
-    if (current.state === 'complete') return { ok: true };
-    this.prologue = { ...current, state };
-    return this._save();
+    return this._commit(() => {
+      const current = normalizePrologueState(this.prologue);
+      if (current.state === 'complete') return { ok: true, unchanged: true };
+      this.prologue = { ...current, state };
+      return { ok: true };
+    });
   }
 
   /** A prologue chapter won on this save (what later runs may skip explaining). */
   recordPrologueChapter(chapterId) {
     if (typeof chapterId !== 'string' || !chapterId) return { ok: false };
-    const current = normalizePrologueState(this.prologue);
-    if (current.chaptersCompleted.includes(chapterId)) return { ok: true };
-    this.prologue = { ...current, chaptersCompleted: [...current.chaptersCompleted, chapterId] };
-    return this._save();
+    return this._commit(() => {
+      const current = normalizePrologueState(this.prologue);
+      if (current.chaptersCompleted.includes(chapterId)) return { ok: true, unchanged: true };
+      this.prologue = { ...current, chaptersCompleted: [...current.chaptersCompleted, chapterId] };
+      return { ok: true };
+    });
   }
 
   /** True once the prologue won this chapter on this save (even if later skipped). */
@@ -956,11 +960,13 @@ export class MetaProgressionManager {
 
   /** Lessons the player practised (not just saw) in the prologue (§8's second fact). */
   recordProloguePractised(ids) {
-    const current = normalizePrologueState(this.prologue);
-    const practised = idList([...current.practised, ...(Array.isArray(ids) ? ids : [])]);
-    if (practised.length === current.practised.length) return { ok: true };
-    this.prologue = { ...current, practised };
-    return this._save();
+    return this._commit(() => {
+      const current = normalizePrologueState(this.prologue);
+      const practised = idList([...current.practised, ...(Array.isArray(ids) ? ids : [])]);
+      if (practised.length === current.practised.length) return { ok: true, unchanged: true };
+      this.prologue = { ...current, practised };
+      return { ok: true };
+    });
   }
 
   /**
@@ -1207,7 +1213,8 @@ export class MetaProgressionManager {
    * change is checked and applied against it, never against a stale copy that would spend
    * currency twice or bring back what the other copy removed. A refusal, a throw or a
    * failed write leaves everything as it was, so nothing reads as done that is not on disk
-   * ('save_failed').
+   * ('save_failed'). A change that finds nothing to do returns `{ ok: true, unchanged: true }`
+   * and nothing is written.
    *
    * Nested: a commit inside another (a payout's currencies, its NG+ end) neither adopts nor
    * writes; it works on the outer transaction's state, and the outer one writes once. A
@@ -1231,8 +1238,9 @@ export class MetaProgressionManager {
       this._restoreState(before);
       return result || { ok: false };
     }
-    if (!outer) return result;
-    const saved = this._save();
+    // Nothing changed (an idempotent record already held): nothing to write.
+    if (!outer || result.unchanged) return result;
+    const saved = this._save({ adopt: false });
     if (!saved.ok) {
       this._restoreState(before);
       return { ok: false, reason: 'save_failed' };
@@ -1262,9 +1270,11 @@ export class MetaProgressionManager {
   /** Remember pool lines just played (NarrativeDirector keys) so a set rotates fully. */
   recordLinesPlayed(keys) {
     const fresh = (Array.isArray(keys) ? keys : []).filter((k) => typeof k === 'string' && k);
-    if (!fresh.length) return;
-    this.storyFlags.linesPlayed = mergeLinesPlayed(this.storyFlags.linesPlayed, fresh);
-    this._save();
+    if (!fresh.length) return { ok: true };
+    return this._commit(() => {
+      this.storyFlags.linesPlayed = mergeLinesPlayed(this.storyFlags.linesPlayed, fresh);
+      return { ok: true };
+    });
   }
 
   recordBossSlain(name) {
@@ -1291,10 +1301,12 @@ export class MetaProgressionManager {
   }
 
   recordDeedsEarned(ids) {
-    const merged = mergeDeedIds(this.deedsEarned, ids);
-    if (merged.length === this.deedsEarned.length) return;
-    this.deedsEarned = merged;
-    this._save();
+    return this._commit(() => {
+      const merged = mergeDeedIds(this.deedsEarned, ids);
+      if (merged.length === this.deedsEarned.length) return { ok: true, unchanged: true };
+      this.deedsEarned = merged;
+      return { ok: true };
+    });
   }
 
   /** Has this lord joined an army on this save? Edric and Sera always have. */
@@ -1309,14 +1321,18 @@ export class MetaProgressionManager {
 
   /**
    * Remember lords who joined (idempotent; saves only when one is new).
-   * @returns {boolean} whether any name was new
+   * @returns {boolean} whether any name was new and is now saved
    */
   recordLordsMet(names) {
-    const merged = mergeLordNames(this.lordsMet, names);
-    if (merged.length === this.lordsMet.length) return false;
-    this.lordsMet = merged;
-    this._save();
-    return true;
+    let added = false;
+    const result = this._commit(() => {
+      const merged = mergeLordNames(this.lordsMet, names);
+      added = merged.length !== this.lordsMet.length;
+      if (!added) return { ok: true, unchanged: true };
+      this.lordsMet = merged;
+      return { ok: true };
+    });
+    return result.ok && added;
   }
 
   /** Has this save met the item (by catalog name) / skill (by id)? */
@@ -1331,25 +1347,29 @@ export class MetaProgressionManager {
   /**
    * Remember items and skills the save has met (`{ items, skills }`; idempotent, saves
    * only when one is new).
-   * @returns {boolean} whether anything was new
+   * @returns {boolean} whether anything was new and is now saved
    */
   recordDiscoveries(found) {
-    const merged = mergeDiscoveries({ items: this.itemsSeen, skills: this.skillsSeen }, found);
-    if (
-      merged.items.length === this.itemsSeen.length &&
-      merged.skills.length === this.skillsSeen.length
-    )
-      return false;
-    this.itemsSeen = merged.items;
-    this.skillsSeen = merged.skills;
-    this._save();
-    return true;
+    let added = false;
+    const result = this._commit(() => {
+      const merged = mergeDiscoveries({ items: this.itemsSeen, skills: this.skillsSeen }, found);
+      added =
+        merged.items.length !== this.itemsSeen.length ||
+        merged.skills.length !== this.skillsSeen.length;
+      if (!added) return { ok: true, unchanged: true };
+      this.itemsSeen = merged.items;
+      this.skillsSeen = merged.skills;
+      return { ok: true };
+    });
+    return result.ok && added;
   }
 
   markDialogueSeen(key) {
-    if (this.hasSeenDialogue(key)) return;
-    this.seenDialogueKeys = mergeSeenDialogueKeys(this.seenDialogueKeys, [key]);
-    this._save();
+    return this._commit(() => {
+      if (this.hasSeenDialogue(key)) return { ok: true, unchanged: true };
+      this.seenDialogueKeys = mergeSeenDialogueKeys(this.seenDialogueKeys, [key]);
+      return { ok: true };
+    });
   }
 
   recordRunEnd({
@@ -2187,7 +2207,10 @@ export class MetaProgressionManager {
 
   rememberDifficulty(id) {
     if (!isDifficultyId(id)) return { ok: false };
-    return this._save({ lastDifficulty: id });
+    return this._commit(() => {
+      this.lastDifficulty = id;
+      return { ok: true };
+    });
   }
 
   /**
@@ -2262,11 +2285,11 @@ export class MetaProgressionManager {
     Object.assign(this, { ...state, milestones: new Set(state.milestones) });
   }
 
-  _save({ lastDifficulty } = {}) {
+  /** @param {{ adopt?: boolean }} [options] - `adopt: false` from `_commit`, which adopted before its change. */
+  _save({ adopt = true } = {}) {
     // Inside a transaction (`_commit`): its one write happens when it finishes.
     if (this._txDepth > 0) return { ok: true, deferred: true };
-    this._adoptForeignDiskStateIfNewer();
-    if (isDifficultyId(lastDifficulty)) this.lastDifficulty = lastDifficulty;
+    if (adopt) this._adoptForeignDiskStateIfNewer();
     const floor = this._readClockFloorSavedAt();
     this.savedAt = Math.max(Date.now(), this.savedAt + 1, Number.isFinite(floor) ? floor + 1 : 0);
     const payload = {
