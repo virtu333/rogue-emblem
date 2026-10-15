@@ -69,6 +69,7 @@ export class RunDriver {
     this.run.startRun({ runSeed: seed });
     this.run.gold = 20000;
     this.run.completedBattles = 2;
+    this.run.metaBattlePoints = 30; // two won battles banked, so an abandon pays something
     this.run.roster[0].level = 10;
     this.run.roster[0].currentHP = 1;
     this.run.fallenUnits.push(

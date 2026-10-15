@@ -307,13 +307,28 @@ export const WEAR_PRICE_PENALTY_PER_STEP = 0.15;
 export const WEAR_MAX_STEPS = 3;
 export const REPAIR_COST_RATIO = 0.5;
 
-// Dual currency economy (Valor = lord-focused, Supply = army-focused)
-export const VALOR_PER_ACT = 50;
-export const VALOR_PER_BATTLE = 15;
-export const VALOR_VICTORY_BONUS = 100;
-export const SUPPLY_PER_ACT = 50;
-export const SUPPLY_PER_BATTLE = 15;
-export const SUPPLY_VICTORY_BONUS = 100;
+// Dual currency economy (Valor = lord-focused, Supply = army-focused). Both currencies earn
+// the same amount, then the rung's currencyMultiplier. The payout is back-loaded so finishing
+// a run pays far more than restarting it: a battle is worth more the deeper its act, the
+// run's first battle pays nothing (so winning the opening map and quitting earns nothing),
+// clearing Act I pays little and every later act more, and a victory carries a large bonus.
+// A battle's worth is banked as it is won (RunManager.metaBattlePoints).
+export const META_BATTLE_REWARD_BY_ACT = Object.freeze({
+  act1: 7,
+  act2: 15,
+  act3: 20,
+  act4: 25,
+  finalBoss: 30,
+});
+export const META_FIRST_BATTLE_REWARD = 0;
+// Paid per act reached: entry i is the act cleared at index i (Act I, Act II, ...); acts past
+// the list take its last entry.
+export const META_ACT_CLEAR_REWARDS = Object.freeze([25, 75, 75, 75]);
+export const META_VICTORY_BONUS = 300;
+// Reaching the first act's boss (one milestone per run).
+export const META_FIRST_BOSS_MILESTONE = 15;
+// What a save from before metaBattlePoints is credited per battle won (the old flat rate).
+export const META_LEGACY_BATTLE_REWARD = 15;
 
 // Maps upgrade category → currency type
 export const CATEGORY_CURRENCY = {

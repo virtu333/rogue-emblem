@@ -61,7 +61,11 @@ import {
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
 import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapGenerator.js';
-import { calculateCurrencies } from './MetaProgressionManager.js';
+import {
+  battleMetaReward,
+  runEndMetaReward,
+  savedMetaBattlePoints,
+} from './MetaProgressionManager.js';
 import { lordNamesInRun } from './LordsMet.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import { buildDescentNodeMap, descentRouteIdFor, isDescentMap, isGateBossNode } from './Descent.js';
@@ -735,6 +739,8 @@ export class RunManager {
     this.nodeMap = null;
     this.currentNodeId = null; // last completed node (null = start of act)
     this.completedBattles = 0;
+    // The won battles' worth toward the run-end payout (battleMetaReward), banked as each is won.
+    this.metaBattlePoints = 0;
     this.gold = STARTING_GOLD + (metaEffects?.goldBonus || 0);
     this.accessories = []; // team accessory pool (unequipped accessories)
     this.ngPlus = null; // an NG+ run's Barracks members (engine/NgPlusRun.js)
@@ -1071,6 +1077,7 @@ export class RunManager {
     this.nodeMap = buildPrologueNodeMap(prologue, gameData);
     this.currentNodeId = null;
     this.completedBattles = 0;
+    this.metaBattlePoints = 0;
     this.fallenUnits = [];
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
@@ -4519,6 +4526,7 @@ export class RunManager {
       if (item?.perBattleUses) item._usesSpent = 0;
     }
     this._suppressPersonalSkillsForCurrentRosterIfNeeded();
+    this.metaBattlePoints += battleMetaReward(this.currentAct, this.completedBattles === 0);
     this.completedBattles++;
     this.winStreak++;
     if (this.winStreak > this.maxWinStreak) this.maxWinStreak = this.winStreak;
@@ -5376,15 +5384,7 @@ export class RunManager {
   previewEndRunRewards(result = 'defeat') {
     if (this.endRunRewards) return { ...this.endRunRewards };
     const multiplier = this.getDifficultyModifier('currencyMultiplier', 1) || 1;
-    const reward = calculateCurrencies(
-      this.actIndex,
-      this.completedBattles,
-      result === 'victory',
-      multiplier,
-    );
-    // One milestone per run, settled through the same defeat/abandon/victory path.
-    const milestone = this.reachedFirstActBoss ? Math.floor(15 * multiplier) : 0;
-    return { valor: reward.valor + milestone, supply: reward.supply + milestone };
+    return runEndMetaReward(this, result === 'victory', multiplier);
   }
 
   /** Serialize run state to a plain object for localStorage. */
@@ -5762,6 +5762,7 @@ export class RunManager {
     rm.nodeMap = saved.nodeMap;
     rm.currentNodeId = saved.currentNodeId;
     rm.completedBattles = saved.completedBattles;
+    rm.metaBattlePoints = savedMetaBattlePoints(saved);
     const ws = saved.winStreak;
     rm.winStreak = Number.isFinite(ws) && ws >= 0 ? Math.trunc(ws) : 0;
     const mws = saved.maxWinStreak;

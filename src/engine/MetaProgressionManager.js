@@ -42,12 +42,12 @@ import {
 // No Phaser deps. Follows SettingsManager pattern.
 
 import {
-  VALOR_PER_ACT,
-  VALOR_PER_BATTLE,
-  VALOR_VICTORY_BONUS,
-  SUPPLY_PER_ACT,
-  SUPPLY_PER_BATTLE,
-  SUPPLY_VICTORY_BONUS,
+  META_BATTLE_REWARD_BY_ACT,
+  META_FIRST_BATTLE_REWARD,
+  META_ACT_CLEAR_REWARDS,
+  META_VICTORY_BONUS,
+  META_FIRST_BOSS_MILESTONE,
+  META_LEGACY_BATTLE_REWARD,
   CATEGORY_CURRENCY,
   REFUND_FEE,
   MAX_STARTING_SKILLS,
@@ -2352,25 +2352,58 @@ export class MetaProgressionManager {
 }
 
 /**
- * Calculate currencies earned from a run.
- * Both currencies earn at the same rate (intentionally doubles effective spending power).
+ * What one won battle banks toward the run's payout (before the rung's multiplier): the
+ * run's first battle pays META_FIRST_BATTLE_REWARD, any other its act's entry in
+ * META_BATTLE_REWARD_BY_ACT (an act not listed takes the final act's).
+ * @param {string} actId - the act the battle was fought in
+ * @param {boolean} [isFirstBattle=false] - the run's first won battle
+ */
+export function battleMetaReward(actId, isFirstBattle = false) {
+  if (isFirstBattle) return META_FIRST_BATTLE_REWARD;
+  return META_BATTLE_REWARD_BY_ACT[actId] ?? META_BATTLE_REWARD_BY_ACT.finalBoss;
+}
+
+/** The act-clear part of the payout for a run that reached `actIndex` (0-based). */
+export function actClearMetaReward(actIndex) {
+  const reached = Math.max(0, Math.trunc(Number(actIndex) || 0));
+  const last = META_ACT_CLEAR_REWARDS[META_ACT_CLEAR_REWARDS.length - 1];
+  let total = 0;
+  for (let i = 0; i < reached; i++) total += META_ACT_CLEAR_REWARDS[i] ?? last;
+  return total;
+}
+
+/**
+ * Calculate currencies earned from a run. Both currencies earn the same amount.
+ * Back-loaded (constants.js): the acts reached, the battles' banked worth, a victory bonus.
  * @param {number} actIndex - 0-based act reached
- * @param {number} completedBattles - total battles won
+ * @param {number} battlePoints - the won battles' banked worth (RunManager.metaBattlePoints)
  * @param {boolean} isVictory - whether the run was won
  * @param {number} [currencyMultiplier=1] - run difficulty currency multiplier
  * @returns {{ valor: number, supply: number }}
  */
-export function calculateCurrencies(actIndex, completedBattles, isVictory, currencyMultiplier = 1) {
+export function calculateCurrencies(actIndex, battlePoints, isVictory, currencyMultiplier = 1) {
   const multiplier = Number.isFinite(currencyMultiplier) ? currencyMultiplier : 1;
-  const valorBase =
-    actIndex * VALOR_PER_ACT +
-    completedBattles * VALOR_PER_BATTLE +
-    (isVictory ? VALOR_VICTORY_BONUS : 0);
-  const supplyBase =
-    actIndex * SUPPLY_PER_ACT +
-    completedBattles * SUPPLY_PER_BATTLE +
-    (isVictory ? SUPPLY_VICTORY_BONUS : 0);
-  const valor = Math.floor(valorBase * multiplier);
-  const supply = Math.floor(supplyBase * multiplier);
-  return { valor, supply };
+  const points = Math.max(0, Number(battlePoints) || 0);
+  const base = actClearMetaReward(actIndex) + points + (isVictory ? META_VICTORY_BONUS : 0);
+  const amount = Math.floor(base * multiplier);
+  return { valor: amount, supply: amount };
+}
+
+/**
+ * A run's payout so far (RunManager.previewEndRunRewards): calculateCurrencies over the act
+ * reached and the banked battles, plus the first-boss milestone (once a run) at the same rate.
+ * @param {{ actIndex: number, metaBattlePoints: number, reachedFirstActBoss: boolean }} run
+ */
+export function runEndMetaReward(run, isVictory, multiplier = 1) {
+  const reward = calculateCurrencies(run.actIndex, run.metaBattlePoints, isVictory, multiplier);
+  const milestone = run.reachedFirstActBoss
+    ? Math.floor(META_FIRST_BOSS_MILESTONE * multiplier)
+    : 0;
+  return { valor: reward.valor + milestone, supply: reward.supply + milestone };
+}
+
+/** A save's banked points; a save from before them is credited the old flat rate a battle. */
+export function savedMetaBattlePoints(saved) {
+  if (Number.isFinite(saved?.metaBattlePoints)) return Math.max(0, saved.metaBattlePoints);
+  return Math.max(0, Number(saved?.completedBattles) || 0) * META_LEGACY_BATTLE_REWARD;
 }

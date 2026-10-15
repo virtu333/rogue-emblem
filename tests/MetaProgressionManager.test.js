@@ -3,6 +3,7 @@ import {
   CURRENT_BALANCE_REVISION,
   MetaProgressionManager,
   calculateCurrencies,
+  battleMetaReward,
 } from '../src/engine/MetaProgressionManager.js';
 import { loadGameData } from './testData.js';
 
@@ -1499,42 +1500,46 @@ describe('MetaProgressionManager', () => {
 });
 
 describe('calculateCurrencies', () => {
-  it('awards currencies per act reached', () => {
-    const { valor, supply } = calculateCurrencies(2, 0, false);
-    expect(valor).toBe(100); // 2 * 50
-    expect(supply).toBe(100);
+  // The back-loaded payout (constants.js): acts reached pay 25, then 75 each; a won battle
+  // banks 0 (the run's first), 7 in Act I, 15/20/25 in Acts II-IV, 30 in the final act; a
+  // victory adds 300. Written out here by hand so a retune is a deliberate test change.
+  it('pays the acts reached: Act I clear is cheap, every later act more', () => {
+    expect(calculateCurrencies(0, 0, false)).toEqual({ valor: 0, supply: 0 });
+    expect(calculateCurrencies(1, 0, false)).toEqual({ valor: 25, supply: 25 });
+    expect(calculateCurrencies(2, 0, false)).toEqual({ valor: 100, supply: 100 });
+    expect(calculateCurrencies(4, 0, false)).toEqual({ valor: 250, supply: 250 });
+    // An act past the table takes its last entry.
+    expect(calculateCurrencies(5, 0, false)).toEqual({ valor: 325, supply: 325 });
   });
 
-  it('awards currencies per battle completed', () => {
-    const { valor, supply } = calculateCurrencies(0, 5, false);
-    expect(valor).toBe(75); // 5 * 15
-    expect(supply).toBe(75);
+  it('pays the banked battle points as they are', () => {
+    expect(calculateCurrencies(0, 45, false)).toEqual({ valor: 45, supply: 45 });
   });
 
-  it('awards victory bonus to both currencies', () => {
-    const { valor, supply } = calculateCurrencies(0, 0, true);
-    expect(valor).toBe(100);
-    expect(supply).toBe(100);
+  it('awards a large victory bonus to both currencies', () => {
+    expect(calculateCurrencies(0, 0, true)).toEqual({ valor: 300, supply: 300 });
   });
 
-  it('combines all components', () => {
-    // 3 acts * 50 + 10 battles * 15 + 100 victory = 150 + 150 + 100 = 400
-    const { valor, supply } = calculateCurrencies(3, 10, true);
-    expect(valor).toBe(400);
-    expect(supply).toBe(400);
+  it('combines all components and applies the rung multiplier, floored', () => {
+    // (25 + 75 + 75) acts + 400 points + 300 victory = 875; x0.8 = 700
+    expect(calculateCurrencies(3, 400, true, 0.8)).toEqual({ valor: 700, supply: 700 });
+    // (25 + 75) + 33 = 133; x1.15 = 152.95 -> 152
+    expect(calculateCurrencies(2, 33, false, 1.15)).toEqual({ valor: 152, supply: 152 });
+  });
+});
+
+describe('battleMetaReward', () => {
+  it("pays nothing for the run's first battle, so a won opening map is worth nothing", () => {
+    expect(battleMetaReward('act1', true)).toBe(0);
   });
 
-  it('returns 0 for act 0, 0 battles, no victory', () => {
-    const { valor, supply } = calculateCurrencies(0, 0, false);
-    expect(valor).toBe(0);
-    expect(supply).toBe(0);
-  });
-
-  it('applies difficulty currency multiplier', () => {
-    const { valor, supply } = calculateCurrencies(2, 4, false, 1.25);
-    // Base = (2*50) + (4*15) = 160, scaled = 200
-    expect(valor).toBe(200);
-    expect(supply).toBe(200);
+  it('rises with the act the battle was fought in', () => {
+    expect(battleMetaReward('act1')).toBe(7);
+    expect(battleMetaReward('act2')).toBe(15);
+    expect(battleMetaReward('act3')).toBe(20);
+    expect(battleMetaReward('act4')).toBe(25);
+    expect(battleMetaReward('finalBoss')).toBe(30);
+    expect(battleMetaReward('postAct')).toBe(30);
   });
 });
 
