@@ -798,6 +798,7 @@ export class FormationController {
       mov: isRooted(unit) ? 0 : (unit.mov ?? unit.stats?.MOV ?? 0),
       positions,
       costModifier: s._getCostModifier?.(unit) || 0,
+      skillsData: s.gameData?.skills || null,
     });
     const move = [];
     for (const [key, entry] of moveRange) {

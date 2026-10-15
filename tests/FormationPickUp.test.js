@@ -58,6 +58,8 @@ function stubGraphic() {
 }
 
 function unit(name, extra = {}) {
+  // A real unit carries its equipped weapon in the bag and is proficient with it (Attack plans from there).
+  const weapon = { name: 'Iron Sword', type: 'Sword', range: '1', rankRequired: 'Prof' };
   return {
     name,
     faction: 'player',
@@ -65,7 +67,10 @@ function unit(name, extra = {}) {
     mov: 2,
     stats: { MOV: 2 },
     currentHP: 20,
-    weapon: { name: 'Iron Sword', type: 'Sword', range: '1' },
+    weapon,
+    inventory: [weapon],
+    proficiencies: [{ type: 'Sword', rank: 'Prof' }],
+    weaponRank: 'Prof',
     graphic: stubGraphic(),
     ...extra,
   };
