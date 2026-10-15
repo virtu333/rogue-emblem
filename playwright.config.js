@@ -14,6 +14,12 @@ export default defineConfig({
   ...specSelection('playwright.config.js'),
   timeout: 30_000,
   retries: 1,
+  // Tests, not files, are the unit of work: a long spec file is spread over the
+  // workers and shards instead of holding one worker for its whole length. Every test
+  // has its own browser context and no spec shares state between tests (no serial
+  // groups, no beforeAll), so the order inside a file never matters.
+  fullyParallel: true,
+  reporter: [[process.env.CI ? 'dot' : 'list'], ['./tools/e2eDurationReporter.js']],
   use: {
     baseURL: `http://localhost:${PORT}`,
     browserName: 'chromium',

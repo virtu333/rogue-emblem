@@ -10,6 +10,8 @@ export default defineConfig({
   outputDir: 'test-results-release',
   timeout: 60000,
   retries: 0,
+  // Not fullyParallel: offline-atlas and audio-upgrade each serve dist/ on a fixed port.
+  reporter: [[process.env.CI ? 'dot' : 'list'], ['./tools/e2eDurationReporter.js']],
   use: {
     ...devices['iPhone 13'],
     viewport: { width: 844, height: 390 },

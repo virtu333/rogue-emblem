@@ -10,6 +10,7 @@ dist/
 # Local Netlify folder
 .netlify
 test-results/
+e2e-durations/
 playwright-report/
 tests/artifacts/replays/
 tests/artifacts/fullrun/

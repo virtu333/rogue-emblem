@@ -22,6 +22,8 @@ export const LANES_FILE = `${E2E_DIR}/lanes.json`;
 export const DEFAULT_CONFIG = 'playwright.config.js';
 /** Env var the lane runner sets; the Playwright configs then select only that lane. */
 export const LANE_ENV = 'E2E_LANE';
+/** Env var the lane runner sets to the shard it runs ("2/6"), for the duration report. */
+export const SHARD_ENV = 'E2E_SHARD';
 
 const LANE_NAME = /^[a-z0-9][a-z0-9-]*$/;
 const SPEC_SUFFIX = '.spec.js';
@@ -223,7 +225,10 @@ export function laneCommand(manifest, name, extraArgs = []) {
     args.push(`--workers=${lane.workers}`);
   }
   args.push(...extraArgs);
-  return { command: 'npx', args, env: { [LANE_ENV]: lane.name } };
+  const env = { [LANE_ENV]: lane.name };
+  const shard = extraArgs.map((arg) => /^--shard=(\d+\/\d+)$/.exec(arg)?.[1]).find(Boolean);
+  if (shard) env[SHARD_ENV] = shard;
+  return { command: 'npx', args, env };
 }
 
 function sourcesToScan(root) {

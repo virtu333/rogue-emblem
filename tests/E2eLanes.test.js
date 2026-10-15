@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_CONFIG,
   LANE_ENV,
+  SHARD_ENV,
   checkRepository,
   ciMatrix,
   laneCommand,
@@ -181,8 +182,10 @@ describe('ciMatrix and laneCommand', () => {
     expect(laneCommand(manifest(), 'battle', ['--shard=1/2'])).toEqual({
       command: 'npx',
       args: ['playwright', 'test', '--config', DEFAULT_CONFIG, '--workers=2', '--shard=1/2'],
-      env: { [LANE_ENV]: 'battle' },
+      // The shard rides the env too, so the duration report can name it.
+      env: { [LANE_ENV]: 'battle', [SHARD_ENV]: '1/2' },
     });
+    expect(laneCommand(manifest(), 'smoke').env).toEqual({ [LANE_ENV]: 'smoke' });
     // An explicit --workers from the caller wins over the lane default.
     expect(laneCommand(manifest(), 'battle', ['--workers=1']).args).toEqual([
       'playwright',
