@@ -74,6 +74,10 @@ export const RUN_CAPABILITIES = Object.freeze({
   // checkpoint's `entityKitState`. An older client would fight the Entity without its limbs or
   // its undertow, and a resumed battle would hold Grasping Limbs it has no class for.
   entityKit: 2,
+  // NG+ (docs/specs/ng-plus.md): `run.ngPlus`, the Barracks members playing the run. An older
+  // client would drop it on load, so the run's end would never settle the Barracks (a fallen
+  // veteran kept, a win's items and ride never recorded).
+  ngPlus: 2,
 });
 
 export const CAPABILITY_IDS = Object.freeze(Object.keys(RUN_CAPABILITIES));
@@ -83,7 +87,7 @@ export const DESCENT_CAPABILITY = 'descent';
 
 /**
  * The capabilities this build plays: each writer's PR adds its id here. The guard shipped
- * before any; the Descent added its four.
+ * before any; the Descent added its four, the Entity kit its one, NG+ its one.
  */
 export const CLIENT_CAPABILITIES = Object.freeze([
   'descent',
@@ -91,6 +95,7 @@ export const CLIENT_CAPABILITIES = Object.freeze([
   'vigil',
   'defeatObjective',
   'entityKit',
+  'ngPlus',
 ]);
 
 /** The terrain index the Gate takes (03 §5.7): terrain.json holds 0..18 today. */
@@ -207,6 +212,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     bonusVisionActs: 'objectives',
     setPiecesOffered: 'setPiece',
     rite: 'rite',
+    ngPlus: 'ngPlus',
     // The Ruins' one revival per node (RuinsCommands): an older client allows a second.
     ruinsRevivedByNodeId: 'inert',
     // Each church's revivals (ChurchCommands): an older client has no church limit.
@@ -525,6 +531,7 @@ function scanRunFields(saved, found) {
   if (present(saved, 'bonusVisionActs')) found.add('objectives');
   if (nonEmptyArray(saved.setPiecesOffered)) found.add('setPiece');
   if (present(saved, 'rite')) found.add('rite');
+  if (present(saved, 'ngPlus')) found.add('ngPlus');
 }
 
 /** Capability ids sorted in the table's order (a stable marker). */

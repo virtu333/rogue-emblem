@@ -440,6 +440,16 @@ html.mobile-preview .mu-screen {
 .mh-skill span {
   font-size: 12px;
 }
+/* The ride's commit, beside Begin Run in the action bar. */
+.mh-screen .mu-actions .ng-commit {
+  min-height: 44px;
+}
+/* NG+ tab (ui/NgPlusPanel.js): "Who rides again?" and the Barracks headings. */
+.ng-heading {
+  font-size: 13px;
+  margin: 10px 0 6px;
+  color: var(--re-muted);
+}
 .mh-screen .mu-copy button {
   display: block;
   width: 100%;

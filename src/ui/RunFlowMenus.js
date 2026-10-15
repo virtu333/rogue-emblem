@@ -7,6 +7,7 @@ import { runEclipseSummary } from './eclipseContent.js';
 import { slotCardModel } from './slotCardModel.js';
 import { latestSlot } from './titleMenuModel.js';
 import { buildSlotCard, mountSlotPickerArt, slotPickerReducedMotion } from './SlotPickerView.js';
+import { ngPlusResultNote } from './ngPlusModel.js';
 
 /** Shown when a finished run's rewards could not be written (they retry on Continue). */
 export const PAYOUT_PENDING_NOTE =
@@ -49,6 +50,8 @@ export function runResultMenu(scene, rewards, meta) {
   }
   const deeds = deedsOfTheMarchSection(rm);
   if (deeds) menu.body.append(deeds);
+  const ngPlusNote = rewards.appliedToMeta !== false && ngPlusResultNote(meta, rm);
+  if (ngPlusNote) menu.body.append(element('p', ngPlusNote, 're-run-note'));
   if (meta && rewards.appliedToMeta === false)
     menu.body.append(element('p', PAYOUT_PENDING_NOTE, 're-run-note'));
   if (meta)

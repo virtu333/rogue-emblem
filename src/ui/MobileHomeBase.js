@@ -12,6 +12,8 @@ import portraitManifest from './RebuiltPortraitManifest.json';
 import { hasPc98, pc98PortraitElement, usePc98 } from './portraitArt.js';
 import { metLords } from '../engine/LordsMet.js';
 import { BEGIN_RUN_CANCELLED } from '../engine/PrologueRouting.js';
+import { NgPlusPanel } from './NgPlusPanel.js';
+import { NG_PLUS_TAB_LABEL, ngPlusTabVisible, openRideWarning } from './ngPlusModel.js';
 const node = (tag, cls, text) => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -26,6 +28,7 @@ export class MobileHomeBase {
     this.meta = scene.meta;
     this.role = 'commander';
     this.tab = 'lords';
+    this.ngPlus = new NgPlusPanel(this);
     const hints = scene.registry.get('hints');
     this.onboarding = [];
     if (hints?.shouldShow('homebase_intro'))
@@ -175,14 +178,18 @@ export class MobileHomeBase {
     );
     const tabs = node('nav', 'mu-tabs');
     tabs.setAttribute('aria-label', 'Loadout');
+    const ngPlusTab = ngPlusTabVisible(this.meta);
+    if (!ngPlusTab && this.tab === 'ngplus') this.tab = 'lords';
     for (const [key, label] of [
       ['lords', 'Starting lords'],
       ['skills', 'Starting skills'],
+      ...(ngPlusTab ? [['ngplus', NG_PLUS_TAB_LABEL]] : []),
     ]) {
       const b = this.button(
         label,
         () => {
           this.tab = key;
+          this.confirmBegin = false;
           this.render();
         },
         this.tab === key,
@@ -190,10 +197,12 @@ export class MobileHomeBase {
       b.dataset.focus = key;
       tabs.append(b);
     }
-    for (const [key, label] of [
-      ['commander', 'Commander'],
-      ['partner', 'Partner'],
-    ]) {
+    for (const [key, label] of this.tab === 'ngplus'
+      ? []
+      : [
+          ['commander', 'Commander'],
+          ['partner', 'Partner'],
+        ]) {
       const b = this.button(
         `${label}: ${selection[key]}`,
         () => {
@@ -209,7 +218,7 @@ export class MobileHomeBase {
     const list = node('div', 'mu-list');
     const detail = node('section', 'mu-detail');
     const copy = node('div', 'mu-copy');
-    if (lord) {
+    if (lord && this.tab !== 'ngplus') {
       const identity = node('div', 'mh-identity');
       identity.append(this.portrait(lord, 64), node('h2', '', `${lord.name} · ${lord.class}`));
       copy.append(
@@ -218,7 +227,9 @@ export class MobileHomeBase {
         node('p', 'mu-help', `${lord.weapon} · Movement ${lord.baseStats.MOV}`),
       );
     }
-    if (this.tab === 'lords') {
+    let ngAction = null;
+    if (this.tab === 'ngplus') ngAction = this.ngPlus.render(list, copy);
+    else if (this.tab === 'lords') {
       const unlocked = tier >= (this.role === 'commander' ? 1 : 2);
       copy.append(
         node(
@@ -331,8 +342,23 @@ export class MobileHomeBase {
       }
     }
     const actions = node('div', 'mu-actions');
-    actions.append(node('span', 'mu-help', `${selection.commander} + ${selection.partner}`));
-    const begin = this.button('Begin Run', () => void this.transition('BeginRun'));
+    actions.append(
+      ngAction || node('span', 'mu-help', `${selection.commander} + ${selection.partner}`),
+    );
+    // An open "Who rides again?" is lost to the next eligible win: Begin Run asks once.
+    const rideWarning = openRideWarning(this.meta);
+    const confirmingBegin = Boolean(rideWarning && this.confirmBegin);
+    const begin = this.button(confirmingBegin ? rideWarning.confirmLabel : 'Begin Run', () => {
+      if (rideWarning && !this.confirmBegin) {
+        this.confirmBegin = true;
+        this.message = rideWarning.text;
+        this.render();
+        this.root.querySelector('[data-focus="begin"]')?.focus();
+        return;
+      }
+      this.confirmBegin = false;
+      void this.transition('BeginRun');
+    });
     begin.className = 'mu-buy';
     begin.dataset.focus = 'begin';
     actions.append(begin);

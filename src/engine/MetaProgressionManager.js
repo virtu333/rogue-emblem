@@ -1,4 +1,19 @@
 import { isDifficultyId } from './DifficultyEngine.js';
+import {
+  NG_PLUS_COST,
+  NG_PLUS_MILESTONE,
+  NG_PLUS_UNLOCK_KEY,
+  applyRidePicks,
+  applyRunEnd,
+  defaultNgPlusState,
+  isNgPlusRung,
+  adoptNgPlusState,
+  normalizeNgPlusState,
+  passRide,
+  releaseRecord,
+  runStartOf,
+  setBring,
+} from './NgPlusState.js';
 import { DEFAULT_MARK_CHANCE } from './MarkSystem.js';
 import {
   settledBalanceRevision,
@@ -519,6 +534,7 @@ export const META_SAVE_FIELDS = Object.freeze([
   'lordsMet',
   'hintState',
   'prologue',
+  'ngPlus',
   'savedAt',
 ]);
 const META_READ_ONLY_FIELDS = Object.freeze(['totalRenown']);
@@ -630,6 +646,7 @@ export class MetaProgressionManager {
     this.milestones = new Set(); // e.g. "beatAct1", "beatAct2", "beatAct3"
     this.storyFlags = defaultStoryFlags(); // run-aware narrative memory
     this.prologue = defaultPrologueState();
+    this.ngPlus = defaultNgPlusState(); // NG+: the Barracks and the ride (NgPlusState.js)
     // A newer build's keys, kept as found and written back by `_save` (META_SAVE_FIELDS).
     this.unknownFields = {};
 
@@ -686,6 +703,7 @@ export class MetaProgressionManager {
         this.deedsEarned = mergeDeedIds(saved.deedsEarned);
         if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
         this.prologue = normalizePrologueState(saved.prologue);
+        this.ngPlus = normalizeNgPlusState(saved.ngPlus);
         this.solRefundBasis = Number(saved.solRefundBasis) === 400 ? 400 : 600;
         if (!saved.balanceRevision && this.getUpgradeLevel('unlock_sol') > 0)
           this.solRefundBasis = 400;
@@ -1058,6 +1076,95 @@ export class MetaProgressionManager {
 
   getMilestones() {
     return [...this.milestones];
+  }
+
+  // --- NG+ (docs/specs/ng-plus.md; the rules are NgPlusState.js) ---
+
+  /** The slot's NG+ state (a copy). */
+  getNgPlus() {
+    return structuredClone(this.ngPlus);
+  }
+
+  isNgPlusUnlocked() {
+    return (Number(this.purchasedUpgrades[NG_PLUS_UNLOCK_KEY]) || 0) > 0;
+  }
+
+  /** Why NG+ cannot be bought now ('unlocked' | 'milestone' | 'valor' | 'supply'), or null. */
+  ngPlusUnlockBlock() {
+    if (this.isNgPlusUnlocked()) return 'unlocked';
+    if (!this.milestones.has(NG_PLUS_MILESTONE)) return 'milestone';
+    if (this.totalValor < NG_PLUS_COST.valor) return 'valor';
+    if (this.totalSupply < NG_PLUS_COST.supply) return 'supply';
+    return null;
+  }
+
+  /**
+   * Buy NG+: both currencies and the unlock in one write. Never refundable. Checked inside the
+   * commit, after a newer copy on disk is adopted, so a stale manager whose other copy already
+   * bought it is refused ('unlocked') rather than charged twice.
+   */
+  unlockNgPlus() {
+    return this._commitNgPlus(() => {
+      const reason = this.ngPlusUnlockBlock();
+      if (reason) return { ok: false, reason };
+      this.totalValor -= NG_PLUS_COST.valor;
+      this.totalSupply -= NG_PLUS_COST.supply;
+      this.purchasedUpgrades[NG_PLUS_UNLOCK_KEY] = 1;
+      return { ok: true };
+    });
+  }
+
+  /** What an NG+ run on `difficultyId` starts with (RunManager.startRun's `ngPlus`), or null. */
+  ngPlusRunStart(difficultyId) {
+    if (!this.isNgPlusUnlocked() || !isNgPlusRung(difficultyId)) return null;
+    return runStartOf(this.ngPlus);
+  }
+
+  /** "Who rides again?": commit the picks (NgPlusState.applyRidePicks). */
+  chooseNgPlusRide(picks) {
+    if (!this.isNgPlusUnlocked()) return { ok: false, reason: 'locked' };
+    return this._commitNgPlus((state) => applyRidePicks(state, picks));
+  }
+
+  passNgPlusRide() {
+    return this._commitNgPlus((state) => ({ ok: passRide(state) }));
+  }
+
+  releaseNgPlusVeteran(id) {
+    return this._commitNgPlus((state) => ({ ok: releaseRecord(state, id) }));
+  }
+
+  setNgPlusBring(ids) {
+    return this._commitNgPlus((state) => setBring(state, ids));
+  }
+
+  /** A run's end (NgPlusRun.ngPlusRunEnd), applied inside the run's payout write. */
+  recordNgPlusRunEnd(end) {
+    if (!end) return { ok: true };
+    return this._commitNgPlus((state) => ({ ok: true, ...applyRunEnd(state, end) }));
+  }
+
+  /**
+   * Change the NG+ state (and anything else `change` touches) in one write: `change` gets the
+   * state and returns `{ ok }`; a refusal or a failed write leaves everything as it was.
+   * A newer copy on disk (another tab or manager) is adopted first, so the change is checked
+   * and applied against the latest state, never a stale one that the write would then lose
+   * or that would bring back what the other copy removed.
+   */
+  _commitNgPlus(change) {
+    this._adoptForeignDiskStateIfNewer();
+    const before = this._captureState();
+    const result = change(this.ngPlus);
+    if (!result?.ok) {
+      this._restoreState(before);
+      return result || { ok: false };
+    }
+    const saved = this._save();
+    if (!saved.ok) {
+      this._restoreState(before);
+      return { ok: false, reason: 'save_failed' };
+    }
+    return result;
   }
 
   // --- Story flag methods (run-aware narrative memory) ---
@@ -1829,6 +1936,7 @@ export class MetaProgressionManager {
     this.milestones = new Set();
     this.storyFlags = defaultStoryFlags();
     this.prologue = defaultPrologueState();
+    this.ngPlus = defaultNgPlusState();
     this.runRecords = [];
     this.settledRunIds = [];
     this.seenDialogueKeys = [];
@@ -1979,6 +2087,10 @@ export class MetaProgressionManager {
     // this merge keeps both copies' economies (each currency and upgrade at its max):
     // a paid copy's grant is in the result, and an unpaid newer copy must not pay again.
     this.prologue = mergePrologueState(this.prologue, disk.prologue);
+    // NG+: the newer write wins whole (NgPlusState.adoptNgPlusState). Every NG+ change
+    // adopts before it applies (_commitNgPlus), so this copy holds no NG+ change the disk
+    // lacks, and a release or a pick the other copy made is never undone here.
+    this.ngPlus = adoptNgPlusState(this.ngPlus, disk.ngPlus);
     // A newer build's keys: the newer disk copy's values win, ours stay where it has none.
     this.unknownFields = { ...this.unknownFields, ...unknownMetaFields(disk) };
     this.savedAt = diskSavedAt;
@@ -2058,6 +2170,7 @@ export class MetaProgressionManager {
       skillsSeen: this.skillsSeen,
       hintState: this.hintState,
       prologue: this.prologue,
+      ngPlus: this.ngPlus,
       savedAt: this.savedAt,
     });
   }
@@ -2103,6 +2216,7 @@ export class MetaProgressionManager {
       lordsMet: this.lordsMet,
       hintState: this.hintState,
       prologue: normalizePrologueState(this.prologue),
+      ngPlus: this.ngPlus,
       savedAt: this.savedAt,
     };
     let localOk = false;
