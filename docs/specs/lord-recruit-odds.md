@@ -39,6 +39,9 @@ unit is fixed per node as before, so a card shows the same recruit once it comes
 an old save's previews read the same. Open Roll's second candidate shows with the first. Dave's
 call (2026-10-15), on top of the odds, to stop routing a whole act toward the lord cards; the
 sim's `near` policy (a lord seen only one step ahead) measured it.
+With v2 on Nightfall (Hero's Call III + Power of Friendship, 1000 runs), it takes seven lords at
+Act IV entry from 8.3% (every card read) to 6.2%, six or more from 47% to 38%, and the mean
+after Act III from 5.4 to 5.2.
 
 ## Old saves
 
