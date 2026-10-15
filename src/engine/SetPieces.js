@@ -148,6 +148,12 @@ export function setPieceMapBounds(setPiece) {
     : SET_PIECE_MAP_BOUNDS;
 }
 
+/**
+ * The largest army a run can field: an act's deploy max (8 from Act IV) plus every deploy bonus
+ * at once (Tactical Advantage +1, Scout Blessing +1, The Levy +2). A set piece may seat that many.
+ */
+export const SET_PIECE_MAX_DEPLOY = 12;
+
 /** The deploy screen's cap a set piece sets (its `deploy.max`), or null. */
 export function setPieceDeployCap(setPiece) {
   const max = setPiece?.deploy?.max;
@@ -613,7 +619,8 @@ export function validateSetPiecesConfig(config, data = {}) {
     if (piece.parBonus !== undefined && !(isInt(piece.parBonus) && piece.parBonus >= 0))
       err(pw, 'parBonus must be a whole number >= 0');
     const cap = setPieceDeployCap(piece);
-    if (!cap || cap > 8) err(pw, 'deploy.max must be a whole number from 1 to 8');
+    if (!cap || cap > SET_PIECE_MAX_DEPLOY)
+      err(pw, `deploy.max must be a whole number from 1 to ${SET_PIECE_MAX_DEPLOY}`);
     const variants = Array.isArray(piece.variants) ? piece.variants : [];
     if (variants.length === 0 || variants.length > 3) err(pw, 'needs 1 to 3 variants');
     const variantIds = new Set();

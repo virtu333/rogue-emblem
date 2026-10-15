@@ -34,12 +34,17 @@ import {
 } from '../src/engine/Combat.js';
 import { damageUnit, damageUnitDetailed } from '../src/engine/UnitHealth.js';
 import { postCombatEffects } from '../src/engine/PostCombatEffects.js';
-import { buildSetPieceBattle, validateSetPiecesConfig } from '../src/engine/SetPieces.js';
+import {
+  buildSetPieceBattle,
+  SET_PIECE_MAX_DEPLOY,
+  validateSetPiecesConfig,
+} from '../src/engine/SetPieces.js';
+import { deployLimitsForParams, resolveDeployLimits } from '../src/engine/BattleDeployCount.js';
 import { generateSeededBattle } from '../src/engine/BattleScout.js';
 import { wardInfo } from '../src/engine/BattleInformation.js';
 import { forecastNotes, WARDED_FORECAST_NOTE } from '../src/ui/forecastDisplay.js';
 import { combatNumberStyle } from '../src/ui/combatNumberStyle.js';
-import { TERRAIN } from '../src/utils/constants.js';
+import { DEPLOY_LIMITS, TERRAIN } from '../src/utils/constants.js';
 import { DEV_SET_PIECE_FIXTURES, withDevSetPiece } from '../src/utils/devSetPieceFixtures.js';
 
 const data = loadGameData();
@@ -411,6 +416,32 @@ describe('the shipped Vigil: platforms over the Abyss', () => {
     const near = (spawns) => spawns.filter((s) => s.col === 3 && (s.row === 2 || s.row === 11));
     expect(near(guardsAt('normal'))).toEqual([]);
     expect(near(guardsAt('dusk'))).toHaveLength(2);
+  });
+
+  it('seats the largest army a run can field: every deploy bonus at once', () => {
+    // Counted from the data: the act's max, every meta deploy bonus, every blessing that widens it.
+    const metaBonus = data.metaUpgrades
+      .flatMap((u) => u.effects || [])
+      .reduce((sum, e) => sum + Math.max(0, e.deployBonus || 0), 0);
+    const blessingBonus = data.blessings.blessings
+      .flatMap((b) => b.boons || b.effects || [])
+      .filter((e) => e.type === 'deploy_cap_delta')
+      .reduce((sum, e) => sum + Math.max(0, e.params?.value || 0), 0);
+    const largest = DEPLOY_LIMITS.finalBoss.max + metaBonus + blessingBonus;
+    expect(SET_PIECE_MAX_DEPLOY).toBe(largest);
+    const params = { act: 'finalBoss', objective: 'rout', setPiece: 'the_vigil', difficultyId: 'hard', deployCap: vigilPiece.deploy.max, levelRange: [14, 16] }; // prettier-ignore
+    const limits = resolveDeployLimits({
+      base: deployLimitsForParams(params),
+      deployBonus: metaBonus + blessingBonus,
+    });
+    expect(limits.max).toBe(largest);
+    for (const seed of [11, 12]) {
+      const config = generateSeededBattle({ ...params, deployCount: largest }, data, seed);
+      const tiles = new Set(config.playerSpawns.map((t) => `${t.col},${t.row}`));
+      expect(tiles.size, `seed ${seed}`).toBe(largest);
+      for (const t of config.playerSpawns)
+        expect(config.mapLayout[t.row][t.col], `${t.col},${t.row}`).not.toBe(TERRAIN.Abyss);
+    }
   });
 
   it('the data validates (circles reachable on foot, the map in bounds)', () => {

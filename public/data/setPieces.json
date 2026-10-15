@@ -341,7 +341,7 @@
       "biome": null,
       "fog": false,
       "parBonus": 2,
-      "deploy": { "max": 8 },
+      "deploy": { "max": 12 },
       "variants": [
         {
           "id": "bridges_of_the_rite",
@@ -373,7 +373,11 @@
             { "col": 2, "row": 6 },
             { "col": 2, "row": 7 },
             { "col": 1, "row": 5 },
-            { "col": 1, "row": 8 }
+            { "col": 1, "row": 8 },
+            { "col": 0, "row": 5 },
+            { "col": 0, "row": 8 },
+            { "col": 2, "row": 5 },
+            { "col": 2, "row": 8 }
           ],
           "enemies": [
             {
