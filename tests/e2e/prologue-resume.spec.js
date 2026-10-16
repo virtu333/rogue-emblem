@@ -26,7 +26,7 @@ async function refreshAndResume(d, { battle = true } = {}) {
   const { page } = d;
   await page.reload();
   await activeScene(page, 'Title');
-  await d.click(page.getByRole('button', { name: 'Resume · Prologue', exact: true }));
+  await d.click(page.getByRole('button', { name: /^Resume.*Prologue/ }));
   if (battle) {
     await d.click(page.getByRole('button', { name: 'Resume Battle', exact: true }));
     await activeScene(page, 'Battle');
