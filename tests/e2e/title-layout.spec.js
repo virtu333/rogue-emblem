@@ -282,3 +282,97 @@ test.describe('desktop, a Retina screen where the subline snaps up', () => {
     await expectSublineFits(page);
   });
 });
+
+// Playtest (Oct 2026): with several runs going and the newest in the prologue, Resume read
+// "RESUME ·" / "PROLOGUE" / "LATEST · SLOT 3" on three lines. This plays the real state:
+// three saved runs, slot 3's the prologue's and the newest, then measures the button the
+// player sees (not a synthetic subline) at the sizes where the stage snaps its fonts up.
+for (const [width, height, deviceScaleFactor] of [
+  [1305, 837, 1],
+  [1554, 1040, 1],
+  [1000, 700, 2],
+]) {
+  test.describe(`desktop ${width}x${height} @${deviceScaleFactor}x, the newest run is the prologue's`, () => {
+    test.use({
+      viewport: { width, height },
+      isMobile: false,
+      hasTouch: false,
+      deviceScaleFactor,
+      userAgent: devices['Desktop Chrome'].userAgent,
+    });
+
+    test('Resume is one line of action and one line of run, inside its button', async ({
+      page,
+    }) => {
+      await page.addInitScript(() => {
+        const now = Date.now();
+        const runs = [
+          { actIndex: 2, savedAt: now - 2000 },
+          { actIndex: 3, savedAt: now - 1000 },
+          { mode: 'prologue', actIndex: 0, savedAt: now },
+        ];
+        runs.forEach((run, i) => {
+          localStorage.setItem(`emblem_rogue_slot_${i + 1}_meta`, '{}');
+          localStorage.setItem(`emblem_rogue_slot_${i + 1}_run`, JSON.stringify(run));
+        });
+      });
+      await page.goto('/?devScene=title');
+      await waitForScene(page, 'Title');
+      const resume = page.locator('.re-title-btn[data-action="resume"]');
+      await expect(resume.locator('.re-title-label')).toHaveText('Resume latest');
+      await expect(resume.locator('.re-title-subtext')).toHaveText('Prologue · Slot 3');
+      const m = await page.evaluate(() => {
+        const lineCount = (el) => {
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+        };
+        const btn = document.querySelector('.re-title-btn[data-action="resume"]');
+        const label = btn.querySelector('.re-title-label');
+        const sub = btn.querySelector('.re-title-subtext');
+        const box = btn.getBoundingClientRect();
+        const inside = (el) => {
+          const r = el.getBoundingClientRect();
+          return (
+            r.left >= box.left - 0.5 &&
+            r.right <= box.right + 0.5 &&
+            r.top >= box.top - 0.5 &&
+            r.bottom <= box.bottom + 0.5
+          );
+        };
+        const boxes = [...document.querySelectorAll('.re-title button')]
+          .filter((b) => b.offsetParent)
+          .map((b) => b.getBoundingClientRect());
+        let overlap = false;
+        for (let i = 0; i < boxes.length; i++)
+          for (let j = i + 1; j < boxes.length; j++) {
+            const a = boxes[i];
+            const b = boxes[j];
+            if (
+              a.left < b.right - 0.5 &&
+              b.left < a.right - 0.5 &&
+              a.top < b.bottom - 0.5 &&
+              b.top < a.bottom - 0.5
+            )
+              overlap = true;
+          }
+        return {
+          labelLines: lineCount(label),
+          subLines: lineCount(sub),
+          labelClipped: label.scrollWidth > label.clientWidth + 0.5,
+          subClipped: sub.scrollWidth > sub.clientWidth + 0.5,
+          labelInside: inside(label),
+          subInside: inside(sub),
+          overlap,
+        };
+      });
+      expect(m.labelLines).toBe(1);
+      expect(m.subLines).toBe(1);
+      expect(m.labelClipped).toBe(false);
+      expect(m.subClipped).toBe(false);
+      expect(m.labelInside).toBe(true);
+      expect(m.subInside).toBe(true);
+      expect(m.overlap).toBe(false);
+    });
+  });
+}

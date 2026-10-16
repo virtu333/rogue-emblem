@@ -266,6 +266,9 @@ html.mobile-preview .re-title--phone {
 .re-title-label {
   min-width: 0;
 }
+.re-title-btn.has-sub .re-title-label {
+  white-space: nowrap;
+}
 .re-title-badge {
   margin-left: auto;
   padding: 3px 5px 2px;
