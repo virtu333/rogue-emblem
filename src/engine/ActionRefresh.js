@@ -7,8 +7,10 @@
 // Dance (ActionAbilitySystem.refreshActedAlly). It resets the action flags, the movement the
 // last action spent (so Canto, Ride Down and the like read the new action's walk only) and
 // any Galeforce Charm proc still waiting: refreshes never stack, so when another refresh wins
-// on the same action the charm's proc is used up by it (it still counts as one of the charm's
-// uses), never carried to a later Wait.
+// on the same action the charm's proc is dropped, never carried to a later Wait, and the use it
+// took (`_galeforceUses`, counted when it rolled) is handed back: the charm gave nothing.
+// (GaleforceCharm.consumeGaleforce clears its own flag before calling here, so its refresh
+// keeps the use.)
 //
 // `keepMovementSpent`: Dance's refresh has always left `_movementSpent` alone; it keeps that.
 
@@ -18,6 +20,10 @@ export function refreshUnitAction(unit, { keepMovementSpent = false } = {}) {
   unit._movementCommitted = false;
   unit.hasActed = false;
   if (!keepMovementSpent) unit._movementSpent = 0;
+  if (unit._galeforceReady === true) {
+    const uses = Math.max(0, Math.trunc(Number(unit._galeforceUses) || 0));
+    unit._galeforceUses = Math.max(0, uses - 1);
+  }
   delete unit._galeforceReady;
   return unit;
 }

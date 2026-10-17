@@ -103,10 +103,10 @@ import { revivalStoneCount } from '../engine/RevivalStones.js';
 import { applyDueHybridOverrides } from '../engine/TerrainPhases.js';
 import RevivalStoneController from '../ui/RevivalStoneController.js';
 import UnbrokenBannerController from '../ui/UnbrokenBannerController.js';
-import WardController, { WARD_COLOR } from '../ui/WardController.js';
-import { readyWard, wardReady } from '../engine/AccessoryWard.js';
+import WardController, { drawWardPip, redrawWardPips } from '../ui/WardController.js';
+import { wardReady } from '../engine/AccessoryWard.js';
 import { isAnchoredByAccessory, playerAlliesLost } from '../engine/AccessoryReactions.js';
-import { readyGaleforce } from '../engine/GaleforceCharm.js';
+import { readyBattleAccessories } from '../engine/BattleAccessories.js';
 import {
   WHISTLE_NAME,
   battleBlessingsAtStart,
@@ -573,8 +573,7 @@ export function resetUnitForBattle(unit) {
   unit._movementCommitted = false;
   unit.hasActed = false;
   unit._miracleUsed = false;
-  readyWard(unit); // the Warden's Buckler (engine/AccessoryWard.js)
-  readyGaleforce(unit); // the Galeforce Charm's uses (engine/GaleforceCharm.js)
+  readyBattleAccessories(unit); // the Warden's Buckler, the Galeforce Charm
   unit._gambitUsedThisTurn = false;
   unit._conditions = [];
   delete unit._speedtakerStacks;
@@ -1958,8 +1957,7 @@ export class BattleScene extends Phaser.Scene {
       if (!this._resumeCheckpoint) {
         for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
           unit._phoenixBroochUsed = false;
-          readyWard(unit);
-          readyGaleforce(unit);
+          readyBattleAccessories(unit);
         }
         // The Lingering Injury burden (id `wounded`, engine/Burdens.js) and Cavalier's Hour (by move
         // type, engine/ShrineBoons.js): battle stat deltas applied once, here, so the first forecast
@@ -3569,10 +3567,7 @@ export class BattleScene extends Phaser.Scene {
       unit.affixPips.push(staffPip);
       startX += pipSize + gap;
     }
-    if (ward) {
-      const pip = this.add.circle(startX, pipY, pipSize / 2 + 1, WARD_COLOR).setDepth(14);
-      unit.affixPips.push(pip.setStrokeStyle(1, 0x000000).setVisible(inView));
-    }
+    if (ward) unit.affixPips.push(drawWardPip(this, startX, pipY, pipSize).setVisible(inView));
   }
 
   /**
@@ -5436,8 +5431,7 @@ export class BattleScene extends Phaser.Scene {
     this.tradeMutatedThisSession = false;
     this._clearSelectedWeaponArt();
 
-    // Check for Canto: use remaining movement after acting (not when a Galeforce Charm
-    // readied the unit to act again: GaleforceCharm.js).
+    // Check for Canto: use remaining movement after acting (not when Galeforce readied it)
     if (!skipCanto && unit._galeforceReady !== true) {
       // Rooted units cannot use Canto (root may land mid-action via counter-art)
       const movSpent = unit._movementSpent || 0;
@@ -8552,10 +8546,7 @@ export class BattleScene extends Phaser.Scene {
     // Per-battle weapons (Breachbolt) spend a shot for each side that struck with them
     // (the switch away from a dry weapon waits for the deaths: _swapSpentWeapons).
     spendCombatShots(attacker, defender, result);
-    // A spent Warden's Buckler drops its pip whether or not the strikes were shown.
-    if (result.events.some((e) => e.warded))
-      for (const u of [attacker, defender])
-        safeBattlePresentation('ward pip', () => this.updateAffixPips(u), { scene: this });
+    redrawWardPips(this, result, [attacker, defender]); // whether or not strikes were shown
 
     // Debug invincibility: restore player-faction units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {

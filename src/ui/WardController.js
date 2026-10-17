@@ -17,6 +17,26 @@ export const WARD_COLOR = 0x77bbff;
 const WARD_TEXT_COLOR = '#77bbff';
 const WARD_RING_MS = 450;
 
+/** A ready ward's pip in the unit's pip row (BattleScene.updateAffixPips): pale blue, round. */
+export function drawWardPip(scene, x, y, size) {
+  return scene.add
+    .circle(x, y, size / 2 + 1, WARD_COLOR)
+    .setDepth(14)
+    .setStrokeStyle(1, 0x000000);
+}
+
+/** A combat that spent a ward redraws its sides' pips, whether or not its strikes were shown. */
+export function redrawWardPips(scene, result, units) {
+  if (!result?.events?.some?.((e) => e.warded)) return;
+  for (const unit of units) {
+    try {
+      scene.updateAffixPips?.(unit);
+    } catch (err) {
+      console.warn('[WardController] ward pip redraw failed:', err);
+    }
+  }
+}
+
 export default class WardController {
   constructor(scene) {
     this.scene = scene;

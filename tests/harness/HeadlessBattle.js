@@ -219,9 +219,9 @@ import { deriveNodeBattleSeed } from '../../src/engine/BattleScout.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import { applyPostSpawn, settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
 import { createVigilState } from '../../src/engine/Vigil.js';
-import { readyWard } from '../../src/engine/AccessoryWard.js';
+import { readyBattleAccessories } from '../../src/engine/BattleAccessories.js';
 import { playerAlliesLost } from '../../src/engine/AccessoryReactions.js';
-import { consumeGaleforce, readyGaleforce } from '../../src/engine/GaleforceCharm.js';
+import { consumeGaleforce } from '../../src/engine/GaleforceCharm.js';
 import { refreshUnitAction } from '../../src/engine/ActionRefresh.js';
 import { applyDueHybridOverrides } from '../../src/engine/TerrainPhases.js';
 import {
@@ -416,8 +416,7 @@ export class HeadlessBattle {
         unit.hasActed = false;
         unit._miracleUsed = false;
         unit._phoenixBroochUsed = false;
-        readyWard(unit);
-        readyGaleforce(unit);
+        readyBattleAccessories(unit);
         unit._gambitUsedThisTurn = false;
         for (const w of unit.inventory || []) refillBattleUses(w);
         this.playerUnits.push(unit);

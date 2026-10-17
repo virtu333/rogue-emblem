@@ -20,6 +20,7 @@ import {
 } from '../src/engine/WeaponArtSystem.js';
 import { completeResolvedAction } from '../src/ui/BattlePresentationCheckpoint.js';
 import { completeBattleAction } from '../src/ui/BattleActionCompletion.js';
+import { galeforceChance } from '../src/engine/GaleforceCharm.js';
 import { loadGameData } from './testData.js';
 import { validateCrossReferences } from '../tools/validateCrossReferences.js';
 
@@ -204,27 +205,38 @@ describe('the refresh (completeResolvedAction)', () => {
   });
 
   // The Galeforce Charm (engine/GaleforceCharm.js) on the same kill (the outside review of
-  // PR #440): refreshes never stack. The other refresh wins and uses the charm's proc up, so
-  // a later Wait ends the turn instead of refreshing the unit a second time.
+  // PR #440): refreshes never stack. The other refresh wins and drops the charm's proc, so
+  // a later Wait ends the turn instead of refreshing the unit a second time, and the use the
+  // proc counted is handed back (the second proc of a battle leaves one left again).
   it.each([
     ["Commander's Gambit", { gambitTriggered: true }],
     ['the kill-move art', { refreshActor: true }],
-  ])('a charm proc beside %s is used up by it, never kept for a later Wait', (_label, flags) => {
-    const { scene, units } = completionScene();
-    for (const u of units) u.stats = { HP: 20 };
-    Object.assign(units[0], { _galeforceReady: true, _galeforceUses: 1 });
-    completeResolvedAction(scene, resumed({ kind: 'combat', unitName: 'Kael', ...flags }), {
-      session: 1,
-    });
-    expect(units[0].hasActed).toBe(false);
-    expect(units[0]._galeforceReady).toBeUndefined();
-    expect(units[0]._galeforceUses).toBe(1);
-    scene.turnManager.unitActed = vi.fn();
-    Object.assign(scene, { _historyBeats: [], dimUnit: vi.fn() });
-    completeBattleAction(scene, units[0], { session: 1 });
-    expect(units[0].hasActed).toBe(true);
-    expect(scene.turnManager.unitActed).toHaveBeenCalledWith(units[0]);
-  });
+  ])(
+    'a charm proc beside %s is dropped and its use refunded, never kept for a later Wait',
+    (_label, flags) => {
+      const { scene, units } = completionScene();
+      for (const u of units) u.stats = { HP: 20 };
+      Object.assign(units[0], { _galeforceReady: true, _galeforceUses: 2 });
+      completeResolvedAction(scene, resumed({ kind: 'combat', unitName: 'Kael', ...flags }), {
+        session: 1,
+      });
+      expect(units[0].hasActed).toBe(false);
+      expect(units[0]._galeforceReady).toBeUndefined();
+      expect(units[0]._galeforceUses).toBe(1);
+      // The charm still has its second proc this battle.
+      units[0].faction = 'player';
+      units[0].stats = { HP: 20, SKL: 100 };
+      units[0].accessory = structuredClone(
+        data.accessories.find((a) => a.name === 'Galeforce Charm'),
+      );
+      expect(galeforceChance(units[0])).toBeGreaterThan(0);
+      scene.turnManager.unitActed = vi.fn();
+      Object.assign(scene, { _historyBeats: [], dimUnit: vi.fn() });
+      completeBattleAction(scene, units[0], { session: 1 });
+      expect(units[0].hasActed).toBe(true);
+      expect(scene.turnManager.unitActed).toHaveBeenCalledWith(units[0]);
+    },
+  );
 
   it('a user that fell before resume is not refreshed', () => {
     const { scene, units } = completionScene();

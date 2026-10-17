@@ -19,6 +19,8 @@ import { AIController } from '../src/engine/AIController.js';
 import { rollDefenseAffixes } from '../src/engine/AffixSystem.js';
 import { formatAccessoryDetail } from '../src/utils/accessoryText.js';
 import { canRollAccessorySkill } from '../src/engine/AccessorySkills.js';
+import { spendCombatShots } from '../src/engine/PerBattleWeapons.js';
+import { durabilityBaseUses } from '../src/engine/WeaponUses.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -181,6 +183,31 @@ describe('in combat', () => {
       rollDefenseAffixes,
     });
     expect(counters(beside)[0].reflectTaken).toBeGreaterThan(0);
+  });
+});
+
+// Weapon uses per battle (engine/WeaponUses.js, PR #443): a counter from 2 tiles is a counter
+// like any other, so it needs a use left and spends one.
+describe('weapon uses per battle', () => {
+  it('a weapon with no uses left never counters from 2 (nor from 1)', () => {
+    const s = sera();
+    s.weapon._usesSpent = durabilityBaseUses(s.weapon);
+    expect(durabilityBaseUses(s.weapon)).toBeGreaterThan(0);
+    expect([1, 2].map((d) => canCounter(s, s.weapon, d))).toEqual([false, false]);
+    const a = archer();
+    const f = getCombatForecast(a, a.weapon, s, s.weapon, 2, null, null, ctx(a, s));
+    expect(f.defender.canCounter).toBe(false);
+    expect(counters(fight(a, s, 2)).length).toBe(0);
+  });
+
+  it("a counter from 2 tiles spends one use of the wearer's weapon; the enemy bow spends none", () => {
+    const a = archer();
+    const s = sera();
+    const r = fight(a, s, 2);
+    expect(counters(r).length).toBe(1);
+    spendCombatShots(a, s, r);
+    expect(s.weapon._usesSpent).toBe(1);
+    expect(a.weapon._usesSpent || 0).toBe(0);
   });
 });
 
