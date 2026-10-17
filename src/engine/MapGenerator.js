@@ -3642,6 +3642,7 @@ const RECRUIT_TILE_EXCLUDED = new Set([
   'Ice',
   'Throne',
   'Ballista',
+  'Abyss',
 ]);
 
 /**

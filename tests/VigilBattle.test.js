@@ -22,14 +22,19 @@ vi.mock('phaser', () => ({
 }));
 
 import { BattleScene } from '../src/scenes/BattleScene.js';
-import { VigilController, VIGIL_BANNERS, VOICE_SILENCED_CUE } from '../src/ui/VigilController.js';
+import {
+  VigilController,
+  VIGIL_BANNERS,
+  VOICE_SILENCED_CUE,
+  WARD_BREAK_SFX,
+} from '../src/ui/VigilController.js';
 import { BattleSuspendController } from '../src/ui/BattleSuspendController.js';
 import { captureBattleState } from '../src/ui/BattleCheckpointAdapter.js';
 import { validateBattleState } from '../src/engine/BattleStateSnapshot.js';
 import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
 import { registerBattleEntity, resetBattleIdentities } from '../src/engine/BattleEntityIdentity.js';
 import { markFoesShown } from '../src/engine/BattleInformation.js';
-import { createVigilState } from '../src/engine/Vigil.js';
+import { applyVigilWards, createVigilState } from '../src/engine/Vigil.js';
 import { areaDamage } from '../src/engine/PostCombatEffects.js';
 import { getWeaponArtArea } from '../src/engine/WeaponArtSystem.js';
 import { createBattleRng } from '../src/engine/BattleRng.js';
@@ -932,5 +937,115 @@ describe('a Hollowed whose sprite fails to draw', () => {
     for (const unit of hollowed)
       for (const part of [unit.graphic, unit.hpBar.bg, unit.hpBar.fill])
         expect(live).toContain(part);
+  });
+});
+
+// The Vigil's shields in the scene (engine/Vigil.js wards and choir; the shipped Vigil turns
+// them on, the review fixture is shielded here). Ways this breaks:
+//   - the scene breaks a circle the harness would not, keeps calling from it, or keeps the
+//     Voice's ward up after its circle broke
+//   - a break in the fog plays its banner or sound
+//   - a checkpoint drops the broken circles, a malformed one passes validation, or a resume
+//     leaves the restored Voices unstamped (they could be hurt while warded, or not at all)
+//   - the Waking keeps its choir after the last other Voice falls
+describe('the shields in the scene', () => {
+  const shield = (b) => Object.assign(b.battleConfig.vigil, { wards: true, choir: true });
+  const audioStub = () => ({ playSFX: vi.fn(), playStinger: vi.fn(() => Promise.resolve()) });
+  const shieldedScene = (opts = {}) => {
+    const out = sceneOf({ ...opts, edit: shield });
+    applyVigilWards(out.scene.battleConfig.vigil, out.scene._vigilState, out.scene.enemyUnits);
+    const audio = audioStub();
+    out.scene.registry = { get: (key) => (key === 'audio' ? audio : null) };
+    out.scene.showMinorHintAt = vi.fn();
+    out.audio = audio;
+    return out;
+  };
+  const standOnCircle = (scene, b, id) => {
+    const circle = tileOf(b, 'circles', id);
+    Object.assign(scene.playerUnits[0], { col: circle.col, row: circle.row });
+  };
+
+  it('a unit on a circle breaks it: the Voice’s ward drops, the circle calls no more', async () => {
+    const { scene, b, audio } = shieldedScene();
+    for (const id of VOICES) expect(voiceOf(scene.enemyUnits, id).warded, id).toBe(true);
+    standOnCircle(scene, b, 'circle_calling');
+    await scene.processVigil();
+    expect(scene._vigilState.broken).toEqual({ circle_calling: 1 });
+    expect(banners(scene)[0]).toBe(VIGIL_BANNERS.broken);
+    expect(audio.playSFX).toHaveBeenCalledWith(WARD_BREAK_SFX);
+    const calling = voiceOf(scene.enemyUnits, 'voice_calling');
+    expect(calling).not.toHaveProperty('warded');
+    // "Ward broken" over the Voice whose ward fell.
+    expect(scene.showMinorHintAt).toHaveBeenCalledWith(
+      calling.col * 32 + 16,
+      calling.row * 32 + 16 - 24,
+      'Ward broken',
+      expect.any(String),
+    );
+    expect(voiceOf(scene.enemyUnits, 'voice_binding').warded).toBe(true);
+    expect(voiceOf(scene.enemyUnits, 'voice_waking').wardReason).toBe('both');
+    const fromIt = called(scene.enemyUnits).filter((u) => u._summonedBy === 'circle:circle_calling'); // prettier-ignore
+    expect(fromIt).toEqual([]);
+    expect(called(scene.enemyUnits)).toHaveLength(3);
+  });
+
+  it('a break in the fog: the same break and ward, no banner and no sound', async () => {
+    const { scene, b, audio } = shieldedScene({ visible: ['0,10', '1,9'] });
+    standOnCircle(scene, b, 'circle_calling');
+    await scene.processVigil();
+    expect(scene._vigilState.broken).toEqual({ circle_calling: 1 });
+    expect(voiceOf(scene.enemyUnits, 'voice_calling')).not.toHaveProperty('warded');
+    expect(banners(scene)).not.toContain(VIGIL_BANNERS.broken);
+    expect(audio.playSFX).not.toHaveBeenCalledWith(WARD_BREAK_SFX);
+    expect(scene.showMinorHintAt).not.toHaveBeenCalled();
+  });
+
+  it('a checkpoint keeps the broken circles; a resume stamps the wards again', async () => {
+    const { scene, b } = shieldedScene();
+    scene.runManager = { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 };
+    standOnCircle(scene, b, 'circle_binding');
+    await scene.processVigil();
+    const state = JSON.parse(JSON.stringify(captureBattleState(scene, { rngSeed: 7 })));
+    expect(state.vigilState.broken).toEqual({ circle_binding: 1 });
+    expect(validateBattleState(state)).toBe(true);
+    const bad = structuredClone(state);
+    bad.vigilState.broken = { circle_binding: 'one' };
+    expect(validateBattleState(bad)).toBe(false);
+
+    // The saved units carry no stamps: the restore derives them from the state and roster.
+    for (const unit of state.enemyUnits || []) {
+      delete unit.warded;
+      delete unit.wardReason;
+    }
+    const restored = sceneOf({ edit: shield }).scene;
+    restored.playerUnits = [];
+    restored.enemyUnits = [];
+    restored._vigilState = createVigilState();
+    restored.runManager = { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 };
+    new BattleSuspendController(restored).applyUnits(state);
+    expect(restored._vigilState.broken).toEqual({ circle_binding: 1 });
+    expect(voiceOf(restored.enemyUnits, 'voice_binding')).not.toHaveProperty('warded');
+    for (const id of ['voice_calling', 'voice_feeding', 'voice_waking'])
+      expect(voiceOf(restored.enemyUnits, id).warded, id).toBe(true);
+  });
+
+  it('the last other Voice’s fall silences the choir: the Waking can be hurt', async () => {
+    const { scene } = shieldedScene();
+    scene._vigilState.broken = {
+      circle_calling: 1,
+      circle_binding: 1,
+      circle_feeding: 1,
+      circle_waking: 1,
+    };
+    applyVigilWards(scene.battleConfig.vigil, scene._vigilState, scene.enemyUnits);
+    const waking = voiceOf(scene.enemyUnits, 'voice_waking');
+    expect(waking).toMatchObject({ warded: true, wardReason: 'choir' });
+    const killer = scene.playerUnits[0];
+    for (const id of ['voice_calling', 'voice_binding']) {
+      await scene.removeUnit(voiceOf(scene.enemyUnits, id), { killer });
+      expect(waking.warded, id).toBe(true);
+    }
+    await scene.removeUnit(voiceOf(scene.enemyUnits, 'voice_feeding'), { killer });
+    expect(waking).not.toHaveProperty('warded');
   });
 });

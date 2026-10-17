@@ -241,7 +241,14 @@ describe('test 24: every key in a saved run is classified', () => {
     const top = new Map(Object.keys(saved).map((k) => [k, 'mid-Vigil run']));
     expect(unlisted('run', top)).toEqual([]);
     expect(saved.requiresClient).toBe(2);
-    expect(saved.requiresCapabilities).toEqual(['descent', 'rite', 'vigil', 'defeatObjective']);
+    expect(saved.requiresCapabilities).toEqual([
+      'descent',
+      'rite',
+      'vigil',
+      'defeatObjective',
+      'vigilWards',
+      'abyss',
+    ]);
     // The checkpoint alone (a save whose map and route this client somehow lost) still holds it.
     expect(
       requiredRunFormat({ battleInProgress: { checkpoint: { ...checkpoint, battleConfig: null } } })

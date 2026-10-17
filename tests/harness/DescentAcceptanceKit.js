@@ -135,6 +135,15 @@ export async function strike(driver, unit, foe, { tile = null } = {}) {
   return driver.step({ type: 'choose_target', payload: { targetName: foe.name } });
 }
 
+/** `unit` walks onto `tile` (placed beside it first, as `strike` does) and waits there. */
+export async function standOn(driver, unit, tile) {
+  unit.col = tile.col;
+  unit.row = tile.row;
+  await driver.step({ type: 'select_unit', payload: { unitName: unit.name } });
+  await driver.step({ type: 'move_to', payload: { col: tile.col, row: tile.row } });
+  return driver.step({ type: 'choose_action', payload: { label: 'Wait' } });
+}
+
 /** End the player phase (the enemy phase runs through the harness's pipeline). */
 export const endTurn = (driver) => driver.step({ type: 'end_turn', payload: {} });
 
