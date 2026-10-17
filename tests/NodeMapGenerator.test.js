@@ -270,12 +270,17 @@ describe('NodeMapGenerator', () => {
       }
     });
 
-    it('still reaches 2 RECRUIT nodes when battles and shops run out (seed 46845)', () => {
-      const rng = createSeededRng(46845);
+    // Seeds measured short of two recruits before the church fallback: a bare
+    // generateNodeMap call (the test's own invocation) on each act.
+    it.each([
+      ['act2', 46845],
+      ['act1', 652],
+    ])('still reaches 2 RECRUIT nodes when battles and shops run out (%s seed %i)', (act, seed) => {
+      const rng = createSeededRng(seed);
       const spy = vi.spyOn(Math, 'random').mockImplementation(() => rng());
       let map;
       try {
-        map = generateNodeMap('act2', ACT_CONFIG.act2);
+        map = generateNodeMap(act, ACT_CONFIG[act]);
       } finally {
         spy.mockRestore();
       }
@@ -283,7 +288,7 @@ describe('NodeMapGenerator', () => {
       expect(recruits.length).toBeGreaterThanOrEqual(2);
       for (const node of recruits) {
         expect(node.row).toBeGreaterThan(1);
-        expect(node.row).toBeLessThan(ACT_CONFIG.act2.rows - 2);
+        expect(node.row).toBeLessThan(ACT_CONFIG[act].rows - 2);
         expect(node.battleParams.isRecruitBattle).toBe(true);
       }
       expect(map.nodes.filter((n) => n.type === NODE_TYPES.RUINS)).toHaveLength(1);
