@@ -616,7 +616,9 @@
     "blessing-standard_of_the_sun_ii": [219, 5, 4],
     "blessing-oathbound_steel": [12, 5, 4],
     "blessing-siegebreaker": [49, 5, 4],
-    "blessing-smiths_exile": [37, 5, 4]
+    "blessing-smiths_exile": [37, 5, 4],
+    "gemini-ring": [226, 3, 5],
+    "wardens-buckler": [203, 3, 5]
   },
   "aliases": {
     "greycord": "gravesong",
@@ -701,6 +703,8 @@
     "blessing-standard_of_the_sun_ii": "vanguard-crest",
     "blessing-oathbound_steel": "oathblade",
     "blessing-siegebreaker": "longbow",
-    "blessing-smiths_exile": "hammer"
+    "blessing-smiths_exile": "hammer",
+    "gemini-ring": "phalanx-band",
+    "wardens-buckler": "delphi-shield"
   }
 }

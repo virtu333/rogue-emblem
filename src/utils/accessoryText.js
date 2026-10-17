@@ -1,5 +1,11 @@
 import { resolveGamblerConfig } from '../engine/SkillSystem.js';
 import { accessorySkillText } from '../engine/AccessorySkillNames.js';
+import {
+  accessoryStatEffects,
+  geminiBonus,
+  geminiStatOf,
+  isGeminiRing,
+} from '../engine/GeminiRing.js';
 
 const ACCESSORY_STAT_ORDER = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'LCK', 'DEF', 'RES', 'MOV'];
 
@@ -14,8 +20,10 @@ export const HANDLED_ACCESSORY_COMBAT_EFFECT_KEYS = Object.freeze([
   'critBonus',
   'defBonus',
   'doubleThresholdReduction',
+  'firstHitWard',
   'gambler',
   'gamblerCoin',
+  'gemini',
   'goldPerKill',
   'hitBonus',
   'moontide',
@@ -119,8 +127,11 @@ function formatTurnStartEffect(accessory) {
 
 export function formatAccessoryEffects(accessory, options = {}) {
   const separator = options.separator ?? ' ';
-  const entries = buildOrderedStatEntries(accessory?.effects);
+  // A Gemini Ring's own stat is the instance's (engine/GeminiRing.js); a catalog row has none.
+  const entries = buildOrderedStatEntries(accessoryStatEffects(accessory));
   const parts = entries.map(([stat, value]) => formatSignedStat(value, stat)).filter(Boolean);
+  if (isGeminiRing(accessory) && !geminiStatOf(accessory))
+    parts.unshift(`+${geminiBonus(accessory)} to one stat`);
   return parts.join(separator);
 }
 
@@ -160,6 +171,12 @@ export function formatAccessoryCombatEffect(accessory) {
   if (combatEffects?.negateEffectiveness) parts.push('Negates weapon effectiveness');
   if (combatEffects?.negateFlierWeakness) parts.push('Negates flier weakness to bows');
   if (combatEffects?.statusImmunity) parts.push('Immune to status conditions');
+  if (combatEffects?.firstHitWard) parts.push('Once per map, the first hit that lands deals 1');
+  if (isGeminiRing(accessory)) {
+    parts.push(
+      `Set: +${geminiBonus(accessory)} to the stat of each other Gemini Ring worn on the field`,
+    );
+  }
 
   const xpShare = firstNumericValue(combatEffects?.xpShare);
   if (xpShare !== null && xpShare > 0) {

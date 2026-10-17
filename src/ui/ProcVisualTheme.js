@@ -32,8 +32,9 @@ export const PROC_THEME = {
 };
 
 // Enemy affix activations are not in skills.json; the current trio
-// (Shielded, Teleporter, Thorns) are all defensive reactions.
-const DEFENSIVE_AFFIX_IDS = new Set(['shielded', 'teleporter', 'thorns']);
+// (Shielded, Teleporter, Thorns) are all defensive reactions. So is the Warden's Buckler's
+// ward (engine/AccessoryWard.js), an accessory's, not a skill's.
+const DEFENSIVE_AFFIX_IDS = new Set(['shielded', 'teleporter', 'thorns', 'warden_buckler']);
 
 // Higher wins when a strike carries procs from multiple categories.
 const CATEGORY_PRIORITY = [
@@ -150,6 +151,7 @@ const ACTIVATION_FX = {
   dragon_scale: { key: 'fx_shield', at: 'target' },
   shielded: { key: 'fx_shield', at: 'target' },
   teleporter: { key: 'fx_shield', at: 'target' },
+  warden_buckler: { key: 'fx_shield', at: 'target' },
   intimidate: { key: 'fx_status', at: 'striker' },
   thorns: { key: 'fx_pierce', at: 'striker' },
   // marks

@@ -15,6 +15,7 @@ import { getUnitMarkFor, markActivation, markProcs, roadBuffEntry } from './Mark
 import { combatDistance } from './EntitySystem.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
 import { epicCombatMods, epicTurnStartEffects } from './EpicWeapons.js';
+import { GEMINI_ACTIVATION, geminiCombatMods } from './GeminiRing.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -466,6 +467,12 @@ export function getSkillCombatMods(
       if (ce.resBonus) mods.resBonus += ce.resBonus;
       if (ce.hitBonus) mods.hitBonus += ce.hitBonus;
       if (ce.avoidBonus) mods.avoidBonus += ce.avoidBonus;
+    }
+    // Gemini Ring (engine/GeminiRing.js): +N to each other ring's stat on the field.
+    const gemini = geminiCombatMods(unit, allies, { magic: usesMagic(weapon) });
+    if (gemini.partners.length > 0) {
+      for (const key of Object.keys(gemini.mods)) mods[key] += gemini.mods[key];
+      mods.activated.push({ ...GEMINI_ACTIVATION });
     }
   }
 

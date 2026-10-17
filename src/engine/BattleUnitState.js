@@ -20,6 +20,10 @@ export function serializeBattleUnit(unit) {
   data._movementSpent = Number(unit._movementSpent) || 0;
   data._miracleUsed = unit._miracleUsed === true;
   data._phoenixBroochUsed = unit._phoenixBroochUsed === true;
+  // The Warden's Buckler (AccessoryWard.js): written only once spent; a restored unit is a
+  // fresh object, so an absent flag reads as ready.
+  if (unit._wardSpent === true) data._wardSpent = true;
+  else delete data._wardSpent;
   data._conditions = unit._conditions || [];
   return structuredClone(data);
 }

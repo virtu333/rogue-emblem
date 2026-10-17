@@ -1,4 +1,5 @@
 import { staffRunOptions } from '../engine/StaffBlessings.js';
+import { accessoryStatEffects } from '../engine/GeminiRing.js';
 import { affixSummaryText } from '../engine/AffixForecast.js';
 import {
   REVIVAL_STONE_DESCRIPTION,
@@ -888,7 +889,7 @@ export class UnitDetailOverlay {
     if (unit.accessory) {
       this._tabSep(lx, y);
       y += 12;
-      const fx = Object.entries(unit.accessory.effects || {})
+      const fx = Object.entries(accessoryStatEffects(unit.accessory))
         .filter(([, v]) => v)
         .map(([k, v]) => `${k}+${v}`)
         .join(' ');

@@ -2,7 +2,7 @@
   "id": "pr1-accessories-delphi-swiftsoles-v1",
   "description": "Canonical data contract for PR1 accessory expansion, Delphi shield nerf, and Swiftsoles.",
   "expectedTotals": {
-    "accessories": 33,
+    "accessories": 35,
     "consumables": 16
   },
   "accessories": [
@@ -180,6 +180,26 @@
         "condition": "adjacent_ally"
       },
       "price": 3500
+    },
+    {
+      "name": "Gemini Ring",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "gemini": {
+          "bonus": 2
+        }
+      },
+      "price": 2000
+    },
+    {
+      "name": "Warden's Buckler",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "firstHitWard": true
+      },
+      "price": 2500
     },
     {
       "name": "Pursuit Ring",

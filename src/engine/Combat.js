@@ -22,6 +22,7 @@ import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusCond
 import { combatDistance, isEntity } from './EntitySystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { absorbLethal } from './UnitHealth.js';
+import { WARD_ACTIVATION, wardReady, wardStrike } from './AccessoryWard.js';
 import { bannerReadyFor } from './BattleBlessings.js';
 import { revivalStoneCount } from './RevivalStones.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
@@ -1352,6 +1353,10 @@ const EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS = new Set([
   'weaponArtDefBuff',
   'buffDEF',
   'buffRES',
+  // The Gemini Ring's partner stats are combat mods the forecast already holds, and the
+  // forecast's projection plays the Warden's Buckler's ward (forecastDisplay).
+  'gemini',
+  'firstHitWard',
 ]);
 
 /**
@@ -1727,6 +1732,8 @@ export function getCombatForecast(
       stones: revivalStoneCount(attacker).remaining,
       // The Unbroken Banner would hold this side at 1 HP (present only while it would).
       ...(bannerReadyFor(skillCtx?.battleBlessings, attacker) ? { banner: true } : {}),
+      // A ready Warden's Buckler: the first blow on this side that lands deals 1.
+      ...(wardReady(attacker) ? { ward: true } : {}),
       damage: atkDmg,
       hit: atkHit,
       firstHit: atkFirstHit,
@@ -1757,6 +1764,7 @@ export function getCombatForecast(
       // the exchange (the projection says "Breaks a bar").
       stones: revivalStoneCount(defender).remaining,
       ...(bannerReadyFor(skillCtx?.battleBlessings, defender) ? { banner: true } : {}),
+      ...(wardReady(defender) ? { ward: true } : {}),
       canCounter: defCanCounter,
       damage: defDmg,
       hit: defHit,
@@ -1948,6 +1956,18 @@ function rollStrike(
     mergeActivations(defResult.activated);
   }
 
+  // Warden's Buckler (engine/AccessoryWard.js): the first blow that lands for more than 1
+  // this battle deals 1. After every defence above, before drain and the stones read it.
+  let warded = false;
+  if (targetUnit && Number.isFinite(finalDmg)) {
+    const ward = wardStrike(targetUnit, finalDmg);
+    if (ward.warded) {
+      finalDmg = ward.damage;
+      warded = true;
+      mergeActivations([{ ...WARD_ACTIVATION, side: 'target' }]);
+    }
+  }
+
   // Drain resolution: highest resulting heal wins across skill/weapon/art sources.
   if (finalDmg > 0) {
     if (weaponSpecial?.includes('Drains HP')) {
@@ -1997,6 +2017,7 @@ function rollStrike(
     commandersGambit,
     reflectDamage,
     warpRange,
+    ...(warded ? { warded: true } : {}),
     ...(absorbed?.stoneBroken ? { stoneBroken: true, hpBeforeBreak: targetHP } : {}),
     ...(absorbed?.bannerHeld ? { bannerHeld: true, hpBeforeHold: targetHP } : {}),
   };

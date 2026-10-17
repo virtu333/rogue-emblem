@@ -354,5 +354,27 @@
     },
     "price": 3500,
     "lore": "Issued in pairs. If you find one alone, don't ask the quartermaster why."
+  },
+  {
+    "name": "Gemini Ring",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "gemini": {
+        "bonus": 2
+      }
+    },
+    "price": 2000,
+    "lore": "Twin bands from one ingot. Each knows where the other is, and leans that way."
+  },
+  {
+    "name": "Warden's Buckler",
+    "type": "Accessory",
+    "effects": {},
+    "combatEffects": {
+      "firstHitWard": true
+    },
+    "price": 2500,
+    "lore": "Gate wardens catch the first blow on it. The second they are paid to take."
   }
 ]

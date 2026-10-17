@@ -63,6 +63,7 @@ export function serializeUnit(unit) {
   data.hasActed = false;
   data._miracleUsed = false;
   data._phoenixBroochUsed = false;
+  delete data._wardSpent; // the Warden's Buckler is ready again next battle (AccessoryWard.js)
   const timedBuffStats = unit?._battleTimedWeaponArtAppliedStats;
   if (timedBuffStats && data.stats && typeof data.stats === 'object') {
     for (const [rawStat, rawValue] of Object.entries(timedBuffStats)) {

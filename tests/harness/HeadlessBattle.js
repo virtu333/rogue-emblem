@@ -218,6 +218,7 @@ import { deriveNodeBattleSeed } from '../../src/engine/BattleScout.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import { applyPostSpawn, settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
 import { createVigilState } from '../../src/engine/Vigil.js';
+import { readyWard } from '../../src/engine/AccessoryWard.js';
 import { applyDueHybridOverrides } from '../../src/engine/TerrainPhases.js';
 import {
   buildRisenUnit,
@@ -411,6 +412,7 @@ export class HeadlessBattle {
         unit.hasActed = false;
         unit._miracleUsed = false;
         unit._phoenixBroochUsed = false;
+        readyWard(unit);
         unit._gambitUsedThisTurn = false;
         for (const w of unit.inventory || []) {
           if (w.perBattleUses) w._usesSpent = 0;

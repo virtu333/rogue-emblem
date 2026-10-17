@@ -103,6 +103,8 @@ import { revivalStoneCount } from '../engine/RevivalStones.js';
 import { applyDueHybridOverrides } from '../engine/TerrainPhases.js';
 import RevivalStoneController from '../ui/RevivalStoneController.js';
 import UnbrokenBannerController from '../ui/UnbrokenBannerController.js';
+import WardController, { WARD_COLOR } from '../ui/WardController.js';
+import { readyWard, wardReady } from '../engine/AccessoryWard.js';
 import {
   WHISTLE_NAME,
   battleBlessingsAtStart,
@@ -562,6 +564,7 @@ export function resetUnitForBattle(unit) {
   unit._movementCommitted = false;
   unit.hasActed = false;
   unit._miracleUsed = false;
+  readyWard(unit); // the Warden's Buckler (engine/AccessoryWard.js)
   unit._gambitUsedThisTurn = false;
   unit._conditions = [];
   delete unit._speedtakerStacks;
@@ -879,7 +882,8 @@ export class BattleScene extends Phaser.Scene {
     this._stoneFx?.destroy?.();
     this._stoneFx = null;
     this._bannerFx?.destroy?.();
-    this._bannerFx = null;
+    this._wardFx?.destroy?.();
+    this._bannerFx = this._wardFx = null;
     this._combatSpeedSnapshot = undefined;
     if (this._procBanner) {
       this._procBanner.destroy();
@@ -1946,6 +1950,7 @@ export class BattleScene extends Phaser.Scene {
       if (!this._resumeCheckpoint) {
         for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
           unit._phoenixBroochUsed = false;
+          readyWard(unit);
         }
         // The Lingering Injury burden (id `wounded`, engine/Burdens.js) and Cavalier's Hour (by move
         // type, engine/ShrineBoons.js): battle stat deltas applied once, here, so the first forecast
@@ -3491,7 +3496,8 @@ export class BattleScene extends Phaser.Scene {
     const staff = (statusStaffInfo(unit)?.uses || 0) > 0;
     // A defeat objective's named target (a captain, a Voice) leads the row with a pale diamond.
     const target = !unit.isBoss && isObjectiveTarget(this.battleConfig, unit);
-    const count = affixIds.length + stones + (carries ? 1 : 0) + (staff ? 1 : 0) + (target ? 1 : 0);
+    const ward = wardReady(unit); // a ready Warden's Buckler: a pale blue round pip, last
+    const count = affixIds.length + stones + [carries, staff, target, ward].filter(Boolean).length;
     if (count === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -3551,6 +3557,11 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(14)
         .setVisible(inView);
       unit.affixPips.push(staffPip);
+      startX += pipSize + gap;
+    }
+    if (ward) {
+      const pip = this.add.circle(startX, pipY, pipSize / 2 + 1, WARD_COLOR).setDepth(14);
+      unit.affixPips.push(pip.setStrokeStyle(1, 0x000000).setVisible(inView));
     }
   }
 
@@ -8517,6 +8528,10 @@ export class BattleScene extends Phaser.Scene {
     // Per-battle weapons (Breachbolt) spend a shot for each side that struck with them
     // (the switch away from a dry weapon waits for the deaths: _swapSpentWeapons).
     spendCombatShots(attacker, defender, result);
+    // A spent Warden's Buckler drops its pip whether or not the strikes were shown.
+    if (result.events.some((e) => e.warded))
+      for (const u of [attacker, defender])
+        safeBattlePresentation('ward pip', () => this.updateAffixPips(u), { scene: this });
 
     // Debug invincibility: restore player-faction units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {
@@ -9166,6 +9181,7 @@ export class BattleScene extends Phaser.Scene {
     if (event.stoneBroken) this._stoneBreakFx().playBreak(target);
     // The Unbroken Banner held the target at 1 HP on this blow (settled: UnbrokenBannerController).
     if (event.bannerHeld) this._bannerHoldFx().playHold(target);
+    if (event.warded) (this._wardFx ||= new WardController(this)).playWard(target, { reduced });
 
     // Sleep: wake on damage -- remove the Zzz icon; the look follows the woken unit's state
     // (a player unit hit in the enemy phase has acted and stays spent until its turn).
