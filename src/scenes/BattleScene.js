@@ -103,8 +103,7 @@ import { revivalStoneCount } from '../engine/RevivalStones.js';
 import { applyDueHybridOverrides } from '../engine/TerrainPhases.js';
 import RevivalStoneController from '../ui/RevivalStoneController.js';
 import UnbrokenBannerController from '../ui/UnbrokenBannerController.js';
-import WardController, { drawWardPip, redrawWardPips } from '../ui/WardController.js';
-import { wardReady } from '../engine/AccessoryWard.js';
+import WardController, { drawWardPip, redrawWardPips, wardReady } from '../ui/WardController.js';
 import { isAnchoredByAccessory, playerAlliesLost } from '../engine/AccessoryReactions.js';
 import { readyBattleAccessories } from '../engine/BattleAccessories.js';
 import {
@@ -445,7 +444,7 @@ import { RecruitBeaconController } from '../ui/RecruitBeaconController.js';
 import { SMASH_TARGET_STATE, ZombieRemainsController } from '../ui/ZombieRemainsController.js';
 import { NecromancyController } from '../ui/NecromancyController.js';
 import { isNecromancer } from '../engine/Necromancy.js';
-import { createVigilState, isVoiceOf } from '../engine/Vigil.js';
+import { applyVigilWards, createVigilState, isVoiceOf } from '../engine/Vigil.js';
 import { VigilController } from '../ui/VigilController.js';
 import { EntityLimbController } from '../ui/EntityLimbController.js';
 import { entityKitWorld, initialEntityKitState } from '../engine/EntityKit.js';
@@ -1897,7 +1896,9 @@ export class BattleScene extends Phaser.Scene {
       // checkpoint; the controller only re-renders/re-applies terrain).
       (this._villageController ||= new VillageController(this)).create();
 
-      // The Vigil's sigil and circle markers (a Vigil map only).
+      // The Vigil's sigil and circle markers (a Vigil map only), over the Voices' wards
+      // (engine/Vigil.js), which stand from the first turn.
+      if (bc.vigil) applyVigilWards(bc.vigil, this._vigilState, this.enemyUnits);
       this._vigilCtrl?.destroy();
       this._vigilCtrl = bc.vigil ? new VigilController(this).create() : null;
 
@@ -5572,7 +5573,6 @@ export class BattleScene extends Phaser.Scene {
 
   findSwapTargets(unit) {
     const targets = [];
-    // Both units move: a rooted one, or an Anchor Stone's wearer, holds either end.
     if (isRooted(unit) || isAnchoredByAccessory(unit)) return targets;
     const dirs = [
       { dc: 0, dr: -1 },
@@ -7992,7 +7992,6 @@ export class BattleScene extends Phaser.Scene {
       traitsData: this.gameData.traits || null,
       // The battle's turn: an Epic weapon's "has not moved this turn" reads it.
       turn: this.turnManager?.turnNumber,
-      // The Grudge Locket: the run's lost allies and this battle's (AccessoryReactions.js).
       playerAlliesLost: playerAlliesLost(this.runManager, this._fallenBattleRecords?.length),
     };
     const atkMods = getSkillCombatMods(
@@ -9183,7 +9182,8 @@ export class BattleScene extends Phaser.Scene {
     const pos = this.grid.gridToPixel(target.col, target.row);
     // The number's look (crit pop, "No damage" spark, reduced motion) is ui/combatNumberStyle.js.
     floatCombatNumber(this, {
-      kind: event.isCrit ? 'crit' : 'strike',
+      // A Vigil Voice's ward turned the blow aside: "Warded", never "No damage".
+      kind: event.warded ? 'warded' : event.isCrit ? 'crit' : 'strike',
       value: event.damage,
       x: pos.x,
       y: pos.y - 16,
@@ -9196,7 +9196,7 @@ export class BattleScene extends Phaser.Scene {
     if (event.stoneBroken) this._stoneBreakFx().playBreak(target);
     // The Unbroken Banner held the target at 1 HP on this blow (settled: UnbrokenBannerController).
     if (event.bannerHeld) this._bannerHoldFx().playHold(target);
-    if (event.warded) (this._wardFx ||= new WardController(this)).playWard(target, { reduced });
+    if (event.buckler) (this._wardFx ||= new WardController(this)).playWard(target, { reduced });
 
     // Sleep: wake on damage -- remove the Zzz icon; the look follows the woken unit's state
     // (a player unit hit in the enemy phase has acted and stays spent until its turn).

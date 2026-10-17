@@ -8,8 +8,15 @@
 //                  `voice_silenced` cue (ui/ceremonyMusic.js, in the key of the Vigil's theme) and
 //                  the Voice's last line (the first to fall in the dialogue box, each later one
 //                  floating over its tile)
-//   sync          every frame (BattleScene.update): the sigil and circle markers re-derived
-//                  from the board, redrawn only when what they show changes
+//   sync          every frame (BattleScene.update): the sigil and circle markers and the
+//                  Voices' wards re-derived from the board, redrawn only when what they show
+//                  changes
+//
+// The shields (engine/Vigil.js: wards and the choir): the phase step breaks a circle a unit
+// stands on, then `applyVigilWards` re-stamps every Voice before anything is drawn (and again at
+// a Voice's fall, which may lift the Waking's choir ward). A broken circle seen plays "A circle
+// breaks." with the shatter sound; a Voice seen losing its ward floats "Ward broken". A warded
+// Voice wears a pale hexagon (a second, inner ring while the choir alone holds it).
 //
 // What the court says (engine/VigilWords.js, dialogue.json `vigil`): each Voice heard speaking
 // says the next of its verse over itself, one called Hollowed seen rising answers the roll, and a
@@ -51,6 +58,7 @@ import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { drawArrivalGraphic } from './arrivalGraphic.js';
 import { playCue } from './ceremonyMusic.js';
 import {
+  applyVigilWards,
   sanitizeVigilState,
   vigilBoardView,
   vigilPhaseStep,
@@ -88,7 +96,13 @@ export const VIGIL_BANNERS = Object.freeze({
   words: 'The Voices speak.',
   call: 'The circle calls.',
   silenced: 'A Voice falls silent.',
+  broken: 'A circle breaks.',
 });
+
+/** What floats over a Voice whose ward just fell. */
+export const WARD_FALLS_LINE = 'Ward broken';
+/** The sound a circle's breaking and a ward's fall make (sfxConfig COMBAT_SFX). */
+export const WARD_BREAK_SFX = 'sfx_ward_break';
 
 /** The stinger a seen Voice's fall plays (musicStingers.js; act-v-descent §8). */
 export const VOICE_SILENCED_CUE = 'voice_silenced';
@@ -102,8 +116,9 @@ export class VigilController {
   constructor(scene) {
     this.scene = scene;
     this.objects = [];
-    /** What is drawn: { sigils: [{ id, col, row, state, waking }], circles: [{ id, col, row, state }] }. */
-    this.shown = { sigils: [], circles: [] };
+    /** What is drawn: { sigils: [{ id, col, row, state, waking }], circles: [{ id, col, row, state }],
+     *  wards: [{ id, col, row, state }] }. */
+    this.shown = { sigils: [], circles: [], wards: [] };
     this._key = null;
   }
 
@@ -156,16 +171,19 @@ export class VigilController {
    * What each marker shows, as the player knows it:
    * sigils `lit` (its Voice seen on it) | `dim` (empty: unseen, or seen off it) | `silent`
    * (fallen); circles `open` | `covered` (a player or NPC unit stands on it) | `closed` (its
-   * Voice fell). `seen`: the fog shows the tile; only a marker on a seen tile is drawn.
+   * Voice fell) | `broken` (shattered: it calls no more and holds no ward); wards, one per seen
+   * warded Voice, `circle` (a circle holds it) | `choir` (only the choir does).
+   * `seen`: the fog shows the tile; only a marker on a seen tile is drawn.
    */
   markerStates() {
     const scene = this.scene;
     const vigil = this.vigil;
-    if (!scene || !vigil) return { sigils: [], circles: [] };
+    if (!scene || !vigil) return { sigils: [], circles: [], wards: [] };
     const view = vigilBoardView(vigil, {
       enemyUnits: scene.enemyUnits,
       playerUnits: scene.playerUnits,
       npcUnits: scene.npcUnits,
+      state: scene._vigilState,
     });
     return {
       sigils: view.sigils.map((s) => ({
@@ -181,8 +199,19 @@ export class VigilController {
         col: c.col,
         row: c.row,
         seen: this.seesTile(c.col, c.row, c.voice),
-        state: !c.voice ? 'closed' : c.covered ? 'covered' : 'open',
+        state: c.broken ? 'broken' : !c.voice ? 'closed' : c.covered ? 'covered' : 'open',
       })),
+      // A living Voice's ward, only while the player sees the Voice (the fog's one rule).
+      wards: view.sigils
+        .filter((s) => s.voice && (s.ward?.circle || s.ward?.choir) && this.seesUnit(s.voice))
+        .map((s) => ({
+          id: s.voiceId,
+          col: s.voice.col,
+          row: s.voice.row,
+          seen: true,
+          state: s.ward.circle ? 'circle' : 'choir',
+          choir: s.ward.choir,
+        })),
     };
   }
 
@@ -201,15 +230,17 @@ export class VigilController {
         const states = {
           sigils: all.sigils.filter((m) => m.seen),
           circles: all.circles.filter((m) => m.seen),
+          wards: all.wards.filter((m) => m.seen),
         };
-        const key = [...states.sigils, ...states.circles]
-          .map((m) => `${m.id}:${m.col},${m.row}:${m.state}`)
+        const key = [...states.sigils, ...states.circles, ...states.wards]
+          .map((m) => `${m.id}:${m.col},${m.row}:${m.state}${m.choir ? '+' : ''}`)
           .join(';');
         if (key === this._key) return;
         this._key = null; // set only once drawn, so a failed draw is retried
         this._clear();
         for (const circle of states.circles) this._drawCircle(circle);
         for (const sigil of states.sigils) this._drawSigil(sigil);
+        for (const ward of states.wards) this._drawWard(ward);
         this._key = key;
         // Pinned-UI camera filters need to learn about new world objects.
         scene._cameraFilterDirty = true;
@@ -258,6 +289,8 @@ export class VigilController {
     for (const { unit, voiceId } of step.summons)
       observeHistoryAction(scene, 'called', voiceUnit(voiceId, scene.enemyUnits), unit);
     if (step.summons.length > 0) scene.dangerZoneStale = true;
+    // The Voices' wards from the state just kept: a circle broken this phase may drop one.
+    const wards = applyVigilWards(vigil, scene._vigilState, scene.enemyUnits);
 
     // Then the presentation, each piece in its own boundary.
     for (const { unit } of step.summons) drawArrivalGraphic(scene, unit, 'vigil summon');
@@ -269,6 +302,11 @@ export class VigilController {
       });
     }
     this.sync();
+
+    // A circle seen breaking, then any Voice seen losing its ward: before the words, as it
+    // happened first.
+    await this._presentBreaks(step.breaks || [], wards.dropped);
+    if (!isCurrentBattleSession(scene, session)) return;
 
     const heardWords = step.words.filter((word) =>
       this.seesUnit(voiceUnit(word.voiceId, scene.enemyUnits)),
@@ -331,8 +369,13 @@ export class VigilController {
     // dropped to 0 HP and removeUnit has yet to take, so of two felled by one strike the first
     // removed is the first fall.
     const fallen = voicesFallen(scene.battleConfig?.vigil, scene.enemyUnits);
+    // The domain before anything is drawn: a Voice's fall may lift the Waking's choir ward.
+    const wards = applyVigilWards(scene.battleConfig?.vigil, scene._vigilState, scene.enemyUnits);
     this.sync();
-    if (!isUnitSeenAt(scene.grid, unit, tile.col, tile.row)) return;
+    if (!isUnitSeenAt(scene.grid, unit, tile.col, tile.row)) {
+      await this._presentBreaks([], wards.dropped);
+      return;
+    }
     // The cue is heard only for a fall the player saw (as the banner): sound tells no secrets.
     void playCue(scene, VOICE_SILENCED_CUE, { duck: 0.3 });
     await safeBattlePresentation(
@@ -356,12 +399,86 @@ export class VigilController {
       );
       return;
     }
-    if (!scene.dialogueOverlay) return;
-    await safeBattlePresentation(
-      'vigil last line',
-      () => scene.dialogueOverlay.show(unit.name, line, scene._getPortraitKey?.(unit) ?? null),
+    if (scene.dialogueOverlay) {
+      await safeBattlePresentation(
+        'vigil last line',
+        () => scene.dialogueOverlay.show(unit.name, line, scene._getPortraitKey?.(unit) ?? null),
+        { scene },
+      );
+      if (!isCurrentBattleSession(scene, session)) return;
+    }
+    await this._presentBreaks([], wards.dropped);
+  }
+
+  /**
+   * Present what the shields lost (state already settled): each circle seen breaking (a banner
+   * once, the shatter sound, a burst on the seal) and each Voice seen whose ward fell ("Ward
+   * broken" over it). Presentation only, each piece in its own boundary.
+   */
+  async _presentBreaks(breaks, dropped) {
+    const scene = this.scene;
+    if (!scene) return;
+    const seenBreaks = (breaks || []).filter((b) => this.seesTile(b.col, b.row));
+    const seenDropped = (dropped || []).filter((voice) => this.seesUnit(voice));
+    if (seenBreaks.length === 0 && seenDropped.length === 0) return;
+    const session = battleSession(scene);
+    safeBattlePresentation(
+      'vigil ward sound',
+      () => scene.registry?.get?.('audio')?.playSFX?.(WARD_BREAK_SFX),
       { scene },
     );
+    for (const brk of seenBreaks)
+      safeBattlePresentation('vigil shatter', () => this._shatterAt(brk.col, brk.row), { scene });
+    for (const voice of seenDropped) {
+      safeBattlePresentation(
+        'vigil ward falls',
+        () => {
+          this._shatterAt(voice.col, voice.row);
+          const pos = scene.grid?.gridToPixel?.(voice.col, voice.row);
+          if (pos) scene.showMinorHintAt?.(pos.x, pos.y - 24, WARD_FALLS_LINE, UI_PALETTE.info);
+        },
+        { scene },
+      );
+    }
+    if (seenBreaks.length > 0) {
+      await safeBattlePresentation(
+        'vigil broken',
+        () => scene.showBriefBanner?.(VIGIL_BANNERS.broken, UI_PALETTE.info),
+        { scene },
+      );
+      if (!isCurrentBattleSession(scene, session)) return;
+    }
+  }
+
+  /**
+   * Shards flying off a tile: eight short strokes thrown outward and faded. Seeded geometry (no
+   * Math.random); under Reduce motion it is skipped (the marker's own change says it).
+   */
+  _shatterAt(col, row) {
+    const scene = this.scene;
+    if (!scene?.grid?.gridToPixel || !scene.add?.graphics || this._reduced()) return;
+    const { x, y } = scene.grid.gridToPixel(col, row);
+    const shards = [];
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4 + ((col * 7 + row * 13 + i * 5) % 9) * 0.07;
+      const g = scene.add.graphics();
+      g.setDepth?.(UI_DEPTHS.WARD);
+      g.lineStyle?.(2, UI_HEX.info, 1);
+      g.lineBetween?.(0, 0, Math.cos(a) * 5, Math.sin(a) * 5);
+      g.setPosition?.(x, y);
+      shards.push(g);
+      scene.tweens?.add?.({
+        targets: g,
+        x: x + Math.cos(a) * (TILE_SIZE * 0.75),
+        y: y + Math.sin(a) * (TILE_SIZE * 0.75),
+        alpha: 0,
+        duration: 420,
+        ease: 'Cubic.easeOut',
+        onComplete: () => g.destroy?.(),
+      });
+    }
+    scene._cameraFilterDirty = true;
+    if (!scene.tweens?.add) for (const g of shards) g.destroy?.();
   }
 
   /** Each heard Voice says what it spoke this phase over itself, one after another. */
@@ -464,8 +581,9 @@ export class VigilController {
 
   /**
    * A summoning circle: a round seal. Open: a solid ring and an inner ring joined by eight
-   * spokes, filled violet. Blocked (a unit stands on it): a dashed ring in green. Closed (its
-   * Voice fell): a thin faint ring struck through.
+   * spokes, filled violet. Blocked (a unit stands on it): a dashed ring in green. Broken: the
+   * ring in four arcs with a crack across. Closed (its Voice fell): a thin faint ring struck
+   * through.
    */
   _drawCircle(circle) {
     const scene = this.scene;
@@ -507,6 +625,20 @@ export class VigilController {
             g.strokePath?.();
           }
         });
+      } else if (circle.state === 'broken') {
+        // Shattered: the ring in four arcs with gaps, a crack across, no spokes.
+        g.fillStyle?.(UI_HEX.void, 0.3);
+        g.fillCircle?.(x, y, r);
+        underlaid(g, 2, UI_HEX.info, 0.8, () => {
+          for (let i = 0; i < 4; i++) {
+            const a0 = (i * Math.PI) / 2 + 0.25;
+            g.beginPath?.();
+            g.arc?.(x, y, r, a0, a0 + Math.PI / 2 - 0.5, false);
+            g.strokePath?.();
+          }
+          g.lineBetween?.(x - r * 0.6, y - r * 0.2, x - r * 0.05, y + r * 0.1);
+          g.lineBetween?.(x - r * 0.05, y + r * 0.1, x + r * 0.6, y - r * 0.3);
+        });
       } else {
         g.fillStyle?.(UI_HEX.void, 0.35);
         g.fillCircle?.(x, y, r);
@@ -522,6 +654,39 @@ export class VigilController {
     }
   }
 
+  /**
+   * A Voice's ward: a pale hexagon around its tile, over the sprite but faint enough to see it
+   * through. Held by a circle: one ring. Held by the choir alone (the Waking with its circle
+   * broken): two rings, the inner in the Waking's gold.
+   */
+  _drawWard(ward) {
+    const scene = this.scene;
+    if (!scene?.grid?.gridToPixel) return;
+    const { x, y } = scene.grid.gridToPixel(ward.col, ward.row);
+    this.shown.wards.push({ ...ward, x, y });
+    if (!scene.add?.graphics) return;
+    try {
+      const g = scene.add.graphics();
+      g.setDepth?.(UI_DEPTHS.WARD);
+      g.name = `vigil-ward-${ward.state}`;
+      const hex = (r) =>
+        Array.from({ length: 6 }, (_, i) => {
+          const a = Math.PI / 6 + (i * Math.PI) / 3;
+          return { x: x + Math.cos(a) * r, y: y + Math.sin(a) * r };
+        });
+      const r = TILE_SIZE / 2 + 1;
+      g.fillStyle?.(UI_HEX.info, 0.14);
+      g.fillPoints?.(hex(r), true);
+      underlaid(g, 1.5, UI_HEX.info, 0.95, () => g.strokePoints?.(hex(r), true));
+      if (ward.state === 'choir' || ward.choir)
+        underlaid(g, 1.5, UI_HEX.accent, 0.95, () => g.strokePoints?.(hex(r - 4), true));
+      this.objects.push(g);
+      this._pulse([g], 0.55);
+    } catch {
+      /* cosmetic only */
+    }
+  }
+
   _clear() {
     for (const obj of this.objects) {
       try {
@@ -532,6 +697,6 @@ export class VigilController {
       }
     }
     this.objects = [];
-    this.shown = { sigils: [], circles: [] };
+    this.shown = { sigils: [], circles: [], wards: [] };
   }
 }

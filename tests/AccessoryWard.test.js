@@ -99,8 +99,8 @@ describe('in a combat', () => {
     const r = fight(brigand(), s);
     const onSera = strikes(r).filter((e) => e.target === 'Sera');
     expect(onSera.map((e) => e.damage)).toEqual([1, 15]);
-    expect(onSera[0].warded).toBe(true);
-    expect(onSera[1].warded).toBeUndefined();
+    expect(onSera[0].buckler).toBe(true);
+    expect(onSera[1].buckler).toBeUndefined();
     // 30 - 1 - 15: Sera lives, where 30 - 15 - 15 would have felled her.
     expect(r.defenderHP).toBe(14);
     expect(s._wardSpent).toBe(true);

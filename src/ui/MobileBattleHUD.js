@@ -41,6 +41,7 @@ import {
   statusDescriptions,
   statusStaffInfo,
   carriedItemInfo,
+  wardInfo,
   terrainRuleLines,
   visibleBallistaAt,
 } from '../engine/BattleInformation.js';
@@ -1035,6 +1036,7 @@ export class MobileBattleHUD {
       unit?._conditions,
       statusStaffInfo(unit)?.text,
       carriedItemInfo(unit)?.text,
+      wardInfo(unit)?.text,
       [s.getBossPressureWarning?.(), s._bossPresence?.summaryLine?.()].join('|'),
       s.inspectMode,
       Boolean(s.inspectionPanel?.visible),
@@ -1323,6 +1325,8 @@ export class MobileBattleHUD {
       );
     const carrying = carriedItemInfo(unit);
     if (carrying) detailContent.append(el('p', '', carrying.text));
+    const ward = wardInfo(unit);
+    if (ward) detailContent.append(el('p', '', ward.text));
     detailContent.append(el('pre', '', info || 'Tap a tile to inspect terrain.'));
     if (canUseDanger(s)) {
       detailContent.append(

@@ -8,7 +8,12 @@ import {
   revivalStonesLine,
 } from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
-import { canInspectUnit, carriedItemInfo, statusStaffInfo } from '../engine/BattleInformation.js';
+import {
+  canInspectUnit,
+  carriedItemInfo,
+  statusStaffInfo,
+  wardInfo,
+} from '../engine/BattleInformation.js';
 import { entityReachInfo } from '../engine/EntityReach.js';
 import { formatPerkMods } from './rosterDisplay.js';
 import {
@@ -391,6 +396,13 @@ export class UnitDetailOverlay {
     const reachInfo = entityReachInfo(unit);
     if (reachInfo) {
       const text = this._unitText(lx, y, reachInfo.text, UI_PALETTE.info, '9px');
+      fitCanvasText(text, OVERLAY_W - 24);
+      y += 14;
+    }
+    // A Vigil Voice's ward (engine/Vigil.js): what holds it and how to break it.
+    const ward = wardInfo(unit);
+    if (ward) {
+      const text = this._unitText(lx, y, ward.text, UI_PALETTE.info, '9px');
       fitCanvasText(text, OVERLAY_W - 24);
       y += 14;
     }

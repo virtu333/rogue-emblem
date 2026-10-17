@@ -404,7 +404,7 @@
       "promotion": 2,
       "skillScroll": 5,
       "weaponArtScroll": 5,
-      "legendaryWeapon": 7,
+      "legendaryWeapon": 5,
       "accessory": 15,
       "forge": 15,
       "gold": 15
@@ -564,7 +564,7 @@
       "promotion": 1,
       "skillScroll": 5,
       "weaponArtScroll": 10,
-      "legendaryWeapon": 18,
+      "legendaryWeapon": 7,
       "accessory": 12,
       "forge": 20,
       "gold": 7

@@ -20,6 +20,8 @@ const SPARE_EXCLUDED_TERRAIN = new Set([
   'Ballista',
   'Village',
   'Wall',
+  // The Vigil's drop: a flier may hover there, but a swap could hand the tile to a walker.
+  'Abyss',
 ]);
 // A spare never starts within this many steps of an enemy.
 const SPARE_ENEMY_BUFFER = 2;

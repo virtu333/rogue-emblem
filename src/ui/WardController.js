@@ -11,6 +11,7 @@
 // failure here never touches the battle.
 
 import { TILE_SIZE } from '../utils/constants.js';
+export { wardReady } from '../engine/AccessoryWard.js'; // the pip's read, for BattleScene
 
 export const WARD_LINE = 'Warded';
 export const WARD_COLOR = 0x77bbff;
@@ -27,7 +28,7 @@ export function drawWardPip(scene, x, y, size) {
 
 /** A combat that spent a ward redraws its sides' pips, whether or not its strikes were shown. */
 export function redrawWardPips(scene, result, units) {
-  if (!result?.events?.some?.((e) => e.warded)) return;
+  if (!result?.events?.some?.((e) => e.buckler)) return;
   for (const unit of units) {
     try {
       scene.updateAffixPips?.(unit);

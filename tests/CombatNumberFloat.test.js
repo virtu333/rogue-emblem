@@ -303,7 +303,9 @@ describe('no float site keeps a look of its own', () => {
       'splash',
     ])
       expect(battleScene, kind).toContain(`kind: '${kind}'`);
-    expect(battleScene).toContain("kind: event.isCrit ? 'crit' : 'strike'");
+    expect(battleScene).toContain(
+      "kind: event.warded ? 'warded' : event.isCrit ? 'crit' : 'strike'",
+    );
     expect(heal).toContain("kind: 'heal'");
   });
 

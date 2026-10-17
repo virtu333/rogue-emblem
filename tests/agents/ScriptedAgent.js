@@ -1,7 +1,40 @@
 // ScriptedAgent — Priority-based tactical policy (deterministic, no extra randomness).
 
-import { getCombatForecast, gridDistance } from '../../src/engine/Combat.js';
+import { getCombatForecast, gridDistance, isWardedUnit } from '../../src/engine/Combat.js';
 import { objectiveTargetUnits } from '../../src/engine/BattleObjectives.js';
+import { openWardCircles } from '../../src/engine/Vigil.js';
+
+/**
+ * A Vigil's standing ward circles (Vigil.openWardCircles), each claimed by a living player unit:
+ * a unit already on a circle keeps it, then each open circle in data order takes the nearest
+ * unit not yet claimed (roster order on a tie). Deterministic. Empty without wards.
+ * @returns {Map<object, object>} unit -> circle
+ */
+export function wardCircleClaims(b) {
+  const claims = new Map();
+  const circles = openWardCircles(b?.battleConfig?.vigil, b?._vigilState, b?.enemyUnits);
+  if (circles.length === 0) return claims;
+  const free = (b.playerUnits || []).filter((u) => u.currentHP > 0);
+  const taken = new Set();
+  for (const c of circles) {
+    const holder = free.find((u) => u.col === c.col && u.row === c.row);
+    if (holder) {
+      claims.set(holder, c);
+      taken.add(c);
+    }
+  }
+  for (const c of circles) {
+    if (taken.has(c)) continue;
+    const open = free.filter((u) => !claims.has(u));
+    open.sort(
+      (x, y) =>
+        gridDistance(x.col, x.row, c.col, c.row) - gridDistance(y.col, y.row, c.col, c.row) ||
+        free.indexOf(x) - free.indexOf(y),
+    );
+    if (open[0]) claims.set(open[0], c);
+  }
+  return claims;
+}
 
 export class ScriptedAgent {
   constructor(driver) {
@@ -96,6 +129,14 @@ export class ScriptedAgent {
     if (moves.length > 0) {
       const b = this.driver.battle;
       const unit = b.selectedUnit;
+      // A Vigil's ward: the unit claimed for a standing circle walks to it (and holds it).
+      const circle = unit ? this._claimedCircle(unit) : null;
+      if (circle) {
+        const cost = (action) => this._pathCost(unit, action.payload, circle);
+        const scored = moves.map((action) => ({ action, cost: cost(action) }));
+        scored.sort((x, y) => x.cost - y.cost);
+        return scored[0].action;
+      }
       if (unit && b.battleConfig?.objective === 'escape' && b.battleConfig?.escapeTiles?.length) {
         const tiles = b.battleConfig.escapeTiles;
         const distToExit = (col, row) =>
@@ -214,14 +255,34 @@ export class ScriptedAgent {
     const b = this.driver.battle;
     const field = b.objectiveField?.() ?? { enemyUnits: b.enemyUnits };
     const targets = objectiveTargetUnits(b.battleConfig, field);
+    // The targets that can be hurt first (a warded Voice waits on its circle or the choir).
+    const open = targets.filter((u) => !isWardedUnit(u));
+    if (open.length > 0) return open;
     return targets.length > 0 ? targets : b.enemyUnits;
+  }
+
+  /** The Vigil ward circle `unit` is claimed for (wardCircleClaims), or null. */
+  _claimedCircle(unit) {
+    return wardCircleClaims(this.driver.battle).get(unit) || null;
+  }
+
+  /** Path cost from `from` to `goal` for `unit` (terrain, not units), else grid distance. */
+  _pathCost(unit, from, goal) {
+    const b = this.driver.battle;
+    if (!b.grid?.findPath) return gridDistance(from.col, from.row, goal.col, goal.row);
+    const path = b.grid.findPath(from.col, from.row, goal.col, goal.row, unit.moveType);
+    if (!path) return Infinity;
+    return path
+      .slice(1)
+      .reduce((cost, tile) => cost + b.grid.getMoveCost(tile.col, tile.row, unit.moveType), 0);
   }
 
   /** The attacks on a defeat map's targets among the legal actions, weakest target first. */
   _findTargetStrikes(legalActions) {
     const b = this.driver.battle;
     const field = b.objectiveField?.() ?? { enemyUnits: b.enemyUnits };
-    const targets = objectiveTargetUnits(b.battleConfig, field);
+    // A warded target takes no damage: no point striking it.
+    const targets = objectiveTargetUnits(b.battleConfig, field).filter((u) => !isWardedUnit(u));
     if (targets.length === 0) return [];
     return legalActions
       .filter((a) => a.type === 'choose_target')
