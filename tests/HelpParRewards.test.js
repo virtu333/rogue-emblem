@@ -74,9 +74,9 @@ describe('More Info: Par & Turn Ratings', () => {
     expect(pieces.filter((p) => p.parBonus).map((p) => [p.id, p.parBonus])).toEqual([
       ['toll_house', 2],
       ['toll_crossing', 2],
+      ['the_vigil', 2],
       ['guardian_hall', 2],
       ['guardian_hall_dark', 2],
-      ['the_vigil', 2],
     ]);
     const text = lines.join(' ').replace(/\s+/g, ' ');
     expect(text).toContain(
