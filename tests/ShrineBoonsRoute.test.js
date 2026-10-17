@@ -674,16 +674,16 @@ describe('Omen Reader: the next two falls marked; the Eclipse spares recruits', 
       ).warning;
     const base = { eclipsed: false, remaining: 5, near: false, foretold: true };
     expect(line({ ...base, omenRank: 1, omenShared: 0 })).toBe(
-      'Omen: the dark takes this knot next.',
+      'Omen: the dark takes this stop next.',
     );
     expect(line({ ...base, omenRank: 1, omenShared: 1 })).toBe(
-      'Omen: the dark takes this knot next, with one other.',
+      'Omen: the dark takes this stop next, with one other.',
     );
     expect(line({ ...base, omenRank: 2, omenShared: 2 })).toBe(
-      'Omen: the dark takes this knot soon after the next, with 2 others.',
+      'Omen: the dark takes this stop soon after the next, with 2 others.',
     );
     expect(line({ ...base, omenRank: 2, omenShared: 0 })).toBe(
-      'Omen: the dark takes this knot soon after the next.',
+      'Omen: the dark takes this stop soon after the next.',
     );
   });
 

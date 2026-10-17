@@ -193,6 +193,10 @@ function cleanRecord(record) {
     shadow: Number.isFinite(record.shadow)
       ? Math.max(0, Math.min(1000, Math.trunc(record.shadow)))
       : null,
+    // The run's Heat (engine/Omens.js), only on a run that chose Omens.
+    ...(Number.isInteger(record.heat) && record.heat > 0
+      ? { heat: Math.min(record.heat, 999) }
+      : {}),
     ...(isObject(record.grade) && ['S', 'A', 'B', 'C', 'D'].includes(record.grade.letter)
       ? {
           grade: {

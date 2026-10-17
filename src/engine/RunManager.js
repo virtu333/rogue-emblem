@@ -70,12 +70,10 @@ import { generateNodeMap } from './NodeMapGenerator.js';
 import { buildDescentNodeMap, descentRouteIdFor, isDescentMap, isGateBossNode } from './Descent.js';
 import {
   RITE_MAX_WORDS_PER_COMMIT,
+  applyRiteBattleParams,
   applyRiteDelta,
   createRite,
-  riteBand,
   riteConfigOf,
-  riteLevelRuleOf,
-  riteModsFor,
   riteStartFromEclipse,
   riteUnderParDelta,
   sanitizeRite,
@@ -129,6 +127,18 @@ import {
   recruitAffixesAllowed,
 } from './DifficultyEngine.js';
 import { hasRevivalStones } from './RevivalStones.js';
+import { keptForgeAwakeTable } from './NgPlusEcho.js';
+import { wakeArmyForges } from './KeptForges.js';
+import { applyHeatParams, putParam } from './HeatParams.js';
+import {
+  applyOmensAtStart,
+  heatVictoryMilestone,
+  omenDeployCut,
+  omenEffect,
+  overlayRunOmens,
+  runHeat,
+  sanitizeOmensRecord,
+} from './Omens.js';
 import { sanitizeEntityKit } from './EntityKitConfig.js'; // the Entity's kit, final act only
 import { assignPortraitVariants, backfillPortraitVariants } from './PortraitVariants.js';
 import {
@@ -738,6 +748,7 @@ export class RunManager {
     this.gold = STARTING_GOLD + (metaEffects?.goldBonus || 0);
     this.accessories = []; // team accessory pool (unequipped accessories)
     this.ngPlus = null; // an NG+ run's Barracks members (engine/NgPlusRun.js)
+    this.omens = null; // the run's Omens and Heat (engine/Omens.js)
     this.scrolls = []; // team scroll pool (skill teaching items)
     this.convoy = { weapons: [], consumables: [] };
     this.activeBlessings = [];
@@ -950,6 +961,7 @@ export class RunManager {
       narrativeSeen = null,
       // An NG+ start (NgPlusState.runStartOf: the veterans brought, the lords' kits), or null.
       ngPlus = null,
+      omens = null, // the chosen Omens' ranks ({ id: rank }, engine/Omens.js), or null
     } = options;
     this.mode = STANDARD_RUN_MODE;
     this.narrativeSeen =
@@ -957,6 +969,7 @@ export class RunManager {
         ? structuredClone(narrativeSeen)
         : {};
     this.applyDifficultySelection(difficultyId);
+    overlayRunOmens(this, omens);
     this.eclipse = createEclipseState({ enabled: eclipseEnabled !== false });
     this.lastEclipseCommit = null;
     this.rite = null;
@@ -1030,6 +1043,7 @@ export class RunManager {
     if (applyBlessingsAtStart && this.activeBlessings.length > 0) {
       this.applyRunStartBlessingEffects();
     }
+    applyOmensAtStart(this);
   }
 
   /**
@@ -1117,7 +1131,7 @@ export class RunManager {
     this._runStartBlessingsApplied = false;
     this._blessingChosen = false;
     this.startGift = null; // the prologue is never offered a gift
-    this.ngPlus = null;
+    this.ngPlus = this.omens = null;
     this.initializeBlessingsAtRunStart({ blessingSeed: this.runSeed });
     this.chooseBlessing(null);
   }
@@ -2102,12 +2116,11 @@ export class RunManager {
 
   getDeployBonus(actId = this.currentAct) {
     const metaDelta = this.metaEffects?.deployBonus || 0;
-    const blessingDelta = this.blessingRuntimeModifiers?.deployCapDelta || 0;
+    const mods = this.blessingRuntimeModifiers;
     // A price that narrows one act's deploys (resolveDeployLimits keeps max >= the act's min).
-    const actDelta = Math.trunc(
-      Number(this.blessingRuntimeModifiers?.deployCapDeltaByAct?.[actId]) || 0,
-    );
-    return metaDelta + blessingDelta + actDelta;
+    const actDelta = Math.trunc(Number(mods?.deployCapDeltaByAct?.[actId]) || 0);
+    const lever = this.getDifficultyModifier('deployLimitBonus', 0) - omenDeployCut(this);
+    return metaDelta + (mods?.deployCapDelta || 0) + actDelta + lever;
   }
 
   /** True when a blessing's price closed church revives for this run. */
@@ -3580,7 +3593,7 @@ export class RunManager {
       claimedLordNames: this.getClaimedRecruitLordNames(node),
       lordOdds: this.getLordRecruitOdds('node', node),
       recruitLevelBonus: this.getRecruitLevelBonus(),
-      deployBonus: this.getDeployBonus(),
+      deployBonus: this.getDeployBonus() + omenDeployCut(this),
     };
   }
 
@@ -3684,15 +3697,12 @@ export class RunManager {
     // harness alike); Lantern of the Road: a fog map's opening reveal (engine/FogOpening.js).
     // Keys only when held, so the params of a run without them are exactly as they were.
     const reinforcementDelay = reinforcementDelayOf(this);
-    if (reinforcementDelay > 0) battleParams.reinforcementDelay = reinforcementDelay;
-    else delete battleParams.reinforcementDelay;
+    putParam(battleParams, 'reinforcementDelay', reinforcementDelay, reinforcementDelay > 0);
     const fogOpeningRadius = fogOpeningRadiusOf(this);
-    if (fogOpeningRadius > 0) battleParams.fogOpeningRadius = fogOpeningRadius;
-    else delete battleParams.fogOpeningRadius;
+    putParam(battleParams, 'fogOpeningRadius', fogOpeningRadius, fogOpeningRadius > 0);
     // Seer's Eye: fog never hides a foe (BattleInformation.canInspectUnit reads the grid's flag,
     // set from this key by the scene and the harness alike; saved with the battle's params).
-    if (foesShownOf(this)) battleParams.foesShown = true;
-    else delete battleParams.foesShown;
+    putParam(battleParams, 'foesShown', true, foesShownOf(this));
     battleParams.recruitGuardianChance = this.getDifficultyModifier(
       'recruitGuardianChance',
       Number.isFinite(battleParams.recruitGuardianChance) ? battleParams.recruitGuardianChance : 0,
@@ -3756,15 +3766,13 @@ export class RunManager {
       battleParams.carryPasses = shrine.carryMultiplier;
     else delete battleParams.carryPasses;
     // Patient Dawn: turns TurnBonusCalculator.calculatePar adds to the map's par, last.
-    if (shrine.parTurnDelta > 0) battleParams.blessingParTurns = shrine.parTurnDelta;
-    else delete battleParams.blessingParTurns;
+    putParam(battleParams, 'blessingParTurns', shrine.parTurnDelta, shrine.parTurnDelta > 0);
     // Battle pacing (docs/specs/dusk-pressure.md), written into the map when it is
     // generated: the rout ladder, the rung's par inflation, and whether template waves
     // raise par. A run saved before these existed keeps none of them (DIFFICULTY_DEFAULTS).
     battleParams.routLadder = this.difficultyModifiers?.routLadder ?? null;
     const parInflation = this.difficultyModifiers?.parInflation;
-    if (Number.isFinite(parInflation)) battleParams.parInflation = parInflation;
-    else delete battleParams.parInflation;
+    putParam(battleParams, 'parInflation', parInflation, Number.isFinite(parInflation));
     battleParams.templateWavesRaisePar = this.getDifficultyModifier('templateWavesRaisePar', true);
     battleParams.holdShare = this.difficultyModifiers?.holdShare ?? null;
     // Revival Stones (engine/RevivalStones.js): the rung's table, written into the boss spawn
@@ -3775,8 +3783,7 @@ export class RunManager {
     else delete battleParams.revivalStones;
     const entityKit =
       battleAct === 'finalBoss' && sanitizeEntityKit(this.difficultyModifiers?.entityKit);
-    if (entityKit) battleParams.entityKit = entityKit;
-    else delete battleParams.entityKit;
+    putParam(battleParams, 'entityKit', entityKit, entityKit);
     battleParams.objectiveParOffset = this.difficultyModifiers?.objectiveParOffset ?? null;
     this._repairDuplicateRosterNames();
     // Units enter the battle (RunManager.getRoster clones) with their run identity.
@@ -3788,8 +3795,7 @@ export class RunManager {
     // changes the battle, so an unburdened run's params are exactly as they were.
     const bossBattle = node.type === 'boss' || battleParams.isBoss === true;
     const hunted = huntedWaveFor(this, { isBoss: bossBattle });
-    if (hunted) battleParams.huntedWave = hunted;
-    else delete battleParams.huntedWave;
+    putParam(battleParams, 'huntedWave', hunted, hunted);
     if (bossBattle && isSwornEnemy(this))
       battleParams.swornEnemy = { seed: eclipseHash(`sworn:${this.runSeed}:${node.id}`) };
     else delete battleParams.swornEnemy;
@@ -3801,33 +3807,18 @@ export class RunManager {
       // Forced March's +1 Move, Bulwark's -1 (engine/TradeBoons.js).
       ...armyMovBattleDeltas(this),
     ];
-    if (debuffs.length) battleParams.battleDebuffs = debuffs;
-    else delete battleParams.battleDebuffs;
+    putParam(battleParams, 'battleDebuffs', debuffs, debuffs.length);
     // Gambler's Edge's cost (foes roll affixes more often) and Chronicle's XP by level: keys only
     // while a card holds them (engine/TradeBoons.js).
     const affixShare = enemyAffixChanceMultiplierOf(this);
-    if (affixShare !== 1) battleParams.affixChanceMultiplier = affixShare;
-    else delete battleParams.affixChanceMultiplier;
+    putParam(battleParams, 'affixChanceMultiplier', affixShare, affixShare !== 1);
     const xpRoles = xpRoleMultipliersOf(this);
-    if (xpRoles) battleParams.xpRoleMultipliers = xpRoles;
-    else delete battleParams.xpRoleMultipliers;
+    putParam(battleParams, 'xpRoleMultipliers', xpRoles, xpRoles);
     // Standard of the Sun's cost, Oathbound Steel's lock and Siegebreaker's reach (TradeBoons).
     applyTradeBattleParams(this, battleParams);
-    // The Rite (engine/Rite.js), only in the Descent (a run without one keeps its params as they
-    // were): the words at entry (a summoning circle's Hollowed read them), the tier, the Vigil's
-    // Hollowed level rule, and on a boss of the route the tier's mods, which MapGenerator writes
-    // into the locked map (RiteBattleMods.js). Keys only when they say something.
-    for (const key of ['riteAtEntry', 'riteBand', 'riteLevel', 'riteMods'])
-      delete battleParams[key];
-    const rite = sanitizeRite(this.rite);
-    if (rite) {
-      battleParams.riteAtEntry = rite.words;
-      battleParams.riteBand = riteBand(rite.words, riteConfigOf(this));
-      battleParams.riteLevel = riteLevelRuleOf(this);
-      const riteMods = riteModsFor(this, node);
-      if (Object.keys(riteMods).length) battleParams.riteMods = riteMods;
-    }
-    return battleParams;
+    applyRiteBattleParams(this, battleParams, node); // the Descent's Rite (engine/Rite.js)
+    // NG+ Echo and the run's Omens, last (engine/HeatParams.js).
+    return applyHeatParams(this, battleParams, { isBoss: bossBattle });
   }
 
   /** Merchant Caravan reward: set when a caravan survives a battle; consumed on next NodeMap entry. */
@@ -4605,10 +4596,10 @@ export class RunManager {
   _riteStart() {
     const config = this.getEclipseConfig();
     const active = this.isEclipseActive();
-    return riteStartFromEclipse(
-      { active, phaseId: active ? eclipsePhase(this.eclipse?.shadow, config).id : null },
-      riteConfigOf(this),
-    );
+    const phaseId = active ? eclipsePhase(this.eclipse?.shadow, config).id : null;
+    // The Rite Listens (an Omen): it starts higher.
+    const start = riteStartFromEclipse({ active, phaseId }, riteConfigOf(this));
+    return start + Math.max(0, Math.trunc(omenEffect(this, 'riteStartDelta', 0)));
   }
 
   /**
@@ -4999,6 +4990,8 @@ export class RunManager {
       actIndex: this.actIndex,
     }).burdens;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
+    // NG+ kept weapons wake their sleeping forges up to the new act's limit.
+    if (this.ngPlus) wakeArmyForges(this, this.currentAct, keptForgeAwakeTable(this.gameData));
     // Act-entry blessing effects (Slow Fuse's rise) land before the rest, so the army starts
     // the act whole at its new maximum.
     applyArcsOnActEntry(this);
@@ -5316,6 +5309,8 @@ export class RunManager {
       // Narrative memory flush — exactly-once under this guard, like currencies.
       // NG+: who left the Barracks, the items its members kept, a ride to pick (NgPlusRun.js).
       m.recordNgPlusRunEnd?.(ngPlusRunEnd(this, summary));
+      const heatMark = heatVictoryMilestone(this, summary); // a won run's Heat (Omens.js)
+      if (heatMark) m.recordMilestone(heatMark);
       m.recordRunEnd?.({
         result: summary.result,
         victoryRecord:
@@ -5330,6 +5325,7 @@ export class RunManager {
                 actsCleared: this.actIndex + 1,
                 totalTurns: this.totalTurns,
                 shadow: this.isEclipseActive() ? this.eclipse.shadow : null,
+                ...(runHeat(this) ? { heat: runHeat(this) } : {}),
                 ...Ledger.gradeRecordField(this, summary.result),
                 roster: this.roster.map(survivorRecord),
                 fallen: fallenForRecord(everFallenUnits(this)).map(fallenRecord),
@@ -6124,6 +6120,7 @@ export class RunManager {
     // Saves from before the ledger have none (what the army holds still counts).
     rm.legendaryGrants = sanitizeLegendaryGrants(saved.legendaryGrants);
     rm.ngPlus = sanitizeNgPlusRun(saved.ngPlus);
+    rm.omens = sanitizeOmensRecord(saved.omens);
     adoptHeldLegendaries(rm);
     rm.pendingBossRecruit = restorePendingBossRecruit(saved.pendingBossRecruit, {
       actId: rm.currentAct,

@@ -29,7 +29,7 @@ import {
   skipOwedEarnedPick,
 } from './RunPolicies.js';
 import { arriveAtEvent, completeEventBattle, leaveEvent } from '../../src/engine/EventCommands.js';
-import { deployLimitsForParams, resolveDeployLimits } from '../../src/engine/BattleDeployCount.js';
+import { deployLimitsForParams, runDeployLimits } from '../../src/engine/BattleDeployCount.js';
 import { isRecruitBattleNode } from '../../src/engine/RecruitNodeSystem.js';
 import {
   applyGenerationFields,
@@ -239,10 +239,7 @@ export class RunSimulationDriver {
       : [];
     // The deploy screen's rule (BattleScene.create): the act's limits, an event set piece's cap and
     // the deploy bonus, through the functions the game reads (never a copy of them).
-    const deployLimits = resolveDeployLimits({
-      base: deployLimitsForParams(battleParams),
-      deployBonus: this.runManager.getDeployBonus(),
-    });
+    const deployLimits = runDeployLimits(this.runManager, deployLimitsForParams(battleParams));
     const deployMax = Math.max(1, Math.min(this.runManager.roster.length, deployLimits.max));
     const deployCount = Math.min(
       Math.max(deployLimits.min, deployMax),

@@ -243,3 +243,49 @@ pending pick from the last win so buying NG+ pays off immediately.
 - **UI**: Home Base's "NG+" tab (`ui/NgPlusPanel.js`, words in `ui/ngPlusModel.js`) shows once the slot has won Black Sun or bought NG+: the unlock, "Who rides again?" (its commit beside Begin Run; tapping a survivor opens their loadout without dropping anyone else's choices, a Remove button takes one out, a full slot's survivor can still be read), the Barracks (bring, release with a confirm). While a bought NG+'s pick is still open, Begin Run asks once ("Begin anyway"), since the next eligible win replaces it (`openRideWarning`). A lord's keeps stack win over win; kept items past the bag's room start the run in the convoy. The run result says when a ride waits.
 - **Upgrades** (2026-10-15, Dave's "repeatable sinks"): two tiered buys on the NG+ tab, once NG+ is bought (`NG_PLUS_UPGRADES` in `NgPlusState.js`; `meta.buyNgPlusUpgrade(id)` checks and pays inside `_commitNgPlus`, so a stale tab buys the next tier, never the same one twice). Each tier costs the same Valor and Supply, 400 more than the last, never refunded. **Barracks Wing** (`purchasedUpgrades.ng_plus_barracks_wing`, 800/1200/1600/2000, 4 tiers): one more recruit veteran brought per tier (`bringLimitFor`: 2 up to 6, `MAX_BRING_LIMIT`). **Seer's Lantern** (`ng_plus_seers_lantern`, 600 up to 2200, 5 tiers): +1 Vision charge per tier in every run, NG+ or not, added after Home Base's Vision upgrades (`ngPlusVisionBonus` in `getActiveEffects`). Like the unlock, both keys sit in `purchasedUpgrades` outside `metaUpgrades.json`, so cloud and adopt max-merge them and Home Base never refunds them.
 - Tests: `tests/NgPlus.test.js`, `tests/e2e/ng-plus.spec.js` (`mobile-ui` lane).
+
+## 13. Echo and kept forges (2026-10-17)
+
+Measured before this (`sim/ngplus.js`, 40 paired Black Sun seeds, a greedy player stacking the
+commander lord and two recruits): after 5 loops an NG+ start won with no commander fall 20% of the
+time against 2% for an ordinary start, almost all of it from the lords' kits (stacked forged
+Silver weapons, up to +15 in Act I). Enemy levels alone did not cancel it; enemy stats did.
+Write-up: project file `reviews/ascension-true-ending.md`.
+
+- **Echo** (`engine/NgPlusEcho.js`): each Barracks member playing the run (a brought veteran, a
+  lord whose kit came back, a third lord's on arrival) adds its record's `rides`. The sum is
+  `run.ngPlus.echo` (saved; an NG+ run saved before has 0). `getBattleParams` adds the highest
+  step of `difficulty.json` `ngPlus.echo` the Echo reaches: `enemyLevelBonus` (to
+  `bossLevelBonus` too), `enemyStatBonus`, `enemyCountBonus`, and `bossStones` (one more Revival
+  Stone on act bosses, the Emperor and the Lieutenant, never an elite captain:
+  `withEchoBossStones`). Steps only ever add (`validateNgPlusConfig`, run by `validate:data`).
+  The table climbs gently (the owner, 2026-10-17: no spike at one Echo): each step raises one
+  lever by one, from Echo 3 (level +1) to Echo 41 (a second stone); at about loop 5 (Echo 14) it
+  matches the measured step, levels +2 and stats +1. `tests/NgPlusEcho.test.js` holds the climb.
+  Shown on the difficulty screen's NG+ switch (`ngPlusToggleLabel`: "New Game+: On · Echo N",
+  from `echoPreview`: the brought veterans and the starting pair), each Barracks row (its
+  record's own Echo), the Barracks' "Next NG+ run" line and the pause list (`NG+ · Echo N`).
+- **Saves** (run-format capability `ngPlusEcho`, beside `ngPlus`): every NG+ run this build
+  writes carries `run.ngPlus.echo` (0 included), so a client that plays NG+ but not Echo refuses
+  it rather than dropping the Echo and never waking the sleeping forges. Migration: an NG+ save
+  from before Echo has no `echo` and is read as Echo 0 with its kept forges awake, the rules it
+  was made under; once this build saves it, it carries the capability.
+- **Kept forges wake by act** (`engine/KeptForges.js`): a kept weapon placed at an NG+ start (or
+  on a third lord's arrival) keeps only the act's awake limit of its forges (`ngPlus.keptForgeAwake`:
+  Act I 2, II 4, III 6, IV 8, then all); the rest are taken off (`deforgeWeapon`, price kept) into
+  `_dormantForges` and put back in order (`reapplyForgeStep`) as each act begins
+  (`RunManager.advanceAct` → `wakeArmyForges`, bags and convoy). Every reader of a weapon sees the
+  awake forges only. The run's own forges (shop, whetstone rewards, events, blessings) land on a
+  kept weapon at once, sleeping forges or not (the owner, 2026-10-17: a reward forge must never
+  wait for Act V): `_keptForgeBase` stamps how many forges the weapon rode in with, so the awake
+  limit counts kept forges only and a wake slips them in under the run's forges (history: kept
+  first, then the run's); `canForge`, `forgeStatBlock` and `getForgeCost` count sleeping forges
+  toward the +15 and per-stat caps and the per-stat price, so a wake never fails.
+- **Only some forges ride on** (the owner, 2026-10-17): the Barracks stores a weapon awake with
+  the forges it rode in with plus at most `ngPlus.keptForgeCarry` (4) of the run's own, the
+  earliest made (`KeptForges.carriedCopy`, read by `rideCandidates` and the run end's refresh);
+  each one dropped takes its price with it. A weapon kept for the first time rode in with none.
+  Grandfathered: a Barracks weapon placed before the stamp existed (a live run of an older
+  build) keeps every forge it has, and every Barracks record keeps what it already stores.
+  The roster card says "N kept forges still waking".
+- Tests: `tests/NgPlusEcho.test.js`.

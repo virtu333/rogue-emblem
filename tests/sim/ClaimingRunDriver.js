@@ -30,7 +30,7 @@
 import { RunManager } from '../../src/engine/RunManager.js';
 import { clearBattleScopedDeltas } from '../../src/engine/BattleStatDeltas.js';
 import { GOLD_BATTLE_BONUS, NODE_TYPES } from '../../src/utils/constants.js';
-import { deployLimitsForParams, resolveDeployLimits } from '../../src/engine/BattleDeployCount.js';
+import { deployLimitsForParams, runDeployLimits } from '../../src/engine/BattleDeployCount.js';
 import { getLatePressureState } from '../../src/engine/TurnBonusCalculator.js';
 import { isRecruitBattleNode } from '../../src/engine/RecruitNodeSystem.js';
 import { prepareBossRecruit, resolveBossRecruit } from '../../src/engine/PendingBossRecruit.js';
@@ -470,10 +470,7 @@ export class ClaimingRunDriver extends RunSimulationDriver {
     params.fallenUnits = structuredClone(rm.fallenUnits || []);
     // The deploy screen's rule (the stock driver's): the act's limits, a set piece's cap and the
     // deploy bonus, through the functions the game reads.
-    const limits = resolveDeployLimits({
-      base: deployLimitsForParams(params),
-      deployBonus: rm.getDeployBonus(),
-    });
+    const limits = runDeployLimits(rm, deployLimitsForParams(params));
     const deployMax = Math.max(1, Math.min(rm.roster.length, limits.max));
     params.deployCount = Math.min(Math.max(limits.min, deployMax), rm.roster.length);
     params.battleNumber = (rm.completedBattles || 0) + 1;

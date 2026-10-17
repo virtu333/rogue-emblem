@@ -150,7 +150,8 @@ test('buy NG+, pick who rides again, bring a veteran, and start NG+ on Nightfall
   await expect(page.locator('[data-focus="ngplus"]')).toHaveCount(0);
   await page.locator('[data-mode="hard"]').tap();
   const toggle = page.locator('[data-focus="ngplus"]');
-  await expect(toggle).toHaveText('New Game+: On');
+  // Bjorn and Edric have ridden once each: the switch names the run's Echo.
+  await expect(toggle).toHaveText('New Game+: On · Echo 2');
   await expect(page.locator('.ch-banner-detail')).toContainText('1 veteran rides with you');
   await toggle.tap();
   await expect(toggle).toHaveText('New Game+: Off');

@@ -14,6 +14,7 @@ import { churchReviveBlock, healRosterAtChurch, reviveAtChurch } from './ChurchC
 import { addBurden, burdenDefFor } from './Burdens.js';
 import { resolveAttackStat } from './TraitSystem.js';
 import { unitUidOf } from './UnitIdentity.js';
+import { omenRuinsReviveBlock } from './Omens.js';
 
 export { RUINS_PATHS };
 
@@ -84,6 +85,7 @@ export function ruinsReviveBlock(run, nodeId, unit) {
   return (
     ruinsServiceBlock(run, nodeId, 'revive') ||
     (ruinsReviveSpent(run, nodeId) ? RUINS_REVIVE_SPENT_LINE : '') ||
+    omenRuinsReviveBlock(run) ||
     churchReviveBlock(run, unit)
   );
 }

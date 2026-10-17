@@ -76,6 +76,7 @@
         "contract-hud.spec.js",
         "mobile-home-base.spec.js",
         "ng-plus.spec.js",
+        "omens.spec.js",
         "mobile-run-loop.spec.js"
       ]
     },

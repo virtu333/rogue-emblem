@@ -425,6 +425,22 @@ describe('"Who rides again?"', () => {
     expect(rideView(meta.getNgPlus(), {}).warnText).toBe('');
   });
 
+  it('the ride shows what riding again does to each survivor’s Echo', () => {
+    // Failure (the owner's ask): the pick names class and level only, so a player sends a
+    // veteran in without seeing the enemies will scale up with it.
+    const meta = unlockedMeta();
+    const first = wonRun();
+    winRun(first, meta);
+    const edric = first.roster.find((u) => u.name === 'Edric');
+    const chipOf = (name) => rideView(meta.getNgPlus(), {}).candidates.find((c) => c.name === name);
+    expect(chipOf('Edric').echoText).toBe('Riding again: Echo 0 → 1');
+    expect(meta.chooseNgPlusRide([{ ref: edric.unitUid }]).ok).toBe(true);
+    if (meta.getNgPlus().pendingRide) expect(meta.chooseNgPlusRide([]).ok).toBe(true);
+    winRun(wonRun({ seed: 12 }), meta);
+    expect(chipOf('Edric').echoText).toBe('Riding again: Echo 1 → 2');
+    expect(chipOf('Sera').echoText).toBe('Riding again: Echo 0 → 1');
+  });
+
   it('the model draws the ride and a picked survivor’s choices', () => {
     const meta = unlockedMeta();
     const rm = wonRun();

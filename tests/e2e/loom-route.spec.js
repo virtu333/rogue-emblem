@@ -53,7 +53,7 @@ test('the loom reflects run state, header and inspect card', async ({ page }) =>
   expect(order[3]).toContain('re-loom-party');
   // A live choice reads as within reach and enables Travel.
   await route.locator('.re-node.is-live').first().tap();
-  await expect(route.locator('.re-loom-state')).toHaveText('Within reach · the next knot');
+  await expect(route.locator('.re-loom-state')).toHaveText('Within reach · the next stop');
   await expect(route.getByRole('button', { name: 'Travel', exact: true })).toBeEnabled();
   // A future knot is inspectable but not travelable.
   await route.locator('.re-node.is-future').last().tap();
