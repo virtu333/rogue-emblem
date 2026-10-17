@@ -79,7 +79,7 @@ export const RUN_CAPABILITIES = Object.freeze({
   // veteran kept, a win's items and ride never recorded).
   ngPlus: 2,
   // NG+ Echo and kept forges (docs/specs/ng-plus.md §13): `run.ngPlus.echo` and a kept weapon's
-  // `_dormantForges`. An older NG+ client would drop the Echo on load (enemies back at Echo 0)
+  // `_dormantForges` and `_keptForgeBase`. An older NG+ client would drop the Echo on load (enemies back at Echo 0)
   // and never wake the sleeping forges at an act's start. Every NG+ run this build writes holds
   // it (its record always carries `echo`); an NG+ save from before has no `echo` and is read as
   // Echo 0 with every kept forge awake (NgPlusRun.sanitizeNgPlusRun), the rules it was made under.

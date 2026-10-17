@@ -35,8 +35,8 @@ import { isSignatureWeapon } from './SignatureWeapons.js';
 import { findCommander } from './Commander.js';
 import { serializeUnit } from './UnitSerialization.js';
 import { isPrologueRun } from './ScriptedBattle.js';
-import { keptForgeAwakeLimit, lullForges, wakeForges } from './KeptForges.js';
-import { keptForgeAwakeTable, recordEcho } from './NgPlusEcho.js';
+import { carriedCopy, keptForgeAwakeLimit, lullForges } from './KeptForges.js';
+import { keptForgeAwakeTable, keptForgeCarry, recordEcho } from './NgPlusEcho.js';
 import {
   INNATE_GROWTHS,
   isNgPlusRung,
@@ -285,19 +285,26 @@ function keepableSkills(run, unit) {
   );
 }
 
-/** A copy of an item with every kept forge awake: what the Barracks stores. */
-function awakeCopy(item) {
-  const copy = structuredClone(item);
-  wakeForges(copy, Infinity);
-  return copy;
+/** Uids of the items the run's Barracks members brought (kept before this run). */
+function memberKeptUids(run) {
+  return new Set((run.ngPlus?.members || []).flatMap((m) => m?.keptUids || []));
+}
+
+/**
+ * What the Barracks stores of an item: every kept forge awake, and only `ngPlus.keptForgeCarry`
+ * of this run's forges (engine/KeptForges.js `carriedCopy`).
+ */
+function carriedItem(run, item, keptUids = memberKeptUids(run)) {
+  return carriedCopy(item, keptForgeCarry(run.gameData), { kept: keptUids.has(item?.uid) });
 }
 
 /** Items a unit could keep: its bag, belt and worn accessory (no other lord's weapon). */
-function keepableItems(unit) {
+function keepableItems(run, unit) {
+  const keptUids = memberKeptUids(run);
   return [...(unit.inventory || []), ...(unit.consumables || []), unit.accessory]
     .filter((item) => keptItemKind(item) && isId(item.uid))
     .filter((item) => !isSignatureWeapon(item) || item.signatureOf === unit.name)
-    .map(awakeCopy);
+    .map((item) => carriedItem(run, item, keptUids));
 }
 
 const hasGrowthTable = (value) =>
@@ -369,7 +376,7 @@ export function rideCandidates(run) {
       tier: unit.tier === 'promoted' ? 'promoted' : 'base',
       recordId: members.get(unit.unitUid) || null,
       identity: kind === 'recruit' ? identityOf(run, unit) : null,
-      items: keepableItems(unit),
+      items: keepableItems(run, unit),
       skills,
       skillKinds,
     };
@@ -429,7 +436,7 @@ export function ngPlusRunEnd(run, summary) {
         keptItems: member.keptUids
           .map((uid) => held.get(uid))
           .filter(Boolean)
-          .map(awakeCopy),
+          .map((item) => carriedItem(run, item)),
       });
     }
   }

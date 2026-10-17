@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from './testData.js';
 import { RunManager } from '../src/engine/RunManager.js';
-import { applyForge, canForge, forgeStatBlock } from '../src/engine/ForgeSystem.js';
+import { applyForge, canForge, forgeStatBlock, getForgeCost } from '../src/engine/ForgeSystem.js';
 import {
   dormantForgeCount,
   keptForgeAwakeLimit,
@@ -110,14 +110,70 @@ describe('kept forges sleep and wake', () => {
     expect(sword._dormantForges).toBeUndefined();
   });
 
-  it('a weapon with sleeping forges cannot be forged until they wake', () => {
-    // Failure: a forge on top of sleeping ones takes the weapon past the forge cap on waking.
+  it('a forge lands on a kept weapon while its old forges sleep, and waking keeps it', () => {
+    // Failure (the owner's report): a kept weapon with sleeping forges refuses every forge
+    // (shop, whetstone reward, event) until they all wake, in practice until Act V.
     const sword = forgedSword();
     lullForges(sword, 2);
-    expect(canForge(sword)).toBe(false);
-    expect(forgeStatBlock(sword, 'might')).toBe('Its kept forges are still waking.');
-    wakeForges(sword, Infinity);
     expect(canForge(sword)).toBe(true);
+    expect(forgeStatBlock(sword, 'weight')).toBe('');
+    expect(applyForge(sword, 'weight', 0, { free: true }).success).toBe(true);
+    const weight = catalog('Silver Sword').weight + FORGE_BONUSES.weight;
+    expect({ ...read(sword), weight: sword.weight }).toEqual({
+      ...expectedAt(2),
+      name: 'Silver Sword +3',
+      weight,
+    });
+    wakeForges(sword, Infinity);
+    expect({ ...read(sword), weight: sword.weight }).toEqual({
+      ...expectedAt(7),
+      name: 'Silver Sword +8',
+      weight,
+    });
+    // The history stays kept forges first, then the run's: the run's forge is the one on top.
+    expect(sword._forgeHistory.map((s) => s.stat)).toEqual([
+      'might',
+      'hit',
+      'crit',
+      'might',
+      'hit',
+      'crit',
+      'might',
+      'weight',
+    ]);
+  });
+
+  it('the awake limit counts kept forges only, never the run’s own', () => {
+    // Failure: forging a kept weapon in Act I keeps its old forges asleep in Act II.
+    const sword = forgedSword();
+    lullForges(sword, 2);
+    applyForge(sword, 'weight', 0, { free: true });
+    applyForge(sword, 'hit', 0, { free: true });
+    expect(wakeForges(sword, 4)).toBe(2);
+    expect(dormantForgeCount(sword)).toBe(3);
+    expect(sword._forgeLevel).toBe(6);
+  });
+
+  it('sleeping forges count toward the forge caps, so waking never fails', () => {
+    // Failure: a stat forged to its cap on top of sleeping forges of that stat is lost (or
+    // overflows the cap) when they wake.
+    const sword = forgedSword(); // might x3
+    lullForges(sword, 2); // awake might, hit; asleep crit, might, hit, crit, might
+    expect(applyForge(sword, 'might', 0, { free: true }).success).toBe(true);
+    expect(applyForge(sword, 'might', 0, { free: true }).success).toBe(true);
+    expect(forgeStatBlock(sword, 'might')).toBe('This stat is at its forge limit.');
+    expect(getForgeCost(sword, 'might')).toBe(-1);
+    wakeForges(sword, Infinity);
+    expect(sword._forgeLevel).toBe(9);
+    expect(sword.might).toBe(catalog('Silver Sword').might + 5 * FORGE_BONUSES.might);
+    // The total cap: a weapon near +15 counting its sleeping forges takes no more.
+    const full = forgedSword('itm_full');
+    for (const stat of ['weight', 'weight', 'hit', 'hit', 'crit', 'crit', 'crit'])
+      applyForge(full, stat, 0, { free: true });
+    lullForges(full, 2);
+    applyForge(full, 'might', 0, { free: true });
+    expect(full._forgeLevel + dormantForgeCount(full)).toBe(15);
+    expect(canForge(full)).toBe(false);
   });
 
   it('lulling again measures the full history, not the awake part', () => {
@@ -175,6 +231,54 @@ describe('kept forges sleep and wake', () => {
     expect(read(refreshed.keptItems[0])).toEqual(expectedAt(7));
     // ...while the run's own copy still sleeps.
     expect(read(findKept(rm, 'itm_kept_sword'))).toEqual(expectedAt(2));
+    expect(refreshed.keptItems[0]._keptForgeBase).toBeUndefined();
+  });
+
+  it('a ride carries the kept forges plus the run’s first two, at their price', () => {
+    // Failure (the owner's ask): every forge of every run carries, so a kept weapon maxes out
+    // in a loop or two; or the cap trims the forges the weapon rode in with.
+    const carry = data.difficulty.ngPlus.keptForgeCarry;
+    expect(carry).toBe(2);
+    const rm = ngPlusRun(lordState({ items: [forgedSword()] }));
+    const sword = findKept(rm, 'itm_kept_sword');
+    const price = sword.price;
+    const paid = [];
+    for (const stat of ['weight', 'hit', 'crit']) {
+      const result = applyForge(sword, stat);
+      expect(result.success).toBe(true);
+      paid.push(result.cost);
+    }
+    // A weapon this run found and forged +4 rides with 2 of them.
+    const edric = edricOf(rm);
+    const found = { ...catalog('Iron Sword'), uid: 'itm_found_sword' };
+    for (const stat of ['might', 'hit', 'crit', 'weight'])
+      applyForge(found, stat, 0, { free: true });
+    edric.inventory.push(found);
+    const candidate = rideCandidates(rm).find((c) => c.name === 'Edric');
+    const kept = candidate.items.find((i) => i.uid === 'itm_kept_sword');
+    expect(kept._forgeLevel).toBe(7 + carry);
+    expect(kept._forgeHistory.slice(7).map((s) => s.stat)).toEqual(['weight', 'hit']);
+    expect(kept.price).toBe(price + paid[0] + paid[1]);
+    expect(kept._keptForgeBase).toBeUndefined();
+    expect(candidate.items.find((i) => i.uid === 'itm_found_sword')._forgeLevel).toBe(carry);
+    rm.status = 'victory';
+    const end = ngPlusRunEnd(rm, { result: 'victory' });
+    const refreshed = end.refresh.find((r) => r.id === lordRecordId('Edric')).keptItems[0];
+    expect(refreshed._forgeLevel).toBe(7 + carry);
+    // The run's own copy is untouched.
+    expect(sword._forgeLevel + dormantForgeCount(sword)).toBe(10);
+  });
+
+  it('a kept weapon from a save before the cap keeps every forge (grandfathered)', () => {
+    // Failure: a live NG+ run's kept weapon, placed before the cap stamped what it rode in
+    // with, is read as a fresh find and trimmed to +2 at the run's end.
+    const rm = ngPlusRun(lordState({ items: [forgedSword()] }));
+    const sword = findKept(rm, 'itm_kept_sword');
+    wakeForges(sword, Infinity);
+    delete sword._keptForgeBase;
+    applyForge(sword, 'weight', 0, { free: true });
+    const candidate = rideCandidates(rm).find((c) => c.name === 'Edric');
+    expect(candidate.items.find((i) => i.uid === 'itm_kept_sword')._forgeLevel).toBe(8);
   });
 });
 
@@ -281,6 +385,8 @@ describe('Echo', () => {
     };
     expect(validateNgPlusConfig(bad).valid).toBe(false);
     expect(validateNgPlusConfig({ echo: [{ minEcho: 5, enemyHp: 3 }] }).valid).toBe(false);
+    expect(validateNgPlusConfig({ keptForgeCarry: -1 }).valid).toBe(false);
+    expect(validateNgPlusConfig({ keptForgeCarry: 1.5 }).valid).toBe(false);
   });
 
   it('the table climbs gently: each step raises one lever by one', () => {

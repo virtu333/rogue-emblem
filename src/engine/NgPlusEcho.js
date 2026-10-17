@@ -8,7 +8,7 @@
 // so the scene, the scout and the harness all see the same battle.
 //
 // Pure. No Math.random.
-import { DEFAULT_KEPT_FORGE_AWAKE } from './KeptForges.js';
+import { DEFAULT_KEPT_FORGE_AWAKE, DEFAULT_KEPT_FORGE_CARRY } from './KeptForges.js';
 
 /** What a step may change, all added to the rung's own values. */
 export const ECHO_LEVERS = Object.freeze([
@@ -44,6 +44,12 @@ export function ngPlusConfigOf(gameData) {
 export function keptForgeAwakeTable(gameData) {
   const table = ngPlusConfigOf(gameData)?.keptForgeAwake;
   return isObject(table) ? table : DEFAULT_KEPT_FORGE_AWAKE;
+}
+
+/** How many of a run's forges a kept weapon carries into its next ride. */
+export function keptForgeCarry(gameData) {
+  const carry = ngPlusConfigOf(gameData)?.keptForgeCarry;
+  return Number.isInteger(carry) && carry >= 0 ? carry : DEFAULT_KEPT_FORGE_CARRY;
 }
 
 /** The step an Echo reaches (the highest `minEcho` at or below it), or null. */
@@ -113,6 +119,11 @@ export function validateNgPlusConfig(block) {
         if (!/^act[1-4]$/.test(act) || !Number.isInteger(limit) || limit < 0)
           errors.push(`ngPlus.keptForgeAwake.${act} must be act1-act4 with an integer >= 0`);
   }
+  if (
+    block.keptForgeCarry !== undefined &&
+    (!Number.isInteger(block.keptForgeCarry) || block.keptForgeCarry < 0)
+  )
+    errors.push('ngPlus.keptForgeCarry must be an integer >= 0');
   return { valid: errors.length === 0, errors };
 }
 
