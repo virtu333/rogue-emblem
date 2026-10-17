@@ -215,6 +215,20 @@ function validRestoreFields(state, width, height) {
     )
   )
     return false;
+  // The Iron Guardian's marks (engine/IronGuardian.js): counts, patterns and the marked tiles.
+  if (
+    !optional(
+      state,
+      'hammerfallState',
+      (hf) =>
+        record(hf) &&
+        ['slams', 'lastProcessedTurn'].every((key) => integer(hf[key])) &&
+        ['front', 'shock'].includes(hf.next) &&
+        (hf.pattern === null || ['front', 'shock'].includes(hf.pattern)) &&
+        list(hf.marks, tile, 64),
+    )
+  )
+    return false;
   for (const key of ['playerDeathsThisBattle', 'goldEarned', 'checkpointIndex'])
     if (!optional(state, key, integer)) return false;
   for (const key of ['latePressureWarningShown', 'caravanExited'])

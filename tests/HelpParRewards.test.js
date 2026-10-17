@@ -75,12 +75,14 @@ describe('More Info: Par & Turn Ratings', () => {
       ['toll_house', 2],
       ['toll_crossing', 2],
       ['the_vigil', 2],
+      ['guardian_hall', 2],
+      ['guardian_hall_dark', 2],
     ]);
     const text = lines.join(' ').replace(/\s+/g, ' ');
     expect(text).toContain(
       'Castles, Mire Crossing, Three Roads, its Keep, the Long Road, the Toll-House,',
     );
-    expect(text).toContain('Toll Crossing and the Vigil add 1-3.');
+    expect(text).toContain("Toll Crossing, the Guardian's hall and the Vigil add 1-3.");
   });
 });
 

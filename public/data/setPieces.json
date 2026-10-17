@@ -548,6 +548,274 @@
           ]
         }
       ]
+    },
+    {
+      "id": "guardian_hall",
+      "title": "The Guardian's Hall",
+      "lore": "A hall nobody dug, lit by torches nobody tends. The keeper in the middle has not moved in a long time.",
+      "objective": "rout",
+      "objectives": {
+        "version": 1,
+        "primary": [
+          {
+            "id": "guardian",
+            "kind": "defeat",
+            "targets": ["@boss"],
+            "label": "the Iron Guardian"
+          }
+        ]
+      },
+      "acts": ["act2", "act3", "act4"],
+      "biome": "castle",
+      "fog": false,
+      "deploy": { "max": 6 },
+      "parBonus": 2,
+      "variants": [
+        {
+          "id": "hall",
+          "mirror": true,
+          "map": {
+            "legend": { "_": "Floor", "#": "Wall", "P": "Pillar" },
+            "rows": [
+              "# # # # # # # # # # # # # #",
+              "# _ _ _ _ _ _ _ _ _ _ _ _ #",
+              "# _ P _ _ _ _ _ _ _ _ P _ #",
+              "# _ _ _ _ _ _ _ _ _ _ _ _ #",
+              "# _ _ _ P _ _ _ _ P _ _ _ #",
+              "# _ _ _ _ _ _ _ _ _ _ _ _ #",
+              "# _ P _ _ _ _ _ _ _ _ P _ #",
+              "# _ _ _ _ P _ _ P _ _ _ _ #",
+              "# # _ _ _ _ _ _ _ _ _ _ # #",
+              "# # # _ _ _ _ _ _ _ _ # # #",
+              "# # # # _ _ _ _ _ _ # # # #"
+            ]
+          },
+          "playerSpawns": [
+            { "col": 6, "row": 10 },
+            { "col": 7, "row": 10 },
+            { "col": 5, "row": 10 },
+            { "col": 8, "row": 10 },
+            { "col": 6, "row": 9 },
+            { "col": 7, "row": 9 },
+            { "col": 4, "row": 9 },
+            { "col": 9, "row": 9 },
+            { "col": 5, "row": 9 },
+            { "col": 8, "row": 9 }
+          ],
+          "enemies": [
+            {
+              "col": 6,
+              "row": 2,
+              "classes": ["Iron Guardian"],
+              "captain": { "name": "The Iron Guardian" }
+            },
+            {
+              "col": 3,
+              "row": 3,
+              "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+              "level": -1
+            },
+            {
+              "col": 10,
+              "row": 3,
+              "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+              "level": -1
+            },
+            {
+              "col": 1,
+              "row": 5,
+              "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+              "level": -1,
+              "minRung": "dusk"
+            },
+            {
+              "col": 12,
+              "row": 5,
+              "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+              "level": -1,
+              "minRung": "hard"
+            }
+          ],
+          "waves": [
+            {
+              "turn": 2,
+              "spawns": [
+                {
+                  "col": 1,
+                  "row": 1,
+                  "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+                  "level": -2
+                },
+                {
+                  "col": 12,
+                  "row": 1,
+                  "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+                  "level": -2
+                }
+              ]
+            },
+            {
+              "turn": 4,
+              "spawns": [
+                {
+                  "col": 1,
+                  "row": 1,
+                  "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+                  "level": -2
+                },
+                {
+                  "col": 12,
+                  "row": 1,
+                  "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+                  "level": -2,
+                  "minRung": "dusk"
+                },
+                {
+                  "col": 6,
+                  "row": 1,
+                  "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+                  "level": -2,
+                  "minRung": "lunatic"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "guardian_hall_dark",
+      "title": "The Guardian's Hall, Unlit",
+      "lore": "The last torch is gone. Somewhere in the dark, something very large is breathing out iron.",
+      "objective": "rout",
+      "objectives": {
+        "version": 1,
+        "primary": [
+          {
+            "id": "guardian",
+            "kind": "defeat",
+            "targets": ["@boss"],
+            "label": "the Iron Guardian"
+          }
+        ]
+      },
+      "acts": ["act2", "act3", "act4"],
+      "biome": "castle",
+      "fog": true,
+      "deploy": { "max": 6 },
+      "parBonus": 2,
+      "variants": [
+        {
+          "id": "hall",
+          "mirror": true,
+          "map": {
+            "legend": { "_": "Floor", "#": "Wall", "P": "Pillar" },
+            "rows": [
+              "# # # # # # # # # # # # # #",
+              "# _ _ _ _ _ _ _ _ _ _ _ _ #",
+              "# _ P _ _ _ _ _ _ _ _ P _ #",
+              "# _ _ _ _ _ _ _ _ _ _ _ _ #",
+              "# _ _ _ P _ _ _ _ P _ _ _ #",
+              "# _ _ _ _ _ _ _ _ _ _ _ _ #",
+              "# _ P _ _ _ _ _ _ _ _ P _ #",
+              "# _ _ _ _ P _ _ P _ _ _ _ #",
+              "# # _ _ _ _ _ _ _ _ _ _ # #",
+              "# # # _ _ _ _ _ _ _ _ # # #",
+              "# # # # _ _ _ _ _ _ # # # #"
+            ]
+          },
+          "playerSpawns": [
+            { "col": 6, "row": 10 },
+            { "col": 7, "row": 10 },
+            { "col": 5, "row": 10 },
+            { "col": 8, "row": 10 },
+            { "col": 6, "row": 9 },
+            { "col": 7, "row": 9 },
+            { "col": 4, "row": 9 },
+            { "col": 9, "row": 9 },
+            { "col": 5, "row": 9 },
+            { "col": 8, "row": 9 }
+          ],
+          "enemies": [
+            {
+              "col": 6,
+              "row": 2,
+              "classes": ["Iron Guardian"],
+              "captain": { "name": "The Iron Guardian" }
+            },
+            {
+              "col": 3,
+              "row": 3,
+              "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+              "level": -1
+            },
+            {
+              "col": 10,
+              "row": 3,
+              "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+              "level": -1
+            },
+            {
+              "col": 1,
+              "row": 5,
+              "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+              "level": -1,
+              "minRung": "dusk"
+            },
+            {
+              "col": 12,
+              "row": 5,
+              "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+              "level": -1,
+              "minRung": "hard"
+            }
+          ],
+          "waves": [
+            {
+              "turn": 2,
+              "spawns": [
+                {
+                  "col": 1,
+                  "row": 1,
+                  "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+                  "level": -2
+                },
+                {
+                  "col": 12,
+                  "row": 1,
+                  "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+                  "level": -2
+                }
+              ]
+            },
+            {
+              "turn": 4,
+              "spawns": [
+                {
+                  "col": 1,
+                  "row": 1,
+                  "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+                  "level": -2
+                },
+                {
+                  "col": 12,
+                  "row": 1,
+                  "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+                  "level": -2,
+                  "minRung": "dusk"
+                },
+                {
+                  "col": 6,
+                  "row": 1,
+                  "classes": { "act2": ["Zombie"], "act3": ["Revenant"] },
+                  "level": -2,
+                  "minRung": "lunatic"
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ]
 }

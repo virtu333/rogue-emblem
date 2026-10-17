@@ -23,7 +23,7 @@ import { settleMoves } from './ActionMovement.js';
 import { damageUnit, healUnit } from './UnitHealth.js';
 import { allyBuff } from './PostCombatEffects.js';
 import { applyCondition, isSilenced, isWounded } from './StatusConditionSystem.js';
-import { combatDistance, getFootprintKeys, isEntity } from './EntitySystem.js';
+import { combatDistance, getFootprintKeys } from './EntitySystem.js';
 import { displacementBlockReason, traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
 import { canAttackWithWeapon, getAttackRange } from './AttackOptions.js';
@@ -240,15 +240,13 @@ export function settleRally(step, unit, world) {
 
 const liveUnit = (unit) => Boolean(unit) && unit.currentHP > 0 && !unit._removing;
 
-/** The live unit of `units` whose footprint covers the tile (an Entity covers nine). */
+/** The live unit of `units` whose footprint covers the tile (an Entity covers nine, a 2x2 four). */
 function unitCovering(units, col, row) {
   const key = `${col},${row}`;
   return (
     (units || []).find((unit) => {
       if (!liveUnit(unit)) return false;
-      return isEntity(unit)
-        ? getFootprintKeys(unit).includes(key)
-        : unit.col === col && unit.row === row;
+      return getFootprintKeys(unit).includes(key);
     }) || null
   );
 }

@@ -663,6 +663,18 @@ Object.assign(ROSTER.sources, {
   boss_the_emperor: { src: R('boss_the_emperor'), ...BOSS, hair: 'blond' },
   boss_the_lieutenant: { src: R('boss_the_lieutenant'), ...BOSS, hair: 'black' },
   boss_warchief: { src: R('boss_warchief'), ...BOSS, hair: null },
+  // The Iron Guardian (an enemy-only boss-tier class, a 2x2 body): a keeper of black iron
+  // drawn by gen-class-sheet.mjs, traced on its own 2x2 placement (lib/place.mjs 'guardian').
+  // Its blue-black plate is its own iron (`keep`): the imperial iron swap would grey it.
+  iron_guardian_e: {
+    src: S('iron-guardian'),
+    kind: 'guardian',
+    main: 'red',
+    hair: null,
+    armor: true,
+    eyes: false,
+    keep: ['armor'],
+  },
   entity: {
     src: RV('entity'),
     figure: 0,
@@ -861,6 +873,15 @@ export function bakeEntries() {
       corrupt: true,
     });
   }
+  // The Iron Guardian: the enemy and the corrupted (affixed) enemy; no player key (a
+  // boss-tier class no unit of the army can hold)
+  out.push({ key: 'enemy_iron_guardian', source: 'iron_guardian_e', faction: 'enemy' });
+  out.push({
+    key: 'enemy_iron_guardian-corrupt',
+    source: 'iron_guardian_e',
+    faction: 'corrupted',
+    corrupt: true,
+  });
   // The Entity keeps its own colours (it is not an imperial soldier)
   out.push({ key: 'enemy_entity', source: 'entity', faction: null });
   for (const [key, source] of Object.entries(BOSSES))
@@ -925,6 +946,8 @@ const POSE_BY_CLASS = {
   skeleton: 'sword',
   circle_adept: 'tome',
   hollowed: 'lance',
+  // the Guardian's maul (Axes): the attack pose swings it
+  iron_guardian: 'axe',
   dragon: 'breath',
   dragon_lord: 'breath',
 };

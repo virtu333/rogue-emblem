@@ -30,7 +30,14 @@ import { RunManager } from '../src/engine/RunManager.js';
 import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_SKILLS } from '../src/utils/constants.js';
 import { applyWear } from '../src/engine/WeaponWear.js';
 import { addUnit, arriveAs, baseData, eventNode, fallAlly, newRun } from './eventKit.js';
-import { eventTriples, pickTargetUid, routesToPages, takeAnExit, walkRoute } from './eventWalk.js';
+import {
+  eventTriples,
+  pickTargetUid,
+  routesToPages,
+  takeAnExit,
+  walkRoute,
+  meetCounterBounds,
+} from './eventWalk.js';
 import { START_PAGE, pageOf } from '../src/engine/EventSystem.js';
 
 const MAX_SEEDS = 400;
@@ -126,6 +133,8 @@ describe('every shipped outcome resolves cleanly', () => {
       const run = buildRun(seed, { difficulty });
       const node = arriveAs(run, eventId);
       if (!walkRoute(run, node.id, route)) continue;
+      // A choice met only once the torches are spent (the Mine's dark ways) is met so.
+      meetCounterBounds(run, node.id, choiceDef);
       const block = eventChoiceBlock(run, node.id, choiceId);
       expect(block, `${eventId}.${choiceId} blocked on a fully stocked army`).toBe('');
       const before = {

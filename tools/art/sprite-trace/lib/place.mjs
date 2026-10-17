@@ -16,6 +16,10 @@ export const KINDS = {
   boss: { body: 36, maxW: 42, maxH: 36 },
   // The Entity fills a 3x3 footprint: a 128 px texture (RebuiltSprites 'entity' placement)
   entity: { body: 90, maxW: 94, maxH: 90, texture: 128, foot: 106 },
+  // The Iron Guardian fills a 2x2 footprint: a 96 px texture centred on the block, feet 4 px
+  // above its bottom edge (the same margin a 1x1 unit keeps: 44 of 64, 16 below the centre
+  // of a 32 px tile less 4), twice a man's height and as broad as the block
+  guardian: { body: 60, maxW: 64, maxH: 64, texture: 96, foot: 76 },
 };
 
 export const FOOT_Y = 44; // world px, exclusive bottom of the feet in a 64 px texture

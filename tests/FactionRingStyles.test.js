@@ -103,3 +103,13 @@ describe('rasterizeRing', () => {
     expect(img.width).toBeGreaterThan(88);
   });
 });
+
+describe('a big body that is not the Entity', () => {
+  it('spans its tiles (a 2x2 boss as wide as the two tiles), a one-tile one as before', () => {
+    // 2 tiles of 32 px, 4 px in from each side: rx 28 (by hand).
+    expect(ringGeometry('boss', { bodyWidthTiles: 2 })).toEqual({ rx: 28, ry: 7, pad: 3 });
+    expect(ringGeometry('boss', { bodyWidthTiles: 1 })).toEqual(ringGeometry('boss'));
+    // The Entity keeps its own width rule.
+    expect(ringGeometry('entity', { entityWidthTiles: 3, bodyWidthTiles: 3 }).rx).toBe(44);
+  });
+});

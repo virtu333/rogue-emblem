@@ -11,8 +11,8 @@
 // whole roster costs one decoded page (no per-sprite canvas) while every tile-centre,
 // HP-bar, ring, acted-tint, history and rewind path keeps using a plain texture key.
 // Frames carry their trim, so a sprite is still a square texture (96 px at D = 1.5,
-// the Entity 192) shown at 64x64 (128x128) world px with the feet on the rebuilt
-// baseline. A unit with no traced sprite falls back to the next-best traced key, then to
+// the Entity 192, the 2x2 Iron Guardian 144) shown at 64x64 (128x128, 96x96) world px
+// with the feet on the rebuilt baseline (the big bodies on their own: lib/place.mjs). A unit with no traced sprite falls back to the next-best traced key, then to
 // the classic class sprite (BattleUnitVisuals).
 import bakedManifest from './TracedSpriteManifest.json';
 import { battlefieldTracedSpritesEnabled } from './battlefieldArtFlags.js';

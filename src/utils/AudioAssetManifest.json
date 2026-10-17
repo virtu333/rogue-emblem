@@ -1,5 +1,5 @@
 {
-  "revision": "d8c4793241c5f2537efd5a0559aa2f177bdc6367c2e9b2865d84e695ace72996",
+  "revision": "3064f60d8eecdda64729c869b94b948fa0553c85b0c00a74abf59d3dcbcb2283",
   "entries": {
     "music_battle_act1": {
       "url": "assets/audio/versioned/music/music_battle_act1-23150bcd27b5efe1e43dbfbd97cb631e96cf859162b45e3693170f2548a8f7c7.mp3",
@@ -613,6 +613,10 @@
     "sfx_gold": {
       "url": "assets/audio/versioned/sfx/sfx_gold-40008e7632513177af2f311e5fd1941edc391f8a9d57af4299ea064f966aed21.mp3",
       "sha256": "40008e7632513177af2f311e5fd1941edc391f8a9d57af4299ea064f966aed21"
+    },
+    "sfx_hammerfall": {
+      "url": "assets/audio/versioned/sfx/sfx_hammerfall-8b509519d515da4cea7f430fa9783f04e3390a50f106e0271c8d29702076500c.mp3",
+      "sha256": "8b509519d515da4cea7f430fa9783f04e3390a50f106e0271c8d29702076500c"
     },
     "sfx_heal": {
       "url": "assets/audio/versioned/sfx/sfx_heal-271b3a5e1a4f9388a922284a43cd4b367807f5842ee5c162e24a27c57de37fe9.mp3",

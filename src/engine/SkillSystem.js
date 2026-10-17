@@ -4,6 +4,7 @@
 // bound skill.
 // All functions take skillsData (from skills.json) for metadata lookup.
 
+import { plateCombatMods } from './IronGuardian.js';
 import {
   calculateEffectiveWeight,
   getConditionalWeaponBonuses,
@@ -300,6 +301,14 @@ export function getSkillCombatMods(
   for (const key of MOD_KEYS) mods[key] += epic.mods[key] || 0;
   if (epic.mods.vantage === true) mods.vantage = true;
   mods.activated.push(...epic.activated);
+
+  // Iron Plates (IronGuardian.js): a plated body's shed plates, read from its HP. A property of
+  // the body, so Silence and a missing skill catalog leave them on.
+  const plates = plateCombatMods(unit);
+  if (plates) {
+    mods.defBonus += plates.defBonus;
+    mods.atkBonus += plates.atkBonus;
+  }
 
   // --- Mastery perk + trait combat mods ---
   // Independent of skillsData (a mastered unit with no skills still gets its

@@ -9,6 +9,14 @@ import { limbPhaseStep, severLimb, witherLimbs } from '../../src/engine/EntityKi
 import { entityKitOf } from '../../src/engine/EntityKitConfig.js';
 import { isEntity, isEntityLimb } from '../../src/engine/EntitySystem.js';
 import { registerBattleEntity } from '../../src/engine/BattleEntityIdentity.js';
+import {
+  hammerfallOf,
+  livingHammerfallUnit,
+  runHammerfallPhaseSync,
+  sanitizeHammerfallState,
+  standableAt,
+} from '../../src/engine/IronGuardian.js';
+import { armyAndNpcAllies } from '../../src/engine/RecruitNpc.js';
 
 /** What every conjuring reads of the board. */
 function board(b) {
@@ -101,4 +109,33 @@ export function entityLimbsOnFall(b, unit, killer) {
   if (isEntity(unit)) witherLimbs(b.enemyUnits);
   else if (isEntityLimb(unit))
     severLimb(unit, { kit, state: b._entityKitState, enemyUnits: b.enemyUnits, killer });
+}
+
+/**
+ * Mirrors HammerfallController.processPhase: the Iron Guardian's standing marks fall (a fallen
+ * victim removed before the next), then its next marks are set (engine/IronGuardian.js).
+ */
+export function processHammerfall(b) {
+  if (!hammerfallOf(b.battleConfig)) return;
+  const step = runHammerfallPhaseSync(
+    {
+      state: b._hammerfallState,
+      enemyUnits: b.enemyUnits,
+      army: armyAndNpcAllies(b.playerUnits, b.npcUnits),
+      cols: b.battleConfig.cols,
+      rows: b.battleConfig.rows,
+      standable: (c, r) => standableAt(b.grid, c, r),
+      turn: b.turnManager?.turnNumber ?? 1,
+      battleBlessings: b._battleBlessings,
+    },
+    { remove: (victim, options) => b._removeUnit(victim, options) },
+  );
+  if (!step.skipped) b._hammerfallState = step.state;
+}
+
+/** Mirrors HammerfallController.onEnemyFell: the Guardian's fall clears its marks. */
+export function hammerfallOnFall(b, unit) {
+  if (!hammerfallOf(b.battleConfig) || !unit?.hammerfall) return;
+  if (livingHammerfallUnit(b.enemyUnits)) return;
+  b._hammerfallState = { ...sanitizeHammerfallState(b._hammerfallState), marks: [], pattern: null };
 }

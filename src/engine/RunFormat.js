@@ -84,6 +84,10 @@ export const RUN_CAPABILITIES = Object.freeze({
   // The Abyss terrain (index 19, fliers only): a locked map or checkpoint layout holding it. An
   // older client has no such terrain index and could not build the map.
   abyss: 2,
+  // The Iron Guardian (engine/IronGuardian.js, docs/specs/large-units.md): a locked config's
+  // `hammerfall` and a checkpoint's `hammerfallState`. An older client has no class for the
+  // Guardian, no big body, no plates and no slam.
+  hammerfall: 2,
 });
 
 export const CAPABILITY_IDS = Object.freeze(Object.keys(RUN_CAPABILITIES));
@@ -105,6 +109,7 @@ export const CLIENT_CAPABILITIES = Object.freeze([
   'ngPlus',
   'vigilWards',
   'abyss',
+  'hammerfall',
 ]);
 
 /** The Abyss's terrain index (data/terrain.json, utils/constants.js TERRAIN.Abyss). */
@@ -198,6 +203,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     riteMods: 'rite',
     entitySplashCount: 'rite',
     entityKit: 'entityKit',
+    hammerfall: 'hammerfall',
   }),
   // A locked config's enemy spawn.
   enemySpawn: Object.freeze({
@@ -219,6 +225,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     bossState: 'bossKit',
     vigilState: 'vigil',
     entityKitState: 'entityKit',
+    hammerfallState: 'hammerfall',
   }),
   // The serialized run's top level.
   run: Object.freeze({
@@ -450,6 +457,7 @@ function scanBattleConfig(config, found) {
   if (vigilHoldsWards(config.vigil)) found.add('vigilWards');
   if (mapLayoutHasAbyss(config.mapLayout)) found.add('abyss');
   if (present(config, 'entityKit')) found.add('entityKit');
+  if (present(config, 'hammerfall')) found.add('hammerfall');
   if (present(config, 'riteMods') || present(config, 'entitySplashCount')) found.add('rite');
   if (nonEmptyArray(config.structures)) found.add('gateTerrain');
   if (mapLayoutHasGate(config.mapLayout)) found.add('gateTerrain');
@@ -493,6 +501,7 @@ function scanBattleState(state, found) {
   if (isRecord(state.vigilState) && present(state.vigilState, 'broken')) found.add('vigilWards');
   if (mapLayoutHasAbyss(state.mapLayout)) found.add('abyss');
   if (present(state, 'entityKitState')) found.add('entityKit');
+  if (present(state, 'hammerfallState')) found.add('hammerfall');
   for (const list of STATE_UNIT_LISTS) {
     for (const unit of Array.isArray(state[list]) ? state[list] : []) {
       if (unitHoldsEncounter(unit)) found.add('encounters');

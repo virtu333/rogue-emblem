@@ -1,4 +1,4 @@
-import { getFootprint, isEntity } from './EntitySystem.js';
+import { getFootprint } from './EntitySystem.js';
 import { getConditions, parseStaffRange } from './StatusConditionSystem.js';
 import { ACID_DAMAGE_PERCENT, STATUS_CONDITIONS } from '../utils/constants.js';
 import { ACID_DAMAGE_TURNS } from './TerrainHazards.js';
@@ -31,11 +31,11 @@ export function isUnitTileSeen(grid, unit, col, row) {
 
 /**
  * Would the player see `unit` standing at (col, row) (default: where it stands)? Any tile of its
- * body seen (an Entity's 3×3 footprint, anchored there), by isUnitTileSeen.
+ * body seen (an Entity's 3×3 footprint or a big unit's, anchored there), by isUnitTileSeen.
  */
 export function isUnitSeenAt(grid, unit, col = unit?.col, row = unit?.row) {
   if (!unit) return false;
-  const body = isEntity(unit) ? getFootprint({ ...unit, col, row }) : [{ col, row }];
+  const body = getFootprint({ ...unit, col, row });
   return body.some((t) => isUnitTileSeen(grid, unit, t.col, t.row));
 }
 

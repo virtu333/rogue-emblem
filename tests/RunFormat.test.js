@@ -69,7 +69,7 @@ const battleNode = (run) => run.nodeMap.nodes.find((n) => n.type === 'battle' &&
 const ids = (saved) => requiredRunFormat(saved).capabilities;
 
 describe('the capability table', () => {
-  it('every capability needs format 2, and this build plays only the Descent’s, the Entity kit, NG+ and the Vigil’s shields', () => {
+  it('every capability needs format 2, and this build plays only the Descent’s, the Entity kit, NG+, the Vigil’s shields and Hammerfall', () => {
     expect(RUN_FORMAT).toBe(2);
     expect(LEGACY_RUN_FORMAT).toBe(1);
     expect(CAPABILITY_IDS).toEqual([
@@ -88,6 +88,7 @@ describe('the capability table', () => {
       'ngPlus',
       'vigilWards',
       'abyss',
+      'hammerfall',
     ]);
     for (const id of CAPABILITY_IDS) expect(RUN_CAPABILITIES[id]).toBe(2);
     // The Descent's writers have shipped; no large-maps writer has. A client never writes
@@ -102,6 +103,7 @@ describe('the capability table', () => {
       'ngPlus',
       'vigilWards',
       'abyss',
+      'hammerfall',
     ]);
   });
 

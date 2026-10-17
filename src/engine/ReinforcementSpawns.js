@@ -11,7 +11,7 @@
 import { filterClassPoolByDifficulty, XP_SPECIAL_ENEMY_MULTIPLIER } from '../utils/constants.js';
 import { affixesAllowedForClass } from './AffixEngine.js';
 import { earlyEnemyAllowed } from './EarlyEnemyRules.js';
-import { getFootprint, isEntity } from './EntitySystem.js';
+import { getFootprint } from './EntitySystem.js';
 import { isNecromancyClass, isNeverCopiedClass } from './Necromancy.js';
 import { conjuredXpMultiplier, isConjuredUnit } from './ConjuredUnits.js';
 import { reinforcementMoveTypes, scheduleReinforcementsForTurn } from './ReinforcementScheduler.js';
@@ -238,13 +238,12 @@ export function buildReinforcementSpawnSpec({
   return spec;
 }
 
-/** Tiles units stand on (an Entity fills its whole footprint). */
+/** Tiles units stand on (a big unit, the Entity included, fills its whole footprint). */
 export function occupiedUnitTiles(units) {
   const tiles = [];
   for (const unit of units || []) {
     if (!unit || !Number.isFinite(unit.col) || !Number.isFinite(unit.row)) continue;
-    if (isEntity(unit)) tiles.push(...getFootprint(unit));
-    else tiles.push({ col: unit.col, row: unit.row });
+    tiles.push(...getFootprint(unit));
   }
   return tiles;
 }

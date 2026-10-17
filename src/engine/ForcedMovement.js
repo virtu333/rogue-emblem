@@ -25,7 +25,7 @@
 // starts (docs/specs/utility-abilities.md).
 import { traceForcedSlide } from './IceMovement.js';
 import { settleMoves } from './ActionMovement.js';
-import { isEntity, isEntityLimb } from './EntitySystem.js';
+import { isEntity, isEntityLimb, isLargeUnit } from './EntitySystem.js';
 import { isDisplacementImmune } from './AffixSystem.js';
 import { isRooted } from './StatusConditionSystem.js';
 import { isAnchoredByAccessory } from './AccessoryReactions.js';
@@ -129,13 +129,15 @@ export function traceForcedMove(
 
 /**
  * Why a foe cannot be pushed by another unit's action, or null when it can: the Entity,
- * a boss, an Anchored foe (`isDisplacementImmune`) or a rooted one. Smite and Override
- * both ask it, so the rule is one.
- * @returns {null|'entity'|'boss'|'anchored'|'rooted'}
+ * any other big body (`isLargeUnit`: a push moves one anchor tile, never a body), a boss, an
+ * Anchored foe (`isDisplacementImmune`) or a rooted one. Smite and Override both ask it, so
+ * the rule is one.
+ * @returns {null|'entity'|'large'|'boss'|'anchored'|'rooted'}
  */
 export function displacementBlockReason(foe, affixData) {
   // A Grasping Limb is rooted in the Entity's body: it holds as the Entity does.
   if (isEntity(foe) || isEntityLimb(foe)) return 'entity';
+  if (isLargeUnit(foe)) return 'large';
   if (foe.isBoss) return 'boss';
   if (isDisplacementImmune(foe, affixData)) return 'anchored';
   if (isRooted(foe)) return 'rooted';

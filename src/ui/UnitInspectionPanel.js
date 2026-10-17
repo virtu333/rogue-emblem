@@ -9,6 +9,7 @@ import {
   wardInfo,
 } from '../engine/BattleInformation.js';
 import { entityReachInfo } from '../engine/EntityReach.js';
+import { guardianCardLines } from '../engine/IronGuardian.js';
 import { equippedWeaponUsesLine } from '../engine/ItemKeywords.js';
 import { UI_COLORS, UI_HEX } from '../utils/uiStyles.js';
 import { TILE_SIZE } from '../utils/constants.js';
@@ -53,6 +54,7 @@ export class UnitInspectionPanel {
     const pixelY = screenPos?.y ?? worldPos.y;
     const details = [
       entityReachInfo(unit)?.text,
+      ...guardianCardLines(unit, this.scene?._hammerfallState),
       wardInfo(unit)?.text,
       equippedWeaponUsesLine(unit),
       ...statusDescriptions(unit),

@@ -536,6 +536,7 @@
     "generic-upgrade": [359, 6, 5],
     "greycord": [62, 0, 1],
     "grasping-coil": [16, 0, 4],
+    "ironfall-maul": [37, 0, 4],
     "toppling-blow-scroll": [118, 1, 3],
     "hunters-focus-scroll": [130, 1, 3],
     "prodding-spear": [23, 0, 3],
@@ -628,6 +629,7 @@
   "aliases": {
     "greycord": "gravesong",
     "grasping-coil": "eldritch-grasp",
+    "ironfall-maul": "hammer",
     "toppling-blow-scroll": "lunge-scroll",
     "hunters-focus-scroll": "encloser-scroll",
     "prodding-spear": "short-spear",

@@ -98,6 +98,7 @@ describe('variant table', () => {
           'Hollowed',
           'Entity',
           'Grasping Limb',
+          'Iron Guardian',
         ].includes(c.name),
     )
     .map((c) => c.name);

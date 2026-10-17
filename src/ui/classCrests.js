@@ -111,6 +111,9 @@ export const CLASS_CREST_SPECS = Object.freeze({
   Entity: c('entity', 'boss', 'eclipse', { mark: 'ring' }),
   // the Entity's Grasping Limb wears its master's eclipse (no heraldry of its own either)
   'Grasping Limb': c('entity', 'boss', 'eclipse', { mark: 'ring' }),
+  // the Iron Guardian: its maul (the axe) before the keep's tower it guards (armoured, as the
+  // Knight's line), cracked like the plates it sheds as it is hurt
+  'Iron Guardian': c('guardian', 'boss', 'axe', { mount: 'tower', mark: 'crack' }),
 });
 
 export const CREST_LINE_IDS = Object.freeze([
