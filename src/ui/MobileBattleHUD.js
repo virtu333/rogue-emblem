@@ -64,7 +64,7 @@ import { relocatePrompt } from '../engine/StaffRelocation.js';
 import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
 import { equippedBadgeElement, EQUIPPED_MARKER } from './equippedBadge.js';
 import { itemIcon } from './itemIcons.js';
-import { weaponUsesShort } from '../engine/ItemKeywords.js';
+import { plannedWeaponUsesNote, weaponUsesShort } from '../engine/ItemKeywords.js';
 
 // A horizontal swipe this long (and clearly more horizontal than vertical)
 // across the forecast switches weapons; shorter drags stay taps/scrolls.
@@ -152,6 +152,16 @@ function el(tag, className, text) {
 function usesSuffix(unit) {
   const short = weaponUsesShort(unit?.weapon, unit);
   return short ? ` (${short})` : '';
+}
+
+/**
+ * "12/20 uses" beside the forecast's weapon name (durability, engine/WeaponUses.js), in
+ * place of the notes' line so an upright phone keeps both sides in view; null when the
+ * weapon has no count.
+ */
+function forecastUsesTag(weapon, unit) {
+  const short = weaponUsesShort(weapon, unit);
+  return short ? el('span', 'mb-weapon-uses', `${short} uses`) : null;
 }
 
 function appendHealthBarsBadge(line, unit) {
@@ -758,13 +768,16 @@ export class MobileBattleHUD {
       const label = el('div', 'mb-weapon', weapon?.name || 'Unarmed');
       if (attacking && weapon && weapon === config.equippedWeapon)
         label.append(equippedBadgeElement());
+      const uses = attacking && forecastUsesTag(weapon, config.attacker);
+      if (uses) label.append(uses);
       side.append(label);
     }
+    const usesNote = attacking && plannedWeaponUsesNote(weapon, config.attacker);
     for (const note of forecastNotes(config.forecast, attacking, afterCost, {
       planned: weapon,
       equipped: config.equippedWeapon,
       unit: config.attacker,
-    }).filter((n) => !n.startsWith('If all hits land:')))
+    }).filter((n) => !n.startsWith('If all hits land:') && n !== usesNote))
       side.append(el('p', 'mb-notice', note));
     if (
       weapon &&
@@ -859,6 +872,8 @@ export class MobileBattleHUD {
       const list = config.validWeapons;
       current.append(el('span', 'mb-step-name', weapon?.name || 'Unarmed'));
       if (weapon && weapon === config.equippedWeapon) current.append(equippedBadgeElement());
+      const uses = forecastUsesTag(weapon, config.attacker);
+      if (uses) current.append(uses);
       current.append(
         el('span', 'mb-step-count', `${Math.max(1, list.indexOf(weapon) + 1)}/${list.length}`),
       );

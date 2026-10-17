@@ -211,20 +211,13 @@ export function equippedWeaponUsesLine(unit) {
   return short ? `${unit.weapon.name}: ${short} uses this battle` : null;
 }
 
-/** Below this many uses left, the forecast warns before a weapon runs dry. */
-export const LOW_USES_WARNING = 5;
-
 /**
- * The forecast's warning for the weapon a fight is planned with: "Iron Sword: 3 uses
- * left this battle", "Last use of Iron Sword this battle"; null while plenty remain.
+ * The forecast's uses line for the weapon a fight is planned with: "Iron Sword: 12/20
+ * uses this battle" (the count before this fight); null when it has no count.
  */
-export function lowUsesNote(item, unit) {
-  if (!tracksBattleUses(item, unit)) return null;
-  const left = getPerBattleRemainingUses(item, unit);
-  if (left > LOW_USES_WARNING || left <= 0) return null;
-  return left === 1
-    ? `Last use of ${item.name} this battle`
-    : `${item.name}: ${left} uses left this battle`;
+export function plannedWeaponUsesNote(item, unit) {
+  const short = weaponUsesShort(item, unit);
+  return short ? `${item.name}: ${short} uses this battle` : null;
 }
 
 /**

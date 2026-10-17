@@ -31,7 +31,7 @@ import {
 } from '../src/engine/WeaponUses.js';
 import {
   equippedWeaponUsesLine,
-  lowUsesNote,
+  plannedWeaponUsesNote,
   weaponUsesShort,
 } from '../src/engine/ItemKeywords.js';
 import { forecastNotes } from '../src/ui/forecastDisplay.js';
@@ -251,27 +251,32 @@ describe('what the player reads', () => {
     expect(equippedWeaponUsesLine(fighter('enemy'))).toBeNull();
   });
 
-  it('the forecast warns only once 5 or fewer uses remain, and names the last one', () => {
-    const kira = fighter('player', { gear: ['Silver Sword'] });
-    kira.weapon._usesSpent = OWNER_USES.Silver - 6;
-    expect(lowUsesNote(kira.weapon, kira)).toBeNull();
-    kira.weapon._usesSpent = OWNER_USES.Silver - 5;
-    expect(lowUsesNote(kira.weapon, kira)).toBe('Silver Sword: 5 uses left this battle');
-    kira.weapon._usesSpent = OWNER_USES.Silver - 1;
-    expect(lowUsesNote(kira.weapon, kira)).toBe('Last use of Silver Sword this battle');
+  it("the forecast always gives the planned weapon's uses, for each weapon cycled to", () => {
+    const kira = fighter('player', { gear: ['Silver Sword', 'Iron Sword'] });
+    const [silver, iron] = kira.inventory;
+    silver._usesSpent = 3;
     const foe = fighter('enemy', { col: 1 });
-    const forecast = getCombatForecast(kira, kira.weapon, foe, foe.weapon, 1, null, null, {
+    const forecast = getCombatForecast(kira, silver, foe, foe.weapon, 1, null, null, {
       skillsData: data.skills,
     });
-    const notes = forecastNotes(forecast, true, forecast.attacker.hp, {
-      planned: kira.weapon,
-      equipped: kira.weapon,
-      unit: kira,
-    });
-    expect(notes).toContain('Last use of Silver Sword this battle');
-    // The defending side and a forecast with no unit say nothing about uses.
-    expect(forecastNotes(forecast, false, forecast.attacker.hp, { unit: kira })).not.toContain(
-      'Last use of Silver Sword this battle',
+    const notesFor = (planned) =>
+      forecastNotes(forecast, true, forecast.attacker.hp, {
+        planned,
+        equipped: silver,
+        unit: kira,
+      });
+    expect(notesFor(silver)).toContain(
+      `Silver Sword: ${OWNER_USES.Silver - 3}/${OWNER_USES.Silver} uses this battle`,
     );
+    expect(notesFor(iron)).toContain(
+      `Iron Sword: ${OWNER_USES.Iron}/${OWNER_USES.Iron} uses this battle`,
+    );
+    // No warning wording at any count (Dave, 2026-10-17): the count is the whole note.
+    silver._usesSpent = OWNER_USES.Silver - 1;
+    expect(notesFor(silver)).toContain(`Silver Sword: 1/${OWNER_USES.Silver} uses this battle`);
+    // The defending side, and a foe's weapon, say nothing about uses.
+    const defending = forecastNotes(forecast, false, forecast.attacker.hp, { unit: kira });
+    expect(defending.some((n) => n.includes('uses this battle'))).toBe(false);
+    expect(plannedWeaponUsesNote(foe.weapon, foe)).toBeNull();
   });
 });

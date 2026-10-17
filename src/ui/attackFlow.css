@@ -53,6 +53,13 @@
   color: var(--re-muted);
   margin-left: 4px;
 }
+/* "12/20 uses" beside the forecast's weapon (durability). */
+.mb-weapon-uses {
+  font: 500 13px/1.25 var(--re-body);
+  color: var(--re-muted);
+  margin-left: 6px;
+  white-space: nowrap;
+}
 .mb-weapon-switch .mb-step-value {
   color: var(--re-gold-hi, var(--re-accent-text));
 }
