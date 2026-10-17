@@ -4,7 +4,7 @@ import { normalizeBattleRecruits, reconcileRecruitIdentities } from './BattleRec
 import { normalizeFallenBattleRecords } from './DeedSystem.js';
 import { restoreBattleBlessings, snapshotBattleBlessings } from './BattleBlessings.js';
 import { normalizePendingTerrainTiles } from './TerrainPhases.js';
-import { sanitizeVigilState } from './Vigil.js';
+import { applyVigilWards, sanitizeVigilState } from './Vigil.js';
 import { sanitizeEntityKitState } from './EntityKit.js';
 import { sanitizeHammerfallState } from './IronGuardian.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
@@ -108,6 +108,10 @@ export function restoreBattleWorldState(scene, snapshot) {
     scene._entityKitState = sanitizeEntityKitState(snapshot.entityKitState);
   if (snapshot.hammerfallState !== undefined)
     scene._hammerfallState = sanitizeHammerfallState(snapshot.hammerfallState);
+  // The Voices' wards are read again from the state and the roster just restored, never trusted
+  // from a unit's saved stamp.
+  if (scene.battleConfig?.vigil)
+    applyVigilWards(scene.battleConfig.vigil, scene._vigilState, scene.enemyUnits);
   if ('latePressureWarningShown' in snapshot) {
     scene._latePressureWarningShown = snapshot.latePressureWarningShown === true;
   }

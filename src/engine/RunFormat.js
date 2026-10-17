@@ -78,6 +78,12 @@ export const RUN_CAPABILITIES = Object.freeze({
   // client would drop it on load, so the run's end would never settle the Barracks (a fallen
   // veteran kept, a win's items and ride never recorded).
   ngPlus: 2,
+  // The Vigil's shields (act-v-descent §3.1.1): a locked `vigil` with `wards` or `choir`, a
+  // checkpoint's `vigilState.broken`. An older client would let the Voices be cut down warded.
+  vigilWards: 2,
+  // The Abyss terrain (index 19, fliers only): a locked map or checkpoint layout holding it. An
+  // older client has no such terrain index and could not build the map.
+  abyss: 2,
   // The Iron Guardian (engine/IronGuardian.js, docs/specs/large-units.md): a locked config's
   // `hammerfall` and a checkpoint's `hammerfallState`. An older client has no class for the
   // Guardian, no big body, no plates and no slam.
@@ -91,7 +97,8 @@ export const DESCENT_CAPABILITY = 'descent';
 
 /**
  * The capabilities this build plays: each writer's PR adds its id here. The guard shipped
- * before any; the Descent added its four, the Entity kit its one, NG+ its one.
+ * before any; the Descent added its four, the Entity kit its one, NG+ its one, the Vigil
+ * rework its two.
  */
 export const CLIENT_CAPABILITIES = Object.freeze([
   'descent',
@@ -100,11 +107,19 @@ export const CLIENT_CAPABILITIES = Object.freeze([
   'defeatObjective',
   'entityKit',
   'ngPlus',
+  'vigilWards',
+  'abyss',
   'hammerfall',
 ]);
 
-/** The terrain index the Gate takes (03 §5.7): terrain.json holds 0..18 today. */
-export const GATE_TERRAIN_INDEX = 19;
+/** The Abyss's terrain index (data/terrain.json, utils/constants.js TERRAIN.Abyss). */
+export const ABYSS_TERRAIN_INDEX = 19;
+
+/**
+ * The terrain index the Gate takes (03 §5.7): terrain.json holds 0..19 today (the Abyss took 19,
+ * which the Gate's spec had reserved before any Gate was written).
+ */
+export const GATE_TERRAIN_INDEX = 20;
 
 /** A run that cannot be loaded by this client (thrown by RunManager.fromJSON). */
 export class RunFormatError extends Error {
@@ -393,14 +408,21 @@ function scanRouteMap(nodeMap, found) {
 // ---------------------------------------------------------------------------------------------
 // The places a run holds mechanics.
 
-function mapLayoutHasGate(layout) {
+function mapLayoutHas(layout, index) {
   if (!Array.isArray(layout)) return false;
   for (const row of layout) {
     if (!Array.isArray(row)) continue;
-    for (const tile of row) if (tile === GATE_TERRAIN_INDEX) return true;
+    for (const tile of row) if (tile === index) return true;
   }
   return false;
 }
+
+const mapLayoutHasGate = (layout) => mapLayoutHas(layout, GATE_TERRAIN_INDEX);
+const mapLayoutHasAbyss = (layout) => mapLayoutHas(layout, ABYSS_TERRAIN_INDEX);
+
+/** A locked vigil that fields the shields (engine/Vigil.js vigilHasShields, by its own keys). */
+const vigilHoldsWards = (vigil) =>
+  isRecord(vigil) && (present(vigil, 'wards') || present(vigil, 'choir'));
 
 /** A not-yet-complete node's battle params. */
 function scanNodeParams(params, found) {
@@ -432,6 +454,8 @@ function scanBattleConfig(config, found) {
   if (objectives) found.add(objectives);
   if (present(config, 'npcAllies')) found.add('objectives');
   if (present(config, 'vigil')) found.add('vigil');
+  if (vigilHoldsWards(config.vigil)) found.add('vigilWards');
+  if (mapLayoutHasAbyss(config.mapLayout)) found.add('abyss');
   if (present(config, 'entityKit')) found.add('entityKit');
   if (present(config, 'hammerfall')) found.add('hammerfall');
   if (present(config, 'riteMods') || present(config, 'entitySplashCount')) found.add('rite');
@@ -474,6 +498,8 @@ function scanBattleState(state, found) {
     found.add('bossKit');
   if (mapLayoutHasGate(state.mapLayout)) found.add('gateTerrain');
   if (present(state, 'vigilState')) found.add('vigil');
+  if (isRecord(state.vigilState) && present(state.vigilState, 'broken')) found.add('vigilWards');
+  if (mapLayoutHasAbyss(state.mapLayout)) found.add('abyss');
   if (present(state, 'entityKitState')) found.add('entityKit');
   if (present(state, 'hammerfallState')) found.add('hammerfall');
   for (const list of STATE_UNIT_LISTS) {

@@ -6,7 +6,12 @@ import {
   revivalStonesLine,
 } from '../engine/RevivalStones.js';
 import { skipsClassProgression } from '../engine/SpecialCharacterPolicy.js';
-import { canInspectUnit, carriedItemInfo, statusStaffInfo } from '../engine/BattleInformation.js';
+import {
+  canInspectUnit,
+  carriedItemInfo,
+  statusStaffInfo,
+  wardInfo,
+} from '../engine/BattleInformation.js';
 import { entityReachInfo } from '../engine/EntityReach.js';
 import { guardianCardLines } from '../engine/IronGuardian.js';
 import { formatPerkMods } from './rosterDisplay.js';
@@ -396,6 +401,13 @@ export class UnitDetailOverlay {
     // The Iron Guardian's plates and its next hammer blow.
     for (const line of guardianCardLines(unit, this.scene?._hammerfallState)) {
       fitCanvasText(this._unitText(lx, y, line, UI_PALETTE.info, '9px'), OVERLAY_W - 24);
+      y += 14;
+    }
+    // A Vigil Voice's ward (engine/Vigil.js): what holds it and how to break it.
+    const ward = wardInfo(unit);
+    if (ward) {
+      const text = this._unitText(lx, y, ward.text, UI_PALETTE.info, '9px');
+      fitCanvasText(text, OVERLAY_W - 24);
       y += 14;
     }
     const stonesLine = revivalStonesLine(unit);

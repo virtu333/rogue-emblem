@@ -124,6 +124,7 @@ import {
   processHammerfall,
   processNecromancy,
   processVigil,
+  settleVigilWards,
 } from './headlessConjuring.js';
 import { createPlayerKnowledge, unitPositionEntry } from '../../src/engine/PlayerKnowledge.js';
 import {
@@ -434,6 +435,8 @@ export class HeadlessBattle {
     for (const spawn of bc.enemySpawns) {
       this._addEnemyFromSpawn(spawn);
     }
+    // As BattleScene: the Voices' wards (engine/Vigil.js) stand from the first turn.
+    settleVigilWards(this);
 
     // Spawn NPC for recruit battles — the same RecruitNodeSystem build as BattleScene (own
     // seeded stream; the battle's Math.random is not consumed). A full run hands in the
@@ -2335,6 +2338,7 @@ export class HeadlessBattle {
       if (isNecromancer(unit)) crumbleFor(unit, this.enemyUnits);
       entityLimbsOnFall(this, unit, killer); // the Entity's limbs (EntityKit.js)
       hammerfallOnFall(this, unit); // the Iron Guardian's marks (IronGuardian.js)
+      settleVigilWards(this, unit); // a Voice's fall may lift the Waking's choir ward
     }
     // As BattleScene.removeUnit: a Deathburst bursts last (engine/Deathburst.js), each victim
     // it fells removed with the burster's credit before the next is struck.

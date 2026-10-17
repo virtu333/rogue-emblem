@@ -182,6 +182,7 @@ test.describe('the Vigil’s markers', () => {
           ? {
               sigils: ctrl.shown.sigils.map((s) => `${s.id}:${s.state}`),
               circles: ctrl.shown.circles.map((c) => `${c.id}:${c.state}`),
+              wards: ctrl.shown.wards.length,
             }
           : null;
       });
@@ -193,6 +194,8 @@ test.describe('the Vigil’s markers', () => {
         'circle_feeding:open',
         'circle_waking:open',
       ],
+      // The shipped Vigil's shields: every Voice starts warded (its circle, the Waking's choir).
+      wards: 4,
     });
     // A Voice that falls (the roster is the engine's: removing it as a kill would do) darkens its
     // sigil and closes its circle on the next frame; the others are untouched.
@@ -205,6 +208,7 @@ test.describe('the Vigil’s markers', () => {
     await expect.poll(shown).toMatchObject({
       sigils: expect.arrayContaining(['sigil_feeding:silent', 'sigil_calling:lit']),
       circles: expect.arrayContaining(['circle_feeding:closed', 'circle_waking:open']),
+      wards: 3,
     });
     expect(errors).toEqual([]);
   });

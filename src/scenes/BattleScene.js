@@ -442,7 +442,7 @@ import { RecruitBeaconController } from '../ui/RecruitBeaconController.js';
 import { SMASH_TARGET_STATE, ZombieRemainsController } from '../ui/ZombieRemainsController.js';
 import { NecromancyController } from '../ui/NecromancyController.js';
 import { isNecromancer } from '../engine/Necromancy.js';
-import { createVigilState, isVoiceOf } from '../engine/Vigil.js';
+import { applyVigilWards, createVigilState, isVoiceOf } from '../engine/Vigil.js';
 import { VigilController } from '../ui/VigilController.js';
 import { EntityLimbController } from '../ui/EntityLimbController.js';
 import { HammerfallController } from '../ui/HammerfallController.js';
@@ -1896,7 +1896,9 @@ export class BattleScene extends Phaser.Scene {
       // checkpoint; the controller only re-renders/re-applies terrain).
       (this._villageController ||= new VillageController(this)).create();
 
-      // The Vigil's sigil and circle markers (a Vigil map only).
+      // The Vigil's sigil and circle markers (a Vigil map only), over the Voices' wards
+      // (engine/Vigil.js), which stand from the first turn.
+      if (bc.vigil) applyVigilWards(bc.vigil, this._vigilState, this.enemyUnits);
       this._vigilCtrl?.destroy();
       this._vigilCtrl = bc.vigil ? new VigilController(this).create() : null;
       this._hammerfallCtrl?.destroy();
@@ -9173,7 +9175,8 @@ export class BattleScene extends Phaser.Scene {
     const pos = this.grid.gridToPixel(target.col, target.row);
     // The number's look (crit pop, "No damage" spark, reduced motion) is ui/combatNumberStyle.js.
     floatCombatNumber(this, {
-      kind: event.isCrit ? 'crit' : 'strike',
+      // A Vigil Voice's ward turned the blow aside: "Warded", never "No damage".
+      kind: event.warded ? 'warded' : event.isCrit ? 'crit' : 'strike',
       value: event.damage,
       x: pos.x,
       y: pos.y - 16,

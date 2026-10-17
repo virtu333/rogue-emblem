@@ -32,7 +32,7 @@
 // weighs read EntitySystem.combatDistance (any body tile), and its own strike is the Danger
 // overlay's rule (ThreatForecast.enemyThreatTiles: range 2 from the body, never a step).
 
-import { ScriptedAgent } from '../../tests/agents/ScriptedAgent.js';
+import { ScriptedAgent, wardCircleClaims } from '../../tests/agents/ScriptedAgent.js';
 import {
   getCombatForecast,
   forecastStrikeGroups,
@@ -43,6 +43,7 @@ import {
   getEffectiveStaffRange,
   resolveHeal,
   nextStrikeWeapon,
+  isWardedUnit,
 } from '../../src/engine/Combat.js';
 import { hitProbability } from '../../src/engine/HitRoll.js';
 import { getCombatWeapons } from '../../src/engine/UnitManager.js';
@@ -144,6 +145,13 @@ export class TacticianAgent {
       b.battleConfig,
       b.objectiveField?.() ?? { enemyUnits: b.enemyUnits },
     );
+  }
+
+  /** The defeat targets an advance closes on: those that can be hurt, else every one left. */
+  _marks() {
+    const targets = this._defeatTargets();
+    const open = targets.filter((u) => !isWardedUnit(u));
+    return open.length > 0 ? open : targets;
   }
 
   /**
@@ -313,6 +321,7 @@ export class TacticianAgent {
     const contact = b.playerUnits.some((u) => this._danger(u, u, threats).attackers > 0);
     if (contact) this.lastContactTurn = turn;
     const advance = this._advancing(turn);
+    this._claims = wardCircleClaims(b);
     let best = null;
     for (const u of units) {
       const plan = this._planFor(u, threats, advance);
@@ -335,7 +344,19 @@ export class TacticianAgent {
     const boss = this.objectives && b.battleConfig?.objective === 'seize' ? this._boss() : null;
     const bossField = boss ? this._field(boss, u.moveType) : null;
     // A defeat map's remaining targets, on the same footing as the boss (path cost, not tiles).
-    const marks = boss ? [] : this._defeatTargets();
+    const marks = boss ? [] : this._marks();
+    // A Vigil's ward circle this unit is claimed for: every plan is pulled to it, and standing
+    // on it (where the enemy phase breaks it) is worth far more than anything it could strike.
+    const circle = this._claims?.get(u) || null;
+    const circleField = circle ? this._field(circle, u.moveType) : null;
+    const circlePull = (tile) =>
+      !circle
+        ? 0
+        : tile.col === circle.col && tile.row === circle.row
+          ? 40
+          : -3 *
+            (circleField.get(key(tile.col, tile.row)) ??
+              20 + gridDistance(tile.col, tile.row, circle.col, circle.row));
     const markFields = marks.map((m) => this._field(m, u.moveType));
     const nearestEnemyDist = (tile) =>
       boss
@@ -355,6 +376,7 @@ export class TacticianAgent {
 
     for (const tile of tiles) {
       const terrain = b.grid.getTerrainAt(tile.col, tile.row);
+      const pull = circlePull(tile);
       // Talk.
       if (npc && gridDistance(tile.col, tile.row, npc.col, npc.row) === 1) {
         const danger = this._danger(u, tile, threats);
@@ -368,6 +390,8 @@ export class TacticianAgent {
       }
       // Attacks.
       for (const e of b.enemyUnits) {
+        // A warded foe takes no damage: striking it only draws its counter.
+        if (isWardedUnit(e)) continue;
         // The battle's distance (HeadlessBattle._findAttackTargets, resolveCombat): an
         // Entity is reached from beside any tile of its body, and counters from there.
         const d = combatDistance(tile, e);
@@ -400,7 +424,8 @@ export class TacticianAgent {
           1.1 * taken -
           0.6 * danger.total -
           (lethal ? lethalWeight : 0) +
-          (npc ? -0.8 * (npcField.get(key(tile.col, tile.row)) ?? 20) : 0);
+          (npc ? -0.8 * (npcField.get(key(tile.col, tile.row)) ?? 20) : 0) +
+          pull;
         consider({ unit: u, tile, action: 'Attack', target: e, score, d, dealt, taken });
       }
       // Heals.
@@ -418,7 +443,8 @@ export class TacticianAgent {
           const score =
             heal * urgency * (a.isCommander ? 1.5 : 1) -
             0.6 * danger.total -
-            (this._lethal(u, danger, hpNow) ? lethalWeight : 0);
+            (this._lethal(u, danger, hpNow) ? lethalWeight : 0) +
+            pull;
           consider({ unit: u, tile, action: 'Heal', target: a, score });
         }
       }
@@ -437,6 +463,7 @@ export class TacticianAgent {
       if (advance) score -= 1.5 * nearestEnemyDist(tile);
       else score -= 0.05 * nearestEnemyDist(tile);
       if (npc) score -= 2.5 * (npcField.get(key(tile.col, tile.row)) ?? 30);
+      score += pull;
       consider({ unit: u, tile, action: 'Wait', target: null, score: score - 4 });
     }
     return best;

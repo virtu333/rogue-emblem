@@ -197,7 +197,9 @@ function validRestoreFields(state, width, height) {
         record(vigil) &&
         ['words', 'summoned', 'lastProcessedTurn'].every((key) => integer(vigil[key])) &&
         idCounts(vigil.byVoice) &&
-        idCounts(vigil.byCircle),
+        idCounts(vigil.byCircle) &&
+        // The circles a ward rework's battle has broken, by the turn each broke.
+        (vigil.broken === undefined || idCounts(vigil.broken)),
     )
   )
     return false;

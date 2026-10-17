@@ -272,6 +272,7 @@ export class BootScene extends Phaser.Scene {
       'bog',
       'acidic_swamp',
       'acidic_bog',
+      'abyss',
     ];
     for (const name of terrainNames) {
       this.load.image(`terrain_${name}`, `assets/sprites/tilesets/${name}.png`);

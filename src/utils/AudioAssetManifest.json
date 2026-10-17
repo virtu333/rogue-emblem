@@ -1,5 +1,5 @@
 {
-  "revision": "0e26fc7c8fc69553783ac25d6a742cbe2501cf676c4dbac7bf305180c230ca0a",
+  "revision": "3064f60d8eecdda64729c869b94b948fa0553c85b0c00a74abf59d3dcbcb2283",
   "entries": {
     "music_battle_act1": {
       "url": "assets/audio/versioned/music/music_battle_act1-23150bcd27b5efe1e43dbfbd97cb631e96cf859162b45e3693170f2548a8f7c7.mp3",
@@ -689,6 +689,10 @@
     "sfx_turn": {
       "url": "assets/audio/versioned/sfx/sfx_turn-da6c9ff61a958b312d0a5e385eb527eba12296e9bc79cabf92f2ec297fdc2a6d.mp3",
       "sha256": "da6c9ff61a958b312d0a5e385eb527eba12296e9bc79cabf92f2ec297fdc2a6d"
+    },
+    "sfx_ward_break": {
+      "url": "assets/audio/versioned/sfx/sfx_ward_break-c5186eb872d55c007a4adf4da4dafca749a3827357bb90770cc2e25e11b53e5f.mp3",
+      "sha256": "c5186eb872d55c007a4adf4da4dafca749a3827357bb90770cc2e25e11b53e5f"
     },
     "stinger_act_card_act1": {
       "url": "assets/audio/versioned/stingers/stinger_act_card_act1-b672eddcd09374ad7a3ce9da58966fc5edf5575274d494a21656ed381f6db2b6.mp3",

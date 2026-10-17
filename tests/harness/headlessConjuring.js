@@ -4,7 +4,7 @@
 // (engine/Necromancy.js, engine/Vigil.js, engine/EntityKit.js), so the two cannot drift.
 
 import { isNecromancer, raiseFor, raisers } from '../../src/engine/Necromancy.js';
-import { vigilPhaseStep } from '../../src/engine/Vigil.js';
+import { applyVigilWards, isVoiceOf, vigilPhaseStep } from '../../src/engine/Vigil.js';
 import { limbPhaseStep, severLimb, witherLimbs } from '../../src/engine/EntityKit.js';
 import { entityKitOf } from '../../src/engine/EntityKitConfig.js';
 import { isEntity, isEntityLimb } from '../../src/engine/EntitySystem.js';
@@ -72,6 +72,15 @@ export function processVigil(b) {
     registerBattleEntity(b, unit);
     b.enemyUnits.push(unit);
   }
+  // A circle broken this phase may drop its Voice's ward (as VigilController.processPhase).
+  applyVigilWards(vigil, b._vigilState, b.enemyUnits);
+}
+
+/** Mirrors VigilController's ward stamps at the battle's start and at a Voice's fall. */
+export function settleVigilWards(b, fallen = null) {
+  const vigil = b.battleConfig?.vigil;
+  if (!vigil || (fallen && !isVoiceOf(vigil, fallen))) return;
+  applyVigilWards(vigil, b._vigilState, b.enemyUnits);
 }
 
 /** Mirrors EntityLimbController.processPhase: a limb rises where the army struck from. */

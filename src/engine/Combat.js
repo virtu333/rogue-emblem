@@ -43,6 +43,14 @@ const PHYSICAL_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow']);
 const MAGICAL_TYPES = new Set(['Tome', 'Light', 'Breath']);
 const IS_DEV = Boolean(import.meta?.env?.DEV);
 
+/**
+ * Is this unit behind a ward (engine/Vigil.js `applyVigilWards`, the one writer of the stamp)?
+ * A warded unit takes no damage from a strike, a counter or a forecast.
+ */
+export function isWardedUnit(unit) {
+  return unit?.warded === true;
+}
+
 function normalizeCombatStatScaling(value) {
   if (!value || typeof value !== 'object') return null;
   const stat = typeof value.stat === 'string' ? value.stat.trim().toUpperCase() : '';
@@ -966,6 +974,8 @@ export function calculateDamage(
     Number.isFinite(effectivenessMultiplier) ? effectivenessMultiplier : null,
   );
   const { def, terrainDef } = strikeDefense(defender, atkWeapon, defenderTerrain, options);
+  // A warded Voice (engine/Vigil.js) takes nothing while its ward stands.
+  if (isWardedUnit(defender)) return 0;
   const result = Math.max(0, atk - def - terrainDef);
   if (IS_DEV && Number.isNaN(result)) {
     console.warn('[Combat] NaN damage:', { attacker: attacker?.name, weapon: atkWeapon?.name });
@@ -1029,7 +1039,7 @@ export function strikeDamage(
   defMods = null,
   { effectivenessCap = null } = {},
 ) {
-  if (!atkWeapon) return 0;
+  if (!atkWeapon || isWardedUnit(defender)) return 0;
   const ignoreTriangle = Boolean(atkMods?.ignoreWeaponTriangle || defMods?.ignoreWeaponTriangle);
   const hitsRes = strikeHitsRes(atkWeapon, atkMods);
   const defWeaponDef = defWeapon
@@ -1117,6 +1127,8 @@ export function artFollowUpStrike(
     : 0;
   const effectiveness = getCombinedEffectivenessMultiplier(strikerWeapon, target, strikerMods);
   const strikeDmg = (halveDefense) => {
+    // A warded Voice (engine/Vigil.js) takes nothing: no bonus is added to a blow it turns aside.
+    if (isWardedUnit(target)) return 0;
     let dmg = Math.max(
       0,
       calculateDamage(striker, strikerWeapon, target, targetWeapon, targetTerrain, isInitiating, {
@@ -1767,6 +1779,8 @@ export function getCombatForecast(
       // the exchange (the projection says "Breaks a bar").
       stones: revivalStoneCount(defender).remaining,
       ...(bannerReadyFor(skillCtx?.battleBlessings, defender) ? { banner: true } : {}),
+      // A warded Voice (engine/Vigil.js): every strike on it deals 0 while the ward stands.
+      ...(isWardedUnit(defender) ? { warded: true } : {}),
       canCounter: defCanCounter,
       damage: defDmg,
       hit: defHit,
@@ -1902,6 +1916,16 @@ function rollStrike(
     huntSkipped = Boolean(skillResult.lethal);
   }
 
+  // A warded Voice (engine/Vigil.js) takes nothing, whatever rolled above (a crit, Luna, a
+  // Lethality proc, a skill that adds or sets damage such as Flare): the blow lands and is
+  // turned aside here, before the Hunt, the target's defenses and its affixes, so nothing that
+  // reads the damage (a skill's or a weapon's drain, Thorns, Teleporter) reacts to it.
+  const warded = isWardedUnit(targetUnit);
+  if (warded) {
+    finalDmg = 0;
+    heal = 0;
+  }
+
   // Mark of the Hunt (3C): a strike-level chance of +damage on a strike that deals any, on the
   // battle's Math.random, after the on-attack procs. Not a skill: Silence does not stop it,
   // and a Lethality kill does not need it.
@@ -1913,8 +1937,8 @@ function rollStrike(
     mergeActivations([markActivation(hunt)]);
   }
 
-  // On-defend skills (Pavise, Aegis, Miracle, Intimidate)
-  if (strikeSkills?.rollDefenseSkills && finalDmg >= 0) {
+  // On-defend skills (Pavise, Aegis, Miracle, Intimidate): a warded blow never reaches them.
+  if (!warded && strikeSkills?.rollDefenseSkills && finalDmg >= 0) {
     const isPhysicalAtk = strikeSkills.strikerWeaponPhysical;
     const defResult = strikeSkills.rollDefenseSkills(
       strikeSkills.target,
@@ -1936,8 +1960,8 @@ function rollStrike(
     mergeActivations(defResult.activated);
   }
 
-  // On-defend affixes (Shielded, Teleporter, Thorns)
-  if (strikeSkills?.rollDefenseAffixes && finalDmg >= 0) {
+  // On-defend affixes (Shielded, Teleporter, Thorns): a warded blow never reaches them.
+  if (!warded && strikeSkills?.rollDefenseAffixes && finalDmg >= 0) {
     const defResult = strikeSkills.rollDefenseAffixes(
       strikeSkills.target,
       finalDmg,
@@ -2007,6 +2031,7 @@ function rollStrike(
     commandersGambit,
     reflectDamage,
     warpRange,
+    ...(warded ? { warded: true } : {}),
     ...(absorbed?.stoneBroken ? { stoneBroken: true, hpBeforeBreak: targetHP } : {}),
     ...(absorbed?.bannerHeld ? { bannerHeld: true, hpBeforeHold: targetHP } : {}),
   };
@@ -2689,8 +2714,8 @@ export function resolveCombat(
       // A unit the banner just held cannot fall again in this combat, and its weapon poison
       // would only claim a 0 HP loss: skipped. Status and debuff effects (an imbue's status,
       // Grievous, Corrosive, Intimidate, an art's status or debuff) still land, as they do
-      // after a broken Revival Stone.
-      if (atkPoison > 0 && !brokeBar.defender && !heldBar.defender) {
+      // after a broken Revival Stone. A warded Voice (engine/Vigil.js) loses nothing to it.
+      if (atkPoison > 0 && !brokeBar.defender && !heldBar.defender && !isWardedUnit(defender)) {
         defHP = Math.max(1, defHP - atkPoison); // Poison can't kill (leave at 1 HP)
         poisonEffects.push({ target: 'defender', damage: atkPoison });
       }
@@ -2700,7 +2725,7 @@ export function resolveCombat(
         defCanCounter && defWeapon
           ? parsePoisonDamage(defWeapon) + getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)
           : 0;
-      if (defPoison > 0 && !brokeBar.attacker && !heldBar.attacker) {
+      if (defPoison > 0 && !brokeBar.attacker && !heldBar.attacker && !isWardedUnit(attacker)) {
         atkHP = Math.max(1, atkHP - defPoison);
         poisonEffects.push({ target: 'attacker', damage: defPoison });
       }

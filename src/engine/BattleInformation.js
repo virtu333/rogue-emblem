@@ -172,6 +172,22 @@ export function carriedItemInfo(unit) {
   return { item, text: `Carrying: ${item.name}${gold > 0 ? ` (${gold} G)` : ''}` };
 }
 
+/**
+ * A warded Voice's line (engine/Vigil.js stamps `warded` / `wardReason`): what holds the ward and
+ * how to break it. Null for any unit not warded.
+ */
+export function wardInfo(unit) {
+  if (unit?.warded !== true || !(unit.currentHP > 0)) return null;
+  return {
+    text:
+      unit.wardReason === 'choir'
+        ? 'Warded: no damage while another Voice lives'
+        : unit.wardReason === 'both'
+          ? 'Warded: no damage while another Voice lives or its circle holds'
+          : 'Warded: no damage. Stand on its circle to break it',
+  };
+}
+
 /** Does the map draw the sack pip over this unit? Only while the unit itself is in view. */
 export function carrierPipShown(grid, unit) {
   return Boolean(carriedItemInfo(unit)) && unit.currentHP > 0 && canInspectUnit(grid, unit);

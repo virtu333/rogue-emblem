@@ -57,6 +57,7 @@ const NEW_CUES = [
   'sfx_chime',
   'sfx_loot',
   'sfx_page',
+  'sfx_ward_break',
   'sfx_hammerfall',
 ];
 
