@@ -287,6 +287,7 @@ import {
   shrineBoonsOf,
 } from './ShrineBoons.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
+import { createRunLedger, gradeRecordField, sanitizeRunLedger, settleLedger } from './RunLedger.js';
 import {
   chooseStartGift as takeStartGift,
   findGift,
@@ -765,6 +766,7 @@ export class RunManager {
     this.narrativeSeen = {};
     this.runRecordId = null;
     this.totalTurns = 0;
+    this.runLedger = createRunLedger();
     this.rngSeed = null;
     this.visionChargesRemaining = 1;
     this.visionCount = 0;
@@ -4401,9 +4403,7 @@ export class RunManager {
     if (!node) return false;
     if (this.totalTurns !== null)
       this.totalTurns += Math.max(0, Math.trunc(options.turnCount) || 0);
-    // The battle's gold is known before anything is committed, so burdens settle in one
-    // place (Burdens.burdenEffectsOnVictory: pure; assigned below, at the victory commit
-    // and nowhere else, so a reverted or suspended battle never touches them).
+    // Burdens settle in one place, at the victory commit only (Burdens.burdenEffectsOnVictory).
     const completionGold = Number.isFinite(options?.completionGoldOverride)
       ? Math.max(0, Math.floor(options.completionGoldOverride))
       : undefined;
@@ -4559,6 +4559,7 @@ export class RunManager {
       losses: newlyFallen.length,
     });
 
+    this.runLedger = settleLedger(this, options, finalGold, survivingUnits, newlyFallen);
     const isRewardBossNode = isActBossVictory(this, node);
     const isRewardAct =
       this.nodeMap?.actId === 'act1' ||
@@ -5333,6 +5334,7 @@ export class RunManager {
                 actsCleared: this.actIndex + 1,
                 totalTurns: this.totalTurns,
                 shadow: this.isEclipseActive() ? this.eclipse.shadow : null,
+                ...gradeRecordField(this, summary.result),
                 roster: this.roster.map(survivorRecord),
                 fallen: fallenForRecord(everFallenUnits(this)).map(fallenRecord),
               }
@@ -5989,6 +5991,7 @@ export class RunManager {
         : {};
     rm.runRecordId =
       typeof saved.runRecordId === 'string' ? saved.runRecordId : `legacy-${saved.runSeed}`;
+    rm.runLedger = sanitizeRunLedger(saved.runLedger);
     rm.totalTurns = Number.isFinite(saved.totalTurns)
       ? Math.max(0, Math.trunc(saved.totalTurns))
       : null;

@@ -55,6 +55,7 @@ export function serializeRun(rm, blessings) {
     runRecordId: rm.runRecordId,
     narrativeSeen: rm.narrativeSeen,
     totalTurns: rm.totalTurns,
+    runLedger: rm.runLedger || null,
     rngSeed: rm.rngSeed,
     visionChargesRemaining: rm.visionChargesRemaining,
     visionCount: rm.visionCount,
