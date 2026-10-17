@@ -2453,7 +2453,7 @@
         }
       ],
       "twist": {
-        "label": "At a triangle disadvantage they can't counter, and no one changes weapons in battle",
+        "label": "At a triangle disadvantage they can't counter, and no one changes weapons in battle until theirs is spent",
         "effects": [
           {
             "type": "triangle_disadvantage_no_counter",

@@ -1,4 +1,5 @@
-// PerBattleWeapons.js — what a resolved combat does to per-battle weapons (Breachbolt).
+// PerBattleWeapons.js — what a resolved combat does to per-battle weapons (Breachbolt, and a
+// player weapon's durability uses: engine/WeaponUses.js).
 // Pure, no Phaser. BattleScene and the headless harness call it in two steps:
 //
 // 1. spendCombatShots, right after the combat's HP is applied: each side that struck
@@ -15,10 +16,10 @@
 //    forecast and Danger read the equipped / next weapon, so they follow the swap.
 import {
   hasPerBattleUsesLeft,
-  isStaff,
   nextStrikeWeapon,
   settlePerBattleWeaponUses,
   spendPerBattleUse,
+  tracksBattleUses,
 } from './Combat.js';
 import { equipWeapon, getCombatWeapons } from './UnitManager.js';
 import { weaponChangeBlocked } from './WeaponSwapLock.js';
@@ -46,8 +47,8 @@ export function spendCombatShots(attacker, defender, result) {
  * spends one shot however many units the blast hits, or none. No combat result, no hit
  * roll: the cast itself is the strike. Returns whether a shot was spent.
  */
-export function spendAreaStrikeShot(weapon) {
-  if (!weapon?.perBattleUses || isStaff(weapon)) return false;
+export function spendAreaStrikeShot(weapon, unit) {
+  if (!tracksBattleUses(weapon, unit)) return false;
   spendPerBattleUse(weapon);
   return true;
 }
@@ -76,4 +77,28 @@ export function swapSpentWeapons(units) {
 export function settleCombatWeapons(attacker, defender, result) {
   const spent = spendCombatShots(attacker, defender, result);
   return { spent, swaps: swapSpentWeapons([attacker, defender]) };
+}
+
+/** The banner for a player unit's switch away from a spent weapon. */
+export function weaponSwapMessage({ unit, from, to }) {
+  return from?.name
+    ? `${unit.name}'s ${from.name} is spent: now wielding ${to.name}`
+    : `${unit.name} is out of shots: now wielding ${to.name}`;
+}
+
+/**
+ * Living player units left holding a spent weapon with nothing to switch to, each weapon
+ * once (`announced`, a WeakSet the caller keeps for the battle, is updated). Returns the
+ * banners to show: "Kira's Iron Sword is spent for this battle".
+ */
+export function strandedSpentWeaponMessages(units, announced) {
+  const messages = [];
+  for (const unit of units || []) {
+    const weapon = unit?.weapon;
+    if (unit?.faction !== 'player' || !(unit.currentHP > 0) || !weapon) continue;
+    if (hasPerBattleUsesLeft(weapon, unit) || announced.has(weapon)) continue;
+    announced.add(weapon);
+    messages.push(`${unit.name}'s ${weapon.name} is spent for this battle`);
+  }
+  return messages;
 }

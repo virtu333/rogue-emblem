@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "enabled": true,
+  "byTier": {
+    "Iron": 20,
+    "Steel": 15,
+    "Silver": 10,
+    "Rare": 10,
+    "Legend": 12,
+    "Epic": 12
+  }
+}

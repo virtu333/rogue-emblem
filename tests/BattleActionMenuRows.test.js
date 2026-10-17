@@ -17,6 +17,10 @@ import { openMenuCommand } from '../src/ui/battleMenuModel.js';
 import { applyCondition } from '../src/engine/StatusConditionSystem.js';
 import { loadGameData } from './testData.js';
 import { UI_PALETTE } from '../src/utils/uiStyles.js';
+import { readFileSync } from 'node:fs';
+
+// Durability: each row carries the weapon's uses this battle (data/weaponUses.json).
+const USES = JSON.parse(readFileSync('data/weaponUses.json', 'utf8')).byTier;
 
 const data = loadGameData();
 const weapon = (name) => structuredClone(data.weapons.find((w) => w.name === name));
@@ -252,8 +256,8 @@ describe('the Equip and Item submenus as rows', () => {
     scene.showEquipMenu(unit);
     expect(scene._makeMenuTextButton).not.toHaveBeenCalled();
     expect(published(scene).map((item) => [item.id, item.label, item.item?.name ?? null])).toEqual([
-      ['weapon:0', 'E Iron Sword', 'Iron Sword'],
-      ['weapon:1', '  Steel Sword', 'Steel Sword'],
+      ['weapon:0', `E Iron Sword ${USES.Iron}/${USES.Iron}`, 'Iron Sword'],
+      ['weapon:1', `  Steel Sword ${USES.Steel}/${USES.Steel}`, 'Steel Sword'],
       ['back', 'Back', null],
     ]);
     openMenuCommand(scene, 'weapon:1').onActivate();

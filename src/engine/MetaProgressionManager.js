@@ -9,7 +9,9 @@ import {
   defaultNgPlusState,
   isNgPlusRung,
   adoptNgPlusState,
+  innateGrowthsLedgerOf,
   normalizeNgPlusState,
+  restoreInnateGrowths,
   passRide,
   releaseRecord,
   runStartOf,
@@ -539,6 +541,7 @@ export const META_SAVE_FIELDS = Object.freeze([
   'hintState',
   'prologue',
   'ngPlus',
+  'ngPlusInnateGrowths',
   'savedAt',
 ]);
 const META_READ_ONLY_FIELDS = Object.freeze(['totalRenown']);
@@ -707,7 +710,11 @@ export class MetaProgressionManager {
         this.deedsEarned = mergeDeedIds(saved.deedsEarned);
         if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
         this.prologue = normalizePrologueState(saved.prologue);
-        this.ngPlus = normalizeNgPlusState(saved.ngPlus);
+        // The innate markers an older build's write dropped come back from the ledger it kept.
+        this.ngPlus = restoreInnateGrowths(
+          normalizeNgPlusState(saved.ngPlus),
+          saved.ngPlusInnateGrowths,
+        );
         this.solRefundBasis = Number(saved.solRefundBasis) === 400 ? 400 : 600;
         if (!saved.balanceRevision && this.getUpgradeLevel('unlock_sol') > 0)
           this.solRefundBasis = 400;
@@ -2143,7 +2150,10 @@ export class MetaProgressionManager {
     this.lordSelection = fresh.lordSelection;
     this.settledRunIds = fresh.settledRunIds;
     // NG+: the newer write wins whole (NgPlusState.adoptNgPlusState).
-    this.ngPlus = adoptNgPlusState(this.ngPlus, disk.ngPlus);
+    this.ngPlus = restoreInnateGrowths(
+      adoptNgPlusState(this.ngPlus, disk.ngPlus),
+      disk.ngPlusInnateGrowths,
+    );
     // The prologue: the further state and the lists union; the grant's receipt travels with
     // the economy kept (the disk copy's), and a completion only this copy saw is paid into
     // it once, as the cloud fetch's whole-payload pick does (reconcilePickedPrologue).
@@ -2323,6 +2333,9 @@ export class MetaProgressionManager {
       hintState: this.hintState,
       prologue: normalizePrologueState(this.prologue),
       ngPlus: this.ngPlus,
+      // A second copy of each veteran's innate marker, where an older build keeps it
+      // (NgPlusState.innateGrowthsLedgerOf).
+      ngPlusInnateGrowths: innateGrowthsLedgerOf(this.ngPlus),
       savedAt: this.savedAt,
     };
     let localOk = false;

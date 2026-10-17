@@ -22,6 +22,7 @@ import {
 } from '../src/engine/WeaponSwapLock.js';
 import { stampArmyBattleRules } from '../src/engine/TradeBoons.js';
 import { getAttackWeapons } from '../src/engine/AttackOptions.js';
+import { swapSpentWeapons } from '../src/engine/PerBattleWeapons.js';
 import { serializeUnit } from '../src/engine/UnitSerialization.js';
 import { applyTimedBuffEntry, expireTimedBuffs } from '../src/engine/TimedWeaponArtBuffs.js';
 import { getEffectivenessMultiplier } from '../src/engine/Combat.js';
@@ -420,6 +421,23 @@ describe('battle-long rules', () => {
     me.weapon = other;
     expect(weaponChangeBlocked(me, me.inventory[0])).toBe(false);
     expect(serializeUnit(me)).not.toHaveProperty('_inBattle');
+  });
+
+  it('Frightened Acclaim spent for the battle lets go: its bearer takes up a spare', () => {
+    // Weapon uses (Dave, 2026-10-17): the lock must never leave a unit unable to fight.
+    const me = unit('Frightened Acclaim', { inventory: [] });
+    const other = weapon('Iron Axe');
+    me.inventory = [me.weapon, other];
+    me.proficiencies = [{ type: 'Axe', rank: 'Mast' }];
+    stampArmyBattleRules([me], {});
+    // Epic: 12 uses a battle (data/weaponUses.json).
+    me.weapon._usesSpent = 11;
+    expect(weaponSwapLocked(me)).toBe(true);
+    me.weapon._usesSpent = 12;
+    expect(weaponSwapLocked(me)).toBe(false);
+    expect(swapSpentWeapons([me])).toHaveLength(1);
+    expect(me.weapon.name).toBe('Iron Axe');
+    expect(weaponSwapLocked(me)).toBe(false);
   });
 
   it('Tallyblade notches every kill and rolls a gain every fourth, the same for the same blade', () => {

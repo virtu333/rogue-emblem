@@ -113,6 +113,7 @@ export class ForecastOverlay {
       forecastNotes(forecast, attacking, afterCost, {
         planned: weapon,
         equipped: equippedWeapon,
+        unit: attacker,
       }).map((text) =>
         applyTextResolution(
           scene.add.text(0, 0, text, {

@@ -183,14 +183,18 @@ export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
 
   // Post-process: guarantee 2-3 RECRUIT nodes per act (middle rows only)
   const convertibleTypes = [NODE_TYPES.BATTLE, NODE_TYPES.SHOP];
+  const fallbackTypes = [NODE_TYPES.CHURCH];
   const targetRecruits = 2; // guaranteed minimum
   for (let i = 0; i < targetRecruits; i++) {
-    const remaining = nodes.filter(
-      (n) => n.row > 1 && n.row < rows - 1 && convertibleTypes.includes(n.type),
-    );
-    if (remaining.length === 0) break;
-    const battleFirst = remaining.filter((n) => n.type === NODE_TYPES.BATTLE);
-    const candidates = battleFirst.length > 0 ? battleFirst : remaining;
+    const inRange = (n) => n.row > 1 && n.row < rows - 1;
+    const remaining = nodes.filter((n) => inRange(n) && convertibleTypes.includes(n.type));
+    // A map of mostly churches and events can leave no battle or shop to convert; the
+    // minimum then takes a church (never an event, the Ruins, the boss or the opening rows).
+    const fallback = nodes.filter((n) => inRange(n) && fallbackTypes.includes(n.type));
+    const pool = remaining.length > 0 ? remaining : fallback;
+    if (pool.length === 0) break;
+    const battleFirst = pool.filter((n) => n.type === NODE_TYPES.BATTLE);
+    const candidates = battleFirst.length > 0 ? battleFirst : pool;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
     convertToRecruit(pick);
   }

@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 // Weapon rule tags reach the screens that show a weapon (docs/specs/item-keywords.md).
 // Naming review 2026-09-26: lore names alone didn't say what a weapon is or does, and
 // the raw `special` text either sat in a paragraph (roster), after a blank line
@@ -152,6 +153,16 @@ describe('compendium', () => {
     expect(byName('Twinsworn').summary).toBe('Legend Sword · Strikes twice');
     expect(byName('Iron Sword').summary).toBe('Iron Sword');
     expect(byName('Axehook').item.name).toBe('Axehook');
+  });
+
+  it("a weapon's entry gives a player unit's uses each battle; a staff's gives none", () => {
+    const uses = JSON.parse(readFileSync(new URL('../data/weaponUses.json', import.meta.url)));
+    const entries = compendiumEntries(view(), tab('weapons'), 0);
+    const linesOf = (name) => entries.find((e) => e.name === name).lines.join('\n');
+    expect(linesOf('Iron Sword')).toContain(`Uses:${uses.byTier.Iron}`);
+    expect(linesOf('Keen Sword')).toContain(`Uses:${uses.byTier.Silver}`);
+    expect(linesOf('Breachbolt')).toContain(`Uses:${weapon('Breachbolt').uses}`);
+    expect(linesOf('Heal')).not.toContain('Uses:');
   });
 
   it('other tabs keep their summaries', () => {

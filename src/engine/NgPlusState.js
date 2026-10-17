@@ -318,6 +318,55 @@ export function adoptNgPlusState(local, disk) {
   return normalizeNgPlusState(disk);
 }
 
+/**
+ * The meta save's second copy of the innate marker (its own top-level key,
+ * `ngPlusInnateGrowths`, MetaProgressionManager): a build from before the marker keeps a meta
+ * key it does not know (unknownMetaFields) but rebuilds every record through its own
+ * whitelist, which drops `growthsBasis` and keeps the innate numbers, so the next build would
+ * read the veteran as legacy and never add a run's upgrades to it again. Each entry is the
+ * growths the marker was written beside, keyed by record id (a pending ride's candidate by
+ * `ride:<runId>:<ref>`); a record whose growths no longer match its entry stays as it reads.
+ */
+const rideKeyOf = (ride, candidate) => `ride:${ride.runId}:${candidate.ref}`;
+
+/** The innate growths of every marked record and pending candidate, by key: the ledger saved. */
+export function innateGrowthsLedgerOf(state) {
+  const ledger = {};
+  for (const record of state?.barracks || [])
+    if (record.kind === 'recruit' && record.growthsBasis === INNATE_GROWTHS)
+      ledger[record.id] = { ...record.growths };
+  const ride = state?.pendingRide;
+  for (const candidate of ride?.candidates || [])
+    if (candidate.identity?.growthsBasis === INNATE_GROWTHS)
+      ledger[rideKeyOf(ride, candidate)] = { ...candidate.identity.growths };
+  return ledger;
+}
+
+const sameGrowths = (a, b) =>
+  Boolean(a && b) &&
+  Object.keys(a).length === Object.keys(b).length &&
+  Object.entries(a).every(([stat, value]) => b[stat] === value);
+
+/**
+ * Mark again, in place, each recruit record and pending candidate the ledger names whose
+ * growths are still the ones it holds (an older build's write dropped the marker). Returns
+ * the state.
+ */
+export function restoreInnateGrowths(state, ledger) {
+  if (!state || !isRecord(ledger)) return state;
+  const mark = (identity, key) => {
+    if (!identity || identity.growthsBasis === INNATE_GROWTHS) return;
+    if (!Object.prototype.hasOwnProperty.call(ledger, key)) return;
+    if (sameGrowths(sanitizeGrowths(ledger[key]), identity.growths))
+      identity.growthsBasis = INNATE_GROWTHS;
+  };
+  for (const record of state.barracks || []) if (record.kind === 'recruit') mark(record, record.id);
+  const ride = state.pendingRide;
+  for (const candidate of ride?.candidates || [])
+    mark(candidate.identity, rideKeyOf(ride, candidate));
+  return state;
+}
+
 export function lordRecordId(name) {
   return `lord:${name}`;
 }
