@@ -16,6 +16,7 @@ import { combatDistance } from './EntitySystem.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
 import { epicCombatMods, epicTurnStartEffects } from './EpicWeapons.js';
 import { GEMINI_ACTIVATION, geminiCombatMods } from './GeminiRing.js';
+import { GRUDGE_ACTIVATION, grudgeAtkBonus } from './AccessoryReactions.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -231,7 +232,7 @@ function isAccessoryConditionMet(condition, unit, opponent, allies, enemies, ter
  * Gather all stat modifiers for a unit entering combat.
  * Includes: passive skills, aura buffs from allies, on-combat-start triggers.
  * Returns a flat modifier object applied to combat calculations.
- * `context`: { classesData, traitsData, weapon } — `weapon` overrides the
+ * `context`: { classesData, traitsData, weapon, turn, playerAlliesLost } — `weapon` overrides the
  * equipped weapon for its conditional bonus and granted skill.
  */
 export function getSkillCombatMods(
@@ -473,6 +474,13 @@ export function getSkillCombatMods(
     if (gemini.partners.length > 0) {
       for (const key of Object.keys(gemini.mods)) mods[key] += gemini.mods[key];
       mods.activated.push({ ...GEMINI_ACTIVATION });
+    }
+    // Grudge Locket: +N Atk per ally the run has lost (`context.playerAlliesLost`, which the
+    // battle counts: AccessoryReactions.playerAlliesLost).
+    const grudge = grudgeAtkBonus(unit, context?.playerAlliesLost);
+    if (grudge > 0) {
+      mods.atkBonus += grudge;
+      mods.activated.push({ ...GRUDGE_ACTIVATION });
     }
   }
 

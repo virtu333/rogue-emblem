@@ -510,7 +510,7 @@ describe('The Sunken Mine', () => {
   });
 
   it("level three: the guardian is a fight whose relic is one accessory from the next act's table", () => {
-    const ACT3 = ['Seraph Robe', 'Magic Ring', 'Boots', 'Delphi Shield', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Blood Gem', 'Recoil Guard', 'Phoenix Brooch', "Duelist's Glove", 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band']; // prettier-ignore
+    const ACT3 = ['Seraph Robe', 'Magic Ring', 'Boots', 'Delphi Shield', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Blood Gem', 'Recoil Guard', 'Phoenix Brooch', "Duelist's Glove", 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Gemini Ring', "Warden's Buckler", 'Briar Cloak', 'Anchor Stone', 'Grudge Locket']; // prettier-ignore
     const { run, node } = stand(); // act2: one tier up is act3's table
     expect(pick(run, node, 'deeper').ok).toBe(true);
     expect(pick(run, node, 'deeper').ok).toBe(true);

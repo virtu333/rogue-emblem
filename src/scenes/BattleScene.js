@@ -105,6 +105,8 @@ import RevivalStoneController from '../ui/RevivalStoneController.js';
 import UnbrokenBannerController from '../ui/UnbrokenBannerController.js';
 import WardController, { WARD_COLOR } from '../ui/WardController.js';
 import { readyWard, wardReady } from '../engine/AccessoryWard.js';
+import { isAnchoredByAccessory, playerAlliesLost } from '../engine/AccessoryReactions.js';
+import { readyGaleforce } from '../engine/GaleforceCharm.js';
 import {
   WHISTLE_NAME,
   battleBlessingsAtStart,
@@ -565,6 +567,7 @@ export function resetUnitForBattle(unit) {
   unit.hasActed = false;
   unit._miracleUsed = false;
   readyWard(unit); // the Warden's Buckler (engine/AccessoryWard.js)
+  readyGaleforce(unit); // the Galeforce Charm's uses (engine/GaleforceCharm.js)
   unit._gambitUsedThisTurn = false;
   unit._conditions = [];
   delete unit._speedtakerStacks;
@@ -1951,6 +1954,7 @@ export class BattleScene extends Phaser.Scene {
         for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
           unit._phoenixBroochUsed = false;
           readyWard(unit);
+          readyGaleforce(unit);
         }
         // The Lingering Injury burden (id `wounded`, engine/Burdens.js) and Cavalier's Hour (by move
         // type, engine/ShrineBoons.js): battle stat deltas applied once, here, so the first forecast
@@ -5426,8 +5430,9 @@ export class BattleScene extends Phaser.Scene {
     this.tradeMutatedThisSession = false;
     this._clearSelectedWeaponArt();
 
-    // Check for Canto: use remaining movement after acting
-    if (!skipCanto) {
+    // Check for Canto: use remaining movement after acting (not when a Galeforce Charm
+    // readied the unit to act again: GaleforceCharm.js).
+    if (!skipCanto && unit._galeforceReady !== true) {
       // Rooted units cannot use Canto (root may land mid-action via counter-art)
       const movSpent = unit._movementSpent || 0;
       // The same MOV the unit's move range read (selectUnit), less the terrain cost spent,
@@ -5525,7 +5530,7 @@ export class BattleScene extends Phaser.Scene {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
       const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally || isRooted(ally)) continue;
+      if (!ally || isRooted(ally) || isAnchoredByAccessory(ally)) continue;
       // Unit retreats opposite direction
       const retreatC = unit.col - dc;
       const retreatR = unit.row - dr;
@@ -5567,7 +5572,8 @@ export class BattleScene extends Phaser.Scene {
 
   findSwapTargets(unit) {
     const targets = [];
-    if (isRooted(unit)) return targets; // both units move: a rooted one holds either end
+    // Both units move: a rooted one, or an Anchor Stone's wearer, holds either end.
+    if (isRooted(unit) || isAnchoredByAccessory(unit)) return targets;
     const dirs = [
       { dc: 0, dr: -1 },
       { dc: 0, dr: 1 },
@@ -5578,7 +5584,7 @@ export class BattleScene extends Phaser.Scene {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
       const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally || isRooted(ally)) continue;
+      if (!ally || isRooted(ally) || isAnchoredByAccessory(ally)) continue;
 
       // Check if both positions are walkable by both units
       const unitCanWalkToAlly = this.grid.getMoveCost(ac, ar, unit.moveType) !== Infinity;
@@ -7976,6 +7982,8 @@ export class BattleScene extends Phaser.Scene {
       traitsData: this.gameData.traits || null,
       // The battle's turn: an Epic weapon's "has not moved this turn" reads it.
       turn: this.turnManager?.turnNumber,
+      // The Grudge Locket: the run's lost allies and this battle's (AccessoryReactions.js).
+      playerAlliesLost: playerAlliesLost(this.runManager, this._fallenBattleRecords?.length),
     };
     const atkMods = getSkillCombatMods(
       attacker,

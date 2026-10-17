@@ -23,6 +23,7 @@ import { combatDistance, isEntity } from './EntitySystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { absorbLethal } from './UnitHealth.js';
 import { WARD_ACTIVATION, wardReady, wardStrike } from './AccessoryWard.js';
+import { BRIAR_ACTIVATION, briarReflectOf } from './AccessoryReactions.js';
 import { bannerReadyFor } from './BattleBlessings.js';
 import { revivalStoneCount } from './RevivalStones.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
@@ -1193,12 +1194,12 @@ function markArtFollowUpStrikes(events, fromIndex) {
 }
 
 /** A forecast side's `followUp` entry (null without an art follow-up), drain and Thorns included. */
-function forecastFollowUpInfo(followUp, unit, plainMods, thornsPct = 0) {
+function forecastFollowUpInfo(followUp, unit, plainMods, thornsPct = 0, briar = 0) {
   if (!followUp) return null;
   const wounded = isWounded(unit);
   return {
     ...followUp,
-    thornsReflect: thornsReflectDamage(followUp.damage, thornsPct),
+    thornsReflect: thornsReflectDamage(followUp.damage, thornsPct) + briar,
     drainPercent: wounded ? 0 : plainMods?.drainPercent || 0,
     drainMaxPerHit: wounded ? null : plainMods?.drainMaxPerHit || null,
     drainPerHit: wounded ? 0 : plainMods?.drainPerHit || 0,
@@ -1357,6 +1358,12 @@ const EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS = new Set([
   // forecast's projection plays the Warden's Buckler's ward (forecastDisplay).
   'gemini',
   'firstHitWard',
+  // The Briar Cloak's prick rides the striker's `thornsReflect`, the Grudge Locket's Atk is
+  // a combat mod, and the Anchor Stone and Galeforce Charm never touch the exchange.
+  'meleeReflect',
+  'grudgeAtk',
+  'anchored',
+  'galeforce',
 ]);
 
 /**
@@ -1647,6 +1654,9 @@ export function getCombatForecast(
       : 0;
   const notesHideProjection = (notes, thornsPct) =>
     notes.some((note) => note.affixId !== 'thorns' || !(thornsPct > 0));
+  // Briar Cloak: a flat prick on each landed blow from beside its wearer (AccessoryReactions).
+  const atkBriar = briarReflectOf(defender, distance === 1);
+  const defBriar = briarReflectOf(attacker, distance === 1);
 
   // Read-only display metadata. Resolution order and RNG are untouched.
   const forecast = {
@@ -1748,6 +1758,7 @@ export function getCombatForecast(
         attacker,
         plainSideMods(skillCtx, 'attacker', atkWeapon),
         atkThornsPct,
+        atkBriar,
       ),
       // Wounded: no drain heals (resolveCombat zeroes them); the forecast agrees.
       drainPercent: isWounded(attacker) ? 0 : atkMods?.drainPercent || 0,
@@ -1755,7 +1766,8 @@ export function getCombatForecast(
       drainPerHit: isWounded(attacker) ? 0 : atkMods?.drainPerHit || 0,
       skills: atkActivated,
       affixNotes: affixNotes.attacker,
-      thornsReflect: thornsReflectDamage(atkDmg, atkThornsPct),
+      thornsReflect: thornsReflectDamage(atkDmg, atkThornsPct) + atkBriar,
+      ...(atkBriar > 0 ? { briar: atkBriar } : {}),
     },
     defender: {
       name: defender.name,
@@ -1779,13 +1791,15 @@ export function getCombatForecast(
         defender,
         plainSideMods(skillCtx, 'defender', defWeapon),
         defThornsPct,
+        defBriar,
       ),
       drainPercent: isWounded(defender) ? 0 : defMods?.drainPercent || 0,
       drainMaxPerHit: isWounded(defender) ? null : defMods?.drainMaxPerHit || null,
       drainPerHit: isWounded(defender) ? 0 : defMods?.drainPerHit || 0,
       skills: defActivated,
       affixNotes: affixNotes.defender,
-      thornsReflect: thornsReflectDamage(defDmg, defThornsPct),
+      thornsReflect: thornsReflectDamage(defDmg, defThornsPct) + defBriar,
+      ...(defBriar > 0 ? { briar: defBriar } : {}),
     },
   };
 
@@ -1968,6 +1982,14 @@ function rollStrike(
     }
   }
 
+  // Briar Cloak (engine/AccessoryReactions.js): a landed blow from beside the wearer pricks
+  // its striker for a flat N, on top of any Thorns; applyReflect keeps the striker's last HP.
+  const briar = briarReflectOf(targetUnit, strikeSides?.isMelee === true);
+  if (briar > 0) {
+    reflectDamage += briar;
+    mergeActivations([{ ...BRIAR_ACTIVATION, side: 'target' }]);
+  }
+
   // Drain resolution: highest resulting heal wins across skill/weapon/art sources.
   if (finalDmg > 0) {
     if (weaponSpecial?.includes('Drains HP')) {
@@ -2035,7 +2057,9 @@ function applyReflect(evt, strikerHP) {
   // What the striker actually lost (Thorns never takes the last HP).
   evt.reflectTaken = strikerHP - after;
   if (evt.reflectTaken === 0 && Array.isArray(evt.skillActivations))
-    evt.skillActivations = evt.skillActivations.filter((a) => a.id !== 'thorns');
+    evt.skillActivations = evt.skillActivations.filter(
+      (a) => a.id !== 'thorns' && a.id !== BRIAR_ACTIVATION.id,
+    );
   return after;
 }
 
@@ -2415,7 +2439,7 @@ export function resolveCombat(
         targetHP,
         strikeSkills,
         weaponSpecial,
-        { attackerSide, targetSide },
+        { attackerSide, targetSide, isMelee },
         drainPct,
         strikePerHitHeal,
         strikeCritMult,
@@ -2482,7 +2506,7 @@ export function resolveCombat(
           bonusTargetHP,
           bonusStrikeSkills,
           weaponSpecial,
-          { attackerSide, targetSide },
+          { attackerSide, targetSide, isMelee },
           drainPct,
           strikePerHitHeal,
           strikeCritMult,

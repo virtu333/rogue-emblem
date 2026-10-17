@@ -10,6 +10,7 @@ import {
 const ACCESSORY_STAT_ORDER = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'LCK', 'DEF', 'RES', 'MOV'];
 
 export const HANDLED_ACCESSORY_COMBAT_EFFECT_KEYS = Object.freeze([
+  'anchored',
   'atkBonus',
   'avoidBonus',
   'bloodGem',
@@ -21,11 +22,14 @@ export const HANDLED_ACCESSORY_COMBAT_EFFECT_KEYS = Object.freeze([
   'defBonus',
   'doubleThresholdReduction',
   'firstHitWard',
+  'galeforce',
   'gambler',
   'gamblerCoin',
   'gemini',
   'goldPerKill',
+  'grudgeAtk',
   'hitBonus',
+  'meleeReflect',
   'moontide',
   'moveTypeOverride',
   'negateEffectiveness',
@@ -135,6 +139,16 @@ export function formatAccessoryEffects(accessory, options = {}) {
   return parts.join(separator);
 }
 
+/** The Galeforce Charm's line (engine/GaleforceCharm.js): its proc stat and its limit. */
+function galeforceText(raw) {
+  if (!raw) return '';
+  const cfg = typeof raw === 'object' ? raw : {};
+  const stat = typeof cfg.activation === 'string' ? cfg.activation : 'SKL';
+  const per = Math.trunc(Number(cfg.perBattle)) > 0 ? Math.trunc(Number(cfg.perBattle)) : 2;
+  const times = per === 1 ? 'once' : per === 2 ? 'twice' : `${per} times`;
+  return `Kill a foe you attacked: ${stat}% chance to act again (${times} a map)`;
+}
+
 export function formatAccessoryCombatEffect(accessory) {
   const combatEffects = accessory?.combatEffects;
   const turnStartText = formatTurnStartEffect(accessory);
@@ -172,6 +186,17 @@ export function formatAccessoryCombatEffect(accessory) {
   if (combatEffects?.negateFlierWeakness) parts.push('Negates flier weakness to bows');
   if (combatEffects?.statusImmunity) parts.push('Immune to status conditions');
   if (combatEffects?.firstHitWard) parts.push('Once per map, the first hit that lands deals 1');
+  const meleeReflect = firstNumericValue(combatEffects?.meleeReflect);
+  if (meleeReflect !== null && meleeReflect > 0)
+    parts.push(
+      `A foe that hits you from beside you takes ${meleeReflect} damage (never its last HP)`,
+    );
+  const grudgeAtk = firstNumericValue(combatEffects?.grudgeAtk);
+  if (grudgeAtk !== null && grudgeAtk > 0)
+    parts.push(`+${grudgeAtk} Atk for each ally lost this run`);
+  if (combatEffects?.anchored) parts.push("Can't be shoved, pulled, swapped or pushed");
+  const galeforce = galeforceText(combatEffects?.galeforce);
+  if (galeforce) parts.push(galeforce);
   if (isGeminiRing(accessory)) {
     parts.push(
       `Set: +${geminiBonus(accessory)} to the stat of each other Gemini Ring worn on the field`,

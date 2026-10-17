@@ -28,6 +28,7 @@ import { settleMoves } from './ActionMovement.js';
 import { isEntity, isEntityLimb } from './EntitySystem.js';
 import { isDisplacementImmune } from './AffixSystem.js';
 import { isRooted } from './StatusConditionSystem.js';
+import { isAnchoredByAccessory } from './AccessoryReactions.js';
 
 /** Shove moves its ally one tile. */
 export const SHOVE_DISTANCE = 1;
@@ -161,8 +162,9 @@ export function findShoveTargets(unit, ctx = {}) {
     const ally = allies.find(
       (u) => u !== unit && liveUnit(u) && u.col === unit.col + dc && u.row === unit.row + dr,
     );
-    // A rooted ally holds its ground (the Entity's undertow, a root staff).
-    if (!ally || isRooted(ally)) continue;
+    // A rooted ally holds its ground (the Entity's undertow, a root staff), as does one
+    // wearing an Anchor Stone.
+    if (!ally || isRooted(ally) || isAnchoredByAccessory(ally)) continue;
     const landing = traceForcedMove(ally, dc, dr, SHOVE_DISTANCE, grid, getUnitAt, slideUnitAt);
     if (landing.steps <= 0) continue;
     targets.push({

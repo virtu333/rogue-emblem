@@ -24,6 +24,8 @@ export function serializeBattleUnit(unit) {
   // fresh object, so an absent flag reads as ready.
   if (unit._wardSpent === true) data._wardSpent = true;
   else delete data._wardSpent;
+  // The Galeforce Charm's procs this battle and a readied refresh ride the copy as they are
+  // (GaleforceCharm.js), so a resume and a rewind keep them.
   data._conditions = unit._conditions || [];
   return structuredClone(data);
 }

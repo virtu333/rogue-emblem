@@ -706,6 +706,10 @@ export const WEAPON_ICON_REUSE = Object.freeze({
 export const ACCESSORY_ICON_REUSE = Object.freeze({
   'Gemini Ring': 'phalanx-band',
   "Warden's Buckler": 'delphi-shield',
+  'Briar Cloak': 'hunters-cloak',
+  'Anchor Stone': 'soothing-stone',
+  'Grudge Locket': 'diamond-medallion',
+  'Galeforce Charm': 'speedwing',
 });
 
 /**

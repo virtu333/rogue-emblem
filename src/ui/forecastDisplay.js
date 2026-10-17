@@ -190,8 +190,10 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
   if (attacking && laterStrikesDiffer(striker))
     notes.push(`Later strikes: ${formatHitChance(striker.hit)} (Keen Eye lifts the first)`);
   if (striker?.ward) notes.push(`${WARD_NAME}: the first hit that lands deals 1`);
-  if (striker?.thornsReflect > 0)
-    notes.push(`Thorns: −${striker.thornsReflect} HP per hit landed (leaves at least 1)`);
+  const briar = Math.max(0, Number(striker?.briar) || 0);
+  const thorns = (Number(striker?.thornsReflect) || 0) - briar;
+  if (thorns > 0) notes.push(`Thorns: −${thorns} HP per hit landed (leaves at least 1)`);
+  if (briar > 0) notes.push(`Briar Cloak: −${briar} HP per hit landed (leaves at least 1)`);
   if (attacking) {
     notes.push(triangleText(forecast), counterRisk(forecast, attackerHP));
     // An area art's reach (AreaPreview.areaForecastLines): known units only.

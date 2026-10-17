@@ -618,7 +618,11 @@
     "blessing-siegebreaker": [49, 5, 4],
     "blessing-smiths_exile": [37, 5, 4],
     "gemini-ring": [226, 3, 5],
-    "wardens-buckler": [203, 3, 5]
+    "wardens-buckler": [203, 3, 5],
+    "briar-cloak": [221, 3, 5],
+    "anchor-stone": [213, 3, 5],
+    "grudge-locket": [220, 3, 5],
+    "galeforce-charm": [184, 3, 6]
   },
   "aliases": {
     "greycord": "gravesong",
@@ -705,6 +709,10 @@
     "blessing-siegebreaker": "longbow",
     "blessing-smiths_exile": "hammer",
     "gemini-ring": "phalanx-band",
-    "wardens-buckler": "delphi-shield"
+    "wardens-buckler": "delphi-shield",
+    "briar-cloak": "hunters-cloak",
+    "anchor-stone": "soothing-stone",
+    "grudge-locket": "diamond-medallion",
+    "galeforce-charm": "speedwing"
   }
 }
