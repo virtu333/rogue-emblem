@@ -279,7 +279,7 @@ describe('shops', () => {
     const run = startedRun(WITH_RECIPE);
     const stock = openShop(run);
     expect(usesOf(stock.filter((e) => e.item.name === 'Vulnerary').map((e) => e.item))).toEqual([
-      3,
+      3, 3,
     ]);
   });
 });
