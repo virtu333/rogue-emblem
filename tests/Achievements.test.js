@@ -78,6 +78,7 @@ const runEnd = (extra = {}) => ({
   overPar: 3,
   blessingIds: [],
   shrineSkipped: false,
+  fromStart: true,
   ...extra,
 });
 
@@ -263,6 +264,17 @@ describe('each rule', () => {
       expect(earnedBy(misses)).not.toContain(id);
     });
   }
+
+  it('a "never" is not read from a run in progress when the counting began', () => {
+    // The run's counters read zero because nothing counted yet, not because nothing happened.
+    const fresh = { fromStart: false, allyFalls: 0, shopBuys: 0, overPar: 0, visionUses: 0 };
+    for (const difficulty of ['hard', 'lunatic']) {
+      const got = earnedBy({ runEnd: runEnd({ ...fresh, difficulty }) });
+      for (const id of ['nobody_left_behind', 'self_reliant', 'on_schedule', 'the_unbroken_thread'])
+        expect(got, `${id} on ${difficulty}`).not.toContain(id);
+      expect(got).toContain('clear_sight'); // Vision is counted on every run
+    }
+  });
 
   it('a scripted battle earns nothing a battle could', () => {
     const facts = { battle: battle({ standard: false, turn: 1, maxStrike: 99, steals: 2 }) };

@@ -1330,6 +1330,7 @@ export class MetaProgressionManager {
     const key = name.trim();
     return this._commit(() => {
       this.storyFlags.bossSlain[key] = this.getBossSlainCount(key) + 1;
+      this.recordAchievementFacts(); // however it fell (achievements read the ledger)
       return { ok: true };
     });
   }
@@ -1374,9 +1375,12 @@ export class MetaProgressionManager {
     let unlocked = [];
     const slot = /^emblem_rogue_slot_(\d+)_meta$/.exec(this.storageKey)?.[1] ?? 'local';
     const result = this._commit(() => {
+      // Every boss this save has slain counts, however it fell (a ballista bolt, poison and
+      // Deathburst kills reach the bosses' ledger but not the battle's kill records).
+      const known = { ...facts?.known, bosses: [...(facts?.known?.bosses || []), ...this._slainBossNames()] }; // prettier-ignore
       const { state, unlocked: ids } = applyAchievementFacts(
         this.achievements,
-        { ...facts, deedIds: [...(facts?.deedIds || []), ...this.deedsEarned] },
+        { ...facts, known, deedIds: [...(facts?.deedIds || []), ...this.deedsEarned] },
         { slot },
       );
       if (sameAchievementState(state, this.achievements)) return { ok: true, unchanged: true };
@@ -1409,6 +1413,13 @@ export class MetaProgressionManager {
     }
   }
 
+  /** The bosses this save has slain (the story ledger), by name. */
+  _slainBossNames() {
+    return Object.entries(this.storyFlags?.bossSlain || {})
+      .filter(([, count]) => Number(count) > 0)
+      .map(([name]) => name);
+  }
+
   /**
    * The retroactive pass: what this save's older records already prove (milestones, bosses
    * slain, won runs, deeds, the prologue). Idempotent. Quiet: the caller says how many.
@@ -1416,9 +1427,6 @@ export class MetaProgressionManager {
    * @returns {string[]} the ids newly earned
    */
   reconcileAchievements(totals = {}) {
-    const slain = Object.entries(this.storyFlags?.bossSlain || {})
-      .filter(([, count]) => Number(count) > 0)
-      .map(([name]) => name);
     const rungs = this.runRecords.map((record) => record?.difficulty).filter(Boolean);
     for (const [rung, milestone] of [
       ['dusk', 'beatDusk'],
@@ -1429,7 +1437,7 @@ export class MetaProgressionManager {
     return this.recordAchievementFacts(
       {
         totals,
-        known: { bosses: slain, rungs },
+        known: { rungs },
         retro: {
           firstBlood: this.milestones.has('beatAct1'),
           firstGate: this.milestones.has('beatAct1'),

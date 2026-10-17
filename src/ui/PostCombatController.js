@@ -220,7 +220,6 @@ export class PostCombatController {
       );
       // A lord recruited in this battle (a recruit node's Talk) has now joined.
       if (completionApplied) recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
-      if (completionApplied) recordVictory(scene, achievementFacts); // only once the win stands
       // What a burden took at this commit ("Debt −120 G", "Ill Omen +1") joins the band.
       if (completionApplied) {
         // Gambler's Toss comes first: the Debt garnishes what the toss left.
@@ -258,7 +257,10 @@ export class PostCombatController {
         if (!scene.runManager.pendingBossRecruit && scene.runManager.shouldTriggerThirdLord())
           prepareThirdLord(scene.runManager, scene.gameData);
       }
-      scene._persistBattleRunState?.(null, { session: session });
+      const victorySave = scene._persistBattleRunState?.(null, { session: session });
+      // Achievements only once the win is on disk: a refused save (Keep playing) or a crash
+      // before it would replay this battle with them already earned.
+      if (completionApplied && victorySave?.ok) recordVictory(scene, achievementFacts);
       afterVictoryBand(async () => {
         if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
         if (!completionApplied) {

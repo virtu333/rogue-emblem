@@ -300,7 +300,7 @@ import {
   runFormatMarker,
   sanitizeCapabilityIds,
 } from './RunFormat.js';
-import { recordVictoryFeats, sanitizeRunFeats } from './RunFeats.js';
+import { recordVictoryFeats, sanitizeRunFeats, startRunFeats } from './RunFeats.js';
 
 export { serializeUnit };
 
@@ -947,8 +947,7 @@ export class RunManager {
       applyBlessingsAtStart = true,
       difficultyId = this.difficultyId || 'normal',
       eclipseEnabled = true,
-      // How many runs this save has started (meta), for the shrine's gift (StartGifts.js): the
-      // sims and dev routes pass none, so they are never offered one.
+      // Runs this save has started (meta), for the shrine's gift (StartGifts.js; sims pass none).
       runsStarted = 0,
       // The barks and flavour bags the save carried out of earlier runs
       // (MetaProgressionManager.getNarrativeSeen), so pools keep walking across runs.
@@ -965,6 +964,7 @@ export class RunManager {
     this.eclipse = createEclipseState({ enabled: eclipseEnabled !== false });
     this.lastEclipseCommit = null;
     this.rite = null;
+    this.feats = startRunFeats(); // the achievements' counters, kept from the start (RunFeats.js)
     this.usedRecruitNames = {};
     this.lastDeployment = [];
     this.legendaryLordChance = legendaryLordChanceFor(this.metaEffects?.legendaryLordChanceBonus);

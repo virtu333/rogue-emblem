@@ -76,6 +76,9 @@ export function actOrderOf(actId) {
 // A rule whose facts are absent is simply not met.
 
 const won = (f) => f.runEnd?.victory === true;
+// A won run whose counters were kept from its start: a "never" (no shop, no fall, never over
+// par) can't be read from a run that was in progress when the counting began.
+const wonCounted = (f) => won(f) && f.runEnd.fromStart === true;
 const onRung = (f, rung) => f.runEnd?.difficulty === rung;
 const atLeast = (f, rung) =>
   typeof f.runEnd?.difficulty === 'string' && isDifficultyAtLeast(f.runEnd.difficulty, rung);
@@ -146,7 +149,7 @@ export const ACHIEVEMENT_RULES = Object.freeze({
   full_banner: (f) =>
     list(f.totals?.lords).length > 0 && n(f.run?.lordCount) >= list(f.totals.lords).length,
   lone_lord: (f) => battle(f)?.loneCommander === true && actOrderOf(battle(f).actId) >= 2,
-  nobody_left_behind: (f) => won(f) && atLeast(f, 'hard') && n(f.runEnd.allyFalls) === 0,
+  nobody_left_behind: (f) => wonCounted(f) && atLeast(f, 'hard') && n(f.runEnd.allyFalls) === 0,
   every_deed: (f, s) => setComplete(s, f, 'deeds'),
   seven_banners: (f, s) => setComplete(s, f, 'commanders'),
   // The Road
@@ -167,14 +170,17 @@ export const ACHIEVEMENT_RULES = Object.freeze({
   every_road_a_tale: (f, s) => setComplete(s, f, 'events'),
   armory_of_legends: (f, s) => setComplete(s, f, 'epics'),
   // The Challenge
-  self_reliant: (f) => won(f) && n(f.runEnd.shopBuys) === 0,
+  self_reliant: (f) => wonCounted(f) && n(f.runEnd.shopBuys) === 0,
   clear_sight: (f) => won(f) && atLeast(f, 'hard') && n(f.runEnd.visionUses) === 0,
   few_and_proud: (f) => won(f) && list(f.runEnd.blessingIds).includes('the_chosen_few'),
   on_schedule: (f) =>
-    won(f) && atLeast(f, 'hard') && n(f.runEnd.battlesWon) > 0 && n(f.runEnd.overPar) === 0,
+    wonCounted(f) && atLeast(f, 'hard') && n(f.runEnd.battlesWon) > 0 && n(f.runEnd.overPar) === 0,
   no_blessing: (f) => won(f) && onRung(f, 'lunatic') && f.runEnd.shrineSkipped === true,
   the_unbroken_thread: (f) =>
-    won(f) && onRung(f, 'lunatic') && n(f.runEnd.allyFalls) === 0 && n(f.runEnd.visionUses) === 0,
+    wonCounted(f) &&
+    onRung(f, 'lunatic') &&
+    n(f.runEnd.allyFalls) === 0 &&
+    n(f.runEnd.visionUses) === 0,
   // Secrets
   not_this_thread: (f) => f.prologueProtectedFall === true,
   third_time: (f) => n(battle(f)?.bossBeatenAfterLosses) >= 3,

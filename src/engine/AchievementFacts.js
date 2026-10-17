@@ -17,7 +17,7 @@ import { isEpicWeapon } from './EpicWeapons.js';
 import { findCommander } from './Commander.js';
 import { everFallenUnits } from './LaidToRest.js';
 import { isPrologueRun } from './ScriptedBattle.js';
-import { runFeat } from './RunFeats.js';
+import { runFeat, runFeatsFromStart } from './RunFeats.js';
 import { stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
 import { announceAchievements } from './AchievementStore.js';
 
@@ -136,6 +136,8 @@ export function runEndAchievementFacts(run, summary) {
     shopBuys: runFeat(run, 'shopBuys'),
     battlesWon: runFeat(run, 'battlesWon'),
     overPar: runFeat(run, 'overPar'),
+    // The zero counts above mean "never" only for a run counted from its start.
+    fromStart: runFeatsFromStart(run),
     blessingIds: unique(list(run.activeBlessings).map((b) => text(b?.id))),
     shrineSkipped: offered && list(telemetry.chosenIds).length === 0 && !run.startGift,
   };

@@ -1,6 +1,8 @@
 // RunFeats — the few run counters the achievements read that the run keeps nowhere else
 // (docs/specs/achievements.md). Saved as `run.feats` (an older client ignores it: RunFormat
-// 'inert'); a save from before it reads as all zero.
+// 'inert'); a save from before it reads as all zero. A run started on this build is stamped
+// `fromStart` (`startRunFeats`): only such a run's zero counts mean "never" (a run in progress
+// at the upgrade may have bought or gone over par before anything counted).
 //
 // Only out-of-battle commits write it (a shop purchase, a boss draft's pick, a contract paid,
 // an arena win) and the victory commit (`completeBattle`: the battle's falls and its par), so
@@ -33,7 +35,18 @@ export function sanitizeRunFeats(raw) {
   const out = emptyRunFeats();
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
   for (const key of RUN_FEAT_KEYS) out[key] = Math.min(MAX, whole(raw[key]));
+  if (raw.fromStart === true) out.fromStart = true;
   return out;
+}
+
+/** A new run's counters, stamped as counted from its start. */
+export function startRunFeats() {
+  return { ...emptyRunFeats(), fromStart: true };
+}
+
+/** Were this run's counters kept from its start (never a run in progress at the upgrade)? */
+export function runFeatsFromStart(run) {
+  return sanitizeRunFeats(run?.feats).fromStart === true;
 }
 
 /** Add `by` to one counter (the run's `feats` is created when missing). */

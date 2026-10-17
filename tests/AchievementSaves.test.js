@@ -48,7 +48,7 @@ import {
   runEndAchievementFacts,
 } from '../src/engine/AchievementFacts.js';
 import { isEarned } from '../src/engine/Achievements.js';
-import { recordVictoryFeats, runFeat } from '../src/engine/RunFeats.js';
+import { bumpRunFeat, recordVictoryFeats, runFeat } from '../src/engine/RunFeats.js';
 
 const data = loadGameData();
 const metaFor = (slot = 1) => new MetaProgressionManager(data.metaUpgrades, getMetaKey(slot));
@@ -189,8 +189,34 @@ describe('the retroactive pass', () => {
     const meta = metaFor();
     meta.recordBossSlain('The Entity');
     expect(meta.getBossSlainCount('The Entity')).toBe(1);
+    // As a build before the achievements left it: the ledger, and no achievements anywhere.
+    const older = disk();
+    delete older.achievements;
+    store[getMetaKey(1)] = JSON.stringify(older);
+    delete store[DEVICE_ACHIEVEMENTS_KEY];
     const ids = reconcileSlotAchievements(metaFor(), data);
     expect(ids).toContain('the_sleeper_falls');
+  });
+});
+
+describe('a boss however it fell', () => {
+  // A ballista bolt, poison or Deathburst fells a boss without a battle kill record; the
+  // bosses' ledger still names it, and the achievements read the ledger.
+  it('slaying the Entity earns The Sleeper Falls at once, with its card', () => {
+    const meta = metaFor();
+    meta.recordBossSlain('The Entity');
+    expect(isEarned(disk().achievements, 'the_sleeper_falls')).toBe(true);
+    expect(notices).toEqual([{ ids: ['the_sleeper_falls'], retro: false }]);
+    expect(meta.getBossSlainCount('The Entity')).toBe(1);
+  });
+
+  it("the ledger completes Kingslayer's Ledger at the next record", () => {
+    const meta = metaFor();
+    const totals = achievementTotals(data);
+    for (const name of totals.bosses) meta.recordBossSlain(name);
+    expect(isEarned(disk().achievements, 'kingslayers_ledger')).toBe(false); // no totals yet
+    meta.recordAchievementFacts({ totals });
+    expect(isEarned(disk().achievements, 'kingslayers_ledger')).toBe(true);
   });
 });
 
@@ -215,6 +241,24 @@ describe('a run', () => {
     delete raw.feats;
     store['emblem_rogue_slot_1_run'] = JSON.stringify(raw);
     expect(runFeat(loadRun(data, 1), 'battlesWon')).toBe(0);
+  });
+
+  it('a run started on this build counts from its start; one saved before never does', () => {
+    const rm = startedRun();
+    expect(runEndAchievementFacts(rm, { result: 'victory' }).fromStart).toBe(true);
+    expect(saveRun(rm, null, 1).ok).toBe(true);
+    expect(runEndAchievementFacts(loadRun(data, 1), { result: 'victory' }).fromStart).toBe(true);
+    const raw = JSON.parse(store['emblem_rogue_slot_1_run']);
+    delete raw.feats;
+    store['emblem_rogue_slot_1_run'] = JSON.stringify(raw);
+    const old = loadRun(data, 1);
+    old.status = 'victory';
+    // A purchase after the upgrade creates the counters; they still did not count from the start.
+    bumpRunFeat(old, 'shopBuys', 0);
+    expect(runEndAchievementFacts(old, { result: 'victory' }).fromStart).toBe(false);
+    old.settleEndRunRewards(metaFor(), 'victory');
+    expect(isEarned(disk().achievements, 'self_reliant')).toBe(false);
+    expect(isEarned(disk().achievements, 'first_light')).toBe(true);
   });
 
   it('the route map reads it: nothing while a battle is open', () => {
@@ -248,7 +292,7 @@ describe('a run', () => {
     expect(facts.victory).toBe(false);
     const bought = startedRun();
     bought.runRecordId = 'other-run';
-    bought.feats = { shopBuys: 1 };
+    bought.feats = { shopBuys: 1, fromStart: true };
     bought.settleEndRunRewards(metaFor(), 'victory');
     expect(isEarned(disk().achievements, 'self_reliant')).toBe(false);
     expect(isEarned(disk().achievements, 'first_light')).toBe(true);
