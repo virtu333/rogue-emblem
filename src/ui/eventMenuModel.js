@@ -15,6 +15,7 @@ import { describeContract, describeOwedContract } from '../engine/Contracts.js';
 import { describeResult, num, plural, sentence, wornText } from '../engine/EventResultWords.js';
 import { choicePreviewText } from '../engine/EventChoicePreview.js';
 import { riteBurdenEntry } from './riteModel.js';
+import { omensPauseEntry } from './omensModel.js';
 import { echoEffectLines, runEcho } from '../engine/NgPlusEcho.js';
 
 // The words of a result record live in the engine (EventResultWords), shared with the
@@ -328,9 +329,11 @@ export function pauseBurdenEntries(run, catalog = null, riteOpts = undefined) {
         text: `${capitalize(echoEffectLines(echo, run.gameData).join(', ') || 'no change to enemies yet')}. Each ride your veterans and lords have had adds 1.`,
       }
     : null;
+  const omensEntry = omensPauseEntry(run);
   return [
     ...(rite ? [rite] : []),
     ...(echoEntry ? [echoEntry] : []),
+    ...(omensEntry ? [omensEntry] : []),
     ...burdens,
     ...(contract
       ? [{ id: 'contract', label: contract.label, short: contract.short, text: contract.terms }]

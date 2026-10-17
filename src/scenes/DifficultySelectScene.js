@@ -13,6 +13,14 @@ import { transitionToScene, TRANSITION_REASONS } from '../utils/SceneRouter.js';
 import { hasAnySlotMilestone } from '../engine/SlotManager.js';
 import { InputAction } from '../utils/InputActions.js';
 import { isNgPlusRung } from '../engine/NgPlusState.js';
+import {
+  OMENS_UNLOCK_MILESTONE,
+  bestHeatOn,
+  heatOf,
+  omensAllowedOn,
+  sanitizeOmenRanks,
+} from '../engine/Omens.js';
+import { readOmenChoice, writeOmenChoice } from '../utils/omenChoice.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 
 export class DifficultySelectScene extends Phaser.Scene {
@@ -26,6 +34,11 @@ export class DifficultySelectScene extends Phaser.Scene {
     this._noMetaUpgrades = data.noMetaUpgrades === true;
     // NG+ (docs/specs/ng-plus.md): on by default where it can be played.
     this._ngPlus = data.ngPlusRun !== false;
+    // Omens (engine/Omens.js): the choice coming back from the shrine, else the slot's last.
+    this._omens =
+      data.omensChoice && typeof data.omensChoice === 'object'
+        ? data.omensChoice
+        : readOmenChoice(this.registry);
   }
 
   create() {
@@ -173,6 +186,35 @@ export class DifficultySelectScene extends Phaser.Scene {
     this._draw();
   }
 
+  /** True when the chosen rung allows Omens and this save has opened them. */
+  _omensAvailable() {
+    const mode = this.modes?.[this.selectedIndex];
+    return Boolean(
+      mode &&
+      !mode.locked &&
+      omensAllowedOn(this.gameData, mode.id) &&
+      this.meta?.hasMilestone?.(OMENS_UNLOCK_MILESTONE),
+    );
+  }
+
+  /** The chosen Omens, cleaned against the data (works whether or not they apply here). */
+  _omenRanks() {
+    return sanitizeOmenRanks(this._omens, this.gameData);
+  }
+
+  _omensHeat() {
+    return heatOf(this._omenRanks(), this.gameData);
+  }
+
+  _omensBest() {
+    return bestHeatOn(this.meta?.getMilestones?.(), this.modes?.[this.selectedIndex]?.id);
+  }
+
+  _setOmens(ranks) {
+    this._omens = sanitizeOmenRanks(ranks, this.gameData);
+    writeOmenChoice(this.registry, this._omens);
+  }
+
   _confirm() {
     const mode = this.modes[this.selectedIndex];
     if (!mode || mode.locked) {
@@ -184,6 +226,7 @@ export class DifficultySelectScene extends Phaser.Scene {
     this.isTransitioning = true;
     const audio = this.registry.get('audio');
     if (audio) audio.playSFX('sfx_confirm');
+    const omens = this._omensAvailable() ? this._omenRanks() : {};
     transitionToScene(
       this,
       'BlessingSelect',
@@ -193,6 +236,8 @@ export class DifficultySelectScene extends Phaser.Scene {
         noMetaUpgrades: this._noMetaUpgrades || false,
         ngPlusRun: this._ngPlusAvailable() && this._ngPlus,
         ngPlusPreference: this._ngPlus,
+        omens: Object.keys(omens).length ? omens : null,
+        omensChoice: this._omenRanks(),
       },
       { reason: TRANSITION_REASONS.BEGIN_RUN, retryBlocked: hasDOMHost() },
     ).then((ok) => {

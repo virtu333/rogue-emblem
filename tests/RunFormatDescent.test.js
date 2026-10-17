@@ -85,7 +85,7 @@ describe('the Descent’s capabilities', () => {
     // (NgPlus.test.js).
     expect(CAPABILITY_IDS.slice(7, 11)).toEqual(DESCENT_IDS);
     for (const id of DESCENT_IDS) expect(RUN_CAPABILITIES[id]).toBe(2);
-    expect([...CLIENT_CAPABILITIES]).toEqual([...DESCENT_IDS, 'entityKit', 'ngPlus']);
+    expect([...CLIENT_CAPABILITIES]).toEqual([...DESCENT_IDS, 'entityKit', 'ngPlus', 'omens']);
     // Not the large-maps model: a written objectives model beyond `defeat` is still refused.
     expect(CLIENT_CAPABILITIES).not.toContain('objectives');
   });
