@@ -197,6 +197,14 @@ function cleanRecord(record) {
     ...(Number.isInteger(record.heat) && record.heat > 0
       ? { heat: Math.min(record.heat, 999) }
       : {}),
+    ...(isObject(record.grade) && ['S', 'A', 'B', 'C', 'D'].includes(record.grade.letter)
+      ? {
+          grade: {
+            letter: record.grade.letter,
+            score: Math.max(0, Math.min(100, Math.trunc(record.grade.score) || 0)),
+          },
+        }
+      : {}),
     roster: validUnits(record.roster, MAX_RECORD_UNITS).map((u) => cleanSurvivor(u, v2)),
     ...(v2 ? { fallen: validUnits(record.fallen, MAX_RECORD_FALLEN).map(cleanFallen) } : {}),
   };

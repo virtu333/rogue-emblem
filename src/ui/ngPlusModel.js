@@ -123,6 +123,7 @@ export function rideView(state, draft) {
         ref: c.ref,
         name: c.name,
         line: `${c.className} · Lv ${c.level}${record && !isSent ? ' · In the Barracks' : ''}`,
+        echoText: isSent ? '' : rideEchoText(record),
         picked: isPicked,
         sent: isSent,
         // A full kind's survivor can still be opened to read their loadout; only one sent from
@@ -144,6 +145,16 @@ export function rideView(state, draft) {
       : '',
     blockText: block ? ngPlusBlockText(block) : '',
   };
+}
+
+/**
+ * What riding again does to a survivor's Echo: every ride adds 1, so a record already in the
+ * Barracks goes from its Echo to its rides + 1, and a newcomer from 0 to 1.
+ */
+export function rideEchoText(record) {
+  const from = record ? recordEcho(record) : 0;
+  const to = (Number(record?.rides) || 0) + 1;
+  return `Riding again: Echo ${from} → ${to}`;
 }
 
 /**

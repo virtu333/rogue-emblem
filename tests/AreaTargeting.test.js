@@ -12,6 +12,7 @@
 // Numbers worked by hand: Sage MAG 22 with Breachbolt (8 might) on RES 6 is 24, × 0.8 =
 // 19 a blow. Stormcall costs 8 HP. Breachbolt reaches 3-10 tiles and has 3 shots a
 // battle for a player unit.
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
 import { journeyBattleScene } from './harness/JourneyBattleScene.js';
@@ -31,6 +32,9 @@ import { markFoesShown } from '../src/engine/BattleInformation.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
+const weaponUsesData = JSON.parse(
+  readFileSync(new URL('../data/weaponUses.json', import.meta.url), 'utf8'),
+);
 const stormcall = data.weaponArts.arts.find((a) => a.id === 'legend_stormcall');
 const breachbolt = () => structuredClone(data.weapons.find((w) => w.name === 'Breachbolt'));
 const originalRandom = Math.random;
@@ -192,12 +196,16 @@ describe('a Breachbolt out of shots', () => {
     expect(canUseWeaponArt(enemy, enemy.weapon, tomeArt, ctx).ok).toBe(true);
     enemy.weapon._usesSpent = 5;
     expect(canUseWeaponArt(enemy, enemy.weapon, tomeArt, ctx).reason).toBe('no_shots');
-    // A weapon without per-battle shots ignores a stray _usesSpent.
+    // Any other weapon in a player's hands has its tier's uses (durability,
+    // data/weaponUses.json): the art is open while one is left and closed once spent.
     const blade = structuredClone(data.weapons.find((w) => w.name === 'Oathblade'));
-    blade._usesSpent = 99;
+    const bladeUses = weaponUsesData.byTier[blade.tier];
     const rush = data.weaponArts.arts.find((a) => a.id === 'legend_phantom_rush');
     const swordsman = sage(0, 5, { proficiencies: [{ type: 'Sword', rank: 'Mast' }] });
+    blade._usesSpent = bladeUses - 1;
     expect(canUseWeaponArt(swordsman, blade, rush, ctx).ok).toBe(true);
+    blade._usesSpent = bladeUses;
+    expect(canUseWeaponArt(swordsman, blade, rush, ctx).reason).toBe('no_shots');
   });
 });
 

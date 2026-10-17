@@ -338,7 +338,8 @@ test.describe('Weapon selection smoke', () => {
           return battle.playerUnits.find((u) => !u.hasMoved)?.weapon?.name || null;
         }),
       )
-      .toBe(release.label.replace(/\*$/, ''));
+      // The row reads "<name>[*] <uses left>/<uses>" (weapon art marker, durability count).
+      .toBe(release.label.replace(/ \d+\/\d+$/, '').replace(/\*$/, ''));
   });
 
   test('Attack real click enters target selection without picking a target on release', async ({

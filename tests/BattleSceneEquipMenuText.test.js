@@ -293,6 +293,34 @@ describe('BattleScene equip menu text', () => {
     expect(labels.find((label) => label.includes('Steel Sword'))).not.toContain('*');
   });
 
+  it("a player unit's weapons show their uses left this battle; a foe's say nothing", () => {
+    // Durability (engine/WeaponUses.js, data/weaponUses.json): Iron 20, Steel 15.
+    const scene = makeBaseScene();
+    const rects = [];
+    scene.add.rectangle = (_x, _y, w) => {
+      rects.push(w);
+      return makeDisplayObject();
+    };
+    scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));
+    const iron = { ...equipped, tier: 'Iron', _usesSpent: 8 };
+    const steel = { ...secondary, tier: 'Steel' };
+    const unit = { col: 1, row: 1, faction: 'player', weapon: iron, inventory: [iron, steel] };
+    BattleScene.prototype.showEquipMenu.call(scene, unit);
+    const labels = scene._makeMenuTextButton.mock.calls.map((call) => call[2]);
+    expect(labels).toContain('E Iron Sword 12/20');
+    expect(labels).toContain('  Steel Sword 15/15');
+    // A long name with its count still fits: the menu widens past its 155 px default.
+    scene._makeMenuTextButton.mockClear();
+    rects.length = 0;
+    const long = { ...iron, name: 'Holder of the Breach +2' };
+    BattleScene.prototype.showEquipMenu.call(scene, { ...unit, weapon: long, inventory: [long] });
+    const longLabel = scene._makeMenuTextButton.mock.calls[0][2];
+    expect(Math.max(...rects)).toBeGreaterThanOrEqual(longLabel.length * 5.6);
+    scene._makeMenuTextButton.mockClear();
+    BattleScene.prototype.showEquipMenu.call(scene, { ...unit, faction: 'enemy' });
+    expect(scene._makeMenuTextButton.mock.calls.map((call) => call[2])).toContain('E Iron Sword');
+  });
+
   it('shows Equip in action menu with one equippable and one non-proficient weapon', () => {
     const scene = makeBaseScene();
     scene._makeMenuTextButton = vi.fn((_x, _y, label) => makeDisplayObject({ label }));

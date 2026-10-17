@@ -15,7 +15,7 @@ import {
   reviveStarterWeapon,
   withIndefiniteArticle,
 } from '../engine/UnitManager.js';
-import { getReviveCost } from '../engine/RunManager.js';
+import { REVIVE_DISCOUNT_LINE, reviveCostFor } from '../engine/RevivePricing.js';
 import {
   churchPromoteCost,
   churchPromotionBlock,
@@ -235,17 +235,23 @@ export class ChurchMenu {
         ),
       );
     }
+    if (run.fallenUnits.some((u) => reviveCostFor(run, u).discounted))
+      body.append(el('p', REVIVE_DISCOUNT_LINE, 'church-revive-rule'));
     for (const unit of run.fallenUnits) {
       const reason = reviveBlock(unit);
       const catchUp = revivalCatchUpPlan(unit, run.roster);
-      const b = button(`${unit.name} · ${unit.className} · Revive ${getReviveCost(unit)} G`, () =>
+      const cost = reviveCostFor(run, unit);
+      const priceText = cost.discounted
+        ? `${cost.price} gold (full price ${cost.full})`
+        : `${cost.price} gold`;
+      const b = button(`${unit.name} · ${unit.className} · Revive ${cost.price} G`, () =>
         this.choose({
           title: `Revive ${unit.name}?`,
           choices: [unit],
           confirmation: true,
           label: (u) => u.name,
           describe: () =>
-            `${ruins ? ruinsInjuryLine(run, unit) : ''}${getReviveCost(unit)} gold. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels, to ${REVIVAL_LEVELS_BEHIND} below the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'}${starterLine(unit, this.scene.gameData)} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
+            `${ruins ? ruinsInjuryLine(run, unit) : ''}${priceText}. Returns at level ${catchUp.targetLevel} with 1 HP.${catchUp.levels ? ` Gains ${catchUp.levels} missed levels, to ${REVIVAL_LEVELS_BEHIND} below the living roster average (promotion-adjusted, capped in this class). Each catch-up growth is reduced by 10 percentage points, minimum 0%; future growths are unchanged.` : ' No catch-up levels needed.'}${starterLine(unit, this.scene.gameData)} Use Heal all, then Roster to re-equip. ${unit._fallenItemsNotice || 'Transferred gear stays in the convoy.'}`,
           blocked: (u) => reviveBlock(u),
           apply: (u) => {
             const result = ruins ? reviveAtRuins(run, nodeId, u) : reviveAtChurch(run, u, nodeId);

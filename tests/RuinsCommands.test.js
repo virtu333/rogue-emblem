@@ -74,6 +74,7 @@ describe('Ruins choice', () => {
     const fallen = addFallen(3);
     // 500 base + 3 levels × 300, unpromoted.
     const cost = 1400;
+    run.reviveDiscountAct = run.currentAct; // full price: the act's discount is spent
     chooseRuinsPath(run, ruinsId, 'rest');
     expect(ruinsReviveBlock(run, ruinsId, fallen)).toBe('');
     const gold = run.gold;

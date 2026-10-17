@@ -220,6 +220,25 @@ describe('kept forges sleep and wake', () => {
     );
   });
 
+  it('a kept weapon left with a fallen ally (convoy full) still wakes', () => {
+    // Failure: only the living army's bags and the convoy wake, so a weapon a full convoy
+    // left with a fallen veteran stays asleep after a revival.
+    const rm = ngPlusRun(lordState({ items: [forgedSword()] }));
+    const edric = edricOf(rm);
+    const sword = edric.inventory.find((i) => i.uid === 'itm_kept_sword');
+    edric.inventory = edric.inventory.filter((i) => i !== sword);
+    if (edric.weapon === sword) edric.weapon = null;
+    const sera = rm.roster.find((u) => u.name === 'Sera');
+    rm.roster = rm.roster.filter((u) => u !== sera);
+    sera.inventory = [...(sera.inventory || []), sword];
+    rm.fallenUnits.push(sera);
+    rm.advanceAct();
+    const fallen = rm.fallenUnits.find((u) => u.name === 'Sera');
+    expect(read(fallen.inventory.find((i) => i.uid === 'itm_kept_sword'))).toEqual(
+      expectedAt(data.difficulty.ngPlus.keptForgeAwake.act2),
+    );
+  });
+
   it('the Barracks always stores a kept weapon awake', () => {
     // Failure: a run ended before the last act writes the sleeping forges off the record.
     const rm = ngPlusRun(lordState({ items: [forgedSword()] }));

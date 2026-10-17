@@ -64,6 +64,7 @@ import { relocatePrompt } from '../engine/StaffRelocation.js';
 import { pc98PortraitElement, portraitFaction, portraitIdForUnit, usePc98 } from './portraitArt.js';
 import { equippedBadgeElement, EQUIPPED_MARKER } from './equippedBadge.js';
 import { itemIcon } from './itemIcons.js';
+import { plannedWeaponUsesNote, weaponUsesShort } from '../engine/ItemKeywords.js';
 
 // A horizontal swipe this long (and clearly more horizontal than vertical)
 // across the forecast switches weapons; shorter drags stay taps/scrolls.
@@ -147,6 +148,22 @@ function el(tag, className, text) {
  * "×3" after a stoned boss's HP line: the health bars it has left (engine/RevivalStones.js).
  * Nothing for a unit with one bar left or none to begin with.
  */
+/** " (12/20)": the equipped weapon's uses left this battle, when it has a count. */
+function usesSuffix(unit) {
+  const short = weaponUsesShort(unit?.weapon, unit);
+  return short ? ` (${short})` : '';
+}
+
+/**
+ * "12/20 uses" beside the forecast's weapon name (durability, engine/WeaponUses.js), in
+ * place of the notes' line so an upright phone keeps both sides in view; null when the
+ * weapon has no count.
+ */
+function forecastUsesTag(weapon, unit) {
+  const short = weaponUsesShort(weapon, unit);
+  return short ? el('span', 'mb-weapon-uses', `${short} uses`) : null;
+}
+
 function appendHealthBarsBadge(line, unit) {
   const badge = healthBarsBadge(unit);
   if (badge) line.append(' ', el('span', 'mb-hp-bars', badge));
@@ -751,12 +768,16 @@ export class MobileBattleHUD {
       const label = el('div', 'mb-weapon', weapon?.name || 'Unarmed');
       if (attacking && weapon && weapon === config.equippedWeapon)
         label.append(equippedBadgeElement());
+      const uses = attacking && forecastUsesTag(weapon, config.attacker);
+      if (uses) label.append(uses);
       side.append(label);
     }
+    const usesNote = attacking && plannedWeaponUsesNote(weapon, config.attacker);
     for (const note of forecastNotes(config.forecast, attacking, afterCost, {
       planned: weapon,
       equipped: config.equippedWeapon,
-    }).filter((n) => !n.startsWith('If all hits land:')))
+      unit: config.attacker,
+    }).filter((n) => !n.startsWith('If all hits land:') && n !== usesNote))
       side.append(el('p', 'mb-notice', note));
     if (
       weapon &&
@@ -851,6 +872,8 @@ export class MobileBattleHUD {
       const list = config.validWeapons;
       current.append(el('span', 'mb-step-name', weapon?.name || 'Unarmed'));
       if (weapon && weapon === config.equippedWeapon) current.append(equippedBadgeElement());
+      const uses = forecastUsesTag(weapon, config.attacker);
+      if (uses) current.append(uses);
       current.append(
         el('span', 'mb-step-count', `${Math.max(1, list.indexOf(weapon) + 1)}/${list.length}`),
       );
@@ -1008,6 +1031,7 @@ export class MobileBattleHUD {
       unit?.col,
       unit?.row,
       unit?.weapon?.name,
+      unit?.weapon?._usesSpent,
       unit?._conditions,
       statusStaffInfo(unit)?.text,
       carriedItemInfo(unit)?.text,
@@ -1106,7 +1130,11 @@ export class MobileBattleHUD {
     if (unit) {
       this.summary.append(el('h2', '', unit.name));
       this.summary.append(
-        el('div', 'mb-detail', `${unit.className} · ${unit.weapon?.name || 'Unarmed'}`),
+        el(
+          'div',
+          'mb-detail',
+          `${unit.className} · ${unit.weapon?.name || 'Unarmed'}${usesSuffix(unit)}`,
+        ),
       );
       const hpLine = el('span', 'mb-hp', `${unit.currentHP}/${unit.stats.HP} HP`);
       appendHealthBarsBadge(hpLine, unit);

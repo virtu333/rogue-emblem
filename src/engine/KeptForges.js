@@ -134,10 +134,14 @@ export function carriedCopy(item, carry = DEFAULT_KEPT_FORGE_CARRY, { kept = fal
   return copy;
 }
 
-/** Every weapon the army holds that may carry dormant forges: bags and the convoy. */
+/**
+ * Every weapon the army holds that may carry dormant forges: bags, the convoy, and a fallen
+ * unit's bag (what a full convoy left with it until a revival).
+ */
 function armyWeapons(run) {
   const out = [];
-  for (const unit of run?.roster || []) for (const item of unit?.inventory || []) out.push(item);
+  for (const unit of [...(run?.roster || []), ...(run?.fallenUnits || [])])
+    for (const item of unit?.inventory || []) out.push(item);
   for (const item of run?.convoy?.weapons || []) out.push(item);
   return out.filter(isWeaponLike);
 }

@@ -19,6 +19,7 @@ import { equipWeapon } from '../../src/engine/UnitManager.js';
 import { healUnit, healUnitFully } from '../../src/engine/UnitHealth.js';
 import { serializeUnit } from '../../src/engine/RunManager.js';
 import * as P2 from './prologueP2Policies.js';
+import { refillBattleUses } from '../../src/engine/WeaponUses.js';
 
 export const data = loadGameData();
 export const prologue = data.prologue;
@@ -481,8 +482,7 @@ export async function p2EndStates({ policy = 'naive', floor = false, seeds = 100
       const units = ['Edric', 'Gaspar'].map((name) =>
         structuredClone(serializeUnit(battle.playerUnits.find((u) => u.name === name))),
       );
-      for (const u of units)
-        for (const w of u.inventory || []) if (w.perBattleUses) w._usesSpent = 0;
+      for (const u of units) for (const w of u.inventory || []) refillBattleUses(w);
       out.push(units);
     }
     restoreMathRandom();

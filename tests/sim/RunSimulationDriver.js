@@ -1,6 +1,7 @@
 // RunSimulationDriver.js - Full run simulation driver (node traversal + battles + economy).
 
-import { RunManager, getReviveCost } from '../../src/engine/RunManager.js';
+import { RunManager } from '../../src/engine/RunManager.js';
+import { reviveCostFor, spendReviveDiscount } from '../../src/engine/RevivePricing.js';
 import { generateShopInventory } from '../../src/engine/LootSystem.js';
 import { ownedLegendaryNames } from '../../src/engine/LegendaryOwnership.js';
 import {
@@ -76,7 +77,7 @@ export class RunSimulationDriver {
       metaEffects: null, // e.g. { startingLords: { commander, partner } }
       maxNodes: 300,
       maxBattleActions: 2600,
-      // reviveCost removed — now computed per-unit via getReviveCost()
+      // reviveCost removed — now computed per-unit via reviveCostFor()
       invincibility: false,
       // Events (docs/specs/event-nodes.md §11): by default the first available choice that
       // does not start a battle; `eventPolicy: 'fight'` takes a choice that may. Neither takes
@@ -481,11 +482,13 @@ export class RunSimulationDriver {
     if (plan.revive && this.runManager.fallenUnits.length > 0) {
       const fallenWithCost = this.runManager.fallenUnits.map((unit) => ({
         unit,
-        cost: getReviveCost(unit),
+        cost: reviveCostFor(this.runManager, unit).price,
+        discounted: reviveCostFor(this.runManager, unit).discounted,
       }));
       const affordable = fallenWithCost.filter((entry) => entry.cost <= this.runManager.gold);
       const pick = affordable.sort((a, b) => a.cost - b.cost)[0] || null;
       if (pick && this.runManager.reviveFallenUnit(pick.unit.name, pick.cost)) {
+        if (pick.discounted) spendReviveDiscount(this.runManager);
         revived = pick.unit.name;
         this.metrics.churchGoldSpent += pick.cost;
       }

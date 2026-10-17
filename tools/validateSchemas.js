@@ -16,6 +16,7 @@ import { validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
 import { validateNgPlusConfig } from '../src/engine/NgPlusEcho.js';
 import { validateOmensConfig } from '../src/engine/Omens.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
+import { validateWeaponUsesConfig } from '../src/engine/WeaponUses.js';
 
 const DATA_DIR = path.resolve('data');
 const SCHEMA_DIR = path.resolve('schemas');
@@ -220,6 +221,18 @@ if (descentResult.valid) {
   for (const err of descentResult.errors) {
     console.error(`      ${err}`);
   }
+  failed = true;
+}
+
+// Weapon durability: uses per battle by tier (engine/WeaponUses.js), every weapon tier listed
+const weaponUsesErrors = validateWeaponUsesConfig(readData('weaponUses.json'), {
+  weapons: readData('weapons.json'),
+});
+if (weaponUsesErrors.length === 0) {
+  console.log('  OK  weaponUses.json (engine validator)');
+} else {
+  console.error('FAIL  weaponUses.json (engine validator)');
+  for (const err of weaponUsesErrors) console.error(`      ${err}`);
   failed = true;
 }
 

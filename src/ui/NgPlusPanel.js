@@ -79,6 +79,7 @@ export class NgPlusPanel {
             `${c.name}${c.sent ? ' · Sent to the Barracks' : c.picked ? ' · Rides again' : ''}`,
           ),
           node('span', '', c.line),
+          ...(c.echoText ? [node('span', 'ng-echo', c.echoText)] : []),
         );
         list.append(b);
       }

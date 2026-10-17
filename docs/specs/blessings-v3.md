@@ -266,7 +266,7 @@ a trap.
 | Iron Oath | II, lords +2 DEF | retier | III: Debt III / Ill Omen + garnish. |
 | Rally Cry | II, +3 STR/MAG Act 1 | reprice | II with light prices only (staff healing −20% / +8 shadow). |
 | War Veteran | II, +15% XP | retier | III: Debt III / −1 deploy Act 1 / shops +15%. |
-| Frugal Smith | II, forge −30%, +1 forge | rework | **Smith's Mark** (II): each shop's first forge is free, +1 forge per shop. **Built.** |
+| Frugal Smith | II, forge −30%, +1 forge | rework | **Smith's Mark** (II): each shop's first forge is up to 1,000 gold off (was free until 2026-10-17), +1 forge per shop. **Built.** |
 | Terrain Mastery | II, Forest/Fort bonus | rework | **Hold the Line** (II): a unit that hasn't moved this turn gets +2 DEF and +10 avoid. A playstyle, not a terrain lottery. **Built**, renamed (see as built). |
 | Quartermaster Cache | II, 1 Elixir per lord | rework | II: an Elixir in the convoy at the start of every act, Act 1 included (four over a Dusk run). Prices: staff healing −20% / shops +15%. **Built.** |
 | Scout Blessing | III, deploy +1 | retier | II: deploy +1; prices Debt II / Hunted 2. |
@@ -275,7 +275,7 @@ a trap.
 | Merchant Bane | III, +15% battle gold | keep, rename lore | III: Hunted 2 / Sworn Enemy (no gold price). |
 | Nomad's Pact | III, recruits +2 levels | widen | III: also boss recruits and mercenaries. Debt III / Sworn Enemy / Lingering Injury on the commander. **Built.** |
 | Focused Curriculum | III, lords +12 SPD/SKL growth | keep the effect | III with a real III price (Debt III / all growths −5 / Lingering Injury on the commander), never garnish. Review: stronger numbers would need a much bigger price. |
-| Arsenal Pact | IV, a Silver weapon | keep | IV, pact: Debt IV. |
+| Arsenal Pact | IV, a Silver weapon | reprice | III, price: Debt 2,500 on Dusk (`debt_medium`, 3 points, scaled by rung). Moved from IV with a 5,000 pact (Oct 2026 balance pass): the pact was dearer than Blood Forge for less. **Built.** |
 | Forbidden Tome | IV, lords +12 growths | reprice | IV, pact: no church revives this run (the pact it has is near-free). |
 | Blood Forge | IV, +2 Might on every non-staff weapon the two starting lords carry at the start (Edric's Iron and Steel Swords, Sera's tome) | rework | II: +2 Might on each starting lord's best weapon (highest Might), so it isn't spent on an Iron Sword that will be replaced. Later weapons are untouched. **Built.** |
 | War Tutelage | IV, a skill per lord | keep | IV, pact: personal skills off until Act 3 (the new skills crowd out the old). |
@@ -301,9 +301,11 @@ load; a renamed one keeps its id and changes only `name`.
   Quartermaster Cache delivers through the same list (Act 1 now; a church take pays the
   current act now). The history record for Advance Pay's boon carries `recurringValue`
   (nothing is paid when it is taken).
-- **Smith's Mark's free forge includes a repair.** A shop's first forge *use* (a forge or a
-  Village repair) costs nothing; it never raises resale value (`applyForge` `{ free: true }`);
-  Blood Forge's shrine forges use the same option. The engine decides `free`, never the UI.
+- **Smith's Mark's first-forge credit includes a repair.** A shop's first forge *use* (a forge
+  or a Village repair) costs up to `SHOP_FORGE_CREDIT` (1,000) gold less, the rest paid
+  (2026-10-17; it was free, worth up to a Legend weapon's 7,000 on a deep Might step). Only the
+  gold paid raises resale value (`applyForge` / `repairWeapon` `{ credit }`); Blood Forge's
+  shrine forges stay free (`{ free: true }`). The engine decides the credit, never the UI.
 - **Pilgrim's Road converts an event or church** (`ExtraShopPass`, keyed stream). The final
   boss act has only two battle rows, the Ruins and the boss, so it has no event or church to
   convert and gains no extra shop; every other act does. Pacing preferences keep the new shop
@@ -562,7 +564,7 @@ under their own heading.
 | Tithe Box | 200 gold each time you enter a church | special church |
 | Saint's Reliquary | staves heal 5 more HP and reach 1 tile further | special church |
 | Mercenary Ledger | Colosseum fees halved, +1 bout per visit | your first win in a Gold-tier bout (Act II on) |
-| Smith's Covenant | each shop's first forge is free; forged weapons never take wear | Wandering Smith event |
+| Smith's Covenant | each shop's first forge is up to 1,000 gold off; forged weapons never take wear | Wandering Smith event |
 | Thief's Lantern | carriers show on the route map preview; Steal skips its speed check | the Collectors event |
 | Lantern of the Road | fog maps open revealed within 4 tiles of each ally | eclipsed elite |
 | Crest of the Road | every recruit rolls a Mark | event |
@@ -946,7 +948,7 @@ on the event-safe list), like D1's.
 |---|---|---|---|
 | Saint's Reliquary | Old Sanctum | `staff_heal_range_bonus { heal: 5, range: 1 }` | `StaffBlessings.staffRunOptions(run, unit)` (a player unit's only): `healBonus` is added to the staff's output before the heal multiplier (Combat.calculateStaffHealOutput), `rangeBonus` to its longest reach (getEffectiveStaffRange), a Warp's radius and a Rescue's pull included; uses unchanged |
 | Mercenary Ledger | Colosseum | `arena_terms { feeMultiplier: 0.5, visitBouts: 1 }` | `ColosseumEngine.arenaEntryFee(tier, run)` (the fee the tiers and the forecast show, the bout pays, a win or a draw hands back and a loss forfeits) and `arenaVisitCap` (read live: a Ledger taken mid-visit opens its bout at once) |
-| Smith's Covenant | event: the Wandering Smith's `covenant` | `shop_first_forge_free { value: 1 }` + `weapons_never_wear { value: 1 }` | Smith's Mark's free forge (two cards, two free forges); `EventEffects.planWear` is empty, so a `wear`'s fallback stands in (the botched temper: "the sparks find the hand") |
+| Smith's Covenant | event: the Wandering Smith's `covenant` | `shop_first_forge_free { value: 1 }` + `weapons_never_wear { value: 1 }` | Smith's Mark's first-forge credit (two cards, two credited forges); `EventEffects.planWear` is empty, so a `wear`'s fallback stands in (the botched temper: "the sparks find the hand") |
 | Thief's Lantern | event: the Collectors' `fight` spoils | `route_scout { level: 'carriers' }` + `carrier_luck { stealIgnoresSpeed: true }` | the route preview lists the foes that carry items; a player thief's Steal skips its speed check (Cutpurse's Luck's waiver, `stealRunOptions`; never a foe's) |
 | Seer's Eye | eclipsed elite | `route_scout { level: 'foes' }` + `foes_shown { value: 1 }` | the route preview lists every foe with its affixes and what it carries; fog never hides a foe on its maps |
 
@@ -1062,7 +1064,7 @@ Darkened Dawn and Blood Covenant are drawn at weight 1 beside them. Two escape t
 
 | Card | Boon | Cost |
 | --- | --- | --- |
-| Standard of the Sun (Act I boss) | +10 Hit and Avoid within 2 of the commander | Foes go for the commander first |
+| Standard of the Sun (Act I boss) | +10 Hit and Avoid within 2 of the commander | Half the foes go for the commander first |
 | Oathbound Steel | Attacking with the triangle's advantage, never countered | At a triangle disadvantage you can't counter; no weapon changes in battle |
 | Siegebreaker | Bows and tomes (dark and light) reach 1 tile further | Swords, lances and axes -2 Might |
 | Smith's Exile | Every weapon found or bought arrives forged +1 Might (free: price and sale value stay the catalog's) | No forging anywhere (repair stays open); excludes Smith's Mark and Smith's Covenant |
@@ -1071,9 +1073,14 @@ The first Standard of the Sun is retired as "(old)" at weight 0; `standard_of_th
 it. How each is wired:
 
 - **Foes go for the commander** (`foes_target_commander`): `battleParams.foesTargetCommander` ->
-  `AIController`'s `commanderPriority`: an attack on the living commander scores
-  `COMMANDER_PRIORITY_SCORE` (100) more, so a foe that can strike it does; with no one in reach a
-  foe closes on it (`_findPriorityTarget`). A `target_lowest_hp` override still wins.
+  `AIController`'s `commanderPriority`: each foe, each enemy phase, goes for the commander with
+  `COMMANDER_PRIORITY_CHANCE` (1 in 2; 2026-10-17, it was every foe), rolled by
+  `commanderPriorityRoll` on a keyed draw of the battle seed, the turn and the foe's battle id
+  (`commanderPrioritySeed`: the scene's and the harness's reinforcement seed), never
+  `Math.random`, so a resume or a rewind replays the same foes. For a foe that does, an attack on
+  the living commander scores `COMMANDER_PRIORITY_SCORE` (100) more, so it strikes the commander
+  if it can; with no one in reach it closes on the commander (`_findPriorityTarget`). A
+  `target_lowest_hp` override still wins.
 - **The triangle's counters** (`triangle_advantage_no_counter`, `triangle_disadvantage_no_counter`):
   `getBlessingCombatProfile().triangleCounters` -> `applyBlessingCombatMods` flags the raw mods
   (`triangleNoCounter` on a player attacker, `triangleCannotCounter` on a player defender), and

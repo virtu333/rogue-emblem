@@ -3468,7 +3468,7 @@
     "crit": 5,
     "weight": 9,
     "range": "1",
-    "special": "+3 Atk for each kill this battle (up to +9); once taken up, it can't be put down in battle",
+    "special": "+3 Atk for each kill this battle (up to +9); once taken up, it can't be put down in battle until spent",
     "price": 2400,
     "trophyOf": "Berserker King",
     "rules": [

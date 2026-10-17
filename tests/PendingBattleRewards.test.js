@@ -225,8 +225,9 @@ it('seen stock falls back to valid repeats instead of unresolvable fresh names',
       },
     );
     expect(stock).toHaveLength(6);
-    expect(new Set(stock.map((entry) => entry.item.name)).size).toBe(6);
-    expect(stock.some((entry) => entry.item.name === 'Vulnerary')).toBe(true);
+    // Every name is a valid one; the basic medicine pair is the one repeat.
+    expect(new Set(stock.map((entry) => entry.item.name)).size).toBe(5);
+    expect(stock.filter((entry) => entry.item.name === 'Vulnerary')).toHaveLength(2);
   } finally {
     random.mockRestore();
   }

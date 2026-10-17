@@ -43,9 +43,11 @@ export default [
       'src/engine/SpecialCharacters.js',
       'src/engine/SpecialCharacterPolicy.js',
       'src/engine/CantoRule.js',
+      'src/engine/WeaponUses.js',
       'src/engine/SkillSlots.js',
       'src/engine/MetaProgressionManager.js',
       'src/utils/audioAssets.js',
+      'tests/fixtures/legacy/**/*.js', // older builds' code, kept as it shipped
     ],
     languageOptions: { ecmaVersion: 2025 },
   },
