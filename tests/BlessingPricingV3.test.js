@@ -88,9 +88,9 @@ describe('the v3 catalog validates, and the validator refuses what it must', () 
   it('refuses a tier IV without a pact, a pact below tier IV, and a priced tier I', () => {
     expect(
       errorsOf((c) => {
-        delete c.blessings.find((b) => b.id === 'arsenal_pact').pact;
+        delete c.blessings.find((b) => b.id === 'scholar_vow').pact;
       }),
-    ).toMatch(/arsenal_pact: a tier 4 blessing carries a fixed pact/);
+    ).toMatch(/scholar_vow: a tier 4 blessing carries a fixed pact/);
     expect(
       errorsOf((c) => {
         c.blessings.find((b) => b.id === 'iron_oath').pact = ['debt_large'];
@@ -105,9 +105,10 @@ describe('the v3 catalog validates, and the validator refuses what it must', () 
 });
 
 describe('Debt is the rung’s amount, and owed as labelled', () => {
-  // Dusk amounts 1,500 / 3,000 / 5,000 x debtScale, rounded to 50 (sim:debt, spec §3.1).
+  // Dusk amounts 1,500 / 2,500 / 3,000 / 5,000 x debtScale, rounded to 50 (sim:debt, spec §3.1).
   const EXPECTED = {
     debt_small: { normal: 850, dusk: 1500, hard: 1600, lunatic: 2200 },
+    debt_medium: { normal: 1400, dusk: 2500, hard: 2700, lunatic: 3700 },
     debt_large: { normal: 1650, dusk: 3000, hard: 3200, lunatic: 4450 },
     debt_heavy: { normal: 2750, dusk: 5000, hard: 5350, lunatic: 7400 },
   };
@@ -131,6 +132,35 @@ describe('Debt is the rung’s amount, and owed as labelled', () => {
       const owed = Number(price.label.replace(/[^\d]/g, ''));
       expect(rm.burdens.find((b) => b.id === 'debt')).toEqual({ id: 'debt', owed, garnish });
     }
+  });
+});
+
+describe('Arsenal Pact is a tier III card priced 2,500 Debt (Dusk)', () => {
+  it('is tier III with no pact, and its only price is the 2,500 Debt', () => {
+    const card = byId('arsenal_pact');
+    expect(card.tier).toBe(3);
+    expect(card.pact).toBeUndefined();
+    expect(card.prices).toEqual(['debt_medium']);
+    for (let seed = 1; seed <= 20; seed++) {
+      const price = rollPriceForBlessing(catalog, card, createSeededRng(seed), {
+        difficultyId: 'dusk',
+      });
+      expect(price.label).toBe('Debt: 2,500 gold');
+    }
+  });
+
+  it('grants one Silver weapon and owes the labelled Debt', () => {
+    const rm = run();
+    const silver = () =>
+      rm.roster.reduce((n, u) => n + u.inventory.filter((w) => w.tier === 'Silver').length, 0);
+    const before = silver();
+    holdAt(rm, 'arsenal_pact', 'debt_medium');
+    expect(silver()).toBe(before + 1);
+    expect(rm.burdens.find((b) => b.id === 'debt')).toEqual({
+      id: 'debt',
+      owed: 2500,
+      garnish: 0.5,
+    });
   });
 });
 

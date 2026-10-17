@@ -302,6 +302,9 @@ export const FORGE_TIER_COST_MULTIPLIER = {
   Legend: 2,
 };
 export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, act4: 5, finalBoss: 0 };
+// Smith's Mark and Smith's Covenant: each shop's first forge or repair (per card held) costs up
+// to this much less, the rest paid (2026-10-17; it was free, worth up to a Legend's 7,000).
+export const SHOP_FORGE_CREDIT = 1000;
 
 // Worn weapons (a forge below zero, docs/specs/worn-weapons.md). A wear step is the
 // negation of one forge step of its stat (FORGE_BONUSES), so the sizes live there.

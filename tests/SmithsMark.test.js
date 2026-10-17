@@ -1,7 +1,9 @@
 // Smith's Mark (`frugal_smith`, docs/specs/blessings-v3.md §4): each shop's first forge USE (a
-// forge or a repair) is free, and every shop forges once more. The engine decides what is free
-// (ShopCommands.freeForgeAvailable); a free forge still spends the shop's use but adds nothing
-// to the weapon's resale price.
+// forge or a repair) costs up to SHOP_FORGE_CREDIT (1,000) gold less, and every shop forges once
+// more. The engine decides when the credit holds (ShopCommands.freeForgeAvailable); the use is
+// still spent, and only the gold paid is added to the weapon's resale price. A first forge that
+// costs 1,000 or less is free, as every Steel Sword forge below is; "the credit stops at 1,000"
+// covers dearer ones.
 //
 // Ways it can fail, a test each (Steel Sword: first Might forge 400, first Hit forge 250,
 // repairs are half of that: 200 and 125):
@@ -13,6 +15,8 @@
 //   - the menu shows a price for a free use, or keeps "free" once the use is spent
 //   - the next shop is not free again, or re-entering the same shop forgets the spent use
 //   - a save from before the card loses its fields, or a saved Mark does not survive a reload
+//   - the credit is uncapped (a dear forge free), or the remainder is not paid, not checked
+//     against the purse, or not added to the resale price
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
 import { RunDriver, JourneyStorage } from './harness/RunDriver.js';
@@ -29,7 +33,7 @@ import {
 } from '../src/engine/ShopCommands.js';
 import { applyForge, deforgeWeapon } from '../src/engine/ForgeSystem.js';
 import { applyWear, repairWeapon, wearCount } from '../src/engine/WeaponWear.js';
-import { SHOP_FORGE_LIMITS } from '../src/utils/constants.js';
+import { SHOP_FORGE_CREDIT, SHOP_FORGE_LIMITS } from '../src/utils/constants.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
@@ -311,6 +315,67 @@ describe("Smith's Mark in a saved run", () => {
   });
 });
 
+describe('the credit stops at 1,000 gold', () => {
+  // Steel Sword Might forges cost 400 / 800 / 1,400 / 2,200 (FORGE_COSTS, tier 1x): forged twice
+  // already, the next Might forge is 1,400, so the credit leaves 400 to pay.
+  const forgedTwice = (run) => {
+    const { sword } = steelSwordFor(run);
+    applyForge(sword, 'might', 0, { free: true });
+    applyForge(sword, 'might', 0, { free: true });
+    return sword;
+  };
+
+  it('is 1,000 gold', () => {
+    expect(SHOP_FORGE_CREDIT).toBe(1000);
+  });
+
+  it('a 1,400 forge as the first use costs 400, and only the 400 is added to its price', () => {
+    const run = markedRun();
+    const sword = forgedTwice(run);
+    const priceBefore = sword.price;
+    expect(shopForgePrice(sword, 'might', act1Terms(run, 0))).toBe(400);
+    const result = forgeOnce(run, sword, 0);
+    expect(result).toMatchObject({ ok: true, free: false, credited: 1000 });
+    expect(result.message).toBe("Forged Steel Sword +3 for 400G (Smith's Mark took 1000G off).");
+    expect(run.gold).toBe(600);
+    expect(sword.price).toBe(priceBefore + 400);
+    expect(sword._forgeHistory.at(-1)).toEqual({ stat: 'might', cost: 400 });
+    // Undoing it refunds what was paid, not the list price.
+    expect(deforgeWeapon(sword).refundedCost).toBe(400);
+  });
+
+  it('the purse must hold the remainder', () => {
+    const run = markedRun();
+    const sword = forgedTwice(run);
+    run.gold = 399;
+    expect(shopForgeBlock(run, sword, 'might', act1Terms(run, 0))).toBe('Not enough gold.');
+    run.gold = 400;
+    expect(shopForgeBlock(run, sword, 'might', act1Terms(run, 0))).toBe('');
+  });
+
+  it('the second use pays the full price', () => {
+    const run = markedRun();
+    const sword = forgedTwice(run);
+    expect(shopForgePrice(sword, 'might', act1Terms(run, 1))).toBe(1400);
+  });
+
+  it('without the card nothing comes off', () => {
+    const run = new RunManager(data);
+    run.startRun({ runSeed: 11 });
+    const sword = forgedTwice(run);
+    expect(shopForgePrice(sword, 'might', act1Terms(run, 0))).toBe(1400);
+  });
+
+  it('applyForge and repairWeapon take a credit off and never go below 0', () => {
+    const a = clone(data.weapons.find((w) => w.name === 'Steel Sword'));
+    expect(applyForge(a, 'might', 0, { credit: 150 })).toEqual({ success: true, cost: 250 });
+    expect(applyForge(a, 'hit', 0, { credit: 5000 })).toEqual({ success: true, cost: 0 });
+    const b = clone(data.weapons.find((w) => w.name === 'Steel Sword'));
+    applyWear(b, 'might');
+    expect(repairWeapon(b, 0, { credit: 50 })).toMatchObject({ success: true, cost: 150 });
+  });
+});
+
 describe("Smith's Mark in the shop menu", () => {
   let d;
   let weapon;
@@ -350,7 +415,7 @@ describe("Smith's Mark in the shop menu", () => {
 
   it('shows "Free" on every stat of the first forge and the real price once it is spent', () => {
     openForge();
-    expect(text()).toContain('The first is free.');
+    expect(text()).toContain('The first costs up to 1,000 G less.');
     button('Choose forge').onclick();
     const { choices, describe: describeChoice, apply } = d.menu.child.options;
     expect(choices).toHaveLength(4);
@@ -363,7 +428,7 @@ describe("Smith's Mark in the shop menu", () => {
     expect(d.run.gold).toBe(1000);
     d.menu.child?.close?.();
     d.menu.render();
-    expect(text()).not.toMatch(/is free\./);
+    expect(text()).not.toMatch(/G less\./);
     button('Choose forge').onclick();
     const next = d.menu.child.options;
     expect(next.describe(next.choices[0])).toMatch(/^800 gold · 1\/\d upgrades/);
@@ -383,6 +448,17 @@ describe("Smith's Mark in the shop menu", () => {
     expect(blocked(might)).not.toBe('');
     expect(describeChoice(might)).not.toMatch(/Free/);
     expect(describeChoice(hit)).toMatch(/^Free · /);
+  });
+
+  it('a forge dearer than the credit shows what is left to pay and what came off', () => {
+    applyForge(weapon, 'might', 0, { free: true });
+    applyForge(weapon, 'might', 0, { free: true });
+    openForge();
+    button('Choose forge').onclick();
+    const { choices, describe: describeChoice } = d.menu.child.options;
+    expect(describeChoice(choices.find((c) => c.key === 'might'))).toMatch(
+      /^400 gold \(1000 off\) · 2\/\d upgrades/,
+    );
   });
 
   it('lets the first forge through with an empty purse', () => {
@@ -427,7 +503,7 @@ describe("Smith's Mark in the shop menu", () => {
     await d.step({ type: 'enter', service: 'shop' });
     openForge();
     expect(d.scene.shopForgesUsed).toBe(1);
-    expect(text()).not.toMatch(/is free\./);
+    expect(text()).not.toMatch(/G less\./);
     d.leave();
 
     // A different shop node starts from zero.
@@ -443,7 +519,7 @@ describe("Smith's Mark in the shop menu", () => {
     d.shop.handleShop(d.run.nodeMap.nodes.at(-1));
     expect(d.scene.shopForgesUsed).toBe(0);
     openForge();
-    expect(text()).toContain('The first is free.');
+    expect(text()).toContain('The first costs up to 1,000 G less.');
     d.service = null;
   });
 });

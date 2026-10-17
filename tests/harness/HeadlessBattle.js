@@ -529,6 +529,7 @@ export class HeadlessBattle {
       objective: bc.objective,
       thronePos: bc.thronePos,
       commanderPriority: this.battleParams?.foesTargetCommander === true,
+      commanderPrioritySeed: this._getReinforcementSeed(),
     });
     // As BattleScene: holders wake on the Danger tiles of the board the player knows.
     this.aiController.setHoldContext(() => this._playerThreatContext());
