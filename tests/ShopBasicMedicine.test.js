@@ -75,7 +75,9 @@ describe('basic medicine on the shelf', () => {
   }
 
   it('a fresh restock stocks the pair at a shop and the one at the Ruins', () => {
-    for (const ruins of [false, true]) {
+    // A shelf larger than the restock's first batch is topped up from a second
+    // batch: that batch's Vulneraries must not pile onto the pair.
+    for (const ruins of [false, true, false, true, false, true, false, true]) {
       const scene = makeScene('act3');
       const ctrl = new ShopController(scene);
       ctrl.handleShop({ id: 'n_restock' }, { ruins });
@@ -86,9 +88,9 @@ describe('basic medicine on the shelf', () => {
       scene._currentShopHasAmbushDiscount = false;
       scene.refreshShop = vi.fn();
       scene.showShopBanner = vi.fn();
-      // Nothing bought yet: the restock draws a whole new shelf of the same size.
-      scene.shopBuyItems = opened.slice();
-      scene._shopOriginalSlotCount = opened.length;
+      // Nothing bought yet, on a shelf a little longer than one batch can fill.
+      scene.shopBuyItems = [...opened, opened[0], opened[0], opened[0]];
+      scene._shopOriginalSlotCount = scene.shopBuyItems.length;
       expect(ctrl.rerollShop()).toBe(true);
       expect(vulneraryRows(scene.shopBuyItems)).toHaveLength(ruins ? 1 : 2);
     }

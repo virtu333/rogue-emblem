@@ -337,10 +337,13 @@ export class ShopController {
       const uniquePasses = Math.max(4, targetCount * 4);
       for (let pass = 0; result.length < targetCount && pass < uniquePasses; pass++) {
         const batch = generatePricedItems();
+        // A fresh shelf takes the first batch whole (its two Vulneraries included);
+        // a batch topping it up defers what the shelf already holds.
+        const unique = preferUnique || pass > 0;
         for (const entry of batch) {
           if (result.length >= targetCount) break;
           const key = itemKey(entry);
-          if (preferUnique && key && seen.has(key)) {
+          if (unique && key && seen.has(key)) {
             deferred.push(entry);
             continue;
           }
