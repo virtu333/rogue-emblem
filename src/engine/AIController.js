@@ -97,6 +97,11 @@ export function commanderPriorityRoll(seed, turn, enemy, chance = COMMANDER_PRIO
   return draw() < chance;
 }
 
+/** The turn an enemy phase's keyed decisions roll on (the live phase and its preview alike). */
+export function enemyPhaseTurn(turnNumber) {
+  return Number(turnNumber) || 0;
+}
+
 export class AIController {
   constructor(grid, gameData, options = {}) {
     this.grid = grid;
@@ -133,6 +138,20 @@ export class AIController {
   }
 
   /**
+   * A read-only view of this AI set up for a coming enemy phase, for previews (EnemyIntent).
+   * Every per-phase input a decision reads is set here from the arguments, never inherited
+   * from the phase this AI last played: `turnNumber` (Standard of the Sun's keyed roll) and the
+   * anti-turtle flags (each left as the AI's own when undefined).
+   */
+  phaseView({ turnNumber, aggressiveMode, bossEnraged } = {}) {
+    const view = Object.create(this);
+    view.phaseTurn = enemyPhaseTurn(turnNumber);
+    if (aggressiveMode !== undefined) view.aggressiveMode = Boolean(aggressiveMode);
+    if (bossEnraged !== undefined) view.bossEnraged = Boolean(bossEnraged);
+    return view;
+  }
+
+  /**
    * Process all enemy units one at a time.
    * @param {Array} enemyUnits
    * @param {Array} playerUnits
@@ -143,7 +162,7 @@ export class AIController {
    * @returns {Promise<void>}
    */
   async processEnemyPhase(enemyUnits, playerUnits, npcUnits, callbacks) {
-    this.phaseTurn = Number(callbacks.turnNumber) || 0;
+    this.phaseTurn = enemyPhaseTurn(callbacks.turnNumber);
     // Holders whose pack meets a wake rule hunt from this phase on (HoldActivation).
     // Anti-turtle aggression is not one of the rules.
     const woken = wakeHolders({
