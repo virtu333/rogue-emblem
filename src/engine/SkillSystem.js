@@ -4,7 +4,12 @@
 // bound skill.
 // All functions take skillsData (from skills.json) for metadata lookup.
 
-import { getConditionalWeaponBonuses, usesMagic } from './Combat.js';
+import {
+  calculateEffectiveWeight,
+  getConditionalWeaponBonuses,
+  isStaff,
+  usesMagic,
+} from './Combat.js';
 import { getAffixCombatMods } from './AffixSystem.js';
 import { isSilenced } from './StatusConditionSystem.js';
 import { getMasteryCombatMods } from './MasterySystem.js';
@@ -15,6 +20,8 @@ import { getUnitMarkFor, markActivation, markProcs, roadBuffEntry } from './Mark
 import { combatDistance } from './EntitySystem.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
 import { epicCombatMods, epicTurnStartEffects } from './EpicWeapons.js';
+import { GEMINI_ACTIVATION, geminiCombatMods } from './GeminiRing.js';
+import { GRUDGE_ACTIVATION, grudgeAtkBonus } from './AccessoryReactions.js';
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -42,8 +49,13 @@ function isBelow25(unit) {
   return unit.currentHP <= Math.floor(unit.stats.HP / 4);
 }
 
-export function getActivationChance(unit, activation, multiplier = 1) {
-  const chance = baseActivationChance(unit, activation);
+/**
+ * A skill's proc chance (0-100). `statBonus` (`{ SKL: 2 }`, a side's `procStatBonus`: a Gemini
+ * partner's stat, engine/GeminiRing.js) is added to the unit's own stat before the activation
+ * reads it, so +2 SKL is +1 to a SKL_HALF proc, as the wearer's own SKL would be.
+ */
+export function getActivationChance(unit, activation, multiplier = 1, statBonus = null) {
+  const chance = baseActivationChance(unit, activation, statBonus);
   // Gambler's Edge (a player unit's procs, engine/TradeBoons.js): the odds scaled, at most 100.
   // 'always' is 100 either way.
   // Unfathomed (the Entity) scales below 1; an 'always' skill is no proc and keeps its 100.
@@ -53,20 +65,24 @@ export function getActivationChance(unit, activation, multiplier = 1) {
   return Math.min(100, Math.floor(chance * scale + 1e-9));
 }
 
-function baseActivationChance(unit, activation) {
+function baseActivationChance(unit, activation, statBonus = null) {
+  const stat = (key) => {
+    const extra = Number(statBonus?.[key]);
+    return unit.stats[key] + (Number.isFinite(extra) ? extra : 0);
+  };
   switch (activation) {
     case 'SKL':
-      return unit.stats.SKL;
+      return stat('SKL');
     case 'SKL_HALF':
-      return Math.floor(unit.stats.SKL / 2);
+      return Math.floor(stat('SKL') / 2);
     case 'LCK_QUARTER':
-      return Math.floor(unit.stats.LCK / 4);
+      return Math.floor(stat('LCK') / 4);
     case 'LCK_THIRD':
-      return Math.floor(unit.stats.LCK / 3);
+      return Math.floor(stat('LCK') / 3);
     case 'SPD':
-      return unit.stats.SPD;
+      return stat('SPD');
     case 'LCK':
-      return unit.stats.LCK;
+      return stat('LCK');
     case 'always':
       return 100;
     default:
@@ -230,7 +246,7 @@ function isAccessoryConditionMet(condition, unit, opponent, allies, enemies, ter
  * Gather all stat modifiers for a unit entering combat.
  * Includes: passive skills, aura buffs from allies, on-combat-start triggers.
  * Returns a flat modifier object applied to combat calculations.
- * `context`: { classesData, traitsData, weapon } — `weapon` overrides the
+ * `context`: { classesData, traitsData, weapon, turn, playerAlliesLost } — `weapon` overrides the
  * equipped weapon for its conditional bonus and granted skill.
  */
 export function getSkillCombatMods(
@@ -467,6 +483,26 @@ export function getSkillCombatMods(
       if (ce.hitBonus) mods.hitBonus += ce.hitBonus;
       if (ce.avoidBonus) mods.avoidBonus += ce.avoidBonus;
     }
+    // Gemini Ring (engine/GeminiRing.js): +N to each other ring's stat on the field.
+    // Partner STR lightens the weapon as the wearer's own STR would (staves weigh nothing).
+    const weightAt =
+      weapon && !isStaff(weapon)
+        ? (str) => calculateEffectiveWeight(weapon, { stats: { STR: str } })
+        : null;
+    const gemini = geminiCombatMods(unit, allies, { magic: usesMagic(weapon), weightAt });
+    if (gemini.partners.length > 0) {
+      for (const key of Object.keys(gemini.mods)) mods[key] += gemini.mods[key];
+      // The partner's SKL/SPD/LCK in the side's proc odds too (read raw by Combat.js).
+      if (gemini.procStats) mods.procStatBonus = gemini.procStats;
+      mods.activated.push({ ...GEMINI_ACTIVATION });
+    }
+    // Grudge Locket: +N Atk per ally the run has lost (`context.playerAlliesLost`, which the
+    // battle counts: AccessoryReactions.playerAlliesLost).
+    const grudge = grudgeAtkBonus(unit, context?.playerAlliesLost);
+    if (grudge > 0) {
+      mods.atkBonus += grudge;
+      mods.activated.push({ ...GRUDGE_ACTIVATION });
+    }
   }
 
   return mods;
@@ -485,6 +521,7 @@ export function rollStrikeSkills(
   skillsData,
   combatState = null,
   procMultiplier = 1,
+  procStatBonus = null,
 ) {
   const result = {
     modifiedDamage: normalDamage,
@@ -513,7 +550,7 @@ export function rollStrikeSkills(
     const skill = getSkill(skillId, skillsData);
     if (!skill || skill.trigger !== 'on-attack') continue;
 
-    const chance = getActivationChance(attacker, skill.activation, procMultiplier);
+    const chance = getActivationChance(attacker, skill.activation, procMultiplier, procStatBonus);
     const roll = Math.random() * 100;
     if (roll >= chance) continue;
 
@@ -616,6 +653,7 @@ export function rollDefenseSkills(
   liveHP = null,
   marksData = null,
   procMultiplier = 1,
+  procStatBonus = null,
 ) {
   const result = {
     modifiedDamage: damage,
@@ -642,7 +680,7 @@ export function rollDefenseSkills(
     const skill = getSkill(skillId, skillsData);
     if (!skill || skill.trigger !== 'on-defend') continue;
 
-    const chance = getActivationChance(defender, skill.activation, procMultiplier);
+    const chance = getActivationChance(defender, skill.activation, procMultiplier, procStatBonus);
     // Pavise gets a minimum 5% proc floor so it stays relevant on low-SKL units
     const effectiveChance = skill.id === 'pavise' ? Math.max(chance, 5) : chance;
     const roll = Math.random() * 100;
@@ -694,7 +732,7 @@ export function rollDefenseSkills(
  * If triggered, the normal strike count is replaced with 5 at half damage.
  * Returns: { triggered, strikeCount, damageMult, name }
  */
-export function checkAstra(attacker, skillsData, procMultiplier = 1) {
+export function checkAstra(attacker, skillsData, procMultiplier = 1, procStatBonus = null) {
   if (!skillsData || isSilenced(attacker)) return { triggered: false };
 
   if (!hasEffectiveSkill(attacker, 'astra')) return { triggered: false };
@@ -702,7 +740,7 @@ export function checkAstra(attacker, skillsData, procMultiplier = 1) {
   const skill = getSkill('astra', skillsData);
   if (!skill) return { triggered: false };
 
-  const chance = getActivationChance(attacker, skill.activation, procMultiplier);
+  const chance = getActivationChance(attacker, skill.activation, procMultiplier, procStatBonus);
   if (Math.random() * 100 >= chance) return { triggered: false };
 
   return { triggered: true, strikeCount: 5, damageMult: 0.5, name: 'Astra' };

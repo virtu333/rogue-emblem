@@ -34,6 +34,7 @@ import {
   reapplyTraitGrowthMods,
 } from './TraitSystem.js';
 import { rollMark } from './MarkSystem.js';
+import { accessoryStatEffects, settleGeminiStat } from './GeminiRing.js';
 import { slotsFullFor } from './SkillSlots.js';
 import { isFemaleOnlyClass, noteReclassFace, unitGender } from './PortraitVariants.js';
 
@@ -1951,9 +1952,12 @@ export function getCombatWeapons(unit) {
 
 /** Apply accessory stat bonuses (sign=1 to add, sign=-1 to remove). */
 function applyAccessoryStats(unit, accessory, sign) {
-  if (!accessory?.effects) return;
+  if (!accessory) return;
+  // The catalog `effects` plus a Gemini Ring's own stat (engine/GeminiRing.js).
+  const effects = accessoryStatEffects(accessory);
+  if (Object.keys(effects).length === 0) return;
   if (sign > 0) settleAccessoryHpOwed(unit); // judged against the max HP before this bonus
-  for (const [stat, value] of Object.entries(accessory.effects)) {
+  for (const [stat, value] of Object.entries(effects)) {
     if (stat === 'MOV') {
       unit.mov = (unit.mov || unit.stats.MOV) + value * sign;
       unit.stats.MOV = (unit.stats.MOV || unit.mov) + value * sign;
@@ -1965,7 +1969,7 @@ function applyAccessoryStats(unit, accessory, sign) {
   // never kills: the floor at 1 is HP the unit did not pay for, so it is owed
   // (`_accessoryHpOwed`) and the next HP bonus pays it back before raising HP. So no
   // equip/unequip loop heals: 10/20 → 15/25 → 10/20, and 1/25 → 1/20 → 1/25.
-  const hp = accessory.effects.HP;
+  const hp = effects.HP;
   if (hp) {
     if (sign > 0) {
       const owed = hp > 0 ? Math.min(hp, accessoryHpOwed(unit)) : 0;
@@ -2010,6 +2014,8 @@ function removeAccessoryMoveTypeOverride(unit, accessory) {
 /** Equip an accessory. Returns the old accessory (or null). */
 export function equipAccessory(unit, accessory) {
   const old = unequipAccessory(unit);
+  // A Gemini Ring's stat is fixed on the instance once worn, so unequip takes back the same.
+  settleGeminiStat(accessory);
   unit.accessory = accessory;
   applyAccessoryStats(unit, accessory, 1);
   applyAccessoryMoveTypeOverride(unit);

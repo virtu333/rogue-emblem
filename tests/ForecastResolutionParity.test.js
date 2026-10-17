@@ -92,6 +92,9 @@ function makeUnit(rng, name, faction, col, row) {
     battleMastery: rng() < 0.3 ? { [cls.name]: 99 } : undefined,
   };
   if (unit.skills.includes('miracle')) unit._miracleUsed = false;
+  // The Warden's Buckler's one warded blow is a per-combat event outside the per-hit numbers
+  // (forecastProjection plays it; tests/AccessoryWard.test.js); here it is spent.
+  if (unit.accessory?.combatEffects?.firstHitWard) unit._wardSpent = true;
   return unit;
 }
 

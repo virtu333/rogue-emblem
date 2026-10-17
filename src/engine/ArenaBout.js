@@ -16,6 +16,7 @@ import { resolveCombat } from './Combat.js';
 import { getSkillCombatMods, rollDefenseSkills, rollStrikeSkills } from './SkillSystem.js';
 import { applyCombatSideHP } from './UnitHealth.js';
 import { createSeededRng } from './BlessingEngine.js';
+import { readyWard } from './AccessoryWard.js';
 
 export const DEFAULT_ARENA_MAX_ROUNDS = 10;
 const ARENA_TERRAIN = Object.freeze({ avoidBonus: 0, defBonus: 0 });
@@ -133,6 +134,9 @@ export function estimateArenaOdds(
     for (let t = 0; t < trials; t++) {
       const a = structuredClone(entrant);
       const b = structuredClone(challenger);
+      // A bout starts with a Warden's Buckler ready, as the fight does (ColosseumOverlay).
+      readyWard(a);
+      readyWard(b);
       // The fight equips the planned weapon; so does the estimate.
       a.weapon = getArenaWeapon(a);
       let outcome = null;

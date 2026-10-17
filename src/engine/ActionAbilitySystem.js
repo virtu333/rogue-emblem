@@ -27,6 +27,7 @@ import { combatDistance, getFootprintKeys, isEntity } from './EntitySystem.js';
 import { displacementBlockReason, traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
 import { canAttackWithWeapon, getAttackRange } from './AttackOptions.js';
+import { refreshUnitAction } from './ActionRefresh.js';
 import {
   STEAL_ABILITY_KIND,
   STEAL_REASONS,
@@ -482,13 +483,12 @@ export function findDanceRefreshTargets(unit, units) {
 
 /**
  * Refresh one ally who has acted: it may move and act again. The same refresh Dance gives
- * (MovementActionController.executeDance): `hasMoved`, `_movementCommitted` and `hasActed`
- * are reset. `_movementSpent` is not (Dance never reset it; the Gambit and Galeforce do).
+ * (MovementActionController.executeDance), through the shared transition
+ * (engine/ActionRefresh.js). `_movementSpent` is kept (Dance never reset it; the Gambit and
+ * Galeforce do).
  */
 export function refreshActedAlly(ally) {
-  ally.hasMoved = false;
-  ally._movementCommitted = false;
-  ally.hasActed = false;
+  refreshUnitAction(ally, { keepMovementSpent: true });
 }
 
 /**

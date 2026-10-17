@@ -1,4 +1,6 @@
 import { staffRunOptions } from '../engine/StaffBlessings.js';
+import { accessoryStatEffects } from '../engine/GeminiRing.js';
+import { geminiSetText } from '../utils/accessoryText.js';
 import { affixSummaryText } from '../engine/AffixForecast.js';
 import {
   REVIVAL_STONE_DESCRIPTION,
@@ -900,7 +902,7 @@ export class UnitDetailOverlay {
     if (unit.accessory) {
       this._tabSep(lx, y);
       y += 12;
-      const fx = Object.entries(unit.accessory.effects || {})
+      const fx = Object.entries(accessoryStatEffects(unit.accessory))
         .filter(([, v]) => v)
         .map(([k, v]) => `${k}+${v}`)
         .join(' ');
@@ -932,6 +934,21 @@ export class UnitDetailOverlay {
           this._tabText(lx + 8, y, parts.join('  '), UI_PALETTE.rarityEpic, '9px');
           y += 12;
         }
+      }
+      // A worn Gemini Ring's set as the field stands (in battle only).
+      const field = this.scene?.playerUnits;
+      const set = Array.isArray(field) && field.includes(unit) ? geminiSetText(unit, field) : '';
+      // Six partners' stats run past the panel: wrap at a comma (36 characters a line).
+      const setLines = [];
+      for (const part of set ? set.split(', ') : []) {
+        const last = setLines.length - 1;
+        if (last >= 0 && setLines[last].length + part.length + 2 <= 36)
+          setLines[last] += `, ${part}`;
+        else setLines.push(part);
+      }
+      for (const line of setLines) {
+        this._tabText(lx + 8, y, line, UI_PALETTE.rarityEpic, '9px');
+        y += 12;
       }
     }
 

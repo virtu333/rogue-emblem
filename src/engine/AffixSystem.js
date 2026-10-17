@@ -5,6 +5,7 @@ import { gridDistance, thornsReflectDamage } from './CombatGeometry.js';
 import { applyCondition } from './StatusConditionSystem.js';
 import { markHoldDisturbed } from './HoldDisturbance.js';
 import { combatDistance } from './EntitySystem.js';
+import { isAnchoredByAccessory } from './AccessoryReactions.js';
 export { affixForecastNotes } from './AffixForecast.js';
 
 function getAffix(affixId, affixData) {
@@ -72,10 +73,12 @@ export function getAffixCombatMods(unit, opponent, allAllies, affixData, terrain
 }
 
 /**
- * Anchored: a passive affix that keeps its holder on its tile whatever moves it
- * (Shove, Pull, and weapon-art push, swap and ram alike).
+ * Anchored: a passive affix (or the Anchor Stone accessory) that keeps its holder on its
+ * tile whatever moves it (Shove, Pull, and weapon-art push, swap and ram alike).
  */
 export function isDisplacementImmune(unit, affixData) {
+  // The Anchor Stone accessory holds its wearer the same way (AccessoryReactions.js).
+  if (isAnchoredByAccessory(unit)) return true;
   if (!affixData || !Array.isArray(unit?.affixes)) return false;
   return unit.affixes.some((aid) => {
     const affix = getAffix(aid, affixData);

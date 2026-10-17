@@ -7,6 +7,7 @@
 // "Power Ring · Vantage" (docs/specs/item-names.md). The bound skill is read only through
 // `boundSkillOf` (EffectiveSkills).
 import { boundSkillOf } from './EffectiveSkills.js';
+import { geminiStatOf } from './GeminiRing.js';
 
 /** The separator of the display grammar: "<accessory> · <skill>". */
 export const ACCESSORY_SKILL_SEPARATOR = ' · ';
@@ -35,10 +36,13 @@ export function boundSkillName(id, skills = null) {
 
 /**
  * The accessory's display name: "Power Ring · Vantage" when it carries a bound skill, its own
- * name otherwise. Never an identity: icons and lookups keep reading `item.name`.
+ * name otherwise ("Gemini Ring (SPD) · Vantage" for a Gemini Ring). Never an identity: icons
+ * and lookups keep reading `item.name`.
  */
 export function accessoryDisplayName(item, skills = null) {
-  const name = typeof item?.name === 'string' ? item.name : '';
+  // A Gemini Ring names the stat it carries: "Gemini Ring (SPD)" (engine/GeminiRing.js).
+  const stat = geminiStatOf(item);
+  const name = `${typeof item?.name === 'string' ? item.name : ''}${stat ? ` (${stat})` : ''}`;
   const id = accessorySkillOf(item);
   return id ? `${name}${ACCESSORY_SKILL_SEPARATOR}${boundSkillName(id, skills)}` : name;
 }

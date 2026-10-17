@@ -103,6 +103,9 @@ import { revivalStoneCount } from '../engine/RevivalStones.js';
 import { applyDueHybridOverrides } from '../engine/TerrainPhases.js';
 import RevivalStoneController from '../ui/RevivalStoneController.js';
 import UnbrokenBannerController from '../ui/UnbrokenBannerController.js';
+import WardController, { drawWardPip, redrawWardPips, wardReady } from '../ui/WardController.js';
+import { isAnchoredByAccessory, playerAlliesLost } from '../engine/AccessoryReactions.js';
+import { readyBattleAccessories } from '../engine/BattleAccessories.js';
 import {
   WHISTLE_NAME,
   battleBlessingsAtStart,
@@ -569,6 +572,7 @@ export function resetUnitForBattle(unit) {
   unit._movementCommitted = false;
   unit.hasActed = false;
   unit._miracleUsed = false;
+  readyBattleAccessories(unit); // the Warden's Buckler, the Galeforce Charm
   unit._gambitUsedThisTurn = false;
   unit._conditions = [];
   delete unit._speedtakerStacks;
@@ -884,7 +888,8 @@ export class BattleScene extends Phaser.Scene {
     this._stoneFx?.destroy?.();
     this._stoneFx = null;
     this._bannerFx?.destroy?.();
-    this._bannerFx = null;
+    this._wardFx?.destroy?.();
+    this._bannerFx = this._wardFx = null;
     this._combatSpeedSnapshot = undefined;
     if (this._procBanner) {
       this._procBanner.destroy();
@@ -1953,6 +1958,7 @@ export class BattleScene extends Phaser.Scene {
       if (!this._resumeCheckpoint) {
         for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
           unit._phoenixBroochUsed = false;
+          readyBattleAccessories(unit);
         }
         // The Lingering Injury burden (id `wounded`, engine/Burdens.js) and Cavalier's Hour (by move
         // type, engine/ShrineBoons.js): battle stat deltas applied once, here, so the first forecast
@@ -3499,7 +3505,8 @@ export class BattleScene extends Phaser.Scene {
     const staff = (statusStaffInfo(unit)?.uses || 0) > 0;
     // A defeat objective's named target (a captain, a Voice) leads the row with a pale diamond.
     const target = !unit.isBoss && isObjectiveTarget(this.battleConfig, unit);
-    const count = affixIds.length + stones + (carries ? 1 : 0) + (staff ? 1 : 0) + (target ? 1 : 0);
+    const ward = wardReady(unit); // a ready Warden's Buckler: a pale blue round pip, last
+    const count = affixIds.length + stones + [carries, staff, target, ward].filter(Boolean).length;
     if (count === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -3559,7 +3566,9 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(14)
         .setVisible(inView);
       unit.affixPips.push(staffPip);
+      startX += pipSize + gap;
     }
+    if (ward) unit.affixPips.push(drawWardPip(this, startX, pipY, pipSize).setVisible(inView));
   }
 
   /**
@@ -5423,8 +5432,8 @@ export class BattleScene extends Phaser.Scene {
     this.tradeMutatedThisSession = false;
     this._clearSelectedWeaponArt();
 
-    // Check for Canto: use remaining movement after acting
-    if (!skipCanto) {
+    // Check for Canto: use remaining movement after acting (not when Galeforce readied it)
+    if (!skipCanto && unit._galeforceReady !== true) {
       // Rooted units cannot use Canto (root may land mid-action via counter-art)
       const movSpent = unit._movementSpent || 0;
       // The same MOV the unit's move range read (selectUnit), less the terrain cost spent,
@@ -5522,7 +5531,7 @@ export class BattleScene extends Phaser.Scene {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
       const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally || isRooted(ally)) continue;
+      if (!ally || isRooted(ally) || isAnchoredByAccessory(ally)) continue;
       // Unit retreats opposite direction
       const retreatC = unit.col - dc;
       const retreatR = unit.row - dr;
@@ -5564,7 +5573,7 @@ export class BattleScene extends Phaser.Scene {
 
   findSwapTargets(unit) {
     const targets = [];
-    if (isRooted(unit)) return targets; // both units move: a rooted one holds either end
+    if (isRooted(unit) || isAnchoredByAccessory(unit)) return targets;
     const dirs = [
       { dc: 0, dr: -1 },
       { dc: 0, dr: 1 },
@@ -5575,7 +5584,7 @@ export class BattleScene extends Phaser.Scene {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
       const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally || isRooted(ally)) continue;
+      if (!ally || isRooted(ally) || isAnchoredByAccessory(ally)) continue;
 
       // Check if both positions are walkable by both units
       const unitCanWalkToAlly = this.grid.getMoveCost(ac, ar, unit.moveType) !== Infinity;
@@ -7983,6 +7992,7 @@ export class BattleScene extends Phaser.Scene {
       traitsData: this.gameData.traits || null,
       // The battle's turn: an Epic weapon's "has not moved this turn" reads it.
       turn: this.turnManager?.turnNumber,
+      playerAlliesLost: playerAlliesLost(this.runManager, this._fallenBattleRecords?.length),
     };
     const atkMods = getSkillCombatMods(
       attacker,
@@ -8535,6 +8545,7 @@ export class BattleScene extends Phaser.Scene {
     // Per-battle weapons (Breachbolt) spend a shot for each side that struck with them
     // (the switch away from a dry weapon waits for the deaths: _swapSpentWeapons).
     spendCombatShots(attacker, defender, result);
+    redrawWardPips(this, result, [attacker, defender]); // whether or not strikes were shown
 
     // Debug invincibility: restore player-faction units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {
@@ -9185,6 +9196,7 @@ export class BattleScene extends Phaser.Scene {
     if (event.stoneBroken) this._stoneBreakFx().playBreak(target);
     // The Unbroken Banner held the target at 1 HP on this blow (settled: UnbrokenBannerController).
     if (event.bannerHeld) this._bannerHoldFx().playHold(target);
+    if (event.buckler) (this._wardFx ||= new WardController(this)).playWard(target, { reduced });
 
     // Sleep: wake on damage -- remove the Zzz icon; the look follows the woken unit's state
     // (a player unit hit in the enemy phase has acted and stays spent until its turn).

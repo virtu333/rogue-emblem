@@ -14,6 +14,7 @@ import { traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { getUnitMarkFor } from './MarkSystem.js';
 import { epicAfterCombatSteps, keepsCombatRecord } from './EpicWeapons.js';
+import { galeforceConfig } from './GaleforceCharm.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
@@ -404,6 +405,12 @@ export function getPostCombatPipelineSteps({
       skillIds,
       ...(markId ? { markId } : {}),
     });
+  }
+
+  // The Galeforce Charm (GaleforceCharm.js): its wearer attacked and killed, after every kill
+  // above has been read. The roll and its limits are read at application.
+  if (galeforceConfig(attacker)) {
+    steps.push({ type: 'galeforce', sourceSide: 'attacker', targetSide: 'defender' });
   }
 
   // Epic weapons that keep a record of their combats (Tallyblade, Frightened Acclaim, Gorgemaw,

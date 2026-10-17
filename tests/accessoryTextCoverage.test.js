@@ -36,6 +36,17 @@ function assertKeyRendered(key, combatText, accessory) {
   if (key === 'defBonus') return combatText.includes('Def');
   if (key === 'doubleThresholdReduction') return combatText.includes('follow-up attacks with');
   if (key === 'gamblerCoin') return combatText.includes('Gambler');
+  if (key === 'gemini') return combatText.includes('other Gemini Ring');
+  if (key === 'firstHitWard')
+    return combatText.includes('the first hit on you that would deal more than 1 damage deals 1');
+  if (key === 'meleeCounterRange')
+    return combatText.includes(`counter from up to ${combatEffects.meleeCounterRange} tiles`);
+  if (key === 'meleeReflect')
+    return combatText.includes(`takes ${combatEffects.meleeReflect} damage`);
+  if (key === 'grudgeAtk')
+    return combatText.includes(`+${combatEffects.grudgeAtk} Atk for each ally lost`);
+  if (key === 'anchored') return combatText.includes("Can't be shoved, pulled, swapped");
+  if (key === 'galeforce') return combatText.includes('SKL% chance to act again (twice a map)');
   if (key === 'goldPerKill')
     return combatText.includes(`${combatEffects.goldPerKill} gold per kill`);
   if (key === 'hitBonus') return combatText.includes('Hit');

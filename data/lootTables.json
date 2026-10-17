@@ -202,7 +202,9 @@
       "Vampire's Bloodshard",
       "Boots",
       "Warding Charm",
-      "Mentor's Band"
+      "Mentor's Band",
+      "Gemini Ring",
+      "Briar Cloak"
     ],
     "forge": [
       "Silver Whetstone",
@@ -366,7 +368,13 @@
       "Warding Charm",
       "Mentor's Band",
       "Mercury Sandals",
-      "Phalanx Band"
+      "Phalanx Band",
+      "Gemini Ring",
+      "Warden's Buckler",
+      "Briar Cloak",
+      "Anchor Stone",
+      "Grudge Locket",
+      "Longarm Bracer"
     ],
     "forge": [
       "Silver Whetstone",
@@ -522,7 +530,12 @@
       "Warding Charm",
       "Mentor's Band",
       "Mercury Sandals",
-      "Phalanx Band"
+      "Phalanx Band",
+      "Warden's Buckler",
+      "Anchor Stone",
+      "Grudge Locket",
+      "Galeforce Charm",
+      "Longarm Bracer"
     ],
     "forge": [
       "Silver Whetstone",
