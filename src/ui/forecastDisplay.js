@@ -4,6 +4,7 @@ import { formatPerkMods } from './rosterDisplay.js';
 import { hitProbability } from '../engine/HitRoll.js';
 import { forecastRawDamage, forecastStrikeGroups } from '../engine/Combat.js';
 import { BANNER_NAME } from '../engine/BattleBlessings.js';
+import { WARD_NAME } from '../engine/AccessoryWard.js';
 import { entityCounterNote } from '../engine/EntityReach.js';
 import { plannedWeaponUsesNote } from '../engine/ItemKeywords.js';
 
@@ -61,6 +62,13 @@ export function forecastProjection(forecast) {
   // Unbroken Banner (`banner`, after the stones) holds its side at 1 HP and ends it too.
   let broke = null;
   let held = null;
+  // A ready Warden's Buckler cuts the first landed blow on its side to 1 (AccessoryWard.js).
+  const ward = { a: Boolean(a.ward), d: Boolean(d.ward) };
+  const blow = (side, damage) => {
+    if (!ward[side] || !(damage > 1)) return damage;
+    ward[side] = false;
+    return 1;
+  };
   // Each side's strikes as rounds: the first (a brave weapon or multi-hit art strikes
   // more than once), then the follow-up, which for a weapon art is a plain strike.
   const groups = { a: forecastStrikeGroups(a), d: d.canCounter ? forecastStrikeGroups(d) : [] };
@@ -73,7 +81,7 @@ export function forecastProjection(forecast) {
       // The very first strike of the attacker may roll at a Hit of its own (Keen Eye).
       const landing = index === 0 && i === 0 ? (g.firstHit ?? g.hit) : g.hit;
       if (side === 'a' && landing > 0) {
-        defenderHP = Math.max(0, defenderHP - g.damage);
+        defenderHP = Math.max(0, defenderHP - blow('d', g.damage));
         if (g.thornsReflect > 0) attackerHP = Math.max(1, attackerHP - g.thornsReflect);
         if (defenderHP <= 0 && d.stones > 0) broke = 'defender';
         else if (defenderHP <= 0 && d.banner) {
@@ -82,7 +90,7 @@ export function forecastProjection(forecast) {
         }
       }
       if (side === 'd' && g.hit > 0) {
-        attackerHP = Math.max(0, attackerHP - g.damage);
+        attackerHP = Math.max(0, attackerHP - blow('a', g.damage));
         if (g.thornsReflect > 0) defenderHP = Math.max(1, defenderHP - g.thornsReflect);
         if (attackerHP <= 0 && a.stones > 0) broke = 'attacker';
         else if (attackerHP <= 0 && a.banner) {
@@ -138,6 +146,9 @@ export function counterRisk(forecast, attackerHP = forecast?.attacker?.hp) {
     return '';
   if (forecast.display?.counterHasDamageProc)
     return 'Enemy skills can change counterattack damage.';
+  // A ready Warden's Buckler takes a lone counter blow down to 1.
+  if (a.ward && forecastStrikeGroups(d).reduce((n, g) => n + g.count, 0) <= 1 && attackerHP > 1)
+    return '';
   const base = Math.max(forecastRawDamage(d), d.damage);
   const possible = base * (d.crit > 0 ? 3 : 1);
   if (possible < attackerHP) return '';
@@ -187,8 +198,11 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
   const striker = attacking ? forecast.attacker : forecast.defender;
   if (attacking && laterStrikesDiffer(striker))
     notes.push(`Later strikes: ${formatHitChance(striker.hit)} (Keen Eye lifts the first)`);
-  if (striker?.thornsReflect > 0)
-    notes.push(`Thorns: −${striker.thornsReflect} HP per hit landed (leaves at least 1)`);
+  if (striker?.ward) notes.push(`${WARD_NAME}: the first hit that would deal more than 1 deals 1`);
+  const briar = Math.max(0, Number(striker?.briar) || 0);
+  const thorns = (Number(striker?.thornsReflect) || 0) - briar;
+  if (thorns > 0) notes.push(`Thorns: −${thorns} HP per hit landed (leaves at least 1)`);
+  if (briar > 0) notes.push(`Briar Cloak: −${briar} HP per hit landed (leaves at least 1)`);
   if (attacking) {
     notes.push(triangleText(forecast), counterRisk(forecast, attackerHP));
     // An area art's reach (AreaPreview.areaForecastLines): known units only.

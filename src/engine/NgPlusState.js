@@ -34,6 +34,7 @@
 // A candidate is what NgPlusRun.rideCandidates read off a surviving unit: { ref, kind, name,
 // className, level, tier, recordId, identity (a recruit's), items, skills, skillKinds }.
 import { CONSUMABLE_MAX, INVENTORY_MAX } from '../utils/constants.js';
+import { settleGeminiStat } from './GeminiRing.js';
 
 export const NG_PLUS_STATE_VERSION = 1;
 /** purchasedUpgrades key of the unlock (max-merged with the upgrades, so never lost). */
@@ -142,7 +143,7 @@ export function keptItemKind(item) {
 const sanitizeItems = (raw) =>
   (Array.isArray(raw) ? raw : [])
     .filter((item) => keptItemKind(item) && isId(item.uid))
-    .map((item) => structuredClone(item));
+    .map((item) => settleGeminiStat(structuredClone(item)));
 
 const sanitizeSkillIds = (raw) => [...new Set((Array.isArray(raw) ? raw : []).filter(isName))];
 

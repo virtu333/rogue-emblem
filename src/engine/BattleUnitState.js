@@ -20,6 +20,12 @@ export function serializeBattleUnit(unit) {
   data._movementSpent = Number(unit._movementSpent) || 0;
   data._miracleUsed = unit._miracleUsed === true;
   data._phoenixBroochUsed = unit._phoenixBroochUsed === true;
+  // The Warden's Buckler (AccessoryWard.js): written only once spent; a restored unit is a
+  // fresh object, so an absent flag reads as ready.
+  if (unit._wardSpent === true) data._wardSpent = true;
+  else delete data._wardSpent;
+  // The Galeforce Charm's procs this battle and a readied refresh ride the copy as they are
+  // (GaleforceCharm.js), so a resume and a rewind keep them.
   data._conditions = unit._conditions || [];
   return structuredClone(data);
 }

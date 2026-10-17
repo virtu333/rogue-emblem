@@ -2,7 +2,7 @@
   "id": "pr1-accessories-delphi-swiftsoles-v1",
   "description": "Canonical data contract for PR1 accessory expansion, Delphi shield nerf, and Swiftsoles.",
   "expectedTotals": {
-    "accessories": 33,
+    "accessories": 40,
     "consumables": 16
   },
   "accessories": [
@@ -180,6 +180,78 @@
         "condition": "adjacent_ally"
       },
       "price": 3500
+    },
+    {
+      "name": "Gemini Ring",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "gemini": {
+          "bonus": 2
+        }
+      },
+      "price": 2000
+    },
+    {
+      "name": "Warden's Buckler",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "firstHitWard": true
+      },
+      "price": 2500
+    },
+    {
+      "name": "Briar Cloak",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "meleeReflect": 5
+      },
+      "price": 1500
+    },
+    {
+      "name": "Anchor Stone",
+      "type": "Accessory",
+      "effects": {
+        "HP": 5,
+        "MOV": -1
+      },
+      "combatEffects": {
+        "atkBonus": 2,
+        "anchored": true
+      },
+      "price": 2000
+    },
+    {
+      "name": "Grudge Locket",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "grudgeAtk": 2
+      },
+      "price": 1500
+    },
+    {
+      "name": "Galeforce Charm",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "galeforce": {
+          "activation": "SKL",
+          "perBattle": 2
+        }
+      },
+      "price": 5000
+    },
+    {
+      "name": "Longarm Bracer",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "meleeCounterRange": 2
+      },
+      "price": 4500
     },
     {
       "name": "Pursuit Ring",

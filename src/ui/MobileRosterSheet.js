@@ -157,7 +157,7 @@ import {
 } from '../engine/RosterInventory.js';
 import { getStaffRemainingUses, getStaffMaxUses } from '../engine/Combat.js';
 import { getConsumableDescription, formatUses } from '../utils/consumableText.js';
-import { formatAccessoryDetail } from '../utils/accessoryText.js';
+import { formatAccessoryDetail, geminiSetText } from '../utils/accessoryText.js';
 import { pushInputScope, popInputScope, hasInputFocus } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
 import { hasDOMHost, DOM_INPUT_EVENTS } from '../utils/domUI.js';
@@ -1674,8 +1674,16 @@ export class MobileRosterSheet {
       if (info)
         return `Status staff · Range ${item.range} · ${info.uses > 0 ? `${info.uses}/${item.uses} uses` : 'spent'}`;
     }
-    if (item.type === 'Accessory')
-      return formatAccessoryDetail(item, { skills: this.gameData.skills });
+    if (item.type === 'Accessory') {
+      const detail = formatAccessoryDetail(item, { skills: this.gameData.skills });
+      // In battle, a worn Gemini Ring says what its set gives now (the field's partners).
+      const field = this.scene?.playerUnits;
+      const set =
+        item === unit?.accessory && Array.isArray(field) && field.includes(unit)
+          ? geminiSetText(unit, field)
+          : '';
+      return set ? `${detail} · ${set}` : detail;
+    }
     if (item.type === 'Consumable')
       return `${getConsumableDescription(item)} · ${formatUses(item)}`;
     if (item.type === 'Staff') {

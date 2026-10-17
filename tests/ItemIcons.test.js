@@ -18,9 +18,10 @@ import {
 import { itemSlug, baseItemName } from '../src/ui/itemIconIds.js';
 import { buildAtlases, SIZES, ATLAS_DIRS } from '../tools/art/icons/build.mjs';
 import { encodeIndexed, decodePng } from '../tools/art/icons/lib/png.mjs';
-import { BLESSING_ICON_REUSE } from '../tools/art/icons/lib/itemGrammar.mjs';
+import { ACCESSORY_ICON_REUSE, BLESSING_ICON_REUSE } from '../tools/art/icons/lib/itemGrammar.mjs';
 
 const data = loadGameData();
+const ACCESSORY_ALIAS_IDS = new Set(Object.keys(ACCESSORY_ICON_REUSE).map(itemSlug));
 const imbues = JSON.parse(fs.readFileSync('data/imbues.json', 'utf8'));
 const upgrades = data.metaUpgrades.upgrades || data.metaUpgrades;
 const sha = (b) => createHash('sha256').update(b).digest('hex').slice(0, 16);
@@ -152,7 +153,9 @@ describe('item icon atlases are deterministic', () => {
           ? 'upgrade'
           : id.endsWith('-scroll')
             ? 'scroll'
-            : 'weapon';
+            : ACCESSORY_ALIAS_IDS.has(id)
+              ? 'accessory'
+              : 'weapon';
       expect(manifest.sockets[manifest.icons[id][1]], id).toBe(socket);
     }
     for (const size of SIZES) {

@@ -89,7 +89,7 @@ const A = ['luna', 'sol', 'lifetaker', 'speedtaker', 'pavise', 'aegis', 'renewal
 const S = ['astra', 'aether', 'miracle', 'blink', 'pass']; // Pass: Phase 3E, Act IV only (a Trickster innate, lent)
 const POOLS = { act1: [...C, ...B], act2: [...C, ...B], act3: [...B, ...A], act4: [...A, ...S] };
 const CHANCES = { act1: 0.03, act2: 0.05, act3: 0.06, act4: 0.08 };
-const LEGENDARY = ["Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Pursuit Ring'];
+const LEGENDARY = ["Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Pursuit Ring', 'Galeforce Charm', 'Longarm Bracer']; // prettier-ignore
 const NEVER = ['dance', 'shove', 'pull', 'lethality', 'steal', 'goddess_dance'];
 
 const catalog = (name) => structuredClone(data.accessories.find((a) => a.name === name));
@@ -223,7 +223,7 @@ describe('the data', () => {
     expect([...innateInPools].sort()).toEqual([...config.lentInnates].sort());
   });
 
-  it('the four legendary accessories are marked, and only they', () => {
+  it('the six legendary accessories are marked, and only they', () => {
     expect(
       data.accessories
         .filter((a) => a.legendary)
@@ -580,6 +580,11 @@ describe('loot', () => {
         const { value } = withSeed(seed, () => loot(data, act, { count: 3 }));
         for (const c of value) {
           if (c.type !== 'accessory') continue;
+          // The chance is a bindable accessory's: a legendary never binds (below).
+          if (c.item.legendary === true) {
+            expect(c.item._boundSkill).toBeUndefined();
+            continue;
+          }
           accessories += 1;
           if (!c.item._boundSkill) {
             expect(c.item.price).toBe(basePrices.get(c.item.name));

@@ -224,6 +224,10 @@ import { deriveNodeBattleSeed } from '../../src/engine/BattleScout.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import { applyPostSpawn, settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
 import { createVigilState } from '../../src/engine/Vigil.js';
+import { readyBattleAccessories } from '../../src/engine/BattleAccessories.js';
+import { playerAlliesLost } from '../../src/engine/AccessoryReactions.js';
+import { consumeGaleforce } from '../../src/engine/GaleforceCharm.js';
+import { refreshUnitAction } from '../../src/engine/ActionRefresh.js';
 import { applyDueHybridOverrides } from '../../src/engine/TerrainPhases.js';
 import {
   buildRisenUnit,
@@ -418,6 +422,7 @@ export class HeadlessBattle {
         unit.hasActed = false;
         unit._miracleUsed = false;
         unit._phoenixBroochUsed = false;
+        readyBattleAccessories(unit);
         unit._gambitUsedThisTurn = false;
         for (const w of unit.inventory || []) refillBattleUses(w);
         this.playerUnits.push(unit);
@@ -1819,6 +1824,8 @@ export class HeadlessBattle {
       classesData: this.gameData.classes,
       traitsData: this.gameData.traits || null,
       turn: this.turnManager?.turnNumber, // Epic weapons' "has not moved this turn"
+      // As the scene: the run's lost allies plus this battle's (the Grudge Locket).
+      playerAlliesLost: playerAlliesLost(this.runManager, this._playerFalls),
     };
     const atkMods = getSkillCombatMods(
       attacker,
@@ -2050,11 +2057,7 @@ export class HeadlessBattle {
             toRefresh.push(ally);
           }
         }
-        for (const u of toRefresh) {
-          u.hasActed = false;
-          u.hasMoved = false;
-          u._movementSpent = 0;
-        }
+        for (const u of toRefresh) refreshUnitAction(u);
         this.selectedUnit = null;
         this._clearSelectedWeaponArt();
         this.attackTargets = [];
@@ -2237,10 +2240,13 @@ export class HeadlessBattle {
     // Canto (including Measured Step) is disabled in this harness; scene tests cover it.
     unit.hasActed = true;
     this._handleVillageVisit(unit);
+    // As BattleActionCompletion: a Galeforce Charm that procced readies the unit again.
+    const again = consumeGaleforce(unit);
     this.selectedUnit = null;
     this.preMoveLoc = null;
     this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     this._refreshFogVisibility();
+    if (again) return;
     if (this.playerUnits.includes(unit)) this.turnManager.unitActed(unit);
     else this.turnManager.checkPlayerPhaseComplete();
   }
@@ -2320,6 +2326,7 @@ export class HeadlessBattle {
     if (unit.faction === 'player') {
       const idx = this.playerUnits.indexOf(unit);
       if (idx !== -1) this.playerUnits.splice(idx, 1);
+      this._playerFalls = (this._playerFalls || 0) + 1; // the scene's _fallenBattleRecords
     } else if (unit.faction === 'npc') {
       const idx = this.npcUnits.indexOf(unit);
       if (idx !== -1) this.npcUnits.splice(idx, 1);
