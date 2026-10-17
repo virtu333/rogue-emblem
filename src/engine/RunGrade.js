@@ -34,7 +34,9 @@ export function gradeRun({ result, ledger, gold = 0, noMetaMode = false, burdens
   if (result !== 'victory' || !ledger) return null;
   const pace = ledger.parBattles > 0 ? ledger.underPar / ledger.parBattles : 1;
   const unspent = Math.max(0, Number(gold) || 0);
-  const economy = ledger.battleGold > 0 ? Math.max(0, 1 - unspent / ledger.battleGold) : 1;
+  // Share of the gold the run received (its start plus every inflow) that is not left unspent.
+  const received = (ledger.goldStart || 0) + (ledger.goldIn || 0);
+  const economy = received > 0 ? Math.max(0, 1 - unspent / received) : 1;
   const carried = Array.isArray(burdens) ? burdens.length : 0;
   const points = {
     pace: Math.round(pace * 30),

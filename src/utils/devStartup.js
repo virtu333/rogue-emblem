@@ -585,7 +585,9 @@ function createVictoryRun(gameData, meta, config) {
     activeMs: 6_480_000,
     parBattles: 20,
     underPar: 14,
-    battleGold: 9000,
+    goldStart: 800,
+    goldIn: 9000,
+    goldOut: 7400,
     losses: 0,
     worstSurvival: 0.75,
   };
