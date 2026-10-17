@@ -275,7 +275,7 @@ a trap.
 | Merchant Bane | III, +15% battle gold | keep, rename lore | III: Hunted 2 / Sworn Enemy (no gold price). |
 | Nomad's Pact | III, recruits +2 levels | widen | III: also boss recruits and mercenaries. Debt III / Sworn Enemy / Lingering Injury on the commander. **Built.** |
 | Focused Curriculum | III, lords +12 SPD/SKL growth | keep the effect | III with a real III price (Debt III / all growths −5 / Lingering Injury on the commander), never garnish. Review: stronger numbers would need a much bigger price. |
-| Arsenal Pact | IV, a Silver weapon | keep | IV, pact: Debt IV. |
+| Arsenal Pact | IV, a Silver weapon | reprice | III, price: Debt 2,500 on Dusk (`debt_medium`, 3 points, scaled by rung). Moved from IV with a 5,000 pact (Oct 2026 balance pass): the pact was dearer than Blood Forge for less. **Built.** |
 | Forbidden Tome | IV, lords +12 growths | reprice | IV, pact: no church revives this run (the pact it has is near-free). |
 | Blood Forge | IV, +2 Might on every non-staff weapon the two starting lords carry at the start (Edric's Iron and Steel Swords, Sera's tome) | rework | II: +2 Might on each starting lord's best weapon (highest Might), so it isn't spent on an Iron Sword that will be replaced. Later weapons are untouched. **Built.** |
 | War Tutelage | IV, a skill per lord | keep | IV, pact: personal skills off until Act 3 (the new skills crowd out the old). |
