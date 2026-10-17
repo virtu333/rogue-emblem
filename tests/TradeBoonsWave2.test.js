@@ -58,6 +58,7 @@ import {
   WEAPON_SWAP_LOCK_FIELD,
   WEAPON_SWAP_LOCK_REASON,
   weaponChangeBlocked,
+  weaponSwapLocked,
 } from '../src/engine/WeaponSwapLock.js';
 import {
   FORGE_FORBIDDEN_REASON,
@@ -470,19 +471,30 @@ describe('Oathbound Steel: no weapon changes in battle', () => {
     expect(planReorder({ context: 'roster', run: { roster: [unit] } }, from, to).ok).toBe(true);
   });
 
-  it('a spent per-battle weapon is not swapped for another while locked', () => {
-    const make = () => {
-      const u = makeUnit('Sage', 'player', 0, 0, ['Breachbolt', 'Fire']);
+  // Weapon uses (Dave, 2026-10-17): a spent held weapon frees its unit, so the lock never leaves
+  // a unit unable to fight; it takes up a spare and is held to that one.
+  it('a spent held weapon lifts the lock: the unit takes up a spare and is held to it', () => {
+    const make = (gear) => {
+      const u = makeUnit('Sage', 'player', 0, 0, gear);
       u.weapon._usesSpent = 99;
       return u;
     };
-    const free = make();
-    expect(swapSpentWeapons([free])).toHaveLength(1);
-    expect(free.weapon.name).toBe('Fire');
-    const held = make();
+    const held = make(['Breachbolt', 'Fire', 'Wildfire']);
     stampArmyBattleRules([held], { weaponSwapLocked: true });
-    expect(swapSpentWeapons([held])).toEqual([]);
-    expect(held.weapon.name).toBe('Breachbolt');
+    expect(weaponSwapLocked(held)).toBe(false);
+    expect(swapSpentWeapons([held])).toHaveLength(1);
+    expect(held.weapon.name).toBe('Fire');
+    // The spare is now the weapon held: the lock is back on it.
+    expect(weaponSwapLocked(held)).toBe(true);
+    expect(weaponChangeBlocked(held, held.inventory[2])).toBe(true);
+    // A durability weapon (an Iron tier tome) frees its unit the same way once spent.
+    const tome = make(['Fire', 'Wildfire']);
+    stampArmyBattleRules([tome], { weaponSwapLocked: true });
+    tome.weapon._usesSpent = 0;
+    expect(weaponSwapLocked(tome)).toBe(true);
+    tome.weapon._usesSpent = 99;
+    expect(swapSpentWeapons([tome])).toHaveLength(1);
+    expect(tome.weapon.name).toBe('Wildfire');
   });
 
   it('a unit holding a staff (no combat weapon) may take one up; the lock then holds it', () => {

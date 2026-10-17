@@ -8,6 +8,7 @@ Owner: Dave. Proposal and review: `/mnt/project-files/reviews/weapon-durability.
 - One use is one resolved combat in which the weapon struck: attacking or countering, hit or miss; a double (or a brave weapon's second blow) is still one use. A side that never struck spends nothing. A chosen-center area cast spends one.
 - A spent weapon cannot attack (`AttackOptions.canAttackWithWeapon`) or counter (`Combat.canCounter`). Once the combat's deaths are settled the unit equips its next usable weapon (`PerBattleWeapons.swapSpentWeapons`, a banner says so); with none it keeps the spent one and a banner says it is spent for this battle (once).
 - Everything refills at the victory commit (`RunManager.completeBattle`: roster, the fallen and the convoy) and at deploy (`resetUnitForBattle`), through `WeaponUses.refillBattleUses`.
+- A weapon lock (Oathbound Steel's twist, Frightened Acclaim's own rule) lifts once the held weapon is spent for the battle (`WeaponSwapLock.weaponSwapLocked` reads `WeaponUses.isSpentForBattle`), so the unit takes up a spare as any unit does and Oathbound Steel then holds it to that one: a lock never leaves a unit unable to fight (Dave, 2026-10-17).
 - Enemies, NPC allies and arena bouts never spend uses. Staves keep their own per-battle uses (MAG bonuses). A weapon whose catalog row says `perBattleUses` (Breachbolt, The Middle Pages) keeps its own counts for every faction.
 
 ## Save format

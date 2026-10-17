@@ -69,6 +69,25 @@ export function durabilityMaxUses(weapon, unit, cfg = config) {
   return durabilityBaseUses(weapon, cfg);
 }
 
+/** Does this unit's weapon keep a per-battle count (a catalog per-battle weapon, or durability)? */
+export function tracksBattleUses(weapon, unit, cfg = config) {
+  if (!weapon || weapon.type === 'Staff') return false;
+  return Boolean(weapon.perBattleUses) || spendsDurability(weapon, unit, cfg);
+}
+
+/** Uses a per-battle weapon has in each battle for this unit (Combat.getPerBattleMaxUses). */
+export function perBattleMaxUses(weapon, unit, cfg = config) {
+  if (!weapon?.perBattleUses) return durabilityMaxUses(weapon, unit, cfg);
+  const byFaction = weapon?.usesByFaction?.[unit?.faction];
+  return Number.isFinite(byFaction) ? byFaction : (weapon?.uses ?? 0);
+}
+
+/** True when this unit's weapon keeps a count and has none left this battle. */
+export function isSpentForBattle(weapon, unit, cfg = config) {
+  if (!tracksBattleUses(weapon, unit, cfg)) return false;
+  return perBattleMaxUses(weapon, unit, cfg) - (weapon._usesSpent || 0) <= 0;
+}
+
 /**
  * Validate data/weaponUses.json against the weapon catalog: every combat weapon tier is
  * listed with a whole number of uses of at least 1. Returns error strings.

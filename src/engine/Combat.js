@@ -27,7 +27,10 @@ import { revivalStoneCount } from './RevivalStones.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
 import { epicEffectiveness } from './EpicWeapons.js';
-import { durabilityMaxUses, spendsDurability } from './WeaponUses.js';
+import {
+  perBattleMaxUses,
+  tracksBattleUses as tracksDurabilityOrBattleUses,
+} from './WeaponUses.js';
 import {
   getImbueCombatMods,
   getImbuePostCombatPoison,
@@ -663,15 +666,12 @@ export function spendStaffUse(staff) {
 
 /** Does this unit spend per-battle uses with this combat weapon? (never a staff) */
 export function tracksBattleUses(weapon, unit) {
-  if (!weapon || isStaff(weapon)) return false;
-  return Boolean(weapon.perBattleUses) || spendsDurability(weapon, unit);
+  return tracksDurabilityOrBattleUses(weapon, unit);
 }
 
 /** Uses a per-battle weapon has in each battle for this unit. */
 export function getPerBattleMaxUses(weapon, unit) {
-  if (!weapon?.perBattleUses) return durabilityMaxUses(weapon, unit);
-  const byFaction = weapon?.usesByFaction?.[unit?.faction];
-  return Number.isFinite(byFaction) ? byFaction : (weapon?.uses ?? 0);
+  return perBattleMaxUses(weapon, unit);
 }
 
 /** Remaining uses for a per-battle-use weapon. */
