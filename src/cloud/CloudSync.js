@@ -1,3 +1,8 @@
+import {
+  mergeAchievementStates,
+  normalizeAchievementState,
+  sameAchievementState,
+} from '../engine/Achievements.js';
 import { mergeRunRecords } from '../engine/RunRecords.js';
 import { lordsMetOfMetaSave, mergeLordNames } from '../engine/LordsMet.js';
 import {
@@ -364,6 +369,12 @@ function applyMetaSlots(metaData, skipped = new Set()) {
     const seen = mergeDiscoveries(localSeen, discoveriesOfMetaSave(cloudSlot));
     const seenGrew =
       seen.items.length > localSeen.items.length || seen.skills.length > localSeen.skills.length;
+    // And the achievements either copy earned (engine/Achievements.js: a grow-only union).
+    const achievements = mergeAchievementStates(localSlot?.achievements, cloudSlot?.achievements);
+    const achievementsGrew = !sameAchievementState(
+      achievements,
+      normalizeAchievementState(localSlot?.achievements),
+    );
     // The prologue on either copy: the further state, the chapters and lessons unioned;
     // the grant's receipt only from the payload whose economy is kept (a completion the
     // other copy brought is paid into it once: reconcilePickedPrologue).
@@ -381,6 +392,7 @@ function applyMetaSlots(metaData, skipped = new Set()) {
       JSON.stringify(records) !== JSON.stringify(localSlot?.runRecords || []) ||
       lordsMet.length > localLords.length ||
       seenGrew ||
+      achievementsGrew ||
       prologueChanged
     ) {
       try {
@@ -395,6 +407,7 @@ function applyMetaSlots(metaData, skipped = new Set()) {
           JSON.stringify({
             ...merged,
             lordsMet,
+            achievements,
             purchasedUpgrades: withDiscoveryKeys(merged.purchasedUpgrades, seen),
             ...(prologue ? { prologue } : {}),
             ...(reconciled?.economy ?? {}),

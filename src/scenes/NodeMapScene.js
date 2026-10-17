@@ -66,6 +66,7 @@ import { ShopController } from '../ui/ShopController.js';
 import { adaptDialogueEntries } from '../engine/DialogueCast.js';
 import { recordRunLordsMet } from '../engine/LordsMet.js';
 import { recordRunDiscoveries } from '../engine/CompendiumDiscovery.js';
+import { recordRunAchievements } from '../engine/AchievementFacts.js';
 import { buildNarrativeContext, selectDialogueEntries } from '../engine/NarrativeDirector.js';
 import { NodeMapCursorController } from '../ui/NodeMapCursorController.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -1307,6 +1308,7 @@ export class NodeMapScene extends Phaser.Scene {
       slot,
     );
     recordRunDiscoveries(this.registry.get('meta'), this.runManager);
+    if (result.ok) recordRunAchievements(this.registry.get('meta'), this.runManager, this.gameData);
     if (!result.ok) {
       showMinorHint(
         this,

@@ -13,6 +13,9 @@ import { hasPc98, pc98PortraitElement, usePc98 } from './portraitArt.js';
 import { metLords } from '../engine/LordsMet.js';
 import { BEGIN_RUN_CANCELLED } from '../engine/PrologueRouting.js';
 import { NgPlusPanel } from './NgPlusPanel.js';
+import { showRunRecords } from './RunRecordsMenu.js';
+import { achievementChipText } from './achievementsModel.js';
+import { achievementMedal } from './AchievementsTab.js';
 import { NG_PLUS_TAB_LABEL, ngPlusTabVisible, openRideWarning } from './ngPlusModel.js';
 const node = (tag, cls, text) => {
   const el = document.createElement(tag);
@@ -50,6 +53,17 @@ export class MobileHomeBase {
     b.type = 'button';
     b.onclick = action;
     if (pressed != null) b.setAttribute('aria-pressed', String(pressed));
+    return b;
+  }
+  /** "Achievements 12 / 69": opens Records on its Achievements tab (every slot's, shared). */
+  achievementsChip() {
+    const chip = achievementChipText(this.meta?.getAchievements?.());
+    // Records keeps the focus it took and hands it back to the chip when it closes.
+    const b = this.button('', () => showRunRecords(this.scene, { tab: 'achievements' }));
+    b.className = 'ach-chip';
+    b.dataset.focus = 'achievements';
+    b.setAttribute('aria-label', `${chip.label}, ${chip.count} earned`);
+    b.append(achievementMedal('gold'), node('span', 'ach-chip-label', chip.label), node('span', 'ach-chip-count', chip.count)); // prettier-ignore
     return b;
   }
   open() {
@@ -174,6 +188,7 @@ export class MobileHomeBase {
         this.hide();
         this.scene.mobileUpgrades.open();
       }),
+      this.achievementsChip(),
       this.button('Title', () => void this.transition('Title')),
     );
     const tabs = node('nav', 'mu-tabs');

@@ -39,5 +39,9 @@
   "emberPale": "#fff0bd",
   "bloodDeep": "#6e1a28",
   "verdigrisDeep": "#2d6450",
-  "void": "#07060b"
+  "void": "#07060b",
+  "tierBronze": "#c4844e",
+  "tierSilver": "#c9ccd6",
+  "tierGold": "#f3cb6c",
+  "tierBlackSun": "#e0603c"
 }

@@ -106,7 +106,7 @@ test('records show persisted roster detail without navigating away from the titl
   await waitForScene(page, 'Title');
   await page.waitForTimeout(1300);
   await page.getByRole('button', { name: 'Records', exact: true }).tap();
-  const dialog = page.getByRole('dialog', { name: 'Victory records' });
+  const dialog = page.getByRole('dialog', { name: 'Records' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: /Slot 1/ }).tap();
   await expect(
