@@ -44,6 +44,7 @@ import { presentRefreshSparkle } from './MovementActionController.js';
 import { staffAllyCandidates } from '../engine/RecruitNpc.js';
 import { canInspectUnit, seenTileOccupant } from '../engine/BattleInformation.js';
 import { deedsFor } from './DeedController.js';
+import { battleFeats } from './AchievementBattleController.js';
 import { CombatFxController } from './CombatFxController.js';
 import { UI_PALETTE, UI_HEX } from '../utils/uiStyles.js';
 import { menuRow, railOwnsMenus, rowText } from './battleMenuModel.js';
@@ -579,6 +580,7 @@ export class AbilityController {
         if (ability.kind === 'refresh_adjacent') {
           const targets = findDanceRefreshTargets(unit, this._allyPool(unit, ability.kind));
           settleGoddessDance(targets);
+          battleFeats.refreshBurst(scene, targets.length);
           // Each refresh is a deed and earns Dance XP, as Dance's does (queued, not drawn).
           const xp = [];
           for (const ally of targets) {

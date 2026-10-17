@@ -1,5 +1,6 @@
 import './utils/storageGuard.js';
 import { showUpdateToast } from './ui/UpdateToast.js';
+import { installAchievementToasts } from './ui/AchievementToast.js';
 import { ownRecoveryInput, installDOMDragRelease } from './utils/domInputBoundary.js';
 import { UI_PALETTE } from './utils/uiStyles.js';
 import { installAudioRecovery } from './utils/audioRecovery.js';
@@ -318,6 +319,9 @@ const updateSW = registerSW({
     showUpdateToast(() => updateSW(true));
   },
 });
+
+// The achievement card (ui/AchievementToast.js): told once each meta write that earned one lands.
+installAchievementToasts();
 
 function hasReachedStartupTarget() {
   const telemetry = getStartupTelemetry();

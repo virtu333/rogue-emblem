@@ -45,6 +45,7 @@ export default [
       'src/engine/CantoRule.js',
       'src/engine/SkillSlots.js',
       'src/engine/MetaProgressionManager.js',
+      'src/engine/Achievements.js',
       'src/utils/audioAssets.js',
     ],
     languageOptions: { ecmaVersion: 2025 },

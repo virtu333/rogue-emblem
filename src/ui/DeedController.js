@@ -32,6 +32,7 @@ import { isScriptedBattle } from '../engine/ScriptedBattle.js';
 import { normalizeBattleRecruits } from '../engine/BattleRecruits.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import { hasDOMHost } from '../utils/domUI.js';
+import { battleFeats } from './AchievementBattleController.js';
 
 const warn = (where, error) => console.warn(`[DeedController] ${where} skipped:`, error);
 
@@ -61,6 +62,7 @@ export class DeedController {
 
   /** After a resolveCombat result is applied (final HP on both units). */
   onCombat(attacker, defender, result) {
+    battleFeats.combat(this.scene, attacker, defender, result); // the achievements' counts
     if (!this.active()) return;
     try {
       recordCombat(result, attacker, defender, {
@@ -98,6 +100,7 @@ export class DeedController {
         warn('fallen', error);
       }
     }
+    battleFeats.kill(s, unit, killer);
     if (!this.active()) return;
     try {
       recordKill(unit, killer, { terrain: killer ? this._terrainName(killer) : null });

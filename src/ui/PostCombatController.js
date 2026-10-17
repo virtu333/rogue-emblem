@@ -19,6 +19,7 @@ import {
 } from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
 import { deedsFor } from './DeedController.js';
+import { recordVictory, victoryFacts } from './AchievementBattleController.js';
 import { GrowthCeremonyController, growthCeremonies } from './GrowthCeremonyController.js';
 import {
   buildNarrativeContext,
@@ -146,6 +147,8 @@ export class PostCombatController {
       const classesData = scene.gameData?.classes || null;
       const traitsData = scene.gameData?.traits || null;
       const liveSurvivors = [...scene.playerUnits, ...(scene.escapedUnits || [])];
+      // The achievements read the battle before the deeds commit clears its scratch.
+      const achievementFacts = victoryFacts(scene, liveSurvivors);
       // Deeds commit with the win, before the units are serialized and the
       // run is saved; their rite plays after the save (presentVictory).
       deedsFor(scene).commitVictory(liveSurvivors);
@@ -217,6 +220,7 @@ export class PostCombatController {
       );
       // A lord recruited in this battle (a recruit node's Talk) has now joined.
       if (completionApplied) recordRunLordsMet(scene.registry?.get?.('meta'), scene.runManager);
+      if (completionApplied) recordVictory(scene, achievementFacts); // only once the win stands
       // What a burden took at this commit ("Debt −120 G", "Ill Omen +1") joins the band.
       if (completionApplied) {
         // Gambler's Toss comes first: the Debt garnishes what the toss left.

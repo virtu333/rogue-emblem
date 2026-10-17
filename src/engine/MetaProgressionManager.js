@@ -28,6 +28,23 @@ import {
 } from './BalanceRevisionMarker.js';
 import { mergeSeenDialogueKeys } from '../utils/seenDialogue.js';
 import { mergeRunRecords, runRecordsUnderPressure } from './RunRecords.js';
+import {
+  applyAchievementFacts,
+  emptyAchievementState,
+  mergeAchievementStates,
+  normalizeAchievementState,
+  sameAchievementState,
+} from './Achievements.js';
+import {
+  achievementsOnDevice,
+  announceAchievements,
+  writeDeviceAchievements,
+} from './AchievementStore.js';
+import {
+  achievementTotals,
+  runAchievementFacts,
+  runEndAchievementFacts,
+} from './AchievementFacts.js';
 import { isQuotaExceededError, setItemFreeingSpace } from './SaveSpace.js';
 import {
   isRepeatableUpgrade,
@@ -539,6 +556,7 @@ export const META_SAVE_FIELDS = Object.freeze([
   'hintState',
   'prologue',
   'ngPlus',
+  'achievements',
   'savedAt',
 ]);
 const META_READ_ONLY_FIELDS = Object.freeze(['totalRenown']);
@@ -651,6 +669,10 @@ export class MetaProgressionManager {
     this.storyFlags = defaultStoryFlags(); // run-aware narrative memory
     this.prologue = defaultPrologueState();
     this.ngPlus = defaultNgPlusState(); // NG+: the Barracks and the ride (NgPlusState.js)
+    // The player's achievements (engine/Achievements.js): grow-only, the same on every slot.
+    this.achievements = emptyAchievementState();
+    // Earned in a write not yet landed; announced (the unlock card) once it has.
+    this._achievementNotices = [];
     // A newer build's keys, kept as found and written back by `_save` (META_SAVE_FIELDS).
     this.unknownFields = {};
 
@@ -708,6 +730,7 @@ export class MetaProgressionManager {
         if (saved.storyFlags) this.storyFlags = normalizeStoryFlags(saved.storyFlags);
         this.prologue = normalizePrologueState(saved.prologue);
         this.ngPlus = normalizeNgPlusState(saved.ngPlus);
+        this.achievements = normalizeAchievementState(saved.achievements);
         this.solRefundBasis = Number(saved.solRefundBasis) === 400 ? 400 : 600;
         if (!saved.balanceRevision && this.getUpgradeLevel('unlock_sol') > 0)
           this.solRefundBasis = 400;
@@ -735,6 +758,15 @@ export class MetaProgressionManager {
     const seen = mergeDiscoveries(discoveriesOfMetaSave(savedMeta), discoveriesInRun(savedRun));
     this.itemsSeen = seen.items;
     this.skillsSeen = seen.skills;
+    // Achievements are the player's: a slot takes in every copy on the device (the other
+    // slots', the device's own), so whichever slot saves next carries them all.
+    if (this._isSlotMeta())
+      this.achievements = mergeAchievementStates(this.achievements, achievementsOnDevice());
+  }
+
+  /** True for a save slot's meta (never a dev route's or a test's own key). */
+  _isSlotMeta() {
+    return /^emblem_rogue_slot_\d+_meta$/.test(this.storageKey);
   }
 
   /** The run saved beside this meta (its slot's run save), or null. */
@@ -989,6 +1021,7 @@ export class MetaProgressionManager {
         chaptersCompleted,
         practised,
       });
+      this.recordAchievementFacts({ prologueComplete: true }); // Banner at Dawn, in this write
       if (paid) {
         const { valor, supply } = prologueGrantAmounts(grant);
         this.totalValor = Math.max(0, Math.floor((this.totalValor || 0) + valor));
@@ -1224,28 +1257,43 @@ export class MetaProgressionManager {
     const outer = !(this._txDepth > 0);
     if (outer) this._adoptForeignDiskStateIfNewer();
     const before = this._captureState();
+    // Achievements earned inside this change are announced only once its write lands.
+    const notices = (this._achievementNotices ||= []);
+    const noticeMark = notices.length;
+    const rollBack = () => {
+      this._restoreState(before);
+      notices.length = noticeMark;
+    };
     this._txDepth = (this._txDepth || 0) + 1;
     let result;
     try {
       result = change();
     } catch (err) {
       this._txDepth -= 1;
-      this._restoreState(before);
+      rollBack();
       throw err;
     }
     this._txDepth -= 1;
     if (!result?.ok) {
-      this._restoreState(before);
+      rollBack();
       return result || { ok: false };
     }
+    if (!outer) return result;
     // Nothing changed (an idempotent record already held): nothing to write.
-    if (!outer || result.unchanged) return result;
-    const saved = this._save({ adopt: false });
-    if (!saved.ok) {
-      this._restoreState(before);
-      return { ok: false, reason: 'save_failed' };
+    if (!result.unchanged) {
+      const saved = this._save({ adopt: false });
+      if (!saved.ok) {
+        rollBack();
+        return { ok: false, reason: 'save_failed' };
+      }
     }
+    this._announceAchievementNotices();
     return result;
+  }
+
+  _announceAchievementNotices() {
+    const ids = this._achievementNotices?.splice(0) || [];
+    if (ids.length) announceAchievements(ids);
   }
 
   // --- Story flag methods (run-aware narrative memory) ---
@@ -1307,6 +1355,90 @@ export class MetaProgressionManager {
       this.deedsEarned = merged;
       return { ok: true };
     });
+  }
+
+  // --- Achievements (engine/Achievements.js) ---
+
+  /** The player's achievements as this slot holds them (a copy). */
+  getAchievements() {
+    return normalizeAchievementState(this.achievements);
+  }
+
+  /**
+   * Apply what a durable point knows (a won battle, the route map's run, a run's end, the
+   * prologue's end). One write, only when something changed; the ids newly earned are
+   * announced once it has landed. Inside a payout transaction it rides that write.
+   * @returns {string[]} the ids newly earned (empty when nothing was, or the write failed)
+   */
+  recordAchievementFacts(facts = {}, { quiet = false } = {}) {
+    let unlocked = [];
+    const slot = /^emblem_rogue_slot_(\d+)_meta$/.exec(this.storageKey)?.[1] ?? 'local';
+    const result = this._commit(() => {
+      const { state, unlocked: ids } = applyAchievementFacts(
+        this.achievements,
+        { ...facts, deedIds: [...(facts?.deedIds || []), ...this.deedsEarned] },
+        { slot },
+      );
+      if (sameAchievementState(state, this.achievements)) return { ok: true, unchanged: true };
+      this.achievements = state;
+      unlocked = ids;
+      // The retroactive pass is told once, as a count (the card says so); not id by id.
+      if (!quiet) this._achievementNotices.push(...ids);
+      return { ok: true };
+    });
+    return result?.ok ? unlocked : [];
+  }
+
+  /**
+   * A finished run's achievements, inside its payout's transaction (RunManager's `pay`), so
+   * they land with the payout's one write. Never throws: a payout never fails for them.
+   */
+  recordRunEndAchievements(run, summary) {
+    try {
+      const facts = runEndAchievementFacts(run, summary);
+      if (!facts) return [];
+      const gameData = run.gameData;
+      return this.recordAchievementFacts({
+        runEnd: facts,
+        run: runAchievementFacts(run, gameData),
+        totals: achievementTotals(gameData),
+      });
+    } catch (err) {
+      console.warn('[Achievements] run end skipped:', err?.message || err);
+      return [];
+    }
+  }
+
+  /**
+   * The retroactive pass: what this save's older records already prove (milestones, bosses
+   * slain, won runs, deeds, the prologue). Idempotent. Quiet: the caller says how many.
+   * @param {object} totals  AchievementFacts.achievementTotals(gameData)
+   * @returns {string[]} the ids newly earned
+   */
+  reconcileAchievements(totals = {}) {
+    const slain = Object.entries(this.storyFlags?.bossSlain || {})
+      .filter(([, count]) => Number(count) > 0)
+      .map(([name]) => name);
+    const rungs = this.runRecords.map((record) => record?.difficulty).filter(Boolean);
+    for (const [rung, milestone] of [
+      ['dusk', 'beatDusk'],
+      ['hard', 'beatHard'],
+      ['lunatic', 'beatLunatic'],
+    ])
+      if (this.milestones.has(milestone)) rungs.push(rung);
+    return this.recordAchievementFacts(
+      {
+        totals,
+        known: { bosses: slain, rungs },
+        retro: {
+          firstBlood: this.milestones.has('beatAct1'),
+          firstGate: this.milestones.has('beatAct1'),
+          deeperRoads: this.milestones.has('beatAct3'),
+        },
+        prologueComplete: this.prologue?.state === 'complete',
+      },
+      { quiet: true },
+    );
   }
 
   /** Has this lord joined an army on this save? Edric and Sera always have. */
@@ -2167,6 +2299,7 @@ export class MetaProgressionManager {
     this.runRecords = mergeRunRecords(this.runRecords, fresh.runRecords);
     this.seenDialogueKeys = mergeSeenDialogueKeys(this.seenDialogueKeys, fresh.seenDialogueKeys);
     this.deedsEarned = mergeDeedIds(this.deedsEarned, fresh.deedsEarned);
+    this.achievements = mergeAchievementStates(this.achievements, fresh.achievements);
     this.lordsMet = mergeLordNames(this.lordsMet, fresh.lordsMet);
     const seen = mergeDiscoveries(
       { items: this.itemsSeen, skills: this.skillsSeen },
@@ -2277,6 +2410,7 @@ export class MetaProgressionManager {
       hintState: this.hintState,
       prologue: this.prologue,
       ngPlus: this.ngPlus,
+      achievements: this.achievements,
       savedAt: this.savedAt,
     });
   }
@@ -2323,6 +2457,7 @@ export class MetaProgressionManager {
       hintState: this.hintState,
       prologue: normalizePrologueState(this.prologue),
       ngPlus: this.ngPlus,
+      achievements: this.achievements,
       savedAt: this.savedAt,
     };
     let localOk = false;
@@ -2338,6 +2473,9 @@ export class MetaProgressionManager {
       if (!localOk)
         console.warn('[MetaProgression] localStorage write failed:', err?.message || err);
     }
+
+    // The device's own copy of the achievements, so deleting this slot never loses one.
+    if (localOk && this._isSlotMeta()) writeDeviceAchievements(this.achievements);
 
     if (localOk && this.onSave) {
       try {

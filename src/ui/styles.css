@@ -16,6 +16,8 @@
 @import './runFlow.css';
 /* Victory Records: the list of won runs and one run's chronicle. */
 @import './runRecords.css';
+/* Achievements: the Records tab, tier medals, the Home Base chip, the unlock card. */
+@import './achievements.css';
 
 /* Ceremonies: boss cards, fate bands, cut-ins, act titles, the boss bar. */
 @import './ceremony.css';

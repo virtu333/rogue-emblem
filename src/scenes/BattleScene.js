@@ -378,6 +378,8 @@ import { armyAndNpcAllies, hasRecruitNpc, isRecruitNpc } from '../engine/Recruit
 import { isSameUnit } from '../engine/UnitIdentity.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
 import { deedsFor } from '../ui/DeedController.js';
+import { battleFeats } from '../ui/AchievementBattleController.js';
+import { emptyBattleFeats } from '../engine/BattleFeats.js';
 import { unitEpithet } from '../engine/DeedTitles.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
@@ -1746,6 +1748,7 @@ export class BattleScene extends Phaser.Scene {
       // its own back (restoreBattleWorldState). PR 9's victory commit reads `.words`.
       this._vigilState = bc.vigil ? createVigilState() : null;
       this._entityKitState = initialEntityKitState(bc); // EntityKit.js: the limbs, as the Vigil
+      this._battleFeats = emptyBattleFeats(); // the achievements' counts (BattleFeats.js)
 
       // Input lockout to prevent menu clicks bleeding through to map
       this._uiClickBlocked = false;
@@ -9343,6 +9346,11 @@ export class BattleScene extends Phaser.Scene {
       ? xpGaugeRecord(playerUnit, { before, after, levelUps: result?.levelUps })
       : null;
     if (gauge) (this._pendingXpGauges ||= []).push(gauge);
+    battleFeats.levelUps(
+      this,
+      playerUnit,
+      levelUps.map((entry) => entry.levelUp),
+    );
     const cards = levelUpDisplayResults(
       statsAfterGain,
       levelUps.map((entry) => entry.levelUp),
@@ -10313,6 +10321,7 @@ export class BattleScene extends Phaser.Scene {
         );
         if (!isCurrent()) return;
         if (target.currentHP <= 0) {
+          if (owner === 'player') battleFeats.ballistaKill(this, target);
           await this.removeUnit(target, { killer: null });
           if (!isCurrentBattleSession(this, session)) return;
           if (!isCurrent()) return;

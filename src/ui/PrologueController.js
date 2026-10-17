@@ -1490,6 +1490,12 @@ export class PrologueController {
       if (scene.showLordDeathVisionPrompt?.()) return true;
     }
     this.restarting = true;
+    // The secret achievement "Not This Thread": the fall stands (the chapter restarts).
+    try {
+      scene.registry?.get?.('meta')?.recordAchievementFacts?.({ prologueProtectedFall: true });
+    } catch {
+      /* achievements never stop the restart */
+    }
     const session = battleSession(scene);
     scene._reinforcementsPendingThisTurn = false;
     // Ends the enemy phase (phaseSuperseded) and closes input while the line plays.
