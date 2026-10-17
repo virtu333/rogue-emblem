@@ -15,6 +15,7 @@ import { describeContract, describeOwedContract } from '../engine/Contracts.js';
 import { describeResult, num, plural, sentence, wornText } from '../engine/EventResultWords.js';
 import { choicePreviewText } from '../engine/EventChoicePreview.js';
 import { riteBurdenEntry } from './riteModel.js';
+import { echoEffectLines, runEcho } from '../engine/NgPlusEcho.js';
 
 // The words of a result record live in the engine (EventResultWords), shared with the
 // contract's victory band; these two are re-exported for the pages that already import them.
@@ -301,10 +302,12 @@ export function owedContractChipModel(owed) {
   };
 }
 
+const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+
 /**
  * The pause menu's list of what weighs on the run: every burden (Burdens.describeBurdens) and the
  * open contract, each { id, label, short, line?, detail?, text? } (`text` replaces `line detail.`),
- * and in the Descent the Rite first.
+ * in the Descent the Rite first, and in an NG+ run its Echo (engine/NgPlusEcho.js).
  * @param {object} run - RunManager
  * @param {object} [catalog] - the events catalog (burden definitions)
  * @param {object} [riteOpts] - riteChipModel's options: `live`, a battle in progress
@@ -315,8 +318,19 @@ export function pauseBurdenEntries(run, catalog = null, riteOpts = undefined) {
     contractChipModel(describeContract(run)) || owedContractChipModel(describeOwedContract(run));
   // The Descent's Rite (riteModel.js) leads the list: a state of the act, not a price of an event.
   const rite = riteBurdenEntry(run, riteOpts);
+  // NG+ Echo (engine/NgPlusEcho.js): what the Barracks members' rides do to the enemies.
+  const echo = runEcho(run);
+  const echoEntry = echo
+    ? {
+        id: 'ngplus-echo',
+        label: `NG+ · Echo ${echo}`,
+        short: `Echo ${echo}`,
+        text: `${capitalize(echoEffectLines(echo, run.gameData).join(', ') || 'no change to enemies yet')}. Each ride your veterans and lords have had adds 1.`,
+      }
+    : null;
   return [
     ...(rite ? [rite] : []),
+    ...(echoEntry ? [echoEntry] : []),
     ...burdens,
     ...(contract
       ? [{ id: 'contract', label: contract.label, short: contract.short, text: contract.terms }]

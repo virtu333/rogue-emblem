@@ -414,5 +414,20 @@
         "act1": { "enemyStatBonus": 1, "enemyCountBase": 5, "enemyCountBonus": 1 }
       }
     }
+  },
+  "ngPlus": {
+    "echo": [
+      { "minEcho": 5, "enemyLevelBonus": 1 },
+      { "minEcho": 10, "enemyLevelBonus": 2, "enemyStatBonus": 1 },
+      { "minEcho": 15, "enemyLevelBonus": 2, "enemyStatBonus": 2, "enemyCountBonus": 1 },
+      {
+        "minEcho": 20,
+        "enemyLevelBonus": 3,
+        "enemyStatBonus": 2,
+        "enemyCountBonus": 1,
+        "bossStones": 1
+      }
+    ],
+    "keptForgeAwake": { "act1": 2, "act2": 4, "act3": 6, "act4": 8 }
   }
 }

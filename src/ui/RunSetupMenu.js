@@ -302,7 +302,7 @@ export class RunSetupMenu {
         element('p', `Commander: ${pair.commander} · Partner: ${pair.partner}`, 're-note'),
       );
     if (s._ngPlusAvailable?.() && s._ngPlus)
-      detail.append(element('p', ngPlusRunNote(s.meta), 're-note'));
+      detail.append(element('p', ngPlusRunNote(s.meta, s.gameData), 're-note'));
     appendDetailScrollControls(footer, detail);
     return [row, detail];
   }

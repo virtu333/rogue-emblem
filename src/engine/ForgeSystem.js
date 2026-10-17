@@ -37,6 +37,9 @@ function removeStatBonus(weapon, stat, bonus) {
   }
 }
 
+const hasDormant = (weapon) =>
+  Array.isArray(weapon?._dormantForges) && weapon._dormantForges.length > 0;
+
 function getLegacyDeforgeStat(weapon) {
   const order = ['weight', 'hit', 'crit', 'might'];
   const bonuses = weapon?._forgeBonuses;
@@ -60,6 +63,8 @@ export function canForge(weapon) {
   if (!weapon || EXCLUDED_TYPES.has(weapon.type)) return false;
   // A worn weapon is repaired before it is forged (docs/specs/worn-weapons.md).
   if (isWorn(weapon)) return false;
+  // An NG+ kept weapon's forges are still waking (engine/KeptForges.js): no new forge on top.
+  if (hasDormant(weapon)) return false;
   return (weapon._forgeLevel || 0) < FORGE_MAX_LEVEL;
 }
 
@@ -96,6 +101,7 @@ export function getStatForgeCount(weapon, stat) {
 export function forgeStatBlock(weapon, stat) {
   if (!Object.hasOwn(FORGE_BONUSES, stat)) return 'Invalid forge choice.';
   if (isWorn(weapon)) return 'Repair this weapon before forging it.';
+  if (hasDormant(weapon)) return 'Its kept forges are still waking.';
   if (!canForge(weapon)) return 'This weapon cannot be forged further.';
   if (stat === 'weight' && !(weapon.weight > 0)) return 'Already at minimum weight.';
   if (getStatForgeCount(weapon, stat) >= FORGE_STAT_CAP) return 'This stat is at its forge limit.';
@@ -166,6 +172,26 @@ export function applyForge(weapon, stat, discountRatio = 0, { free = false } = {
   weapon._forgeHistory.push({ stat, cost });
 
   return { success: true, cost };
+}
+
+/**
+ * Put back one forge step taken off by deforgeWeapon (an NG+ kept weapon's dormant forge
+ * waking, engine/KeptForges.js): the stat, level, name and history as applyForge leaves them,
+ * with no gold charged and the price untouched. Returns false for a step that is not a forge.
+ */
+export function reapplyForgeStep(weapon, step) {
+  const stat = step?.stat;
+  if (!weapon || !Object.hasOwn(FORGE_BONUSES, stat)) return false;
+  if (!weapon._baseName) weapon._baseName = weapon.name;
+  if (!weapon._forgeBonuses) weapon._forgeBonuses = { might: 0, crit: 0, hit: 0, weight: 0 };
+  if (!Array.isArray(weapon._forgeHistory)) weapon._forgeHistory = [];
+  const bonus = FORGE_BONUSES[stat];
+  weapon._forgeBonuses[stat] += bonus;
+  applyStatBonus(weapon, stat, bonus);
+  weapon._forgeLevel = (weapon._forgeLevel || 0) + 1;
+  weapon.name = `${weapon._baseName} +${weapon._forgeLevel}`;
+  weapon._forgeHistory.push({ stat, cost: Math.max(0, Math.trunc(Number(step.cost) || 0)) });
+  return true;
 }
 
 /**

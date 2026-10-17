@@ -130,6 +130,8 @@ import {
   recruitAffixesAllowed,
 } from './DifficultyEngine.js';
 import { hasRevivalStones } from './RevivalStones.js';
+import { echoModsFor, keptForgeAwakeTable, runEcho, withEchoBossStones } from './NgPlusEcho.js';
+import { wakeArmyForges } from './KeptForges.js';
 import { sanitizeEntityKit } from './EntityKitConfig.js'; // the Entity's kit, final act only
 import { assignPortraitVariants, backfillPortraitVariants } from './PortraitVariants.js';
 import {
@@ -3668,6 +3670,12 @@ export class RunManager {
     if (Number.isFinite(battleParams.eventEnemyLevelBonus))
       battleParams.enemyLevelBonus += Math.trunc(battleParams.eventEnemyLevelBonus);
     battleParams.bossLevelBonus = actModifier('bossLevelBonus', 0);
+    // NG+ Echo (engine/NgPlusEcho.js): the Barracks members' rides scale every enemy, bosses too.
+    const echoMods = echoModsFor(runEcho(this), this.gameData);
+    battleParams.enemyLevelBonus += echoMods.enemyLevelBonus;
+    battleParams.bossLevelBonus += echoMods.enemyLevelBonus;
+    battleParams.enemyStatBonus += echoMods.enemyStatBonus;
+    battleParams.enemyCountBonus += echoMods.enemyCountBonus;
     battleParams.enemySkillChance = actModifier('enemySkillChance', 0);
     battleParams.enemyCountBase = actModifier('enemyCountBase', 0);
     battleParams.recruitEnemyCountBonus = this.getDifficultyModifier('recruitEnemyCountBonus', 0);
@@ -3772,8 +3780,11 @@ export class RunManager {
     // Revival Stones (engine/RevivalStones.js): the rung's table, written into the boss spawn
     // when the map is generated. Added only when a kind carries one, so a rung (or a run saved
     // before stones) without them leaves the params exactly as they were.
-    if (hasRevivalStones(this.difficultyModifiers?.revivalStones))
-      battleParams.revivalStones = { ...this.difficultyModifiers.revivalStones };
+    const revivalStones = withEchoBossStones(
+      this.difficultyModifiers?.revivalStones,
+      echoMods.bossStones,
+    );
+    if (hasRevivalStones(revivalStones)) battleParams.revivalStones = revivalStones;
     else delete battleParams.revivalStones;
     const entityKit =
       battleAct === 'finalBoss' && sanitizeEntityKit(this.difficultyModifiers?.entityKit);
@@ -5002,6 +5013,8 @@ export class RunManager {
       actIndex: this.actIndex,
     }).burdens;
     this._restoreDisabledPersonalSkillsIfReady('act_transition');
+    // NG+ kept weapons wake their sleeping forges up to the new act's limit.
+    if (this.ngPlus) wakeArmyForges(this, this.currentAct, keptForgeAwakeTable(this.gameData));
     // Act-entry blessing effects (Slow Fuse's rise) land before the rest, so the army starts
     // the act whole at its new maximum.
     applyArcsOnActEntry(this);

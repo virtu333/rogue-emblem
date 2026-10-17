@@ -32,6 +32,7 @@ import {
   setBring,
 } from '../src/engine/NgPlusState.js';
 import { findCommander } from '../src/engine/Commander.js';
+import { wakeArmyForges } from '../src/engine/KeptForges.js';
 
 const opts = parseArgs({
   phase: 'play',
@@ -189,6 +190,9 @@ const ARM_DEFS = {
   loop3: { loops: 3, bring: 3, vision: 2 },
   loop5: { loops: 5, bring: 4, vision: 3 },
   loop10: { loops: 10, bring: 6, vision: 5 },
+  // Today's NG+ before Echo and kept forges (both switched off after the start).
+  loop5_old: { loops: 5, bring: 4, vision: 3, legacy: true },
+  loop10_old: { loops: 10, bring: 6, vision: 5, legacy: true },
   // Decomposition: which part of the start does the work.
   loop5_lords: { loops: 5, bring: 4, vision: 3, vets: false },
   loop5_vets: { loops: 5, bring: 4, vision: 3, lords: false },
@@ -230,6 +234,10 @@ async function playOne(gameData, { rung, seed, arm, harvests }) {
     });
     driver.init();
     if (def?.enemy) layEnemyScaling(driver.runManager, def.enemy);
+    if (def?.legacy && driver.runManager.ngPlus) {
+      driver.runManager.ngPlus.echo = 0;
+      wakeArmyForges(driver.runManager, 'finalBoss');
+    }
     const result = await driver.run();
     const rm = driver.runManager;
     const out = {
@@ -244,6 +252,7 @@ async function playOne(gameData, { rung, seed, arm, harvests }) {
       totalTurns: result.metrics.totalTurns,
       unitsLost: result.metrics.unitsLost,
       startRoster: def ? 2 + (ngPlus?.veterans?.length || 0) : 2,
+      echo: rm.ngPlus?.echo ?? 0,
       rosterSize: result.rosterSize,
     };
     // Battles per act and turns, from the trace.

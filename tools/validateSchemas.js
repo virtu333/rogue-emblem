@@ -13,6 +13,7 @@ import { validateSetPiecesConfig } from '../src/engine/SetPieces.js';
 import { validateDescentConfig } from '../src/engine/Descent.js';
 import { validateRepeatableUpgrades } from '../src/engine/RepeatableUpgrades.js';
 import { validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
+import { validateNgPlusConfig } from '../src/engine/NgPlusEcho.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 
 const DATA_DIR = path.resolve('data');
@@ -158,7 +159,13 @@ if (eventsResult.valid) {
 
 // Validate the difficulty ladder (engine validator: required keys, revival stones, act
 // overrides and the rest of DifficultyEngine's contract)
-const difficultyResult = validateDifficultyConfig(readData('difficulty.json'));
+const difficultyData = readData('difficulty.json');
+const difficultyResult = validateDifficultyConfig(difficultyData);
+const ngPlusResult = validateNgPlusConfig(difficultyData.ngPlus);
+if (!ngPlusResult.valid) {
+  difficultyResult.valid = false;
+  difficultyResult.errors = [...difficultyResult.errors, ...ngPlusResult.errors];
+}
 if (difficultyResult.valid) {
   console.log('  OK  difficulty.json (engine validator)');
 } else {

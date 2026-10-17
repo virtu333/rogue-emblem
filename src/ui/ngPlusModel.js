@@ -20,6 +20,7 @@ import {
   rideSlotsLeft,
 } from '../engine/NgPlusState.js';
 import { itemDisplayName } from '../utils/itemNames.js';
+import { echoEffectLines, recordEcho } from '../engine/NgPlusEcho.js';
 
 export const NG_PLUS_TAB_LABEL = 'NG+';
 
@@ -215,7 +216,7 @@ export function barracksView(state, gameData = {}, bringLimit = BRING_LIMIT) {
   return {
     title: 'Barracks',
     lead: records.length
-      ? `Bring up to ${bringLimit} recruits into each NG+ run. Lords bring their kit whenever they ride.`
+      ? `Bring up to ${bringLimit} recruits into each NG+ run. Lords bring their kit whenever they ride. Every ride a member has had adds 1 Echo, and Echo makes the enemies stronger.`
       : 'Empty. Win on Nightfall or Black Sun to send someone here.',
     bringCount: `Bringing ${bring.size}/${bringLimit}`,
     records: records.map((record) => ({
@@ -249,15 +250,37 @@ export function openRideWarning(meta) {
   };
 }
 
+/**
+ * The Echo the run about to start would have: its brought veterans' rides and the rides of the
+ * starting lords that have a kit (a third lord's are added when they join).
+ */
+export function echoPreview(meta) {
+  const state = meta?.getNgPlus?.();
+  const records = state?.barracks || [];
+  const bring = new Set(state?.bring || []);
+  const pair = meta?.getLordSelection?.() || { commander: 'Edric', partner: 'Sera' };
+  const starting = new Set([pair.commander, pair.partner]);
+  return records
+    .filter((r) => (r.kind === 'recruit' ? bring.has(r.id) : starting.has(r.name)))
+    .reduce((sum, r) => sum + recordEcho(r), 0);
+}
+
+/** One line for an Echo: "Echo 12: enemies +2 levels, enemy stats +1." */
+export function echoLine(echo, gameData) {
+  const effects = echoEffectLines(echo, gameData);
+  return `Echo ${echo}: ${effects.length ? effects.join(', ') : 'no change to enemies yet'}.`;
+}
+
 /** The difficulty screen's NG+ line: who comes back in the run about to start. */
-export function ngPlusRunNote(meta) {
+export function ngPlusRunNote(meta, gameData = null) {
   const state = meta?.getNgPlus?.();
   const lords = (state?.barracks || []).filter((r) => r.kind === 'lord').length;
   const brought = (state?.bring || []).length;
   const rides = brought === 1 ? '1 veteran rides' : `${brought} veterans ride`;
   const kits =
     lords === 1 ? '1 Barracks lord brings their kit' : `${lords} Barracks lords bring their kit`;
-  return `New Game+: ${rides} with you; ${kits} when in the run.`;
+  const note = `New Game+: ${rides} with you; ${kits} when in the run.`;
+  return gameData ? `${note} ${echoLine(echoPreview(meta), gameData)}` : note;
 }
 
 /** The run result's NG+ line: a win left survivors to pick at Home Base, or null. */
