@@ -8,6 +8,7 @@ import {
   carriedItemInfo,
 } from '../engine/BattleInformation.js';
 import { entityReachInfo } from '../engine/EntityReach.js';
+import { equippedWeaponUsesLine } from '../engine/ItemKeywords.js';
 import { UI_COLORS, UI_HEX } from '../utils/uiStyles.js';
 import { TILE_SIZE } from '../utils/constants.js';
 import { presentationText } from '../utils/presentationText.js';
@@ -51,6 +52,7 @@ export class UnitInspectionPanel {
     const pixelY = screenPos?.y ?? worldPos.y;
     const details = [
       entityReachInfo(unit)?.text,
+      equippedWeaponUsesLine(unit),
       ...statusDescriptions(unit),
       statusStaffInfo(unit)?.text,
       carriedItemInfo(unit)?.text,

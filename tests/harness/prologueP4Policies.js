@@ -26,6 +26,7 @@ import { canEquip, equipWeapon } from '../../src/engine/UnitManager.js';
 import { healUnitFully } from '../../src/engine/UnitHealth.js';
 import { serializeUnit } from '../../src/engine/RunManager.js';
 import * as P3 from './prologueP3Policies.js';
+import { refillBattleUses } from '../../src/engine/WeaponUses.js';
 
 export const data = P3.data;
 export const prologue = data.prologue;
@@ -546,8 +547,7 @@ export async function p3EndStates({ policy = 'intended', seeds = 60 } = {}) {
       const units = ['Edric', 'Gaspar', 'Tamsin', 'Sera'].map((name) =>
         structuredClone(serializeUnit(battle.playerUnits.find((x) => x.name === name))),
       );
-      for (const x of units)
-        for (const w of x.inventory || []) if (w.perBattleUses) w._usesSpent = 0;
+      for (const x of units) for (const w of x.inventory || []) refillBattleUses(w);
       out.push(units);
     }
     restoreMathRandom();

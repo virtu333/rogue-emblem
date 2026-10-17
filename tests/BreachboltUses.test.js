@@ -25,6 +25,11 @@ import { HeadlessBattle, HEADLESS_STATES } from './harness/HeadlessBattle.js';
 import { loadFixture } from './fixtures/battles/index.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { loadGameData } from './testData.js';
+import { readFileSync } from 'node:fs';
+
+const weaponUsesData = JSON.parse(
+  readFileSync(new URL('../data/weaponUses.json', import.meta.url), 'utf8'),
+);
 
 const data = loadGameData();
 const weapon = (name) => structuredClone(data.weapons.find((w) => w.name === name));
@@ -96,7 +101,13 @@ describe('Breachbolt data and cards', () => {
     expect(perBattleUsesText(mira.weapon, mira)).toBe(
       `Uses ${PLAYER_SHOTS - 1}/${PLAYER_SHOTS} this battle`,
     );
-    expect(perBattleUsesText(weapon('Fire'), mira)).toBeNull();
+    // Fire has no shots of its own: a player holds it under durability (its tier's uses,
+    // data/weaponUses.json); an enemy's Fire has no count at all.
+    const fireUses = weaponUsesData.byTier[weapon('Fire').tier];
+    expect(perBattleUsesText(weapon('Fire'), mira)).toBe(
+      `Uses ${fireUses}/${fireUses} this battle`,
+    );
+    expect(perBattleUsesText(weapon('Fire'), caster('enemy'))).toBeNull();
   });
 });
 
