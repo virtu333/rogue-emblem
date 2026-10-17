@@ -431,7 +431,7 @@
       { "minEcho": 41, "enemyLevelBonus": 5, "enemyStatBonus": 3, "enemyCountBonus": 2, "bossStones": 2 }
     ],
     "keptForgeAwake": { "act1": 2, "act2": 4, "act3": 6, "act4": 8 },
-    "keptForgeCarry": 2
+    "keptForgeCarry": 4
   },
   "omens": {
     "rungs": ["hard", "lunatic"],

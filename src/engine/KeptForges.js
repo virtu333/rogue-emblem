@@ -110,7 +110,7 @@ export function lullForges(weapon, limit) {
 }
 
 /** How many of a run's forges a ride carries (difficulty.json `ngPlus.keptForgeCarry`). */
-export const DEFAULT_KEPT_FORGE_CARRY = 2;
+export const DEFAULT_KEPT_FORGE_CARRY = 4;
 
 /**
  * What the Barracks stores of a weapon: every forge awake, the forges it rode in with, and at

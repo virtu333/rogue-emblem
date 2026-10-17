@@ -282,7 +282,7 @@ Write-up: project file `reviews/ascension-true-ending.md`.
   first, then the run's); `canForge`, `forgeStatBlock` and `getForgeCost` count sleeping forges
   toward the +15 and per-stat caps and the per-stat price, so a wake never fails.
 - **Only some forges ride on** (the owner, 2026-10-17): the Barracks stores a weapon awake with
-  the forges it rode in with plus at most `ngPlus.keptForgeCarry` (2) of the run's own, the
+  the forges it rode in with plus at most `ngPlus.keptForgeCarry` (4) of the run's own, the
   earliest made (`KeptForges.carriedCopy`, read by `rideCandidates` and the run end's refresh);
   each one dropped takes its price with it. A weapon kept for the first time rode in with none.
   Grandfathered: a Barracks weapon placed before the stamp existed (a live run of an older
