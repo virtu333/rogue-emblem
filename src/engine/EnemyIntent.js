@@ -113,9 +113,8 @@ export function predictEnemyIntents({
 }) {
   const intents = new Map();
   if (!ai || !ctx?.grid) return intents;
-  const view = Object.create(ai);
-  if (aggressiveMode !== undefined) view.aggressiveMode = Boolean(aggressiveMode);
-  if (bossEnraged !== undefined) view.bossEnraged = Boolean(bossEnraged);
+  // The coming phase's inputs, never the ones left from the phase the AI last played.
+  const view = ai.phaseView({ turnNumber: turn, aggressiveMode, bossEnraged });
 
   // The real unit behind each copy, so an answer names the battle's own units.
   const realOf = new Map();

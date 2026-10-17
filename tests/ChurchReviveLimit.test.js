@@ -36,6 +36,9 @@ beforeEach(() => {
   run = new RunManager(data);
   run.startRun({ runSeed: 77 });
   run.gold = 50000;
+  // This act's discounted revival is spent, so every price here is the full one
+  // (RevivePricing; the discount has tests of its own in RevivePricing.test.js).
+  run.reviveDiscountAct = run.currentAct;
 });
 
 describe('Church: two revivals per church', () => {
@@ -104,7 +107,7 @@ describe('Route card: the price of reviving the fallen', () => {
     expect(reviveNodeNotes(run, node('church', 'c'))).toEqual([
       `Revive up to 2: Hero ${getReviveCost(u)} G.`,
     ]);
-    expect(getReviveCost(u)).toBe(5000);
+    expect(getReviveCost(u)).toBe(6000); // effective level 17: 500 + 5100 + 15 × 25, to 50;
   });
 
   it('the Ruins card says one, injured, and goes quiet once spent or scavenged', () => {

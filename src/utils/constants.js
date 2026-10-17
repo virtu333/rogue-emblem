@@ -229,9 +229,13 @@ export const SHOP_SELL_RATIO = 0.5;
 // 2026-09-29: recruits were too weak next to lords). ChurchCommands.churchPromoteCost.
 export const CHURCH_PROMOTE_COST_LORD = 3500;
 export const CHURCH_PROMOTE_COST_RECRUIT = 2000;
+// Revival price (engine/RevivePricing.js): 500 + 300 per effective level (promoted + 12), plus
+// 15 x (levels past 12)^2, rounded to 50. The first revival each act is capped at a hire's price.
 export const REVIVE_BASE_COST = 500;
 export const REVIVE_COST_PER_LEVEL = 300;
-export const REVIVE_PROMOTION_MULTIPLIER = 2.5;
+export const REVIVE_CURVE_FROM_LEVEL = 12;
+export const REVIVE_CURVE_STEP = 15;
+export const REVIVE_PRICE_ROUNDING = 50;
 // A church revives at most this many of the fallen (ChurchCommands; the Ruins allow one).
 export const CHURCH_REVIVE_LIMIT = 2;
 export const LOOT_CHOICES = 3;

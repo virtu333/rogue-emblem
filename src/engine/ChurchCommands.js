@@ -13,7 +13,7 @@ import {
   grantClassChangeWeapons,
   classChangeGrantNotices,
 } from './RosterCommands.js';
-import { getReviveCost } from './RunManager.js';
+import { reviveCostFor, spendReviveDiscount } from './RevivePricing.js';
 import { applyPromotionOath } from './DeedSystem.js';
 import {
   CHURCH_PROMOTE_COST_LORD,
@@ -142,14 +142,15 @@ export function churchReviveBlock(run, unit, nodeId = null) {
   // Forbidden Tome's pact (docs/specs/blessings-v3.md §4): the dead stay dead.
   if (run.isChurchReviveDisabled?.()) return 'Your pact forbids it: the fallen stay fallen.';
   if (nodeId && churchRevivesLeft(run, nodeId) <= 0) return CHURCH_REVIVE_LIMIT_LINE;
-  return run.gold < getReviveCost(unit) ? 'Not enough gold.' : '';
+  return run.gold < reviveCostFor(run, unit).price ? 'Not enough gold.' : '';
 }
 export function reviveAtChurch(run, unit, nodeId = null) {
   const reason = churchReviveBlock(run, unit, nodeId);
   if (reason) return { ok: false, reason };
   const catchUp = revivalCatchUpPlan(unit, run.roster);
-  if (!run.reviveFallenUnit(unit, getReviveCost(unit)))
-    return { ok: false, reason: 'Revival unavailable.' };
+  const cost = reviveCostFor(run, unit);
+  if (!run.reviveFallenUnit(unit, cost.price)) return { ok: false, reason: 'Revival unavailable.' };
+  if (cost.discounted) spendReviveDiscount(run);
   if (nodeId) {
     if (!run.churchRevivesByNodeId || typeof run.churchRevivesByNodeId !== 'object')
       run.churchRevivesByNodeId = {};
@@ -160,7 +161,8 @@ export function reviveAtChurch(run, unit, nodeId = null) {
   const dropped = getSkillDisplayNames(run.lastRevivalResult?.droppedSkills, run.gameData.skills);
   return {
     ok: true,
-    message: `${unit.name} revived at level ${unit.level} with 1 HP.${catchUp.levels ? ` Gained ${catchUp.levels} catch-up levels (to ${REVIVAL_LEVELS_BEHIND} below the army average) at growths minus 10 percentage points; future growths are unchanged.` : ''}${run.lastRevivalResult?.starterWeapon ? ` Carries ${withIndefiniteArticle(run.lastRevivalResult.starterWeapon)}.` : ''} Use Heal all, then Roster to re-equip from the convoy.${learned.length ? ` Learned: ${learned.join(', ')}.` : ''}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}`,
+    discounted: cost.discounted,
+    message: `${cost.discounted ? `First revival this act: ${cost.price} gold, not ${cost.full}. ` : ''}${unit.name} revived at level ${unit.level} with 1 HP.${catchUp.levels ? ` Gained ${catchUp.levels} catch-up levels (to ${REVIVAL_LEVELS_BEHIND} below the army average) at growths minus 10 percentage points; future growths are unchanged.` : ''}${run.lastRevivalResult?.starterWeapon ? ` Carries ${withIndefiniteArticle(run.lastRevivalResult.starterWeapon)}.` : ''} Use Heal all, then Roster to re-equip from the convoy.${learned.length ? ` Learned: ${learned.join(', ')}.` : ''}${dropped.length ? ` ${benchedSkillsNote(dropped)}` : ''}`,
   };
 }
 // Kindle: pay gold to lift the Eclipse's shadow, once per church node.

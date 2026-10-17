@@ -26,6 +26,7 @@ import { pushOverlay, removeOverlay, isTopOverlay } from '../utils/overlayStack.
 import { formatUses, getConsumableDescription } from '../utils/consumableText.js';
 import { getImbueStoneItems } from '../engine/ImbueSystem.js';
 import { isDescentEnabled, isDescentOnly } from '../engine/DescentSwitch.js';
+import { playerBattleUses } from '../engine/WeaponUses.js';
 import { formatAccessoryDetail } from '../utils/accessoryText.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
@@ -993,7 +994,9 @@ export class CompendiumOverlay {
       const taught = item.skillId || item.teachesWeaponArtId || '?';
       this._text(left + 25, y + 14, `Teaches: ${taught}  ${item.price || 0}g`, UI_PALETTE.muted);
     } else {
-      const stats = `Mt:${item.might ?? '-'}  Ht:${item.hit ?? '-'}  Cr:${item.crit ?? '-'}  Wt:${item.weight ?? '-'}  Rng:${item.range ?? '-'}`;
+      const uses = playerBattleUses(item);
+      const usesText = uses ? `  Uses:${uses}` : '';
+      const stats = `Mt:${item.might ?? '-'}  Ht:${item.hit ?? '-'}  Cr:${item.crit ?? '-'}  Wt:${item.weight ?? '-'}  Rng:${item.range ?? '-'}${usesText}`;
       this._text(left + 25, y + 14, stats, UI_PALETTE.muted);
       this._text(rightX, y + 14, `${item.price || 0}g`, UI_PALETTE.muted, 1);
     }

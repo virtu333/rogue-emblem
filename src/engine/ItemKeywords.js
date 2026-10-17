@@ -11,6 +11,7 @@
 import {
   getPerBattleMaxUses,
   getPerBattleRemainingUses,
+  tracksBattleUses,
   getWeaponStatBonuses,
   isStaff,
 } from './Combat.js';
@@ -186,12 +187,37 @@ function perBattleShotsSentence(item) {
 }
 
 /**
- * "Uses 2/3 this battle" for a combat weapon that refills each battle (Breachbolt),
- * from the holder's faction count; null for anything else (staves show their own).
+ * "Uses 2/3 this battle" for a combat weapon that refills each battle (Breachbolt, or a
+ * player unit's weapon under durability), from the holder's count; null for anything else
+ * (staves show their own).
  */
 export function perBattleUsesText(item, unit) {
-  if (!item?.perBattleUses || isStaff(item)) return null;
+  if (!tracksBattleUses(item, unit)) return null;
   return `Uses ${getPerBattleRemainingUses(item, unit)}/${getPerBattleMaxUses(item, unit)} this battle`;
+}
+
+/** "12/20": a weapon's uses left this battle for its holder; null when it has no count. */
+export function weaponUsesShort(item, unit) {
+  if (!tracksBattleUses(item, unit)) return null;
+  return `${getPerBattleRemainingUses(item, unit)}/${getPerBattleMaxUses(item, unit)}`;
+}
+
+/**
+ * "Iron Sword: 12/20 uses this battle" for a unit's equipped weapon when it has a count
+ * (a player weapon under durability, a Breachbolt); null otherwise.
+ */
+export function equippedWeaponUsesLine(unit) {
+  const short = weaponUsesShort(unit?.weapon, unit);
+  return short ? `${unit.weapon.name}: ${short} uses this battle` : null;
+}
+
+/**
+ * The forecast's uses line for the weapon a fight is planned with: "Iron Sword: 12/20
+ * uses this battle" (the count before this fight); null when it has no count.
+ */
+export function plannedWeaponUsesNote(item, unit) {
+  const short = weaponUsesShort(item, unit);
+  return short ? `${item.name}: ${short} uses this battle` : null;
 }
 
 /**

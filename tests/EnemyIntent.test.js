@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Grid, computeEffectivePath } from '../src/engine/Grid.js';
-import { AIController } from '../src/engine/AIController.js';
+import { AIController, commanderPriorityRoll } from '../src/engine/AIController.js';
 import { predictEnemyIntents, staysAsleepNextPhase } from '../src/engine/EnemyIntent.js';
 import { threatsOnTile } from '../src/engine/ThreatForecast.js';
 import { HOLD_AI_MODE } from '../src/engine/HoldActivation.js';
@@ -91,13 +91,20 @@ function predict(grid, world, mover, col, row, extra = {}) {
 }
 
 /** The real enemy phase on a copy of the world with the mover set down: who each foe hit. */
-async function playEnemyPhase(grid, world, mover, col, row) {
+async function playEnemyPhase(
+  grid,
+  world,
+  mover,
+  col,
+  row,
+  { aiOptions = {}, turnNumber = 1 } = {},
+) {
   const copy = structuredClone({
     enemies: world.enemies,
     players: world.players.map((u) => (u === mover ? { ...u, col, row } : u)),
     npcs: world.npcs,
   });
-  const ai = new AIController(grid, gameData, { objective: 'rout' });
+  const ai = new AIController(grid, gameData, { objective: 'rout', ...aiOptions });
   ai.setHoldContext(() => context(grid, copy));
   const hits = new Map();
   const occupied = () =>
@@ -107,7 +114,7 @@ async function playEnemyPhase(grid, world, mover, col, row) {
         .map((u) => `${u.col},${u.row}`),
     );
   await ai.processEnemyPhase(copy.enemies, copy.players, copy.npcs, {
-    turnNumber: 1,
+    turnNumber,
     afterUnit: async () => {},
     onMoveUnit: async (enemy, path) => {
       const others = occupied();
@@ -525,4 +532,65 @@ describe("EnemyIntent: the Entity's Grasping Limbs (live and preview agree)", ()
     const b = board({ fogHidesLimb: true });
     expect(entityPreview(b, 10, 3)).toMatchObject({ kind: 'none', target: null });
   });
+});
+
+describe('EnemyIntent: Standard of the Sun rolls on the turn the preview asks about', () => {
+  // A foe in reach of a fresh commander and a near-dead soldier: one that rolls the standard
+  // strikes the commander, one that does not takes the easy kill. The roll is keyed on the
+  // enemy phase's turn, so the preview must roll on the coming phase's turn, not on whatever
+  // turn the battle's AI last played (it would disagree with the real phase every other turn).
+  const sun = (seed) => ({ commanderPriority: true, commanderPrioritySeed: seed });
+  const seedWhere = (last, next) => {
+    for (let seed = 1; seed < 10000; seed++)
+      if (
+        commanderPriorityRoll(seed, 2, { battleEntityId: 'foe-1' }) === last &&
+        commanderPriorityRoll(seed, 3, { battleEntityId: 'foe-1' }) === next
+      )
+        return seed;
+    throw new Error('no seed');
+  };
+  const board = () => {
+    const grid = makeGrid(plainLayout(9, 3));
+    const fighter = unit('enemy', 4, 1, { name: 'Fighter', battleEntityId: 'foe-1' });
+    const edric = unit('player', 3, 1, { name: 'Edric', isCommander: true });
+    const weak = unit('player', 5, 1, { name: 'Weak', currentHP: 3 });
+    return {
+      grid,
+      fighter,
+      edric,
+      weak,
+      world: { enemies: [fighter], players: [edric, weak], npcs: [] },
+    };
+  };
+
+  for (const [last, next] of [
+    [false, true],
+    [true, false],
+  ])
+    it(`after a phase that ${last ? 'rolled' : 'did not roll'} it, the preview agrees with the real phase`, async () => {
+      const { grid, fighter, edric, weak, world } = board();
+      const seed = seedWhere(last, next);
+      const ai = new AIController(grid, gameData, { objective: 'rout', ...sun(seed) });
+      // The battle's AI after turn 2's enemy phase.
+      ai.phaseTurn = 2;
+      const intents = predictEnemyIntents({
+        ai,
+        ctx: context(grid, world),
+        playerUnits: world.players,
+        npcUnits: world.npcs,
+        mover: weak,
+        col: weak.col,
+        row: weak.row,
+        turn: 3,
+      });
+      expect(intents.get(fighter)).toMatchObject({ kind: 'attack', target: next ? edric : weak });
+      expect(named(intents)).toEqual(
+        await playEnemyPhase(grid, world, weak, weak.col, weak.row, {
+          aiOptions: sun(seed),
+          turnNumber: 3,
+        }),
+      );
+      // The preview is read-only: the battle's AI keeps its own turn.
+      expect(ai.phaseTurn).toBe(2);
+    });
 });

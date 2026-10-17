@@ -624,9 +624,13 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
 // Item uids carry a process-wide mint counter (utils/itemUid.js): the random part stays, the counter goes.
 const ITEM_UID_COUNTER = /itm_\d+_/g;
 
+// The run ledger (the end-of-run grade's tally of gold flows) is bookkeeping beside the effect, not
+// part of what a handler decides, so it is left out of the state a fingerprint hashes.
+const BOOKKEEPING_KEYS = new Set(['timestamp', 'runLedger']);
+
 function snapshot(rm) {
   const text = JSON.stringify(rm.toJSON(), (key, value) =>
-    key === 'timestamp' ? undefined : value,
+    BOOKKEEPING_KEYS.has(key) ? undefined : value,
   );
   return JSON.parse(text.replace(UUID, '<uuid>').replace(ITEM_UID_COUNTER, 'itm_#_'));
 }

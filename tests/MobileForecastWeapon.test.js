@@ -41,7 +41,7 @@ const iron = { name: 'Iron Sword', type: 'Sword', might: 5, hit: 90, crit: 0, we
 const steel = { name: 'Steel Sword', type: 'Sword', might: 8, hit: 80, crit: 0, weight: 10 };
 const bow = { name: 'Iron Bow', type: 'Bow', might: 5, hit: 90, crit: 0, weight: 3, range: '2' };
 
-function side({ validWeapons, weapon, defender = {} }) {
+function side({ validWeapons, weapon, defender = {}, attackerExtra = {} }) {
   vi.stubGlobal('document', { createElement: fakeElement });
   const hud = Object.create(MobileBattleHUD.prototype);
   hud.scene = {
@@ -58,6 +58,7 @@ function side({ validWeapons, weapon, defender = {} }) {
     skills: [],
     weapon: iron,
     inventory: [iron, steel, bow],
+    ...attackerExtra,
   };
   const enemy = { name: 'Harpy', currentHP: 18, stats: { HP: 18 }, skills: [], ...defender };
   const info = { damage: 9, hit: 80, crit: 0, as: 5, attackCount: 1, canCounter: true };
@@ -107,5 +108,23 @@ describe('phone forecast: the planned weapon', () => {
     expect(notices(steel)[0]).toBe('Confirming equips Steel Sword');
     expect(notices(iron)).not.toContain('Confirming equips Iron Sword');
     expect(notices(iron).some((t) => t.startsWith('Confirming equips'))).toBe(false);
+  });
+
+  // Durability (engine/WeaponUses.js): the count sits beside the weapon's name, never as a
+  // notes line, so an upright phone keeps both sides in view; a foe's weapon has none.
+  it("a player's planned weapon shows its uses beside its name, not as a note", () => {
+    const tiered = { ...steel, tier: 'Steel', _usesSpent: 11 };
+    const one = { ...bow, tier: 'Iron' };
+    const player = { faction: 'player' };
+    const stepper = side({ validWeapons: [iron, tiered], weapon: tiered, attackerExtra: player });
+    const usesOf = (node) => byClass(node, 'mb-weapon-uses').map((n) => n.textContent);
+    // Steel Sword: 15 uses a battle (data/weaponUses.json), 11 spent.
+    expect(usesOf(stepper)).toEqual(['4/15 uses']);
+    const notes = byClass(stepper, 'mb-notice').map((n) => n.textContent);
+    expect(notes.some((t) => t.includes('uses this battle'))).toBe(false);
+    expect(usesOf(side({ validWeapons: [one], weapon: one, attackerExtra: player }))).toEqual([
+      '20/20 uses',
+    ]);
+    expect(usesOf(side({ validWeapons: [iron, tiered], weapon: tiered }))).toEqual([]);
   });
 });

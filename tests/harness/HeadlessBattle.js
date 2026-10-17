@@ -131,6 +131,7 @@ import {
   spendCombatShots,
   swapSpentWeapons,
 } from '../../src/engine/PerBattleWeapons.js';
+import { refillBattleUses } from '../../src/engine/WeaponUses.js';
 import { canAttackWithWeapon, getAttackWeapons } from '../../src/engine/AttackOptions.js';
 import {
   combatDistance,
@@ -417,9 +418,7 @@ export class HeadlessBattle {
         unit._miracleUsed = false;
         unit._phoenixBroochUsed = false;
         unit._gambitUsedThisTurn = false;
-        for (const w of unit.inventory || []) {
-          if (w.perBattleUses) w._usesSpent = 0;
-        }
+        for (const w of unit.inventory || []) refillBattleUses(w);
         this.playerUnits.push(unit);
       }
     } else {
@@ -2095,7 +2094,7 @@ export class HeadlessBattle {
     if (unit.weapon !== weapon) equipWeapon(unit, weapon);
 
     applyWeaponArtCost(unit, art, artCostOpts);
-    spendAreaStrikeShot(weapon); // one Breachbolt shot a cast, as BattleScene
+    spendAreaStrikeShot(weapon, unit); // one use a cast, as BattleScene
     recordWeaponArtUse(unit, art, { turnNumber: this.turnManager?.turnNumber });
     this._applyRecoilGuardAfterArtUse(unit, art);
     this._checkPhoenixBrooch(unit);

@@ -8,6 +8,9 @@ import { slotCardModel } from './slotCardModel.js';
 import { latestSlot } from './titleMenuModel.js';
 import { buildSlotCard, mountSlotPickerArt, slotPickerReducedMotion } from './SlotPickerView.js';
 import { ngPlusResultNote } from './ngPlusModel.js';
+import { gradeRunOf } from '../engine/RunLedger.js';
+import { runCreditsModel } from './runCreditsModel.js';
+import { runCreditsSection } from './runCreditsView.js';
 
 /** Shown when a finished run's rewards could not be written (they retry on Continue). */
 export const PAYOUT_PENDING_NOTE =
@@ -48,6 +51,15 @@ export function runResultMenu(scene, rewards, meta) {
   ) {
     menu.body.append(element('p', 'Badge earned: No Meta Victory', 're-run-note'));
   }
+  const credits = runCreditsModel(rm, {
+    result: scene.result,
+    grade: gradeRunOf(rm, scene.result),
+    gameData: scene.gameData,
+  });
+  if (credits.grade || credits.details.length)
+    menu.body.append(
+      runCreditsSection(credits, rm.difficultyModifiers?.label || rm.difficultyId || ''),
+    );
   const deeds = deedsOfTheMarchSection(rm);
   if (deeds) menu.body.append(deeds);
   const ngPlusNote = rewards.appliedToMeta !== false && ngPlusResultNote(meta, rm);
