@@ -189,7 +189,26 @@ const ARM_DEFS = {
   loop3: { loops: 3, bring: 3, vision: 2 },
   loop5: { loops: 5, bring: 4, vision: 3 },
   loop10: { loops: 10, bring: 6, vision: 5 },
+  // Decomposition: which part of the start does the work.
+  loop5_lords: { loops: 5, bring: 4, vision: 3, vets: false },
+  loop5_vets: { loops: 5, bring: 4, vision: 3, lords: false },
+  loop5_novision: { loops: 5, bring: 4, vision: 0 },
+  // Candidate enemy scaling, laid over the rung (every act, Act I's override too).
+  loop5_L2: { loops: 5, bring: 4, vision: 3, enemy: { enemyLevelBonus: 2 } },
+  loop5_S1: { loops: 5, bring: 4, vision: 3, enemy: { enemyStatBonus: 1 } },
+  loop5_L2S1: { loops: 5, bring: 4, vision: 3, enemy: { enemyLevelBonus: 2, enemyStatBonus: 1 } },
+  loop5_L3S2: { loops: 5, bring: 4, vision: 3, enemy: { enemyLevelBonus: 3, enemyStatBonus: 2 } },
 };
+
+/** Add `enemy` deltas to the run's difficulty levers (and every act override that sets them). */
+function layEnemyScaling(rm, enemy) {
+  const mods = rm.difficultyModifiers;
+  for (const [key, delta] of Object.entries(enemy)) {
+    mods[key] = (mods[key] || 0) + delta;
+    for (const over of Object.values(mods.actOverrides || {}))
+      if (over && key in over) over[key] += delta;
+  }
+}
 
 async function playOne(gameData, { rung, seed, arm, harvests }) {
   const rng = installStatefulSeed(seed);
@@ -199,6 +218,8 @@ async function playOne(gameData, { rung, seed, arm, harvests }) {
     let ngPlus = null;
     if (def) {
       ngPlus = buildState(def.loops, harvests, gameData, { bring: def.bring });
+      if (def.vets === false) ngPlus.veterans = [];
+      if (def.lords === false) ngPlus.lordKits = [];
       metaEffects.visionChargesBonus = (metaEffects.visionChargesBonus || 0) + def.vision;
     }
     const driver = new ClaimingRunDriver(gameData, {
@@ -206,6 +227,8 @@ async function playOne(gameData, { rung, seed, arm, harvests }) {
       metaEffects,
       runOptions: { runSeed: seed, difficultyId: rung, autoSelectBlessing: false, ngPlus },
     });
+    driver.init();
+    if (def?.enemy) layEnemyScaling(driver.runManager, def.enemy);
     const result = await driver.run();
     const rm = driver.runManager;
     const out = {
