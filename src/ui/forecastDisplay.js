@@ -5,6 +5,7 @@ import { hitProbability } from '../engine/HitRoll.js';
 import { forecastRawDamage, forecastStrikeGroups } from '../engine/Combat.js';
 import { BANNER_NAME } from '../engine/BattleBlessings.js';
 import { entityCounterNote } from '../engine/EntityReach.js';
+import { lowUsesNote } from '../engine/ItemKeywords.js';
 
 /**
  * A strike's real chance to land, as a whole percent. Hit is rolled as the
@@ -158,16 +159,19 @@ function laterStrikesDiffer(side) {
 
 // Shared readout for the canvas and DOM forecasts. Keep assumptions beside estimates.
 /**
- * Short notes under a forecast side. `weapons` ({ planned, equipped }) lets the
+ * Short notes under a forecast side. `weapons` ({ planned, equipped, unit }) lets the
  * attacker side say that confirming switches weapons: the forecast only plans the
  * weapon, and it is equipped on confirm (a staff user's weapon art, or any weapon
- * cycled to in the forecast).
+ * cycled to in the forecast), and, with the attacking `unit`, warn that it is running
+ * out of uses this battle.
  */
 export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
   const projection = forecastProjection(forecast);
   const notes = [];
-  const { planned, equipped } = weapons || {};
+  const { planned, equipped, unit } = weapons || {};
   if (attacking && planned && planned !== equipped) notes.push(`Confirming equips ${planned.name}`);
+  // Durability (engine/WeaponUses.js): warn before the planned weapon runs dry.
+  if (attacking && planned && unit) notes.push(lowUsesNote(planned, unit));
   if (projection) {
     const side = attacking ? 'attacker' : 'defender';
     notes.push(`If all hits land: ${projectedHpText(projection, side)} (no crits/procs)`);

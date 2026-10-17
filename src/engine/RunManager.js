@@ -15,6 +15,7 @@ import {
   migrateSavedPerBattleWeapons,
   migrateSavedStaffUseRules,
 } from './WeaponCatalogMigration.js';
+import { refillBattleUses } from './WeaponUses.js';
 import { migrateSavedLegendaryRelics } from './LegendaryRelicMigration.js';
 import {
   hydrateBattleTimeline,
@@ -4519,11 +4520,11 @@ export class RunManager {
     // Include stored and casualty-retained equipment, not consumables.
     for (const unit of [...this.roster, ...this.fallenUnits]) {
       for (const item of [...(unit.inventory || []), unit.weapon]) {
-        if (item?.perBattleUses) item._usesSpent = 0;
+        refillBattleUses(item);
       }
     }
     for (const item of this.convoy.weapons || []) {
-      if (item?.perBattleUses) item._usesSpent = 0;
+      refillBattleUses(item);
     }
     this._suppressPersonalSkillsForCurrentRosterIfNeeded();
     this.metaBattlePoints += battleMetaReward(this.currentAct, this.completedBattles === 0);

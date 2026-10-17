@@ -6,6 +6,7 @@ import { GENERATED_HELP_TABS } from './generated/mechanicsHelp.js';
 import { GAME_TITLE } from '../utils/gameIdentity.js';
 import { isDescentEnabled, isDescentOnly } from '../engine/DescentSwitch.js';
 import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
+import { isWeaponUsesEnabled, weaponUsesConfig } from '../engine/WeaponUses.js';
 
 const GOLD = '#ffdd44';
 const CYAN = '#66ddff';
@@ -24,6 +25,34 @@ export const STAT_DESCRIPTIONS = {
   LCK: 'Luck. Affects hit, avoid, and crit.',
   MOV: 'Movement. Tiles moved per turn.',
 };
+
+/** Arms › Weapon Uses (engine/WeaponUses.js), its numbers read from data; none while off. */
+function weaponUsesPages() {
+  const config = weaponUsesConfig();
+  if (!isWeaponUsesEnabled(config)) return [];
+  const uses = (tier) => config.byTier?.[tier];
+  return [
+    {
+      title: 'Weapon Uses',
+      lines: [
+        { text: 'Your weapons have uses each battle.', color: GOLD },
+        { text: `  Iron ${uses('Iron')}  Steel ${uses('Steel')}  Silver ${uses('Silver')}` },
+        { text: `  Legend ${uses('Legend')}  Epic ${uses('Epic')}` },
+        { text: '' },
+        { text: 'One use per fight it strikes in:', color: CYAN },
+        { text: '  attacking or countering, hit or miss.' },
+        { text: '  A double attack is still one use.' },
+        { text: '' },
+        { text: 'All uses refill after each battle.', color: GREEN },
+        { text: '' },
+        { text: 'A spent weapon cannot attack or counter.', color: CYAN },
+        { text: 'The unit switches to its next usable', color: GRAY },
+        { text: 'weapon, so carry a spare.', color: GRAY },
+        { text: 'Enemy weapons never run out.', color: GRAY },
+      ],
+    },
+  ];
+}
 
 const STATIC_HELP_TABS = [
   {
@@ -251,6 +280,7 @@ const STATIC_HELP_TABS = [
           { text: 'Tiers: Iron < Steel < Silver < Legend', color: GRAY },
         ],
       },
+      ...weaponUsesPages(),
       {
         title: 'Weapon Arts',
         lines: [

@@ -27,6 +27,7 @@ import { revivalStoneCount } from './RevivalStones.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
 import { epicEffectiveness } from './EpicWeapons.js';
+import { durabilityMaxUses, spendsDurability } from './WeaponUses.js';
 import {
   getImbueCombatMods,
   getImbuePostCombatPoison,
@@ -652,14 +653,23 @@ export function spendStaffUse(staff) {
   staff._usesSpent = (staff._usesSpent || 0) + 1;
 }
 
-// --- Per-battle weapon uses (e.g. Breachbolt) ---
+// --- Per-battle weapon uses (Breachbolt, and every player weapon's durability) ---
 // A combat weapon with `perBattleUses` refills every battle (RunManager.completeBattle
 // and BattleScene reset `_usesSpent`). Its uses come from data: `usesByFaction[faction]`
 // when present (Breachbolt: enemies 5), else `uses` (Breachbolt: 3). MAG adds nothing
-// (staves keep their MAG bonus through getStaffMaxUses).
+// (staves keep their MAG bonus through getStaffMaxUses). Any other combat weapon a player
+// unit holds has its tier's uses each battle (engine/WeaponUses.js, data/weaponUses.json);
+// enemies and NPC allies spend none.
+
+/** Does this unit spend per-battle uses with this combat weapon? (never a staff) */
+export function tracksBattleUses(weapon, unit) {
+  if (!weapon || isStaff(weapon)) return false;
+  return Boolean(weapon.perBattleUses) || spendsDurability(weapon, unit);
+}
 
 /** Uses a per-battle weapon has in each battle for this unit. */
 export function getPerBattleMaxUses(weapon, unit) {
+  if (!weapon?.perBattleUses) return durabilityMaxUses(weapon, unit);
   const byFaction = weapon?.usesByFaction?.[unit?.faction];
   return Number.isFinite(byFaction) ? byFaction : (weapon?.uses ?? 0);
 }
@@ -672,7 +682,7 @@ export function getPerBattleRemainingUses(weapon, unit) {
 
 /** False only for a per-battle weapon whose uses are spent this battle. */
 export function hasPerBattleUsesLeft(weapon, unit) {
-  return !weapon?.perBattleUses || isStaff(weapon) || getPerBattleRemainingUses(weapon, unit) > 0;
+  return !tracksBattleUses(weapon, unit) || getPerBattleRemainingUses(weapon, unit) > 0;
 }
 
 /**
@@ -721,7 +731,7 @@ export function settlePerBattleWeaponUses(attacker, defender, result) {
     ['defender', defender],
   ]) {
     const weapon = unit?.weapon;
-    if (!struck.has(side) || !weapon?.perBattleUses || isStaff(weapon)) continue;
+    if (!struck.has(side) || !tracksBattleUses(weapon, unit)) continue;
     spendPerBattleUse(weapon);
     spent[side] = true;
   }

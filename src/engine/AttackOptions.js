@@ -10,7 +10,7 @@
 //   - the FE-style default: the equipped weapon when it can hit that target,
 //     otherwise the first weapon in inventory order that can.
 
-import { parseRange, getPerBattleRemainingUses, isStaff } from './Combat.js';
+import { parseRange, hasPerBattleUsesLeft, isStaff } from './Combat.js';
 import { getWeaponRangeBonus } from './SkillSystem.js';
 import { isSilenced } from './StatusConditionSystem.js';
 import { getWeaponArtCombatMods } from './WeaponArtSystem.js';
@@ -27,13 +27,13 @@ export function isSilenceBlockedWeapon(weapon) {
 /**
  * True if the unit may initiate combat with this carried weapon right now:
  * a proficient combat weapon (not a staff/scroll/consumable), not magic while
- * silenced, and not a per-battle weapon with no uses left.
+ * silenced, and not a weapon with no uses left this battle (Breachbolt, durability).
  */
 export function canAttackWithWeapon(unit, weapon) {
   if (!unit || !weapon || isStaff(weapon)) return false;
   if (!getCombatWeapons(unit).includes(weapon)) return false;
   if (isSilenced(unit) && isSilenceBlockedWeapon(weapon)) return false;
-  if (weapon.perBattleUses && getPerBattleRemainingUses(weapon, unit) <= 0) return false;
+  if (!hasPerBattleUsesLeft(weapon, unit)) return false;
   return true;
 }
 

@@ -140,7 +140,13 @@ import {
 } from '../engine/UnitHealth.js';
 import { applyEnemySpawnGear, applySpawnLoadout } from '../engine/EnemySpawnGear.js';
 import { resetFortHealStreak, settleTerrainHeal } from '../engine/TerrainHealing.js';
-import { spendCombatShots, swapSpentWeapons } from '../engine/PerBattleWeapons.js';
+import {
+  spendCombatShots,
+  strandedSpentWeaponMessages,
+  swapSpentWeapons,
+  weaponSwapMessage,
+} from '../engine/PerBattleWeapons.js';
+import { refillBattleUses } from '../engine/WeaponUses.js';
 import { weaponChangeBlocked } from '../engine/WeaponSwapLock.js';
 import {
   advanceTurnPressure,
@@ -565,9 +571,7 @@ export function resetUnitForBattle(unit) {
   unit._gambitUsedThisTurn = false;
   unit._conditions = [];
   delete unit._speedtakerStacks;
-  for (const w of unit.inventory || []) {
-    if (w.perBattleUses) w._usesSpent = 0;
-  }
+  for (const w of unit.inventory || []) refillBattleUses(w);
 }
 
 export function resetPlayerUnitsForTurn(scene, turn) {
@@ -7608,17 +7612,24 @@ export class BattleScene extends Phaser.Scene {
    */
   async _swapSpentWeapons(...units) {
     await this._announceWeaponSwaps(swapSpentWeapons(units));
+    const left = strandedSpentWeaponMessages(
+      units,
+      (this._spentWeaponsAnnounced ||= new WeakSet()),
+    );
+    for (const message of left) await this._announceWeaponSwaps([{ message }]);
   }
 
   /**
-   * Tell the player when one of their units switched weapons after its tome ran dry.
+   * Tell the player when one of their units switched weapons after one ran dry (or a
+   * `message` banner: a spent weapon with nothing to switch to).
    * Awaited, one banner at a time, before the combat's level-ups and the next notice.
    */
   async _announceWeaponSwaps(swaps = []) {
-    for (const { unit, to } of swaps) {
-      if (unit?.faction !== 'player' || !to?.name) continue;
+    for (const swap of swaps) {
+      const { unit, to, message } = swap;
+      if (!message && (unit?.faction !== 'player' || !to?.name)) continue;
       try {
-        await this.showBriefBanner(`${unit.name} is out of shots: now wielding ${to.name}`);
+        await this.showBriefBanner(message || weaponSwapMessage(swap));
       } catch {
         // A banner is presentation only; the switch already happened.
       }
