@@ -180,5 +180,23 @@ export function geminiCombatMods(unit, allies, { magic = false, weightAt = null 
     if (stat === 'DEF') mods.defBonus += bonus;
     if (stat === 'RES') mods.resBonus += bonus;
   }
-  return { mods, partners };
+  return { mods, partners, procStats: geminiProcStats(partners) };
+}
+
+// The ring's stats a skill activation reads (SkillSystem.baseActivationChance; LCK is no ring's).
+const PROC_STATS = Object.freeze(['SKL', 'SPD']);
+
+/**
+ * The partner stats a skill's proc odds read (SkillSystem.getActivationChance's `statBonus`):
+ * `{ SKL: 2 }` with a SKL partner, so a SKL or SKL_HALF proc rolls as if the wearer's own SKL
+ * were 2 higher, exactly as the ring's own stat counts. Null when no partner stat is one an
+ * activation reads.
+ * @param {Array<{ stat: string, bonus: number }>} partners geminiPartnerStats' list
+ */
+export function geminiProcStats(partners) {
+  const out = {};
+  for (const { stat, bonus } of Array.isArray(partners) ? partners : []) {
+    if (PROC_STATS.includes(stat) && bonus > 0) out[stat] = (out[stat] || 0) + bonus;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }

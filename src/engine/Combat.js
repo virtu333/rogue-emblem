@@ -262,6 +262,15 @@ function sideProcMultiplier(mods, foe) {
   return isEntity(foe) ? own * ENTITY_PROC_RATE_MULT : own;
 }
 
+/**
+ * A side's proc stat view (`procStatBonus` on its raw skill mods: a Gemini partner's SKL, SPD or
+ * LCK, SkillSystem.getSkillCombatMods), read as procChanceMultiplier is: built, never merged.
+ */
+function procStatBonusOf(mods) {
+  const bonus = mods?.procStatBonus;
+  return bonus && typeof bonus === 'object' ? bonus : null;
+}
+
 /** A Hit rating as a roll's input: 0 to 100. */
 function clampHit(hit) {
   return Math.max(0, Math.min(100, hit));
@@ -1886,6 +1895,7 @@ function rollStrike(
       strikeSkills.skillsData,
       strikeSkills.combatState,
       strikeSkills.procMultiplier ?? 1,
+      strikeSkills.procStatBonus ?? null,
     );
     if (skillResult.commandersGambit) commandersGambit = true;
     if (skillResult.aetherLuna) aetherLuna = true;
@@ -1936,6 +1946,7 @@ function rollStrike(
       targetHP,
       strikeSkills.marksData,
       strikeSkills.targetProcMultiplier ?? 1,
+      strikeSkills.targetProcStatBonus ?? null,
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;
@@ -2362,6 +2373,9 @@ export function resolveCombat(
         // Gambler's Edge: each side's own procs (its odds scaled), on-defend ones the target's.
         procMultiplier: sideProcMultiplier(skillCtx.atkMods, defender),
         targetProcMultiplier: sideProcMultiplier(skillCtx.defMods, attacker),
+        // A Gemini partner's SKL/SPD/LCK counts in each side's own proc odds.
+        procStatBonus: procStatBonusOf(skillCtx.atkMods),
+        targetProcStatBonus: procStatBonusOf(skillCtx.defMods),
       }
     : null;
   const defStrikeSkills =
@@ -2382,6 +2396,8 @@ export function resolveCombat(
           combatState: combatSkillState,
           procMultiplier: sideProcMultiplier(skillCtx.defMods, attacker),
           targetProcMultiplier: sideProcMultiplier(skillCtx.atkMods, defender),
+          procStatBonus: procStatBonusOf(skillCtx.defMods),
+          targetProcStatBonus: procStatBonusOf(skillCtx.atkMods),
         }
       : null;
 
@@ -2584,6 +2600,7 @@ export function resolveCombat(
         unit === attacker
           ? sideProcMultiplier(skillCtx.atkMods, defender)
           : sideProcMultiplier(skillCtx.defMods, attacker),
+        procStatBonusOf(unit === attacker ? skillCtx.atkMods : skillCtx.defMods),
       );
       if (astra.triggered) {
         count = astra.strikeCount;
