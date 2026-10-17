@@ -288,7 +288,8 @@ describe('Echo on screen', () => {
     const { pauseBurdenEntries } = await import('../src/ui/eventMenuModel.js');
     const rm = ngPlusRun(lordState({ rides: 12 }));
     const entry = pauseBurdenEntries(rm, data.events).find((e) => e.id === 'ngplus-echo');
-    expect(entry.label).toBe('NG+ · Echo 12');
+    // The pause menu shows `${label} · ${short}`: the Echo is named once.
+    expect(`${entry.label} · ${entry.short}`).toBe('NG+ · Echo 12');
     expect(entry.text).toMatch(/^Enemies \+2 levels, enemy stats \+1\./);
     const plain = new RunManager(data);
     plain.startRun({ runSeed: 7, applyBlessingsAtStart: false, difficultyId: 'lunatic' });

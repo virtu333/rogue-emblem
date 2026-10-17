@@ -68,5 +68,5 @@ export function omensPauseEntry(run) {
     .filter((o) => ranks[o.id] > 0)
     .map((o) => `${o.name}: ${o.ranks[Math.min(ranks[o.id], o.ranks.length) - 1].text}`)
     .join(' ');
-  return { id: 'omens-heat', label: `Omens · Heat ${heat}`, short: `Heat ${heat}`, text };
+  return { id: 'omens-heat', label: 'Omens', short: `Heat ${heat}`, text };
 }

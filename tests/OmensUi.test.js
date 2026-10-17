@@ -94,7 +94,8 @@ describe('pause list entry', () => {
     const rm = start({ [a.id]: 1, [b.id]: 1 });
     const entry = pauseBurdenEntries(rm, data.events).find((e) => e.id === 'omens-heat');
     const heat = rm.omens.heat;
-    expect(entry.label).toBe(`Omens · Heat ${heat}`);
+    // The pause menu shows `${label} · ${short}`: the Heat is named once.
+    expect(`${entry.label} · ${entry.short}`).toBe(`Omens · Heat ${heat}`);
     expect(entry.short).toBe(`Heat ${heat}`);
     expect(entry.text).toBe(`${a.name}: ${a.ranks[0].text} ${b.name}: ${b.ranks[0].text}`);
   });

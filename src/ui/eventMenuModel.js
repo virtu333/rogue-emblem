@@ -324,7 +324,7 @@ export function pauseBurdenEntries(run, catalog = null, riteOpts = undefined) {
   const echoEntry = echo
     ? {
         id: 'ngplus-echo',
-        label: `NG+ · Echo ${echo}`,
+        label: 'NG+',
         short: `Echo ${echo}`,
         text: `${capitalize(echoEffectLines(echo, run.gameData).join(', ') || 'no change to enemies yet')}. Each ride your veterans and lords have had adds 1.`,
       }
