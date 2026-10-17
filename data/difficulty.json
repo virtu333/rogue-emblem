@@ -448,10 +448,10 @@
       {
         "id": "iron_tide",
         "name": "Iron Tide",
-        "lore": "More of them, every field.",
+        "lore": "More of them on every open field.",
         "ranks": [
-          { "heat": 1, "text": "+1 enemy per map.", "effects": { "enemyCountBonus": 1 } },
-          { "heat": 2, "text": "+2 enemies per map.", "effects": { "enemyCountBonus": 2 } }
+          { "heat": 1, "text": "+1 enemy on each random map. Authored maps keep their own foes.", "effects": { "enemyCountBonus": 1 } },
+          { "heat": 2, "text": "+2 enemies on each random map. Authored maps keep their own foes.", "effects": { "enemyCountBonus": 2 } }
         ]
       },
       {

@@ -78,6 +78,12 @@ export const RUN_CAPABILITIES = Object.freeze({
   // client would drop it on load, so the run's end would never settle the Barracks (a fallen
   // veteran kept, a win's items and ride never recorded).
   ngPlus: 2,
+  // NG+ Echo and kept forges (docs/specs/ng-plus.md §13): `run.ngPlus.echo` and a kept weapon's
+  // `_dormantForges`. An older NG+ client would drop the Echo on load (enemies back at Echo 0)
+  // and never wake the sleeping forges at an act's start. Every NG+ run this build writes holds
+  // it (its record always carries `echo`); an NG+ save from before has no `echo` and is read as
+  // Echo 0 with every kept forge awake (NgPlusRun.sanitizeNgPlusRun), the rules it was made under.
+  ngPlusEcho: 2,
   // Omens (engine/Omens.js): `run.omens`. An older client keeps the levers laid on the run's
   // difficulty modifiers but drops the rest (Grave Road, Hunting Party, Marked Foes' extra affix).
   omens: 2,
@@ -90,7 +96,8 @@ export const DESCENT_CAPABILITY = 'descent';
 
 /**
  * The capabilities this build plays: each writer's PR adds its id here. The guard shipped
- * before any; the Descent added its four, the Entity kit its one, NG+ its one, Omens theirs.
+ * before any; the Descent added its four, the Entity kit its one, NG+ its two (the run, then Echo and kept forges), Omens
+ * theirs.
  */
 export const CLIENT_CAPABILITIES = Object.freeze([
   'descent',
@@ -99,6 +106,7 @@ export const CLIENT_CAPABILITIES = Object.freeze([
   'defeatObjective',
   'entityKit',
   'ngPlus',
+  'ngPlusEcho',
   'omens',
 ]);
 
@@ -216,7 +224,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     bonusVisionActs: 'objectives',
     setPiecesOffered: 'setPiece',
     rite: 'rite',
-    ngPlus: 'ngPlus',
+    ngPlus: Object.freeze(['ngPlus', 'ngPlusEcho']),
     omens: 'omens',
     // The Ruins' one revival per node (RuinsCommands): an older client allows a second.
     ruinsRevivedByNodeId: 'inert',
@@ -542,6 +550,7 @@ function scanRunFields(saved, found) {
   if (nonEmptyArray(saved.setPiecesOffered)) found.add('setPiece');
   if (present(saved, 'rite')) found.add('rite');
   if (present(saved, 'ngPlus')) found.add('ngPlus');
+  if (isRecord(saved.ngPlus) && saved.ngPlus.echo !== undefined) found.add('ngPlusEcho');
   if (present(saved, 'omens')) found.add('omens');
 }
 

@@ -25,16 +25,16 @@ every effect makes the run harder (an Omen is never a boon).
 | Omen | Ranks | Effect |
 |---|---|---|
 | Hardened | 3 | enemy stats +1/+2/+3 |
-| Iron Tide | 2 | +1/+2 enemies per map |
+| Iron Tide | 2 | +1/+2 enemies on each random map (an authored set piece keeps its own foes, and says so) |
 | Keen Foes | 1 | every foe carries a combat skill (skill chance 1) |
 | Marked Foes | 2 | affixes ×1.5/×2, +1 most affixes per foe |
 | Short Fuse | 2 | par inflation −1/−2 (bosses enrage sooner, as enrage reads par) |
 | Hunting Party | 1 | a Hunted wave in every non-boss battle |
 | Long Night | 2 | the Eclipse gains 25%/50% faster |
-| Thin Ranks | 1 | deploy 1 fewer |
+| Thin Ranks | 1 | deploy 1 fewer, on an authored map's cap too |
 | Lean Purse | 2 | gold ×0.8/×0.6 |
 | Dear Market | 2 | shop prices ×1.2/×1.4 |
-| Spent Thread | 3 | 1/2/3 fewer Vision at run start |
+| Spent Thread | 3 | 1/2/3 fewer Vision at run start; only the ranks the start can pay count |
 | Grave Road | 1 | the Ruins revive no one |
 | The Rite Listens | 1 | the Descent's Rite starts 3 words higher |
 | Stone-hearted | 1 | +1 Revival Stone on every boss kind and elite captain (never the Entity) |
@@ -49,8 +49,18 @@ every effect makes the run harder (an Omen is never a boon).
   `parInflation` are added, `goldMultiplier` and `shopPriceMultiplier` multiplied, onto the run's
   difficulty modifiers (`applyOmenModifiers`, a copy); an add also reaches every `actOverrides`
   entry that sets the key (Black Sun's Act I). The modifiers are saved with the run, so every
-  reader (scene, scout, harness) plays them unchanged. `deployLimitBonus` is read by
-  `RunManager.getDeployBonus`.
+  reader (scene, scout, harness) plays them unchanged. `deployLimitBonus` (Thin Ranks) is read
+  apart, as `Omens.omenDeployCut`, and cuts after a set piece's cap
+  (`resolveDeployLimits`' `deployCut`, through `runDeployLimits`, every deploy reader's call), so
+  an authored map that caps the deploy still fields one fewer; a map locked with the cut keeps its
+  spawn count. `enemyCountBonus` (Iron Tide) is read only by the template generator: a set piece
+  places its authored foes, so its text names random maps.
+- **Paid ranks.** A rank whose effect is `visionDelta` (Spent Thread) counts only when the start
+  can pay it: `applyOmensAtStart` keeps each such Omen at the highest rank the opening Vision
+  pays (`payableOmenRanks`; Heat and the record follow, and a run left with none has no Omens);
+  the picker offers only those ranks (`omenRows` / `cycleOmen` with the start's Vision, from
+  `DifficultySelectScene._startVision`) and says why the rest are closed. The validator requires
+  a Vision rank to carry Vision alone, so dropping it never leaves a lever laid.
 - **Run effects** (`omenEffect(run, key)`): `huntedWave` and `affixChanceMultiplier` /
   `affixMaxBonus` (the extra slot rides `battleParams.eclipseAffix.extraMaxAffixes`) in
   `engine/HeatParams.js`, the one place NG+ Echo and Omens touch a battle's params (last in

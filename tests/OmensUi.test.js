@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { loadGameData } from './testData.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import {
+  closedRanksNote,
   cycleOmen,
   cycleRank,
   heatLabel,
@@ -53,6 +54,26 @@ describe('omensModel', () => {
     expect(Object.keys(ranks)).toEqual([]);
     expect(cycleRank(3, 3)).toBe(0);
     expect(cycleOmen(data, { x: 1 }, 'unknown')).toEqual({});
+  });
+
+  it('with a start of 1 Vision, Spent Thread cycles Off, 1, Off and says why', () => {
+    // Failure: the picker offers ranks the start cannot pay, each adding Heat for nothing.
+    const spent = list.find((o) => o.id === 'spent_thread');
+    let ranks = {};
+    const seen = [];
+    for (let i = 0; i < 3; i++) {
+      ranks = cycleOmen(data, ranks, spent.id, { startVision: 1 });
+      seen.push(ranks[spent.id] ?? 0);
+    }
+    expect(seen).toEqual([1, 0, 1]);
+    const row = omenRows(data, { [spent.id]: spent.ranks.length }, { startVision: 1 }).find(
+      (r) => r.id === spent.id,
+    );
+    expect(row).toMatchObject({ rank: 1, max: 1, heat: spent.ranks[0].heat, nextHeat: null });
+    expect(row.text).toContain(closedRanksNote(spent, 1).trim());
+    expect(closedRanksNote(spent, spent.ranks.length)).toBe('');
+    // With no start given, every rank is offered.
+    expect(omenRows(data, {}).find((r) => r.id === spent.id).max).toBe(spent.ranks.length);
   });
 
   it('cycling keeps the other Omens and never mutates the input', () => {

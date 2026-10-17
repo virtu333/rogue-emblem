@@ -9,8 +9,8 @@ import './omens.css';
  * difficulty menu with the choice kept. The scene owns the choice (`getRanks` / `onChange`).
  */
 export class OmensPicker {
-  constructor(scene, parent, { gameData, best, getRanks, onChange, onClose }) {
-    Object.assign(this, { gameData, best, getRanks, onChange, parent });
+  constructor(scene, parent, { gameData, best, startVision = null, getRanks, onChange, onClose }) {
+    Object.assign(this, { gameData, best, startVision, getRanks, onChange, parent });
     this.wasInert = parent.inert;
     this.wasHidden = parent.getAttribute('aria-hidden');
     parent.inert = true;
@@ -30,9 +30,11 @@ export class OmensPicker {
   }
   render(focusId = null) {
     const ranks = this.getRanks();
+    // A rank changed lower down must not throw the list back to the top (the review of #444).
+    const scrollTop = this.surface.body.querySelector('.om-list')?.scrollTop ?? 0;
     const summary = element('p', omensSummary(this.gameData, ranks, this.best), 'om-summary');
     const list = element('ul', null, 'om-list re-scroll');
-    for (const row of omenRows(this.gameData, ranks)) {
+    for (const row of omenRows(this.gameData, ranks, { startVision: this.startVision })) {
       const item = element('li');
       const press = button(null, () => this.cycle(row.id), 'om-row re-btn');
       press.dataset.focus = `omen-${row.id}`;
@@ -59,11 +61,12 @@ export class OmensPicker {
     done.dataset.focus = 'omens-done';
     foot.append(clear, done);
     this.surface.body.replaceChildren(summary, list, foot);
+    list.scrollTop = scrollTop;
     if (focusId)
       this.surface.body.querySelector(`[data-focus="${focusId}"]`)?.focus({ preventScroll: true });
   }
   cycle(id) {
-    this.onChange(cycleOmen(this.gameData, this.getRanks(), id));
+    this.onChange(cycleOmen(this.gameData, this.getRanks(), id, { startVision: this.startVision }));
     this.render(`omen-${id}`);
   }
   clear() {

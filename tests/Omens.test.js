@@ -7,10 +7,19 @@ import { RunManager } from '../src/engine/RunManager.js';
 import {
   bestHeatOn,
   createOmensRecord,
+  heatOf,
   heatVictoryMilestone,
+  omenDeployCut,
+  payableOmenRanks,
   runHeat,
   validateOmensConfig,
 } from '../src/engine/Omens.js';
+import {
+  deployLimitsForParams,
+  resolveDeployLimits,
+  runDeployLimits,
+} from '../src/engine/BattleDeployCount.js';
+import { applyGenerationFields, generateSeededBattle } from '../src/engine/BattleScout.js';
 import { chooseRuinsPath, ruinsReviveBlock } from '../src/engine/RuinsCommands.js';
 import { mergeRunRecords } from '../src/engine/RunRecords.js';
 
@@ -139,11 +148,55 @@ describe('Lever Omens reach the battle', () => {
     });
   });
 
-  it('Thin Ranks takes a deploy slot', () => {
-    // Failure: the lever is set on the run but nothing reads it.
-    expect(run({ thin_ranks: 1 }).getDeployBonus() - run(null).getDeployBonus()).toBe(
-      rankEffects('thin_ranks', 1).deployLimitBonus,
+  it('Thin Ranks takes a deploy slot, on an authored map’s cap too', () => {
+    // Failure (the #444 review): the cut rode the deploy bonus, so a set piece's cap swallowed
+    // it and the Descent's Stair fielded 8 with the Knot on or off.
+    const cut = rankEffects('thin_ranks', 1).deployLimitBonus;
+    const meta = { deployBonus: 1 };
+    const start = (omens) => {
+      const rm = new RunManager(data, meta);
+      rm.startRun({ runSeed: 7, applyBlessingsAtStart: false, difficultyId: 'lunatic', omens });
+      return rm;
+    };
+    const plain = start(null);
+    const thin = start({ thin_ranks: 1 });
+    expect(omenDeployCut(thin)).toBe(cut);
+    expect(omenDeployCut(plain)).toBe(0);
+    for (const act of ['act1', 'act3', 'finalBoss']) {
+      // An open map: one fewer than without the Knot.
+      const open = deployLimitsForParams({ act });
+      expect(runDeployLimits(thin, open).max).toBe(runDeployLimits(plain, open).max + cut);
+      // A map capped below the act's max plus the bonus: still one fewer than the cap.
+      const cap = runDeployLimits(plain, open).max - 1;
+      const capped = deployLimitsForParams({ act, deployCap: cap });
+      expect(runDeployLimits(plain, capped).max).toBe(cap);
+      expect(runDeployLimits(thin, capped).max).toBe(cap + cut);
+      // A map locked with the Knot in force keeps that many spawns, never one fewer again.
+      const locked = runDeployLimits(thin, capped).max;
+      expect(runDeployLimits(thin, capped, { lockedSpawnCount: locked }).max).toBe(locked);
+    }
+    // Never below the act's minimum.
+    const floor = deployLimitsForParams({ act: 'act1' });
+    expect(resolveDeployLimits({ base: floor, deployBonus: -9, deployCut: -9 }).max).toBe(
+      floor.min,
     );
+  });
+
+  it('Iron Tide adds foes to random maps and leaves an authored map’s count, as it says', () => {
+    // Failure: the Knot's words promise foes on every map while a set piece takes none.
+    const rm = run({ iron_tide: 2 });
+    const params = rm.getBattleParams(battleNode(rm));
+    const count = (extra, bonus) =>
+      generateSeededBattle(
+        applyGenerationFields({ ...params, ...extra, enemyCountBonus: bonus }, { deployCount: 4 }),
+        data,
+        99,
+      ).enemySpawns.length;
+    const bonus = params.enemyCountBonus;
+    expect(count({}, bonus)).toBeGreaterThan(count({}, 0));
+    const authored = { setPiece: 'toll_house', objective: 'rout' };
+    expect(count(authored, bonus)).toBe(count(authored, 0));
+    for (const rank of omen('iron_tide').ranks) expect(rank.text).toMatch(/random map/);
   });
 });
 
@@ -177,6 +230,66 @@ describe('Run Omens', () => {
         Math.max(0, plain + rankEffects('spent_thread', rank).visionDelta),
       );
     }
+  });
+
+  it('Spent Thread counts only the ranks the opening Vision can pay, in Heat too', () => {
+    // Failure (the #444 review): with 1 charge, ranks 1, 2 and 3 all leave 0 Vision but give
+    // Heat 1, 2 and 3, so rank 3 is two free Heat on a best-Heat record.
+    const plain = run(null).visionChargesRemaining;
+    const cost = (rank) => -rankEffects('spent_thread', rank).visionDelta;
+    const max = omen('spent_thread').ranks.length;
+    let paidRank = 0;
+    for (let rank = 1; rank <= max; rank++) if (cost(rank) <= plain) paidRank = rank;
+    for (let rank = 1; rank <= max; rank++) {
+      const rm = run({ spent_thread: rank, hardened: 1 });
+      const effective = Math.min(rank, paidRank);
+      expect(rm.omens.ranks.spent_thread ?? 0).toBe(effective);
+      const heat =
+        omen('hardened').ranks[0].heat +
+        (effective ? omen('spent_thread').ranks[effective - 1].heat : 0);
+      expect(rm.omens.heat).toBe(heat);
+      expect(runHeat(roundTrip(rm))).toBe(heat);
+      expect(rm.visionChargesRemaining).toBe(plain - (effective ? cost(effective) : 0));
+    }
+    // Heat follows the Vision taken: a rank that takes nothing more never adds Heat.
+    const heats = [1, 2, 3].map((rank) => run({ spent_thread: rank }).omens?.heat ?? 0);
+    const visions = [1, 2, 3].map((rank) => run({ spent_thread: rank }).visionChargesRemaining);
+    for (let i = 1; i < heats.length; i++)
+      if (visions[i] === visions[i - 1]) expect(heats[i]).toBe(heats[i - 1]);
+  });
+
+  it('a start with more Vision pays more ranks; a start with none pays none', () => {
+    // Failure: the cap reads a fixed 1 charge, or keeps a Spent Thread that takes nothing.
+    const top = omen('spent_thread').ranks.length;
+    expect(payableOmenRanks({ spent_thread: top }, data, 99)).toEqual({ spent_thread: top });
+    expect(payableOmenRanks({ spent_thread: top, hardened: 2 }, data, 0)).toEqual({ hardened: 2 });
+    expect(payableOmenRanks({ spent_thread: top }, data, null)).toEqual({ spent_thread: top });
+    expect(heatOf(payableOmenRanks({ spent_thread: top }, data, 0), data)).toBe(0);
+    // A start whose meta grants more charges pays the top rank in full.
+    const rm = new RunManager(data, { visionChargesBonus: top });
+    rm.startRun({
+      runSeed: 7,
+      applyBlessingsAtStart: false,
+      difficultyId: 'lunatic',
+      omens: { spent_thread: top },
+    });
+    expect(rm.omens.ranks.spent_thread).toBe(top);
+    expect(rm.omens.heat).toBe(omen('spent_thread').ranks[top - 1].heat);
+  });
+
+  it('the validator refuses a Vision rank that carries another effect', () => {
+    // Failure: a rank dropped at the start for want of Vision leaves its other levers laid.
+    const block = {
+      rungs: ['lunatic'],
+      list: [
+        {
+          id: 'x',
+          name: 'X',
+          ranks: [{ heat: 1, text: 'X.', effects: { visionDelta: -1, enemyStatBonus: 1 } }],
+        },
+      ],
+    };
+    expect(validateOmensConfig(block).valid).toBe(false);
   });
 
   it('Long Night makes each victory’s shadow grow, and the carry survives a reload', () => {

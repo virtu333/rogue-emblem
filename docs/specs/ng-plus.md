@@ -265,6 +265,11 @@ Write-up: project file `reviews/ascension-true-ending.md`.
   Shown on the difficulty screen's NG+ switch (`ngPlusToggleLabel`: "New Game+: On · Echo N",
   from `echoPreview`: the brought veterans and the starting pair), each Barracks row (its
   record's own Echo), the Barracks' "Next NG+ run" line and the pause list (`NG+ · Echo N`).
+- **Saves** (run-format capability `ngPlusEcho`, beside `ngPlus`): every NG+ run this build
+  writes carries `run.ngPlus.echo` (0 included), so a client that plays NG+ but not Echo refuses
+  it rather than dropping the Echo and never waking the sleeping forges. Migration: an NG+ save
+  from before Echo has no `echo` and is read as Echo 0 with its kept forges awake, the rules it
+  was made under; once this build saves it, it carries the capability.
 - **Kept forges wake by act** (`engine/KeptForges.js`): a kept weapon placed at an NG+ start (or
   on a third lord's arrival) keeps only the act's awake limit of its forges (`ngPlus.keptForgeAwake`:
   Act I 2, II 4, III 6, IV 8, then all); the rest are taken off (`deforgeWeapon`, price kept) into

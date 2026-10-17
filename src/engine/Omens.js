@@ -82,6 +82,41 @@ export function sanitizeOmenRanks(raw, gameData) {
   return out;
 }
 
+/** The Vision charges an Omen's rank takes at run start (0 for none). */
+export function omenVisionCost(omen, rank) {
+  if (!rank) return 0;
+  return Math.max(0, -Math.trunc(Number(omen?.ranks?.[rank - 1]?.effects?.visionDelta) || 0));
+}
+
+/**
+ * A choice with every rank its start can pay for (the review of #444): Spent Thread takes
+ * Vision charges at run start, and a rank that would take more than the start holds costs
+ * nothing more, so it must not count more Heat. Each Omen that takes Vision keeps its highest
+ * rank the charges left can pay; the rest are untouched. `startVision` null: no cap.
+ * @returns {{ [id: string]: number }}
+ */
+export function payableOmenRanks(ranks, gameData, startVision = null) {
+  const clean = sanitizeOmenRanks(ranks, gameData);
+  if (startVision === null || startVision === undefined) return clean;
+  let left = whole(startVision);
+  for (const omen of omenList(gameData)) {
+    let rank = clean[omen.id] || 0;
+    while (rank > 0 && omenVisionCost(omen, rank) > left) rank -= 1;
+    if (rank > 0) clean[omen.id] = rank;
+    else delete clean[omen.id];
+    left -= omenVisionCost(omen, rank);
+  }
+  return clean;
+}
+
+/** The highest rank of an Omen a start with `startVision` charges can pay (its max for null). */
+export function payableOmenMax(omen, startVision = null) {
+  let rank = omen?.ranks?.length || 0;
+  if (startVision === null || startVision === undefined) return rank;
+  while (rank > 0 && omenVisionCost(omen, rank) > whole(startVision)) rank -= 1;
+  return rank;
+}
+
 /** The Heat of a choice. */
 export function heatOf(ranks, gameData) {
   let heat = 0;
@@ -145,6 +180,15 @@ export function runHeat(run) {
 export function omenEffect(run, key, fallback = null) {
   const value = run?.omens?.effects?.[key];
   return value === undefined ? fallback : value;
+}
+
+/**
+ * The run's deploy cut (the Thin Ranks Knot, 0 or below). It is laid on the rung's lever by
+ * overlayRunOmens but cuts after a set piece's cap (resolveDeployLimits' `deployCut`), so the
+ * deploy bonus leaves it out (RunManager.getDeployBonus) and runDeployLimits adds it back.
+ */
+export function omenDeployCut(run) {
+  return Math.min(0, Math.trunc(Number(omenEffect(run, 'deployLimitBonus', 0)) || 0));
 }
 
 /**
@@ -223,6 +267,10 @@ export function validateOmensConfig(block) {
         else if (!effectPointsHarder(key, value))
           errors.push(`${ra}.effects.${key} must make the run harder`);
       }
+      // A rank the start cannot pay is dropped at run start (payableOmenRanks), after the
+      // levers were laid: so a Vision rank holds Vision alone.
+      if (rank?.effects?.visionDelta !== undefined && Object.keys(rank.effects).length > 1)
+        errors.push(`${ra}.effects: visionDelta must be the rank's only effect`);
     });
   });
   return { valid: errors.length === 0, errors };
@@ -283,6 +331,16 @@ export function overlayRunOmens(run, choice) {
  * quarter-step share Darkened Dawn raises, so its saved carry keeps the gain exact).
  */
 export function applyOmensAtStart(run) {
+  // Only the ranks the opening Vision can pay count (Heat included); a rank above is dropped
+  // here, before anything is taken. Only a rank whose one effect is Vision can be dropped, so
+  // the levers already laid over the difficulty (overlayRunOmens) are unchanged.
+  if (run.omens) {
+    const paid = payableOmenRanks(run.omens.ranks, run.gameData, run.visionChargesRemaining || 0);
+    const same =
+      Object.keys(paid).length === Object.keys(run.omens.ranks).length &&
+      Object.entries(paid).every(([id, rank]) => run.omens.ranks[id] === rank);
+    if (!same) run.omens = createOmensRecord(paid, run.gameData, run.difficultyId);
+  }
   const vision = Math.trunc(Number(omenEffect(run, 'visionDelta', 0)) || 0);
   if (vision) run.visionChargesRemaining = Math.max(0, (run.visionChargesRemaining || 0) + vision);
   const shadow = Number(omenEffect(run, 'shadowGainDelta', 0)) || 0;

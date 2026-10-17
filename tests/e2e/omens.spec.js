@@ -85,6 +85,46 @@ test.describe('phone', () => {
   });
 });
 
+test.describe('phone', () => {
+  test('a rank changed low in the list keeps the list where it was', async ({ browser }) => {
+    // Failure (the #444 review): each tap rebuilt the list and threw it back to the top.
+    const { context, page } = await phonePage(browser);
+    await openDifficulty(page);
+    await page.locator('[data-mode="lunatic"]').tap();
+    await page.locator('[data-focus="omens"]').tap();
+    const picker = page.getByRole('dialog', { name: 'Knots' });
+    const list = picker.locator('.om-list');
+    const last = picker.locator('.om-row').last();
+    await last.scrollIntoViewIfNeeded();
+    const before = await list.evaluate((el) => el.scrollTop);
+    expect(before).toBeGreaterThan(0);
+    await last.tap();
+    await expect(last).toHaveAttribute('data-rank', '1');
+    expect(await list.evaluate((el) => el.scrollTop)).toBe(before);
+    await context.close();
+  });
+
+  test('Spent Thread offers only the ranks a start can pay', async ({ browser }) => {
+    // Failure: a rank that takes no more Vision adds Heat.
+    const { context, page } = await phonePage(browser);
+    await openDifficulty(page);
+    await page.locator('[data-mode="lunatic"]').tap();
+    await page.locator('[data-focus="omens"]').tap();
+    const picker = page.getByRole('dialog', { name: 'Knots' });
+    const spent = picker.locator('[data-focus="omen-spent_thread"]');
+    // The dev save starts with 1 Vision charge: rank 1 is the top, a second tap turns it off.
+    await spent.scrollIntoViewIfNeeded();
+    await spent.tap();
+    await expect(spent).toHaveAttribute('data-rank', '1');
+    await expect(spent).toContainText('Rank 1/1');
+    const rank1 = await omenRank(page, 'spent_thread', 1);
+    await expect(picker.locator('.om-summary')).toContainText(`Heat ${rank1.heat}`);
+    await spent.tap();
+    await expect(spent).toHaveAttribute('data-rank', '0');
+    await context.close();
+  });
+});
+
 for (const [width, height, label] of [
   [640, 480, 'desktop 640x480'],
   [390, 844, 'upright phone'],

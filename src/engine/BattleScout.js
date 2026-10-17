@@ -32,7 +32,7 @@
 
 import { generateBattle } from './MapGenerator.js';
 import { createSeededRng } from './BlessingEngine.js';
-import { deployLimitsForParams, resolveDeployLimits } from './BattleDeployCount.js';
+import { deployLimitsForParams, runDeployLimits } from './BattleDeployCount.js';
 import { routeScoutOf, ROUTE_SCOUT_LEVELS } from './EarnedBoons.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 
@@ -133,10 +133,8 @@ export function generateSeededBattle(params, gameData, seed) {
  * spawns.
  */
 export function scoutDeployCount(run, node) {
-  const { max } = resolveDeployLimits({
-    // The scene's rule for the act's limits (its params' act, else Act 1's).
-    base: deployLimitsForParams(node?.battleParams),
-    deployBonus: run?.getDeployBonus?.() || 0,
+  // The scene's rule for the act's limits (its params' act, else Act 1's).
+  const { max } = runDeployLimits(run, deployLimitsForParams(node?.battleParams), {
     lockedSpawnCount: run?.getLockedSpawnCount?.(node?.id) ?? null,
   });
   const roster = Array.isArray(run?.roster) ? run.roster.length : 0;

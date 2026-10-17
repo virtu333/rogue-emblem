@@ -18,8 +18,9 @@ import {
   bestHeatOn,
   heatOf,
   omensAllowedOn,
-  sanitizeOmenRanks,
+  payableOmenRanks,
 } from '../engine/Omens.js';
+import { baseVisionChargesFor } from '../engine/RunManager.js';
 import { readOmenChoice, writeOmenChoice } from '../utils/omenChoice.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 
@@ -197,9 +198,18 @@ export class DifficultySelectScene extends Phaser.Scene {
     );
   }
 
-  /** The chosen Omens, cleaned against the data (works whether or not they apply here). */
+  /**
+   * The chosen Omens, cleaned against the data (works whether or not they apply here), each at
+   * the rank the run's opening Vision can pay (Omens.payableOmenRanks): the run counts no more.
+   */
   _omenRanks() {
-    return sanitizeOmenRanks(this._omens, this.gameData);
+    return payableOmenRanks(this._omens, this.gameData, this._startVision());
+  }
+
+  /** The Vision charges a run started here opens with (army upgrades on or off). */
+  _startVision() {
+    if (this._noMetaUpgrades || !this.meta?.getActiveEffects) return baseVisionChargesFor(0);
+    return baseVisionChargesFor(this.meta.getActiveEffects().visionChargesBonus);
   }
 
   _omensHeat() {
@@ -211,7 +221,7 @@ export class DifficultySelectScene extends Phaser.Scene {
   }
 
   _setOmens(ranks) {
-    this._omens = sanitizeOmenRanks(ranks, this.gameData);
+    this._omens = payableOmenRanks(ranks, this.gameData, this._startVision());
     writeOmenChoice(this.registry, this._omens);
   }
 

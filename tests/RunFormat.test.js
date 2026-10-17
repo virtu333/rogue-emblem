@@ -86,6 +86,7 @@ describe('the capability table', () => {
       'defeatObjective',
       'entityKit',
       'ngPlus',
+      'ngPlusEcho',
       'omens',
     ]);
     for (const id of CAPABILITY_IDS) expect(RUN_CAPABILITIES[id]).toBe(2);
@@ -99,6 +100,7 @@ describe('the capability table', () => {
       'defeatObjective',
       'entityKit',
       'ngPlus',
+      'ngPlusEcho',
       'omens',
     ]);
   });

@@ -20,6 +20,7 @@ import {
 import { defaultNgPlusState, lordRecordId, runStartOf } from '../src/engine/NgPlusState.js';
 import { ngPlusRunEnd, rideCandidates, sanitizeNgPlusRun } from '../src/engine/NgPlusRun.js';
 import { FORGE_BONUSES } from '../src/utils/constants.js';
+import { CLIENT_CAPABILITIES, requiredRunFormat, runFormatBlock } from '../src/engine/RunFormat.js';
 
 const data = loadGameData();
 const catalog = (name) => structuredClone(data.weapons.find((w) => w.name === name));
@@ -213,6 +214,49 @@ describe('Echo', () => {
     const back = RunManager.fromJSON(rm.toJSON(), data);
     expect(back.ngPlus.echo).toBe(12);
     expect(sanitizeNgPlusRun({ v: 1, members: [], lordKits: [] }).echo).toBe(0);
+  });
+
+  it('an older NG+ client refuses this build’s NG+ run, Echo 0 included', () => {
+    // Failure: a client that plays NG+ but not Echo loads the run, drops the Echo and never
+    // wakes the sleeping forges (the review's Echo 12, +7 sword: forge 2 where it should be 4).
+    const olderClient = CLIENT_CAPABILITIES.filter((id) => id !== 'ngPlusEcho');
+    for (const rides of [12, 0]) {
+      const rm = ngPlusRun(lordState({ rides, items: [forgedSword()] }));
+      const saved = rm.toJSON();
+      expect(saved.requiresCapabilities).toContain('ngPlusEcho');
+      expect(runFormatBlock(saved, { clientCapabilities: olderClient })?.missing).toEqual([
+        'ngPlusEcho',
+      ]);
+      // This build still plays it.
+      expect(runFormatBlock(saved)).toBeNull();
+    }
+    // An ordinary run is never held to it.
+    const plain = new RunManager(data);
+    plain.startRun({ runSeed: 7, applyBlessingsAtStart: false, difficultyId: 'lunatic' });
+    expect(requiredRunFormat(plain.toJSON()).capabilities).not.toContain('ngPlusEcho');
+  });
+
+  it('an NG+ save from before Echo reads as Echo 0 with its kept forges awake', () => {
+    // Failure: an older save is refused, or this build puts its kept forges to sleep (or scales
+    // it) mid-run under rules it was never made with.
+    const rm = ngPlusRun(lordState({ rides: 3, items: [forgedSword()] }));
+    const saved = rm.toJSON();
+    // What the older writer saved: no Echo, the kept sword whole, no marker for Echo.
+    delete saved.ngPlus.echo;
+    saved.requiresCapabilities = saved.requiresCapabilities.filter((id) => id !== 'ngPlusEcho');
+    const whole = forgedSword();
+    for (const unit of saved.roster)
+      unit.inventory = (unit.inventory || []).map((i) => (i.uid === whole.uid ? whole : i));
+    expect(requiredRunFormat(saved).capabilities).not.toContain('ngPlusEcho');
+    expect(runFormatBlock(saved)).toBeNull();
+    const back = RunManager.fromJSON(saved, data);
+    expect(back.ngPlus.echo).toBe(0);
+    expect(read(findKept(back, whole.uid))).toEqual(expectedAt(7));
+    back.advanceAct();
+    expect(read(findKept(back, whole.uid))).toEqual(expectedAt(7));
+    expect(dormantForgeCount(findKept(back, whole.uid))).toBe(0);
+    // Saved again by this build, it is held to Echo from now on.
+    expect(back.toJSON().requiresCapabilities).toContain('ngPlusEcho');
   });
 
   it('the table: each step from data, and a higher Echo is never easier', () => {

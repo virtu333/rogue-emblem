@@ -323,6 +323,7 @@ export class RunSetupMenu {
     this.omensPicker = new OmensPicker(s, this.surface.root, {
       gameData: s.gameData,
       best: s._omensBest(),
+      startVision: s._startVision?.() ?? null,
       getRanks: () => s._omenRanks(),
       onChange: (ranks) => s._setOmens(ranks),
       onClose: () => {

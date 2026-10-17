@@ -134,6 +134,7 @@ import { applyHeatParams, putParam } from './HeatParams.js';
 import {
   applyOmensAtStart,
   heatVictoryMilestone,
+  omenDeployCut,
   omenEffect,
   overlayRunOmens,
   runHeat,
@@ -2117,12 +2118,11 @@ export class RunManager {
 
   getDeployBonus(actId = this.currentAct) {
     const metaDelta = this.metaEffects?.deployBonus || 0;
-    const blessingDelta = this.blessingRuntimeModifiers?.deployCapDelta || 0;
+    const mods = this.blessingRuntimeModifiers;
     // A price that narrows one act's deploys (resolveDeployLimits keeps max >= the act's min).
-    const actDelta = Math.trunc(
-      Number(this.blessingRuntimeModifiers?.deployCapDeltaByAct?.[actId]) || 0,
-    );
-    return metaDelta + blessingDelta + actDelta + this.getDifficultyModifier('deployLimitBonus', 0);
+    const actDelta = Math.trunc(Number(mods?.deployCapDeltaByAct?.[actId]) || 0);
+    const lever = this.getDifficultyModifier('deployLimitBonus', 0) - omenDeployCut(this);
+    return metaDelta + (mods?.deployCapDelta || 0) + actDelta + lever;
   }
 
   /** True when a blessing's price closed church revives for this run. */
@@ -3595,7 +3595,7 @@ export class RunManager {
       claimedLordNames: this.getClaimedRecruitLordNames(node),
       lordOdds: this.getLordRecruitOdds('node', node),
       recruitLevelBonus: this.getRecruitLevelBonus(),
-      deployBonus: this.getDeployBonus(),
+      deployBonus: this.getDeployBonus() + omenDeployCut(this),
     };
   }
 
