@@ -202,7 +202,8 @@ const ARM_DEFS = {
 
 /** Add `enemy` deltas to the run's difficulty levers (and every act override that sets them). */
 function layEnemyScaling(rm, enemy) {
-  const mods = rm.difficultyModifiers;
+  // A deep copy: the modifiers share their act overrides with the game data.
+  const mods = (rm.difficultyModifiers = structuredClone(rm.difficultyModifiers));
   for (const [key, delta] of Object.entries(enemy)) {
     mods[key] = (mods[key] || 0) + delta;
     for (const over of Object.values(mods.actOverrides || {}))
