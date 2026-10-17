@@ -222,6 +222,8 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     metaBattlePoints: 'inert',
     // Lord recruit odds v2 (engine/LordRecruitChance.js): an older client rolls the flat chance.
     lordRecruitOdds: 'inert',
+    // The end-of-run grade's tally (engine/RunLedger.js): an older client ignores it.
+    runLedger: 'inert',
   }),
   // The route map's top level.
   nodeMap: Object.freeze({

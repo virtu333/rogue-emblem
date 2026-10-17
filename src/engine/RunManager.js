@@ -287,6 +287,7 @@ import {
   shrineBoonsOf,
 } from './ShrineBoons.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
+import * as Ledger from './RunLedger.js';
 import {
   chooseStartGift as takeStartGift,
   findGift,
@@ -765,6 +766,7 @@ export class RunManager {
     this.narrativeSeen = {};
     this.runRecordId = null;
     this.totalTurns = 0;
+    this.runLedger = Ledger.createRunLedger(Date.now(), this.gold);
     this.rngSeed = null;
     this.visionChargesRemaining = 1;
     this.visionCount = 0;
@@ -3995,6 +3997,7 @@ export class RunManager {
 
   addGold(amount) {
     this.gold += amount;
+    this.runLedger = Ledger.tallyGold(this.runLedger, amount);
   }
 
   awardGold(amount) {
@@ -4219,7 +4222,7 @@ export class RunManager {
 
   spendGold(amount) {
     if (amount > this.gold) return false;
-    this.gold -= amount;
+    this.addGold(-amount);
     return true;
   }
 
@@ -4392,18 +4395,15 @@ export class RunManager {
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
-    // Battle is over either way — never leave a stale suspend flag that
-    // would offer to resume a finished fight on the next load. A Watcher's Grace charge the
-    // battle did not spend fades with it (before the act boss's own +1 below).
+    // Battle is over either way: no stale suspend flag offering to resume a finished fight. A
+    // Watcher's Grace charge the battle did not spend fades with it (before the act boss's +1).
     this._settleBossBattleVision(this.battleInProgress);
     this.battleInProgress = null;
     const node = this.openBattleNode(nodeId);
     if (!node) return false;
     if (this.totalTurns !== null)
       this.totalTurns += Math.max(0, Math.trunc(options.turnCount) || 0);
-    // The battle's gold is known before anything is committed, so burdens settle in one
-    // place (Burdens.burdenEffectsOnVictory: pure; assigned below, at the victory commit
-    // and nowhere else, so a reverted or suspended battle never touches them).
+    // Burdens settle in one place, at the victory commit only (Burdens.burdenEffectsOnVictory).
     const completionGold = Number.isFinite(options?.completionGoldOverride)
       ? Math.max(0, Math.floor(options.completionGoldOverride))
       : undefined;
@@ -4559,6 +4559,7 @@ export class RunManager {
       losses: newlyFallen.length,
     });
 
+    this.runLedger = Ledger.settleLedger(this, options, survivingUnits, newlyFallen);
     const isRewardBossNode = isActBossVictory(this, node);
     const isRewardAct =
       this.nodeMap?.actId === 'act1' ||
@@ -5255,10 +5256,8 @@ export class RunManager {
   }
 
   /**
-   * Mark the run as a defeat.
-   * @param {{defeatedBy?: string|null, wasBoss?: boolean}|null} context - who
-   *   ended the run (for narrative memory). Abandon/retreat callers pass
-   *   nothing: retreating is not "slain by".
+   * Mark the run as a defeat. `context`: who ended it (`defeatedBy`, `wasBoss`: narrative memory;
+   * retreat callers pass nothing, retreating is not "slain by") and the final board (`terminal`).
    */
   failRun(context = null) {
     // The prologue never settles a defeat (§8): its falls restart the chapter. A
@@ -5268,6 +5267,7 @@ export class RunManager {
       return false;
     }
     this.status = 'defeat';
+    this.runLedger = Ledger.withTerminalSummary(this.runLedger, context?.terminal);
     this.winStreak = 0;
     this.battleInProgress = null;
     this.defeatContext =
@@ -5333,6 +5333,7 @@ export class RunManager {
                 actsCleared: this.actIndex + 1,
                 totalTurns: this.totalTurns,
                 shadow: this.isEclipseActive() ? this.eclipse.shadow : null,
+                ...Ledger.gradeRecordField(this, summary.result),
                 roster: this.roster.map(survivorRecord),
                 fallen: fallenForRecord(everFallenUnits(this)).map(fallenRecord),
               }
@@ -5989,6 +5990,7 @@ export class RunManager {
         : {};
     rm.runRecordId =
       typeof saved.runRecordId === 'string' ? saved.runRecordId : `legacy-${saved.runSeed}`;
+    rm.runLedger = Ledger.sanitizeRunLedger(saved.runLedger);
     rm.totalTurns = Number.isFinite(saved.totalTurns)
       ? Math.max(0, Math.trunc(saved.totalTurns))
       : null;
