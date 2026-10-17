@@ -151,6 +151,8 @@ describe('church promotion transactions', () => {
 
 describe('church revival transactions', () => {
   beforeEach(() => {
+    // Full prices here: this act's discounted revival is spent (RevivePricing.test.js covers it).
+    run.reviveDiscountAct = run.currentAct;
     run.roster = [];
     unit.currentHP = 0;
     unit.inventory = [];

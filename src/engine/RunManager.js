@@ -23,6 +23,7 @@ import {
 } from './BattleTimeline.js';
 import { compactNarrativeSeen, pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
+import { sanitizeReviveDiscountAct } from './RevivePricing.js';
 import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
 import {
   applyFallenBattleRecord,
@@ -51,9 +52,6 @@ import {
   CONVOY_CONSUMABLE_CAPACITY,
   CONVOY_WEAPON_TYPES,
   RECRUIT_SKILL_POOL,
-  REVIVE_BASE_COST,
-  REVIVE_COST_PER_LEVEL,
-  REVIVE_PROMOTION_MULTIPLIER,
   RUINS_PATHS,
   INVENTORY_MAX,
   XP_SPECIAL_ENEMY_MULTIPLIER,
@@ -673,13 +671,7 @@ export function legendaryLordChanceFor(legendaryLordChanceBonus = 0) {
   return Math.min(0.15, 0.05 + Math.max(0, Number(legendaryLordChanceBonus) || 0));
 }
 
-/** Calculate level-scaled revive cost for a fallen unit. */
-export function getReviveCost(unit) {
-  const raw = Number(unit?.level);
-  const level = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
-  const base = REVIVE_BASE_COST + level * REVIVE_COST_PER_LEVEL;
-  return Math.round(unit?.tier === 'promoted' ? base * REVIVE_PROMOTION_MULTIPLIER : base);
-}
+export { getReviveCost } from './RevivePricing.js';
 
 /**
  * The key a unit carries in `recruitBlessingGrants` once an act-scoped stat card's delta (tracker
@@ -779,6 +771,7 @@ export class RunManager {
     this.ruinsRevivedByNodeId = {};
     // How many of the fallen each church revived (node id -> count); see ChurchCommands.js.
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
     // Lord recruit odds v2 (engine/LordRecruitChance.js): `{ v: 2, lordsAtActStart }`, or null
     // for a run started before them (it keeps the flat chance it began with).
     this.lordRecruitOdds = null;
@@ -1011,6 +1004,7 @@ export class RunManager {
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     this._resetEventState();
@@ -1106,6 +1100,7 @@ export class RunManager {
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     this._resetEventState(); // the prologue has no events: it starts empty and stays empty
@@ -5021,6 +5016,7 @@ export class RunManager {
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     // Each act's events are its own (the log, flags and burdens run on).
@@ -6025,6 +6021,7 @@ export class RunManager {
     rm.ruinsRevivedByNodeId = sanitizeRuinsRevivals(saved.ruinsRevivedByNodeId);
     // Saves from before the church limit carry none: no church has revived anyone yet.
     rm.churchRevivesByNodeId = sanitizeChurchRevives(saved.churchRevivesByNodeId);
+    rm.reviveDiscountAct = sanitizeReviveDiscountAct(saved.reviveDiscountAct);
     // Saves from before lord odds v2 carry none: the run keeps the flat chance it began with.
     rm.lordRecruitOdds = sanitizeLordRecruitOdds(saved.lordRecruitOdds);
     rm.churchVowByNodeId = sanitizeChurchVows(saved.churchVowByNodeId);

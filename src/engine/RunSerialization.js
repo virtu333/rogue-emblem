@@ -65,6 +65,7 @@ export function serializeRun(rm, blessings) {
     ruinsChoiceByNodeId: rm.ruinsChoiceByNodeId || {},
     ruinsRevivedByNodeId: rm.ruinsRevivedByNodeId || {},
     churchRevivesByNodeId: rm.churchRevivesByNodeId || {},
+    reviveDiscountAct: rm.reviveDiscountAct ?? null,
     lordRecruitOdds: rm.lordRecruitOdds || null,
     churchVowByNodeId: rm.churchVowByNodeId || {},
     churchTitheByNodeId: rm.churchTitheByNodeId || {},

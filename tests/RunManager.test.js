@@ -2953,10 +2953,11 @@ describe('Fallen unit tracking and revival', () => {
     expect(getReviveCost({ level: 10, tier: 'base' })).toBe(3500);
   });
 
-  it('getReviveCost applies promotion multiplier', () => {
-    expect(getReviveCost({ level: 1, tier: 'promoted' })).toBe(2000);
-    expect(getReviveCost({ level: 5, tier: 'promoted' })).toBe(5000);
-    expect(getReviveCost({ level: 10, tier: 'promoted' })).toBe(8750);
+  it('getReviveCost prices a promoted unit at its effective level (+12)', () => {
+    // 500 + 300 × E + 15 × (E - 12)², rounded to 50: E 13, 17, 22.
+    expect(getReviveCost({ level: 1, tier: 'promoted' })).toBe(4400);
+    expect(getReviveCost({ level: 5, tier: 'promoted' })).toBe(6000);
+    expect(getReviveCost({ level: 10, tier: 'promoted' })).toBe(8600);
   });
 
   it('getReviveCost defaults to L1 base for missing/null unit', () => {
