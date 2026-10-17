@@ -78,6 +78,9 @@ export const RUN_CAPABILITIES = Object.freeze({
   // client would drop it on load, so the run's end would never settle the Barracks (a fallen
   // veteran kept, a win's items and ride never recorded).
   ngPlus: 2,
+  // Omens (engine/Omens.js): `run.omens`. An older client keeps the levers laid on the run's
+  // difficulty modifiers but drops the rest (Grave Road, Hunting Party, Marked Foes' extra affix).
+  omens: 2,
 });
 
 export const CAPABILITY_IDS = Object.freeze(Object.keys(RUN_CAPABILITIES));
@@ -87,7 +90,7 @@ export const DESCENT_CAPABILITY = 'descent';
 
 /**
  * The capabilities this build plays: each writer's PR adds its id here. The guard shipped
- * before any; the Descent added its four, the Entity kit its one, NG+ its one.
+ * before any; the Descent added its four, the Entity kit its one, NG+ its one, Omens theirs.
  */
 export const CLIENT_CAPABILITIES = Object.freeze([
   'descent',
@@ -96,6 +99,7 @@ export const CLIENT_CAPABILITIES = Object.freeze([
   'defeatObjective',
   'entityKit',
   'ngPlus',
+  'omens',
 ]);
 
 /** The terrain index the Gate takes (03 §5.7): terrain.json holds 0..18 today. */
@@ -213,6 +217,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     setPiecesOffered: 'setPiece',
     rite: 'rite',
     ngPlus: 'ngPlus',
+    omens: 'omens',
     // The Ruins' one revival per node (RuinsCommands): an older client allows a second.
     ruinsRevivedByNodeId: 'inert',
     // Each church's revivals (ChurchCommands): an older client has no church limit.
@@ -537,6 +542,7 @@ function scanRunFields(saved, found) {
   if (nonEmptyArray(saved.setPiecesOffered)) found.add('setPiece');
   if (present(saved, 'rite')) found.add('rite');
   if (present(saved, 'ngPlus')) found.add('ngPlus');
+  if (present(saved, 'omens')) found.add('omens');
 }
 
 /** Capability ids sorted in the table's order (a stable marker). */

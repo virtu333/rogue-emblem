@@ -19,7 +19,7 @@ const ROOT = path.resolve(__dirname, '..');
 // A PR that needs room extracts first, or raises the budget here with its reason.
 const BUDGETS = {
   'src/scenes/BattleScene.js': 12200,
-  'src/engine/RunManager.js': 6700,
+  'src/engine/RunManager.js': 6693,
   'src/scenes/NodeMapScene.js': 2700,
   // The harness's copy of the scene's state machine: a rule moved to src/engine/ deletes
   // its copy here, it never grows a second one.

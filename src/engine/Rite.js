@@ -238,6 +238,23 @@ export function riteLevelRuleOf(run) {
 }
 
 /**
+ * The Rite's battle params (RunManager.getBattleParams), only in the Descent (a run without one
+ * keeps its params as they were): the words at entry (a summoning circle's Hollowed read them),
+ * the tier, the Vigil's Hollowed level rule, and on a boss of the route the tier's mods, which
+ * MapGenerator writes into the locked map (RiteBattleMods.js). Keys only when they say something.
+ */
+export function applyRiteBattleParams(run, battleParams, node) {
+  for (const key of ['riteAtEntry', 'riteBand', 'riteLevel', 'riteMods']) delete battleParams[key];
+  const rite = sanitizeRite(run?.rite);
+  if (!rite) return;
+  battleParams.riteAtEntry = rite.words;
+  battleParams.riteBand = riteBand(rite.words, riteConfigOf(run));
+  battleParams.riteLevel = riteLevelRuleOf(run);
+  const riteMods = riteModsFor(run, node);
+  if (Object.keys(riteMods).length) battleParams.riteMods = riteMods;
+}
+
+/**
  * The change a won battle at `node` makes on par (`underPar`, keyed by the node's `descentKey`:
  * the Mortuary Column's -1), or 0: only at or under a known par.
  */

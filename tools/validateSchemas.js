@@ -14,6 +14,7 @@ import { validateDescentConfig } from '../src/engine/Descent.js';
 import { validateRepeatableUpgrades } from '../src/engine/RepeatableUpgrades.js';
 import { validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
 import { validateNgPlusConfig } from '../src/engine/NgPlusEcho.js';
+import { validateOmensConfig } from '../src/engine/Omens.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 
 const DATA_DIR = path.resolve('data');
@@ -161,10 +162,13 @@ if (eventsResult.valid) {
 // overrides and the rest of DifficultyEngine's contract)
 const difficultyData = readData('difficulty.json');
 const difficultyResult = validateDifficultyConfig(difficultyData);
-const ngPlusResult = validateNgPlusConfig(difficultyData.ngPlus);
-if (!ngPlusResult.valid) {
+for (const extra of [
+  validateNgPlusConfig(difficultyData.ngPlus),
+  validateOmensConfig(difficultyData.omens),
+]) {
+  if (extra.valid) continue;
   difficultyResult.valid = false;
-  difficultyResult.errors = [...difficultyResult.errors, ...ngPlusResult.errors];
+  difficultyResult.errors = [...difficultyResult.errors, ...extra.errors];
 }
 if (difficultyResult.valid) {
   console.log('  OK  difficulty.json (engine validator)');
