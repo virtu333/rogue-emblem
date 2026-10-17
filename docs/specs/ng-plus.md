@@ -259,8 +259,12 @@ Write-up: project file `reviews/ascension-true-ending.md`.
   `bossLevelBonus` too), `enemyStatBonus`, `enemyCountBonus`, and `bossStones` (one more Revival
   Stone on act bosses, the Emperor and the Lieutenant, never an elite captain:
   `withEchoBossStones`). Steps only ever add (`validateNgPlusConfig`, run by `validate:data`).
-  Shown on the difficulty screen (`echoPreview`: the brought veterans and the starting pair),
-  the Barracks lead and the pause list (`NG+ · Echo N`).
+  The table climbs gently (the owner, 2026-10-17: no spike at one Echo): each step raises one
+  lever by one, from Echo 3 (level +1) to Echo 41 (a second stone); at about loop 5 (Echo 14) it
+  matches the measured step, levels +2 and stats +1. `tests/NgPlusEcho.test.js` holds the climb.
+  Shown on the difficulty screen's NG+ switch (`ngPlusToggleLabel`: "New Game+: On · Echo N",
+  from `echoPreview`: the brought veterans and the starting pair), each Barracks row (its
+  record's own Echo), the Barracks' "Next NG+ run" line and the pause list (`NG+ · Echo N`).
 - **Kept forges wake by act** (`engine/KeptForges.js`): a kept weapon placed at an NG+ start (or
   on a third lord's arrival) keeps only the act's awake limit of its forges (`ngPlus.keptForgeAwake`:
   Act I 2, II 4, III 6, IV 8, then all); the rest are taken off (`deforgeWeapon`, price kept) into

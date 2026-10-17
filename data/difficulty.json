@@ -417,16 +417,18 @@
   },
   "ngPlus": {
     "echo": [
-      { "minEcho": 5, "enemyLevelBonus": 1 },
+      { "minEcho": 3, "enemyLevelBonus": 1 },
+      { "minEcho": 7, "enemyLevelBonus": 2 },
       { "minEcho": 10, "enemyLevelBonus": 2, "enemyStatBonus": 1 },
-      { "minEcho": 15, "enemyLevelBonus": 2, "enemyStatBonus": 2, "enemyCountBonus": 1 },
-      {
-        "minEcho": 20,
-        "enemyLevelBonus": 3,
-        "enemyStatBonus": 2,
-        "enemyCountBonus": 1,
-        "bossStones": 1
-      }
+      { "minEcho": 15, "enemyLevelBonus": 2, "enemyStatBonus": 2 },
+      { "minEcho": 17, "enemyLevelBonus": 2, "enemyStatBonus": 2, "enemyCountBonus": 1 },
+      { "minEcho": 19, "enemyLevelBonus": 3, "enemyStatBonus": 2, "enemyCountBonus": 1 },
+      { "minEcho": 21, "enemyLevelBonus": 3, "enemyStatBonus": 2, "enemyCountBonus": 1, "bossStones": 1 },
+      { "minEcho": 25, "enemyLevelBonus": 4, "enemyStatBonus": 2, "enemyCountBonus": 1, "bossStones": 1 },
+      { "minEcho": 29, "enemyLevelBonus": 4, "enemyStatBonus": 3, "enemyCountBonus": 1, "bossStones": 1 },
+      { "minEcho": 33, "enemyLevelBonus": 4, "enemyStatBonus": 3, "enemyCountBonus": 2, "bossStones": 1 },
+      { "minEcho": 37, "enemyLevelBonus": 5, "enemyStatBonus": 3, "enemyCountBonus": 2, "bossStones": 1 },
+      { "minEcho": 41, "enemyLevelBonus": 5, "enemyStatBonus": 3, "enemyCountBonus": 2, "bossStones": 2 }
     ],
     "keptForgeAwake": { "act1": 2, "act2": 4, "act3": 6, "act4": 8 }
   },

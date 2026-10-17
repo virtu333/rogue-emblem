@@ -37,7 +37,7 @@ async function phonePage(browser) {
 }
 
 test.describe('phone', () => {
-  test('Omens stay closed until a Black Sun win', async ({ browser }) => {
+  test('Knots stay closed until a Black Sun win', async ({ browser }) => {
     const { context, page } = await phonePage(browser);
     await openDifficulty(page, { won: false });
     await page.locator('[data-mode="hard"]').tap();
@@ -52,10 +52,10 @@ test.describe('phone', () => {
     await expect(page.locator('[data-focus="omens"]')).toHaveCount(0);
     await page.locator('[data-mode="hard"]').tap();
     const opener = page.locator('[data-focus="omens"]');
-    await expect(opener).toHaveText('Omens: Heat 0');
+    await expect(opener).toHaveText('Knots: Heat 0');
     await opener.tap();
 
-    const picker = page.getByRole('dialog', { name: 'Omens' });
+    const picker = page.getByRole('dialog', { name: 'Knots' });
     await expect(picker).toBeVisible();
     await expect(picker.locator('.om-summary')).toContainText('Best: 5');
     const hardened = picker.locator('[data-focus="omen-hardened"]');
@@ -72,7 +72,7 @@ test.describe('phone', () => {
 
     await picker.locator('[data-focus="omens-done"]').tap();
     await expect(picker).toHaveCount(0);
-    await expect(opener).toHaveText(`Omens: Heat ${heat}`);
+    await expect(opener).toHaveText(`Knots: Heat ${heat}`);
 
     await page.getByRole('button', { name: 'Confirm', exact: true }).tap();
     await waitForScene(page, 'BlessingSelect');
@@ -99,7 +99,7 @@ for (const [width, height, label] of [
     await openDifficulty(page);
     await page.locator('[data-mode="lunatic"]').click();
     await page.locator('[data-focus="omens"]').click();
-    const picker = page.getByRole('dialog', { name: 'Omens' });
+    const picker = page.getByRole('dialog', { name: 'Knots' });
     await expect(picker).toBeVisible();
     // Nothing spills sideways, and Done can be reached.
     const overflow = await page.evaluate(

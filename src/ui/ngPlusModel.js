@@ -223,7 +223,7 @@ export function barracksView(state, gameData = {}, bringLimit = BRING_LIMIT) {
       id: record.id,
       name: record.name,
       kind: record.kind,
-      line: `${describeRecord(record)} · Rode ${plural(record.rides, 'time')}`,
+      line: `${describeRecord(record)} · Rode ${plural(record.rides, 'time')} · Echo ${recordEcho(record)}`,
       skills: record.keptSkills.map((id) => skillName(id, skills)),
       items: record.keptItems.map((i) => itemDisplayName(i, skills)),
       brought: bring.has(record.id),
@@ -269,6 +269,11 @@ export function echoPreview(meta) {
 export function echoLine(echo, gameData) {
   const effects = echoEffectLines(echo, gameData);
   return `Echo ${echo}: ${effects.length ? effects.join(', ') : 'no change to enemies yet'}.`;
+}
+
+/** The difficulty screen's NG+ switch: on, it names the Echo the run would start with. */
+export function ngPlusToggleLabel(on, meta) {
+  return on ? `New Game+: On · Echo ${echoPreview(meta)}` : 'New Game+: Off';
 }
 
 /** The difficulty screen's NG+ line: who comes back in the run about to start. */

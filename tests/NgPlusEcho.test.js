@@ -217,8 +217,9 @@ describe('Echo', () => {
 
   it('the table: each step from data, and a higher Echo is never easier', () => {
     expect(validateNgPlusConfig(data.difficulty.ngPlus)).toEqual({ valid: true, errors: [] });
-    expect(echoStepFor(4, data)).toBeNull();
-    expect(echoModsFor(4, data)).toEqual({
+    const below = data.difficulty.ngPlus.echo[0].minEcho - 1;
+    expect(echoStepFor(below, data)).toBeNull();
+    expect(echoModsFor(below, data)).toEqual({
       enemyLevelBonus: 0,
       enemyStatBonus: 0,
       enemyCountBonus: 0,
@@ -236,6 +237,18 @@ describe('Echo', () => {
     };
     expect(validateNgPlusConfig(bad).valid).toBe(false);
     expect(validateNgPlusConfig({ echo: [{ minEcho: 5, enemyHp: 3 }] }).valid).toBe(false);
+  });
+
+  it('the table climbs gently: each step raises one lever by one', () => {
+    // Failure: a spike (several levers at once) where a loop should only feel a little harder.
+    const levers = ['enemyLevelBonus', 'enemyStatBonus', 'enemyCountBonus', 'bossStones'];
+    const steps = [...data.difficulty.ngPlus.echo].sort((a, b) => a.minEcho - b.minEcho);
+    let prev = Object.fromEntries(levers.map((k) => [k, 0]));
+    for (const step of steps) {
+      const rises = levers.map((k) => (step[k] || 0) - prev[k]);
+      expect(rises.filter((r) => r !== 0)).toEqual([1]);
+      prev = Object.fromEntries(levers.map((k) => [k, step[k] || 0]));
+    }
   });
 
   it('a battle’s params add the Echo step to the rung’s own levers, bosses included', () => {
@@ -298,7 +311,8 @@ describe('Echo on screen', () => {
 
   it('the difficulty screen previews the Echo of the brought veterans and the starting pair', async () => {
     // Failure: the preview counts a Barracks lord who is not starting, or a veteran left home.
-    const { echoPreview, ngPlusRunNote } = await import('../src/ui/ngPlusModel.js');
+    const { echoPreview, ngPlusRunNote, ngPlusToggleLabel, barracksView } =
+      await import('../src/ui/ngPlusModel.js');
     const state = lordState({ rides: 3 });
     state.barracks.push(
       {
@@ -320,5 +334,10 @@ describe('Echo on screen', () => {
     };
     expect(echoPreview(meta)).toBe(3 + 2);
     expect(ngPlusRunNote(meta, data)).toMatch(/Echo 5: enemies \+1 level\.$/);
+    // Seen where it is chosen: the NG+ switch and each Barracks row name their Echo.
+    expect(ngPlusToggleLabel(true, meta)).toBe('New Game+: On · Echo 5');
+    expect(ngPlusToggleLabel(false, meta)).toBe('New Game+: Off');
+    const rows = barracksView(state, data).records;
+    expect(rows.find((r) => r.id === 'vet:b').line).toMatch(/ · Echo 7$/);
   });
 });

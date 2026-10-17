@@ -134,7 +134,7 @@ describe('Eclipse copy', () => {
       config,
     );
     expect(pale.sections[1].lines).toEqual(['Nothing yet. The land is whole.']);
-    expect(pale.sections[2].lines[0]).toMatch(/safe|No knot within reach/);
+    expect(pale.sections[2].lines[0]).toMatch(/safe|No stop within reach/);
     expect(text).not.toMatch(/darken no further/);
     // A Hollow sun: the act's own shadow still counts down to the next fall.
     const hollow = eclipseExplainer(
@@ -149,7 +149,7 @@ describe('Eclipse copy', () => {
       config,
     );
     expect(hollow.sections[2].lines[0]).toBe(
-      'This act has gathered 3 shadow. The next knot within reach falls in 5 more shadow.',
+      'This act has gathered 3 shadow. The next stop within reach falls in 5 more shadow.',
     );
     expect(hollow.sections[2].lines[1]).toMatch(/darken no further, but the land still can/);
   });

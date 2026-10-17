@@ -1,10 +1,11 @@
+// The Knots (player-facing name; ids, data and saves keep "omens").
 // omensModel.js — the words and rules of the Omens picker (difficulty screen) and the pause
 // list's Heat entry, as plain data. Pure: no Phaser, no DOM. The rules themselves (ranks, Heat,
 // which rungs) are engine/Omens.js; this file only arranges them for a menu.
 import { omenList, sanitizeOmenRanks, heatOf, runHeat } from '../engine/Omens.js';
 
 /** The footer button's label. */
-export const heatLabel = (heat) => `Omens: Heat ${Math.max(0, Math.trunc(Number(heat) || 0))}`;
+export const heatLabel = (heat) => `Knots: Heat ${Math.max(0, Math.trunc(Number(heat) || 0))}`;
 
 /** One row per Omen: the rank chosen, its words and Heat (the lore line while Off). */
 export function omenRows(gameData, ranks) {
@@ -50,7 +51,7 @@ export function omensNote(gameData, ranks) {
   const names = omenList(gameData)
     .filter((o) => clean[o.id])
     .map((o) => (o.ranks.length > 1 ? `${o.name} ${clean[o.id]}` : o.name));
-  return names.length ? `Omens · Heat ${heatOf(clean, gameData)}: ${names.join(', ')}` : '';
+  return names.length ? `Knots · Heat ${heatOf(clean, gameData)}: ${names.join(', ')}` : '';
 }
 
 /** The picker header's summary. */
@@ -68,5 +69,5 @@ export function omensPauseEntry(run) {
     .filter((o) => ranks[o.id] > 0)
     .map((o) => `${o.name}: ${o.ranks[Math.min(ranks[o.id], o.ranks.length) - 1].text}`)
     .join(' ');
-  return { id: 'omens-heat', label: 'Omens', short: `Heat ${heat}`, text };
+  return { id: 'omens-heat', label: 'Knots', short: `Heat ${heat}`, text };
 }

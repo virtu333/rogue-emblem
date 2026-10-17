@@ -17,7 +17,7 @@ export class OmensPicker {
     parent.setAttribute('aria-hidden', 'true');
     this.surface = new MenuSurface(
       scene,
-      'Omens',
+      'Knots',
       () => {
         this.destroy();
         onClose?.();

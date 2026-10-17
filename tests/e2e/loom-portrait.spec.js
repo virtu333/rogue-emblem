@@ -200,7 +200,7 @@ for (const { fit, ...viewport } of [
     await expect(travel).toBeInViewport({ ratio: 1 });
     await route.locator('.re-node.is-live').first().tap();
     await expect(route.locator('.re-loom-card .re-loom-state')).toHaveText(
-      'Within reach · the next knot',
+      'Within reach · the next stop',
     );
     await expect(travel).toBeEnabled();
     await expect(travel).toBeInViewport({ ratio: 1 });
@@ -531,7 +531,7 @@ for (const viewport of PORTRAIT_PHONES) {
       const before = await loomHeight();
       const live = route.locator('.re-node.is-live').first();
       await live.tap();
-      await expect(route.locator('.re-loom-state')).toHaveText('Within reach · the next knot');
+      await expect(route.locator('.re-loom-state')).toHaveText('Within reach · the next stop');
       expect(await loomHeight()).toBe(before);
       expect((await facts()).height).toBe(top.height);
       await expectTappable(route.getByRole('button', { name: 'Travel', exact: true }));

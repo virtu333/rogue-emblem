@@ -4,7 +4,7 @@ import { MenuSurface, element, button } from './MenuSurface.js';
 import { blessingCardContent, difficultyBannerContent, giftCardContent } from './choiceContent.js';
 import { blessingTerms } from '../engine/BlessingTerms.js';
 import { ContextHelp } from './ContextHelp.js';
-import { ngPlusRunNote } from './ngPlusModel.js';
+import { ngPlusRunNote, ngPlusToggleLabel } from './ngPlusModel.js';
 import { OmensPicker } from './OmensPicker.js';
 import { heatLabel, omensNote } from './omensModel.js';
 import {
@@ -84,7 +84,7 @@ export class RunSetupMenu {
       meta.setAttribute('aria-pressed', String(!s._noMetaUpgrades));
       footer.append(meta);
       if (s._ngPlusAvailable?.()) {
-        const ngPlus = button(`New Game+: ${s._ngPlus ? 'On' : 'Off'}`, () => s._toggleNgPlus());
+        const ngPlus = button(ngPlusToggleLabel(s._ngPlus, s.meta), () => s._toggleNgPlus());
         ngPlus.dataset.focus = 'ngplus';
         ngPlus.setAttribute('aria-pressed', String(s._ngPlus));
         footer.append(ngPlus);

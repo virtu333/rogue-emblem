@@ -694,7 +694,7 @@ export function describeLoomNode(
   else if (state === 'current')
     stateLine = { tone: 'done', text: activeLabel || 'The party rests here' };
   else if (state === 'done') stateLine = { tone: 'done', text: 'Woven · already walked' };
-  else if (state === 'live') stateLine = { tone: 'live', text: 'Within reach · the next knot' };
+  else if (state === 'live') stateLine = { tone: 'live', text: 'Within reach · the next stop' };
   else if (state === 'future')
     stateLine = {
       tone: 'future',
@@ -714,8 +714,8 @@ export function describeLoomNode(
   const omen =
     !eclipsed && eclipse?.foretold === true && state !== 'done'
       ? eclipse.omenRank === 1
-        ? `Omen: the dark takes this knot next${omenWith}.`
-        : `Omen: the dark takes this knot soon after the next${omenWith}.`
+        ? `Omen: the dark takes this stop next${omenWith}.`
+        : `Omen: the dark takes this stop soon after the next${omenWith}.`
       : null;
   const warning = [countdown, omen].filter(Boolean).join(' ') || null;
 

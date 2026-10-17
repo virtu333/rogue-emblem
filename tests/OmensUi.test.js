@@ -70,7 +70,7 @@ describe('omensModel', () => {
     const b = list[1];
     const ranks = { [a.id]: 1, [b.id]: 1 };
     const heat = a.ranks[0].heat + b.ranks[0].heat;
-    expect(heatLabel(heat)).toBe(`Omens: Heat ${heat}`);
+    expect(heatLabel(heat)).toBe(`Knots: Heat ${heat}`);
     expect(omensSummary(data, ranks, 9)).toBe(`Heat ${heat} · Best: 9`);
     const note = omensNote(data, ranks);
     expect(note).toContain(`Heat ${heat}`);
@@ -95,7 +95,7 @@ describe('pause list entry', () => {
     const entry = pauseBurdenEntries(rm, data.events).find((e) => e.id === 'omens-heat');
     const heat = rm.omens.heat;
     // The pause menu shows `${label} · ${short}`: the Heat is named once.
-    expect(`${entry.label} · ${entry.short}`).toBe(`Omens · Heat ${heat}`);
+    expect(`${entry.label} · ${entry.short}`).toBe(`Knots · Heat ${heat}`);
     expect(entry.short).toBe(`Heat ${heat}`);
     expect(entry.text).toBe(`${a.name}: ${a.ranks[0].text} ${b.name}: ${b.ranks[0].text}`);
   });

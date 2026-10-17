@@ -1,4 +1,7 @@
-# Omens (Heat)
+# Omens (Heat), shown as Knots
+
+Player-facing name: **Knots** (the thread motif; the owner, 2026-10-17). Ids, data keys
+(`difficulty.json` `omens`), the run-format capability, saves and storage keys keep `omens`.
 
 Opt-in challenge modifiers for a run, in the style of Hades' Heat. Design and measurements:
 `/mnt/project-files/reviews/ascension-true-ending.md` §3 (project files). This page is the
@@ -61,8 +64,9 @@ every effect makes the run harder (an Omen is never a boon).
 - **Records.** A won run with Heat records the meta milestone `heat:<rung>:<heat>`
   (`heatVictoryMilestone`; milestones union across copies and the cloud, so a best is never lost)
   and its victory record carries `heat`. `bestHeatOn(milestones, rung)` reads the best.
-- **UI.** The difficulty screen's Omens picker (remembered per slot on the device), the pause
-  list's "Omens · Heat N" entry.
+- **UI.** The difficulty screen's Knots picker ("Knots: Heat N", remembered per slot on the
+  device), the pause list's "Knots · Heat N" entry. The route map calls a node a "stop", never a
+  knot, so the word means only these.
 
 ## Not built yet
 
