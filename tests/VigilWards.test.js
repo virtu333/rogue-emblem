@@ -32,7 +32,7 @@ import {
   isWardedUnit,
   resolveCombat,
 } from '../src/engine/Combat.js';
-import { damageUnit, damageUnitDetailed } from '../src/engine/UnitHealth.js';
+import { applyCombatHP, damageUnit, damageUnitDetailed } from '../src/engine/UnitHealth.js';
 import { postCombatEffects } from '../src/engine/PostCombatEffects.js';
 import {
   buildSetPieceBattle,
@@ -294,6 +294,49 @@ describe('a warded unit takes no damage', () => {
     const open = getCombatForecast(unit('A'), sword, unit('V'), sword, 1, null, null);
     expect(open.defender).not.toHaveProperty('warded');
     expect(forecastNotes(open, true, 30)).not.toContain(WARDED_FORECAST_NOTE);
+  });
+
+  it('a weapon’s after-combat poison passes it by, attacking or countering, through the HP commit', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const venom = data.weapons.find(
+      (w) => w.type === 'Sword' && /Poison: target loses (\d+) HP/i.test(w.special || ''),
+    );
+    expect(venom).toBeTruthy();
+    const dose = Number(venom.special.match(/loses (\d+) HP/i)[1]);
+    // SKL and LCK 0: no crit, so every exchange leaves both sides standing (poison needs that).
+    const steady = (name, extra = {}) =>
+      unit(name, { ...extra, stats: { ...unit(name).stats, SKL: 0, ...extra.stats } });
+    const settle = (attacker, atkWeapon, defender, defWeapon) => {
+      const result = resolveCombat(attacker, atkWeapon, defender, defWeapon, 1, null, null);
+      applyCombatHP(attacker, defender, result);
+      expect(attacker.currentHP).toBeGreaterThan(0);
+      expect(defender.currentHP).toBeGreaterThan(0);
+      return result;
+    };
+
+    // The poisoner attacks a warded Voice: its blows land for 0, its poison takes nothing.
+    const voice = steady('V', { warded: true });
+    const hit = settle(steady('A', { weapon: venom }), venom, voice, sword);
+    expect(hit.events.some((e) => e.attacker === 'A' && !e.miss)).toBe(true);
+    expect(hit.poisonEffects).toEqual([]);
+    expect(voice.currentHP).toBe(30);
+
+    // A warded Voice attacks the poisoner, whose counter lands: no poison on the Voice either.
+    const striker = steady('V', { warded: true });
+    const counter = settle(striker, sword, steady('D', { weapon: venom }), venom);
+    expect(counter.events.some((e) => e.attacker === 'D' && !e.miss)).toBe(true);
+    expect(counter.poisonEffects).toEqual([]);
+    expect(striker.currentHP).toBe(30);
+
+    // The same exchanges on unwarded units whose armour stops the blows do poison (the test
+    // can fail): the poison is all the HP they lose.
+    const tough = { DEF: 40, RES: 40 };
+    const open = steady('V', { stats: tough });
+    settle(steady('A', { weapon: venom }), venom, open, sword);
+    expect(open.currentHP).toBe(30 - dose);
+    const bare = steady('V', { stats: tough });
+    settle(bare, sword, steady('D', { weapon: venom }), venom);
+    expect(bare.currentHP).toBe(30 - dose);
   });
 
   it('area blows, Deathburst and ground damage (damageUnit) pass it by', () => {

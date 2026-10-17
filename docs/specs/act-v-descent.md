@@ -143,7 +143,7 @@ the far two have hold packs).
 
 - **Wards** (`vigil.wards: true`). A Voice is **warded** while a circle naming it still stands: it
   takes no damage from anything (`unit.warded`, read by `Combat` strikes and forecasts,
-  `UnitHealth.damageUnitDetailed`, an art's set-HP). A player or NPC unit standing on a circle at
+  `UnitHealth.damageUnitDetailed`, an art's set-HP, a weapon's after-combat poison). A player or NPC unit standing on a circle at
   the enemy phase's start **breaks** it for good, before the words and the summons: the Voice's
   ward falls and the circle calls no more. `vigilState.broken` = `{ circleId: turn }`, saved only
   once a circle breaks.

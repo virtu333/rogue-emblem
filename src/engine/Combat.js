@@ -2697,8 +2697,8 @@ export function resolveCombat(
       // A unit the banner just held cannot fall again in this combat, and its weapon poison
       // would only claim a 0 HP loss: skipped. Status and debuff effects (an imbue's status,
       // Grievous, Corrosive, Intimidate, an art's status or debuff) still land, as they do
-      // after a broken Revival Stone.
-      if (atkPoison > 0 && !brokeBar.defender && !heldBar.defender) {
+      // after a broken Revival Stone. A warded Voice (engine/Vigil.js) loses nothing to it.
+      if (atkPoison > 0 && !brokeBar.defender && !heldBar.defender && !isWardedUnit(defender)) {
         defHP = Math.max(1, defHP - atkPoison); // Poison can't kill (leave at 1 HP)
         poisonEffects.push({ target: 'defender', damage: atkPoison });
       }
@@ -2708,7 +2708,7 @@ export function resolveCombat(
         defCanCounter && defWeapon
           ? parsePoisonDamage(defWeapon) + getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)
           : 0;
-      if (defPoison > 0 && !brokeBar.attacker && !heldBar.attacker) {
+      if (defPoison > 0 && !brokeBar.attacker && !heldBar.attacker && !isWardedUnit(attacker)) {
         atkHP = Math.max(1, atkHP - defPoison);
         poisonEffects.push({ target: 'attacker', damage: defPoison });
       }
