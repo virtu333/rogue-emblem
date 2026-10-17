@@ -102,7 +102,8 @@ export function validateWeaponUsesConfig(cfg, { weapons = [] } = {}) {
  */
 export function refillBattleUses(item) {
   if (!item || typeof item !== 'object') return;
-  if (item.perBattleUses || isDurabilityWeapon(item)) {
-    if (item._usesSpent) item._usesSpent = 0;
-  }
+  // A catalog per-battle weapon or staff always carries its count (readers
+  // expect 0, not undefined); a tier weapon is only touched once it has spent.
+  if (item.perBattleUses) item._usesSpent = 0;
+  else if (isDurabilityWeapon(item) && item._usesSpent) item._usesSpent = 0;
 }

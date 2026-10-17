@@ -213,6 +213,16 @@ describe('refilling after a battle', () => {
     expect([sword._usesSpent, bolt._usesSpent, vul._usesSpent]).toEqual([0, 0, 1]);
   });
 
+  it('a fresh staff or Breachbolt starts the battle at 0 spent, not undefined', () => {
+    // The battle and its browser specs read a staff's count as a number.
+    const staff = { ...weapon('Warp Staff') };
+    const bolt = { ...weapon('Breachbolt') };
+    delete staff._usesSpent;
+    delete bolt._usesSpent;
+    [staff, bolt].forEach(refillBattleUses);
+    expect([staff._usesSpent, bolt._usesSpent]).toEqual([0, 0]);
+  });
+
   it('a victory refills the roster and the convoy', () => {
     const rm = new RunManager(data);
     rm.startRun({ runSeed: 21, difficultyId: 'normal', applyBlessingsAtStart: false });
