@@ -16,7 +16,7 @@
 //
 // The stock policies are untouched: nothing here runs unless a driver asks for it.
 
-import { getReviveCost } from '../../src/engine/RunManager.js';
+import { reviveCostFor } from '../../src/engine/RevivePricing.js';
 import {
   canEquip,
   canPromote,
@@ -506,7 +506,7 @@ export function playChurch(run, node, data) {
   for (let guard = 0; guard < 8; guard++) {
     const affordable = (run.fallenUnits || [])
       .filter((u) => !churchReviveBlock(run, u, nodeId))
-      .sort((a, b) => getReviveCost(a) - getReviveCost(b));
+      .sort((a, b) => reviveCostFor(run, a).price - reviveCostFor(run, b).price);
     if (!affordable.length) break;
     const unit = affordable[0];
     if (!reviveAtChurch(run, unit, nodeId).ok) break;
@@ -561,7 +561,7 @@ export function playRuins(run, node) {
   for (let guard = 0; guard < 8 && out.rested; guard++) {
     const affordable = (run.fallenUnits || [])
       .filter((u) => !ruinsReviveBlock(run, node.id, u))
-      .sort((a, b) => getReviveCost(a) - getReviveCost(b));
+      .sort((a, b) => reviveCostFor(run, a).price - reviveCostFor(run, b).price);
     if (!affordable.length) break;
     if (!reviveAtRuins(run, node.id, affordable[0]).ok) break;
     out.revived.push(affordable[0].name);

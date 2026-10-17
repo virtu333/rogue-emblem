@@ -1,7 +1,7 @@
 // RunPolicies.js - Deterministic policy helpers for full-run simulations.
 
 import { NODE_TYPES } from '../../src/utils/constants.js';
-import { getReviveCost } from '../../src/engine/RunManager.js';
+import { reviveCostFor } from '../../src/engine/RevivePricing.js';
 import { getCombatForecast } from '../../src/engine/Combat.js';
 import { chooseEventOption, eventView } from '../../src/engine/EventCommands.js';
 import { eventCatalogOf, findChoice, findEvent } from '../../src/engine/EventSystem.js';
@@ -73,7 +73,10 @@ export function chooseChurchPlan(runManager, options = {}) {
   const { promoteCost = 2000 } = options;
 
   const fallen = runManager.fallenUnits;
-  const cheapest = fallen.length > 0 ? Math.min(...fallen.map((u) => getReviveCost(u))) : Infinity;
+  const cheapest =
+    fallen.length > 0
+      ? Math.min(...fallen.map((u) => reviveCostFor(runManager, u).price))
+      : Infinity;
   const canRevive = fallen.length > 0 && runManager.gold >= cheapest;
   const canPromote = runManager.gold >= promoteCost;
 

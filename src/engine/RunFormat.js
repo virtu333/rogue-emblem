@@ -217,6 +217,8 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     ruinsRevivedByNodeId: 'inert',
     // Each church's revivals (ChurchCommands): an older client has no church limit.
     churchRevivesByNodeId: 'inert',
+    // The act whose discounted revival is spent (RevivePricing): an older client charges full price.
+    reviveDiscountAct: 'inert',
     // The won battles' worth toward the run-end payout: an older client pays its own
     // flat per-battle rate instead.
     metaBattlePoints: 'inert',
