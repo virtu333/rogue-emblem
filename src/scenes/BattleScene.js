@@ -3379,8 +3379,7 @@ export class BattleScene extends Phaser.Scene {
       const spriteKey = this.getSpriteKey(unit);
       if (this.textures.exists(spriteKey)) {
         unit.graphic = this.add.image(cPos.x, cPos.y, contrastSpriteKey(this, spriteKey));
-        // rebuilt / traced big bodies are one tile wider than the body (the Entity 128 world
-        // px), with their own foot baseline
+        // rebuilt / traced big bodies are a tile wider than the body, with their own baseline
         const baked = spriteKey.startsWith('rebuilt-') || spriteKey.startsWith('traced-');
         const shown = baked ? entitySize + TILE_SIZE : entitySize - 4;
         unit.graphic.setDisplaySize(shown, shown);
@@ -3610,19 +3609,13 @@ export class BattleScene extends Phaser.Scene {
    * refill, RevivalStoneController); the bar is redrawn from HP as soon as it is dropped.
    */
   updateHPBar(unit, { ratio: shownRatio = null } = {}) {
-    let pos, barWidth, barHeight;
     const body = footprintSize(unit);
     const center = bodyCenter(unit);
-    pos = this.grid.gridToPixel(center.col, center.row);
-    if (isLargeUnit(unit)) {
-      barWidth = TILE_SIZE * body.width - 8;
-      barHeight = 4;
-    } else {
-      barWidth = TILE_SIZE - 6;
-      barHeight = 3;
-    }
-    const entityH = TILE_SIZE * body.height;
-    const barY = pos.y + entityH / 2 - 4;
+    const pos = this.grid.gridToPixel(center.col, center.row);
+    const large = isLargeUnit(unit);
+    const barWidth = large ? TILE_SIZE * body.width - 8 : TILE_SIZE - 6;
+    const barHeight = large ? 4 : 3;
+    const barY = pos.y + (TILE_SIZE * body.height) / 2 - 4;
     const ratio = shownRatio ?? Math.max(0, unit.currentHP / unit.stats.HP);
     const fillWidth = barWidth * ratio;
 
