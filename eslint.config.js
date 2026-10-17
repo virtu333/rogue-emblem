@@ -46,6 +46,7 @@ export default [
       'src/engine/SkillSlots.js',
       'src/engine/MetaProgressionManager.js',
       'src/utils/audioAssets.js',
+      'tests/fixtures/legacy/**/*.js', // older builds' code, kept as it shipped
     ],
     languageOptions: { ecmaVersion: 2025 },
   },
