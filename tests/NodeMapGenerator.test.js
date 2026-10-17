@@ -270,6 +270,25 @@ describe('NodeMapGenerator', () => {
       }
     });
 
+    it('still reaches 2 RECRUIT nodes when battles and shops run out (seed 46845)', () => {
+      const rng = createSeededRng(46845);
+      const spy = vi.spyOn(Math, 'random').mockImplementation(() => rng());
+      let map;
+      try {
+        map = generateNodeMap('act2', ACT_CONFIG.act2);
+      } finally {
+        spy.mockRestore();
+      }
+      const recruits = map.nodes.filter((n) => n.type === NODE_TYPES.RECRUIT);
+      expect(recruits.length).toBeGreaterThanOrEqual(2);
+      for (const node of recruits) {
+        expect(node.row).toBeGreaterThan(1);
+        expect(node.row).toBeLessThan(ACT_CONFIG.act2.rows - 2);
+        expect(node.battleParams.isRecruitBattle).toBe(true);
+      }
+      expect(map.nodes.filter((n) => n.type === NODE_TYPES.RUINS)).toHaveLength(1);
+    });
+
     it('never more than 3 RECRUIT nodes per act', () => {
       for (let i = 0; i < 50; i++) {
         const map = generateNodeMap('act1', ACT_CONFIG.act1);
