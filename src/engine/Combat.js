@@ -1117,6 +1117,8 @@ export function artFollowUpStrike(
     : 0;
   const effectiveness = getCombinedEffectivenessMultiplier(strikerWeapon, target, strikerMods);
   const strikeDmg = (halveDefense) => {
+    // A warded Voice (engine/Vigil.js) takes nothing: no bonus is added to a blow it turns aside.
+    if (isWardedUnit(target)) return 0;
     let dmg = Math.max(
       0,
       calculateDamage(striker, strikerWeapon, target, targetWeapon, targetTerrain, isInitiating, {
@@ -1904,6 +1906,16 @@ function rollStrike(
     huntSkipped = Boolean(skillResult.lethal);
   }
 
+  // A warded Voice (engine/Vigil.js) takes nothing, whatever rolled above (a crit, Luna, a
+  // Lethality proc, a skill that adds or sets damage such as Flare): the blow lands and is
+  // turned aside here, before the Hunt, the target's defenses and its affixes, so nothing that
+  // reads the damage (a skill's or a weapon's drain, Thorns, Teleporter) reacts to it.
+  const warded = isWardedUnit(targetUnit);
+  if (warded) {
+    finalDmg = 0;
+    heal = 0;
+  }
+
   // Mark of the Hunt (3C): a strike-level chance of +damage on a strike that deals any, on the
   // battle's Math.random, after the on-attack procs. Not a skill: Silence does not stop it,
   // and a Lethality kill does not need it.
@@ -1915,8 +1927,8 @@ function rollStrike(
     mergeActivations([markActivation(hunt)]);
   }
 
-  // On-defend skills (Pavise, Aegis, Miracle, Intimidate)
-  if (strikeSkills?.rollDefenseSkills && finalDmg >= 0) {
+  // On-defend skills (Pavise, Aegis, Miracle, Intimidate): a warded blow never reaches them.
+  if (!warded && strikeSkills?.rollDefenseSkills && finalDmg >= 0) {
     const isPhysicalAtk = strikeSkills.strikerWeaponPhysical;
     const defResult = strikeSkills.rollDefenseSkills(
       strikeSkills.target,
@@ -1938,8 +1950,8 @@ function rollStrike(
     mergeActivations(defResult.activated);
   }
 
-  // On-defend affixes (Shielded, Teleporter, Thorns)
-  if (strikeSkills?.rollDefenseAffixes && finalDmg >= 0) {
+  // On-defend affixes (Shielded, Teleporter, Thorns): a warded blow never reaches them.
+  if (!warded && strikeSkills?.rollDefenseAffixes && finalDmg >= 0) {
     const defResult = strikeSkills.rollDefenseAffixes(
       strikeSkills.target,
       finalDmg,
@@ -1959,11 +1971,6 @@ function rollStrike(
     // Always surface all on-defend affix activations
     mergeActivations(defResult.activated);
   }
-
-  // A warded Voice (engine/Vigil.js) takes nothing, whatever rolled above (a crit, Luna, a
-  // Lethality proc, the Hunt): the blow lands and is turned aside, so nothing is drained.
-  const warded = isWardedUnit(targetUnit);
-  if (warded) finalDmg = 0;
 
   // Drain resolution: highest resulting heal wins across skill/weapon/art sources.
   if (finalDmg > 0) {

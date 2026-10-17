@@ -27,6 +27,7 @@ import {
   wardOf,
 } from '../src/engine/Vigil.js';
 import {
+  artFollowUpStrike,
   calculateDamage,
   getCombatForecast,
   isWardedUnit,
@@ -34,6 +35,8 @@ import {
 } from '../src/engine/Combat.js';
 import { applyCombatHP, damageUnit, damageUnitDetailed } from '../src/engine/UnitHealth.js';
 import { postCombatEffects } from '../src/engine/PostCombatEffects.js';
+import { rollDefenseSkills, rollStrikeSkills } from '../src/engine/SkillSystem.js';
+import { rollDefenseAffixes } from '../src/engine/AffixSystem.js';
 import {
   buildSetPieceBattle,
   SET_PIECE_MAX_DEPLOY,
@@ -337,6 +340,73 @@ describe('a warded unit takes no damage', () => {
     const bare = steady('V', { stats: tough });
     settle(bare, sword, steady('D', { weapon: venom }), venom);
     expect(bare.currentHP).toBe(30 - dose);
+  });
+
+  it('a skill that adds damage (Flare) is turned aside before drain, Thorns and Teleporter read it', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    // The real rollers and data, as the scene and the harness hand them to resolveCombat.
+    const skillCtx = {
+      atkMods: {},
+      defMods: {},
+      rollStrikeSkills,
+      rollDefenseSkills,
+      rollDefenseAffixes,
+      skillsData: data.skills,
+      affixData: data.affixes,
+    };
+    // Flare procs on SKL% (Math.random 0): its damage is the blow plus the target's RES (20),
+    // far past Thorns' floor of 4. The Voice's own weapon does nothing back.
+    const flarer = () => unit('A', { skills: ['flare'], currentHP: 20 });
+    const limp = { ...sword, name: 'Practice Sword', might: 0 };
+    const voice = (affix, extra = {}) =>
+      unit('V', {
+        stats: { ...unit('V').stats, STR: 0, RES: 20 },
+        weapon: limp,
+        affixes: [affix],
+        ...extra,
+      });
+    const settle = (attacker, defender) => {
+      const result = resolveCombat(attacker, sword, defender, limp, 1, null, null, skillCtx);
+      applyCombatHP(attacker, defender, result);
+      return result;
+    };
+
+    for (const affix of ['thorns', 'teleporter']) {
+      const a = flarer();
+      const v = voice(affix, { warded: true });
+      const result = settle(a, v);
+      const strikes = result.events.filter((e) => e.type === 'strike' && e.attacker === 'A');
+      expect(strikes.length).toBeGreaterThan(0);
+      // Flare did roll (the test reaches the case), and nothing it set survives the ward.
+      expect(strikes.some((e) => e.skillActivations.some((s) => s.id === 'flare'))).toBe(true);
+      for (const e of strikes) {
+        expect(e).toMatchObject({ damage: 0, heal: 0, reflectDamage: 0, warpRange: 0 });
+        expect(e.skillActivations.map((s) => s.id)).not.toContain(affix);
+      }
+      expect(v.currentHP).toBe(30);
+      expect(a.currentHP).toBe(20); // no Flare heal, no Thorns back
+    }
+
+    // Unwarded, the same exchanges drain, reflect and warp (the test can fail).
+    const thornsA = flarer();
+    const thorny = settle(thornsA, voice('thorns'));
+    const flareHit = thorny.events.find((e) => e.attacker === 'A' && !e.miss);
+    expect(flareHit.damage).toBeGreaterThan(0);
+    expect(flareHit.reflectDamage).toBeGreaterThan(0);
+    const warp = settle(flarer(), voice('teleporter'));
+    expect(warp.events.find((e) => e.attacker === 'A' && !e.miss).warpRange).toBeGreaterThan(0);
+  });
+
+  it('a weapon art’s follow-up adds no bonus to a warded target, so the forecast shows none', () => {
+    const mods = { atkBonus: 5, vengeance: true, foeMaxHpShare: 0.2 };
+    const hurt = unit('A', { currentHP: 10 });
+    const warded = artFollowUpStrike(hurt, sword, unit('V', { warded: true }), sword, null, {
+      strikerMods: mods,
+    });
+    expect(warded.damage).toBe(0);
+    expect(warded.lunaDamage).toBe(0);
+    const open = artFollowUpStrike(hurt, sword, unit('V'), sword, null, { strikerMods: mods });
+    expect(open.damage).toBeGreaterThan(0);
   });
 
   it('area blows, Deathburst and ground damage (damageUnit) pass it by', () => {
