@@ -8,6 +8,7 @@ import {
   RUINS_SHOP_ITEM_COUNT,
   RUINS_SHOP_ITEM_COUNT_FINAL,
   RUINS_SHOP_MARKUP,
+  RUINS_GUARANTEED_VULNERARIES,
   AMBUSH_SHOP_DISCOUNT,
   CARAVAN_SHOP_ITEM_COUNT_RANGE,
 } from '../utils/constants.js';
@@ -92,7 +93,12 @@ export class ShopController {
                 (state.items || []).map((entry) => entry.item?.name).filter(Boolean),
               ),
           shopCureGating: rm.difficultyModifiers?.shopCureGating,
-          ...(ruins ? { itemCountRange: this._getRuinsItemCountRange(rm.currentAct) } : {}),
+          ...(ruins
+            ? {
+                itemCountRange: this._getRuinsItemCountRange(rm.currentAct),
+                guaranteedVulneraries: RUINS_GUARANTEED_VULNERARIES,
+              }
+            : {}),
           ...(caravan ? { itemCountRange: CARAVAN_SHOP_ITEM_COUNT_RANGE, rareBias: true } : {}),
         },
       );
@@ -309,6 +315,9 @@ export class ShopController {
         {
           shopCureGating: scene.runManager.difficultyModifiers?.shopCureGating,
           excludeLegendaryNames: [...ownedLegendaryNames(scene.runManager)],
+          ...(scene._currentShopIsRuins
+            ? { guaranteedVulneraries: RUINS_GUARANTEED_VULNERARIES }
+            : {}),
         },
       );
       let priced = scene.applyDifficultyShopPricing(generated);

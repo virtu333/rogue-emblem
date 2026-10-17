@@ -252,6 +252,11 @@ export const SHOP_ITEM_COUNT = { min: 8, max: 10 };
 export const RUINS_SHOP_ITEM_COUNT = { min: 5, max: 6 };
 export const RUINS_SHOP_ITEM_COUNT_FINAL = { min: 8, max: 10 };
 export const RUINS_SHOP_MARKUP = 1.25;
+// Basic medicine on every ordinary shop's shelf, in every act (Vulneraries leave
+// the healing pool from Act III): a hurt army always has a cheap heal to buy.
+// The Ruins' smaller shelf keeps one; a Merchant Caravan none.
+export const SHOP_GUARANTEED_VULNERARIES = 2;
+export const RUINS_GUARANTEED_VULNERARIES = 1;
 // The Ruins offer one of two paths per visit: rest (heal, revive) or scavenge (wares).
 export const RUINS_PATHS = Object.freeze(['rest', 'scavenge']);
 // A church's one vow per visit: a promotion, a minor blessing, or the cleansing of one burden
