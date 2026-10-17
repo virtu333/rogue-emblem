@@ -189,7 +189,7 @@ export function forecastNotes(forecast, attacking, attackerHP, weapons = null) {
   const striker = attacking ? forecast.attacker : forecast.defender;
   if (attacking && laterStrikesDiffer(striker))
     notes.push(`Later strikes: ${formatHitChance(striker.hit)} (Keen Eye lifts the first)`);
-  if (striker?.ward) notes.push(`${WARD_NAME}: the first hit that lands deals 1`);
+  if (striker?.ward) notes.push(`${WARD_NAME}: the first hit that would deal more than 1 deals 1`);
   const briar = Math.max(0, Number(striker?.briar) || 0);
   const thorns = (Number(striker?.thornsReflect) || 0) - briar;
   if (thorns > 0) notes.push(`Thorns: −${thorns} HP per hit landed (leaves at least 1)`);

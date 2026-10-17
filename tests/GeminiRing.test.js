@@ -16,7 +16,7 @@ import {
   accessoryStatEffects,
 } from '../src/engine/GeminiRing.js';
 import { accessoryDisplayName } from '../src/engine/AccessorySkillNames.js';
-import { formatAccessoryDetail } from '../src/utils/accessoryText.js';
+import { formatAccessoryDetail, geminiSetText } from '../src/utils/accessoryText.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -193,6 +193,37 @@ describe('the set bonus', () => {
     expect(geminiPartnerStats(a, [a, b, c]).map((p) => p.stat)).toEqual(['SPD', 'RES']);
     expect(geminiPartnerStats(b, [a, b, c]).map((p) => p.stat)).toEqual(['DEF', 'RES']);
     expect(geminiPartnerStats(a, [a, b, d])).toEqual([{ stat: 'SPD', bonus: 2 }]);
+  });
+
+  it("partner STR lightens the weapon as the wearer's own STR would (the review case)", () => {
+    // STR 9, SPD 12, a weight-5 blade. +2 STR from a partner: STR 11, weight 5 - floor(11/5)
+    // = 3, so Attack Speed 12 - 3 = 9 (worn on the wearer's own ring it is 9 too); 8 before.
+    const blade = { ...weapon('Iron Sword'), weight: 5 };
+    const a = unit('Ana', 'player', { accessory: ring('DEF'), weapon: blade });
+    Object.assign(a.stats, { STR: 9, SPD: 12 });
+    const s = unit('S', 'player', { accessory: ring('STR', 'itm_3_ssss') });
+    const foe = unit('Brigand', 'enemy');
+    const as = (allies) =>
+      getCombatForecast(a, a.weapon, foe, foe.weapon, 1, null, null, {
+        atkMods: mods(a, foe, allies),
+        defMods: mods(foe, a, [foe]),
+        skillsData: gameData.skills,
+      }).attacker.as;
+    expect(as([a])).toBe(12 - (5 - 1));
+    expect(as([a, s])).toBe(9);
+    expect(mods(a, foe, [a, s]).spdBonus - mods(a, foe, [a]).spdBonus).toBe(1);
+  });
+
+  it('the set line says what the partners give now, and nothing outside battle', () => {
+    const a = unit('Ana', 'player', { accessory: ring('DEF') });
+    const s = unit('S', 'player', { accessory: ring('STR', 'itm_3_ssss') });
+    const p = unit('P', 'player', { accessory: ring('SPD', 'itm_3_pppp') });
+    expect(geminiSetText(a, [a, s, p])).toBe('Set active: +2 STR, +2 SPD');
+    p.currentHP = 0;
+    expect(geminiSetText(a, [a, s, p])).toBe('Set active: +2 STR');
+    expect(geminiSetText(a, [a])).toBe('Set: no partner on the field');
+    expect(geminiSetText(a, null)).toBe('');
+    expect(geminiSetText(unit('X', 'player'), [a, s])).toBe('');
   });
 
   it('a partner who falls or is removed takes its half away', () => {

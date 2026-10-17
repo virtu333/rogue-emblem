@@ -37,7 +37,8 @@ function assertKeyRendered(key, combatText, accessory) {
   if (key === 'doubleThresholdReduction') return combatText.includes('follow-up attacks with');
   if (key === 'gamblerCoin') return combatText.includes('Gambler');
   if (key === 'gemini') return combatText.includes('other Gemini Ring');
-  if (key === 'firstHitWard') return combatText.includes('the first hit that lands deals 1');
+  if (key === 'firstHitWard')
+    return combatText.includes('the first hit on you that would deal more than 1 damage deals 1');
   if (key === 'meleeReflect')
     return combatText.includes(`takes ${combatEffects.meleeReflect} damage`);
   if (key === 'grudgeAtk')

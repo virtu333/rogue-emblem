@@ -221,6 +221,7 @@ import { createVigilState } from '../../src/engine/Vigil.js';
 import { readyWard } from '../../src/engine/AccessoryWard.js';
 import { playerAlliesLost } from '../../src/engine/AccessoryReactions.js';
 import { consumeGaleforce, readyGaleforce } from '../../src/engine/GaleforceCharm.js';
+import { refreshUnitAction } from '../../src/engine/ActionRefresh.js';
 import { applyDueHybridOverrides } from '../../src/engine/TerrainPhases.js';
 import {
   buildRisenUnit,
@@ -2049,11 +2050,7 @@ export class HeadlessBattle {
             toRefresh.push(ally);
           }
         }
-        for (const u of toRefresh) {
-          u.hasActed = false;
-          u.hasMoved = false;
-          u._movementSpent = 0;
-        }
+        for (const u of toRefresh) refreshUnitAction(u);
         this.selectedUnit = null;
         this._clearSelectedWeaponArt();
         this.attackTargets = [];

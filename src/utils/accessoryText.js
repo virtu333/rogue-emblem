@@ -3,6 +3,7 @@ import { accessorySkillText } from '../engine/AccessorySkillNames.js';
 import {
   accessoryStatEffects,
   geminiBonus,
+  geminiPartnerStats,
   geminiStatOf,
   isGeminiRing,
 } from '../engine/GeminiRing.js';
@@ -129,6 +130,18 @@ function formatTurnStartEffect(accessory) {
   return `At turn start, restore ${healParts.join(' + ')}`;
 }
 
+/**
+ * A Gemini Ring wearer's set as it stands on the field: "Set active: +2 STR, +2 SPD" (the
+ * partner stats it draws now, engine/GeminiRing.js geminiPartnerStats) or "Set: no partner on
+ * the field". '' for a unit without a ring, or when `allies` is not a field (outside battle).
+ */
+export function geminiSetText(unit, allies) {
+  if (!isGeminiRing(unit?.accessory) || !Array.isArray(allies)) return '';
+  const partners = geminiPartnerStats(unit, allies);
+  if (partners.length === 0) return 'Set: no partner on the field';
+  return `Set active: ${partners.map(({ stat, bonus }) => `+${bonus} ${stat}`).join(', ')}`;
+}
+
 export function formatAccessoryEffects(accessory, options = {}) {
   const separator = options.separator ?? ' ';
   // A Gemini Ring's own stat is the instance's (engine/GeminiRing.js); a catalog row has none.
@@ -185,7 +198,8 @@ export function formatAccessoryCombatEffect(accessory) {
   if (combatEffects?.negateEffectiveness) parts.push('Negates weapon effectiveness');
   if (combatEffects?.negateFlierWeakness) parts.push('Negates flier weakness to bows');
   if (combatEffects?.statusImmunity) parts.push('Immune to status conditions');
-  if (combatEffects?.firstHitWard) parts.push('Once per map, the first hit that lands deals 1');
+  if (combatEffects?.firstHitWard)
+    parts.push('Once per map, the first hit on you that would deal more than 1 damage deals 1');
   const meleeReflect = firstNumericValue(combatEffects?.meleeReflect);
   if (meleeReflect !== null && meleeReflect > 0)
     parts.push(

@@ -7,8 +7,10 @@
 // one is stamped, else a hash of its uid's random suffix (the part the creating stream drew
 // anyway), so a ring needs no extra draw where it is made, shows the same stat in a shop,
 // the loot screen and the bag, and every save keeps it (saves store whole items, uid
-// included). Equipping stamps it (`settleGeminiStat`), so the stat never moves once worn,
-// even if a uid-less copy is given one later.
+// included). The ring is settled as soon as it has a uid (utils/itemUid.js), when it is
+// equipped and on load (`settleGeminiStat`): its stat is stamped and its own bonus written
+// into its ordinary `effects`, so any reader, an older client's included, adds and takes
+// exactly that bonus on equip and unequip.
 //
 // The set: while another living ally on the field wears a Gemini Ring, the wearer also
 // gets +bonus to that ring's stat (each partner stat once, so three rings with different
@@ -17,7 +19,7 @@
 // it stands at each combat: a partner who falls takes its half with it.
 //
 // The ring's own stat lives in `unit.stats` like every stat accessory: UnitManager's
-// equip/unequip reads `accessoryStatEffects`, which adds it to the catalog `effects`.
+// equip/unequip reads `accessoryStatEffects`.
 
 export const GEMINI_STATS = Object.freeze(['STR', 'MAG', 'SKL', 'SPD', 'DEF', 'RES']);
 export const GEMINI_DEFAULT_BONUS = 2;
@@ -63,19 +65,55 @@ export function geminiStatOf(item) {
   return GEMINI_STATS[hashString(`gemini:${suffix}`) % GEMINI_STATS.length];
 }
 
-/** Stamp the ring's stat on the instance (its derived one, else the first). Returns the item. */
+/**
+ * Settle the ring: stamp its stat on the instance (its derived one, else the first) and
+ * write its own bonus into the instance's ordinary `effects`, once (`geminiApplied`). A
+ * settled ring reads as a plain stat accessory to any reader that knows only `effects`: an
+ * older client that equips or unequips it adds or takes exactly what this build does, so a
+ * save crossing builds never leaves the bonus stuck on (or off) the unit. Idempotent.
+ * Returns the item.
+ */
 export function settleGeminiStat(item) {
-  if (!isGeminiRing(item) || GEMINI_STATS.includes(item.geminiStat)) return item;
-  item.geminiStat = geminiStatOf(item) ?? GEMINI_STATS[0];
+  if (!isGeminiRing(item)) return item;
+  if (!GEMINI_STATS.includes(item.geminiStat))
+    item.geminiStat = geminiStatOf(item) ?? GEMINI_STATS[0];
+  if (item.geminiApplied !== true) {
+    item.effects = accessoryStatEffects(item);
+    item.geminiApplied = true;
+  }
   return item;
 }
 
 /**
- * The stats an accessory adds while worn: its `effects`, plus a Gemini Ring's own stat.
- * The one reader of an accessory's stat bonus (equip, unequip and its text).
+ * Settle every Gemini Ring a value holds, however deep (a run save, a roster, a bag).
+ * Returns how many it settled. Plain data only: objects and arrays are walked once each.
+ */
+export function settleGeminiRingsIn(value) {
+  let settled = 0;
+  const seen = new Set();
+  const stack = [value];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node || typeof node !== 'object' || seen.has(node)) continue;
+    seen.add(node);
+    if (isGeminiRing(node) && node.geminiApplied !== true) {
+      settleGeminiStat(node);
+      settled++;
+    }
+    for (const child of Array.isArray(node) ? node : Object.values(node))
+      if (child && typeof child === 'object') stack.push(child);
+  }
+  return settled;
+}
+
+/**
+ * The stats an accessory adds while worn: its `effects`, plus an unsettled Gemini Ring's own
+ * stat (a settled ring already holds it in `effects`). The one reader of an accessory's stat
+ * bonus (equip, unequip and its text); a ring reads the same settled or not.
  */
 export function accessoryStatEffects(item) {
   const base = item?.effects && typeof item.effects === 'object' ? { ...item.effects } : {};
+  if (item?.geminiApplied === true) return base;
   const stat = geminiStatOf(item);
   if (stat) base[stat] = (Number(base[stat]) || 0) + geminiBonus(item);
   return base;
@@ -107,10 +145,12 @@ export function geminiPartnerStats(unit, allies) {
 /**
  * The partner stats as combat modifiers, exactly what +N to the stat changes in a combat
  * (Combat.js's formulas): STR or MAG raise damage when the weapon strikes with that stat
- * (`magic`: Combat.usesMagic), SKL Hit (x2) and Crit (floor(SKL / 2)), SPD Attack Speed
- * and Avoid (x2), DEF and RES their defence.
+ * (`magic`: Combat.usesMagic) and STR lightens the weapon too (`weightAt(str)`: the
+ * weapon's effective weight at that STR, Combat.calculateEffectiveWeight; the Attack Speed it
+ * gives back), SKL Hit (x2) and Crit (floor(SKL / 2)), SPD Attack Speed and Avoid (x2), DEF
+ * and RES their defence.
  */
-export function geminiCombatMods(unit, allies, { magic = false } = {}) {
+export function geminiCombatMods(unit, allies, { magic = false, weightAt = null } = {}) {
   const mods = {
     atkBonus: 0,
     hitBonus: 0,
@@ -124,6 +164,10 @@ export function geminiCombatMods(unit, allies, { magic = false } = {}) {
   const skl = Number(unit?.stats?.SKL) || 0;
   for (const { stat, bonus } of partners) {
     if (stat === 'STR' && !magic) mods.atkBonus += bonus;
+    if (stat === 'STR' && typeof weightAt === 'function') {
+      const str = Number(unit?.stats?.STR) || 0;
+      mods.spdBonus += Math.max(0, weightAt(str) - weightAt(str + bonus));
+    }
     if (stat === 'MAG' && magic) mods.atkBonus += bonus;
     if (stat === 'SKL') {
       mods.hitBonus += bonus * 2;

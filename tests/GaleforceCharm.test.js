@@ -67,6 +67,13 @@ describe('the roll', () => {
     expect(galeforceChance({ ...wearer(), accessory: null })).toBe(0);
   });
 
+  it('the new action starts with no movement spent (Ride Down reads only its own walk)', () => {
+    const u = wearer(100, { hasActed: true, hasMoved: true, _movementSpent: 4 });
+    rollGaleforce(u, () => 0);
+    expect(consumeGaleforce(u)).toBe(true);
+    expect(u._movementSpent).toBe(0);
+  });
+
   it('consuming refreshes the unit once; a fallen wearer stays down', () => {
     const u = wearer(100, { hasActed: true, hasMoved: true });
     rollGaleforce(u, () => 0);

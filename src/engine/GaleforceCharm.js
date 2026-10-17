@@ -13,6 +13,7 @@
 // (BattleScene.resetUnitForBattle, UnitSerialization).
 
 import { getActivationChance } from './SkillSystem.js';
+import { refreshUnitAction } from './ActionRefresh.js';
 
 export const GALEFORCE_NAME = 'Galeforce Charm';
 export const GALEFORCE_ACTIVATION = Object.freeze({ id: 'galeforce_charm', name: GALEFORCE_NAME });
@@ -60,11 +61,9 @@ export function consumeGaleforce(unit) {
   if (!unit || unit._galeforceReady !== true) return false;
   delete unit._galeforceReady;
   if (!(unit.currentHP > 0)) return false;
-  // Dance's refresh (ActionAbilitySystem.refreshActedAlly), kept here: importing it would
-  // close an import cycle through the post-combat pipeline.
-  unit.hasMoved = false;
-  unit._movementCommitted = false;
-  unit.hasActed = false;
+  // The shared refresh (engine/ActionRefresh.js): the movement the kill's action spent goes
+  // too, so the new action reads only its own.
+  refreshUnitAction(unit);
   return true;
 }
 

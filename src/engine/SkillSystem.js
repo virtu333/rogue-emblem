@@ -4,7 +4,12 @@
 // bound skill.
 // All functions take skillsData (from skills.json) for metadata lookup.
 
-import { getConditionalWeaponBonuses, usesMagic } from './Combat.js';
+import {
+  calculateEffectiveWeight,
+  getConditionalWeaponBonuses,
+  isStaff,
+  usesMagic,
+} from './Combat.js';
 import { getAffixCombatMods } from './AffixSystem.js';
 import { isSilenced } from './StatusConditionSystem.js';
 import { getMasteryCombatMods } from './MasterySystem.js';
@@ -470,7 +475,12 @@ export function getSkillCombatMods(
       if (ce.avoidBonus) mods.avoidBonus += ce.avoidBonus;
     }
     // Gemini Ring (engine/GeminiRing.js): +N to each other ring's stat on the field.
-    const gemini = geminiCombatMods(unit, allies, { magic: usesMagic(weapon) });
+    // Partner STR lightens the weapon as the wearer's own STR would (staves weigh nothing).
+    const weightAt =
+      weapon && !isStaff(weapon)
+        ? (str) => calculateEffectiveWeight(weapon, { stats: { STR: str } })
+        : null;
+    const gemini = geminiCombatMods(unit, allies, { magic: usesMagic(weapon), weightAt });
     if (gemini.partners.length > 0) {
       for (const key of Object.keys(gemini.mods)) mods[key] += gemini.mods[key];
       mods.activated.push({ ...GEMINI_ACTIVATION });

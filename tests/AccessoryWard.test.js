@@ -87,7 +87,9 @@ describe('the catalog row', () => {
       gameData.lootTables[act].accessories.includes("Warden's Buckler"),
     );
     expect(acts).toEqual(['act3', 'act4']);
-    expect(formatAccessoryDetail(buckler())).toContain('the first hit that lands deals 1');
+    expect(formatAccessoryDetail(buckler())).toContain(
+      'Once per map, the first hit on you that would deal more than 1 damage deals 1',
+    );
   });
 });
 
@@ -223,7 +225,7 @@ describe('the forecast', () => {
 
   it("names it under the wearer's column", () => {
     expect(forecastNotes(forecast(sera()), false, 30).join('\n')).toContain(
-      "Warden's Buckler: the first hit that lands deals 1",
+      "Warden's Buckler: the first hit that would deal more than 1 deals 1",
     );
   });
 

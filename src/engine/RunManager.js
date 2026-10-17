@@ -287,6 +287,7 @@ import {
   shrineBoonsOf,
 } from './ShrineBoons.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
+import { settleGeminiRingsIn } from './GeminiRing.js';
 import {
   chooseStartGift as takeStartGift,
   findGift,
@@ -5685,6 +5686,8 @@ export class RunManager {
     migrateSavedStaffUseRules(saved, gameData);
     // Legendaries saved before the rework take its changes (Oathblade, Hermit's Bow).
     migrateSavedLegendaryRelics(saved);
+    // A Gemini Ring saved before its own bonus lived in `effects` gets it there (same places).
+    settleGeminiRingsIn(saved);
     for (const [holder, key, expanded] of expandedTimelines)
       collapseTimelinePatches(holder[key], expanded);
     const rm = new RunManager(gameData, saved.metaEffects || null);
