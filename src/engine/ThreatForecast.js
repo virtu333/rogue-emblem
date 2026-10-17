@@ -50,6 +50,7 @@ import { artilleryWeapon, holdsPost } from './SiegeArtillery.js';
 import { movementOptionsFor } from './PassMovement.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
 import { getAttackRange, getAttackWeapons } from './AttackOptions.js';
+import { slamDamage } from './IronGuardian.js';
 
 const tileKey = (col, row) => `${col},${row}`;
 
@@ -359,9 +360,12 @@ export function moverReachSignature(mover) {
  * phase will actually see.
  *
  * @returns {{ damage: object[], status: object[], counter: object[], ballistas: object[],
- *   area: object[], count: number, fogged: boolean }}  `counter` = Entities that cannot strike
- *   the tile but would answer a blow from it (a note, never part of `count`); `count` = damage
- *   enemies + ballistas; `area` =
+ *   hazards: object[], area: object[], count: number, fogged: boolean }}  `counter` = Entities
+ *   that cannot strike the tile but would answer a blow from it (a note, never part of `count`);
+ *   `hazards` = automatic blows that land on the tile whoever stands there, chosen by no target
+ *   (the Iron Guardian's Hammerfall on a tile it marked: `{ kind: 'hammerfall', source, damage }`,
+ *   `damage` to the mover, null without one); its Guardian is in `damage` only when its weapon
+ *   reaches the tile too; `count` = damage enemies + ballistas + hazards; `area` =
  *   the damage enemies carrying an area art; `fogged` = fog is on, so unseen enemies
  *   may add to it.
  */
@@ -370,6 +374,7 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
   const damage = [];
   const status = [];
   const counter = [];
+  const hazards = [];
   let positions = null;
   const slides = gridHasIce(ctx.grid);
   for (const enemy of ctx.enemyUnits || []) {
@@ -379,7 +384,19 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
     if (!slides && !isLargeUnit(enemy) && !withinBareReach(enemy, col, row)) continue;
     if (!isLargeUnit(enemy)) positions ||= positionsWithMoverAt(ctx.positions(), mover, col, row);
     const tiles = enemyThreatTiles(ctx, enemy, positions);
-    if (tiles.damage.has(key)) damage.push(enemy);
+    // Hammerfall falls on its marks as the enemy phase starts, on whoever stands there: a hazard
+    // of its own, never a target the AI picks (EnemyIntent asks only the weapon's blow).
+    const hammered = Boolean(enemy.hammerfall && ctx.hammerfallMarks?.has(key));
+    if (hammered)
+      hazards.push({
+        kind: 'hammerfall',
+        source: enemy,
+        damage: mover ? slamDamage(enemy, mover) : null,
+      });
+    const struck = hammered
+      ? bodyReachTiles(ctx.grid, enemy, strikingWeapon(enemy)).has(key)
+      : tiles.damage.has(key);
+    if (struck) damage.push(enemy);
     else if (tiles.status.has(key)) status.push(enemy);
     // The Entity answers a blow from here, though it could not strike this tile: only worth
     // saying to a mover with a weapon that reaches it from here.
@@ -395,8 +412,9 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
     status,
     counter,
     ballistas,
+    hazards,
     area: damage.filter((enemy) => Boolean(ctx.areaArtOf?.(enemy))),
-    count: damage.length + ballistas.length,
+    count: damage.length + ballistas.length + hazards.length,
     fogged: Boolean(ctx.grid?.fogEnabled),
   };
 }
@@ -442,6 +460,12 @@ export function threatWorldSignature(ctx, units = []) {
 
 const staves = (n) => `${n} ${n === 1 ? 'staff' : 'staves'}`;
 
+/** One automatic hazard's clause: "Hammerfall hits this tile next enemy phase: 16 damage". */
+function hazardClause(hazard) {
+  const damage = Number.isFinite(hazard?.damage) ? `: ${hazard.damage} damage` : '';
+  return `Hammerfall hits this tile next enemy phase${damage}`;
+}
+
 /**
  * How a move preview should read: 'reached' when a foe (or ballista) can strike
  * the tile, 'status' when only status staves can reach it, 'counter' when nothing can
@@ -464,10 +488,14 @@ export function threatSummaryTone(result) {
  * tiles around (or behind) this one too. When the Entity cannot strike the tile but would
  * counter a blow from it, " · The Entity counters from here" follows. `status` lists enemies
  * that reach the tile with a status staff only (those that can also strike are in `count`).
+ * A hazard (`hazards`: Hammerfall on a marked tile) is said on its own, never as a foe that
+ * "targets you": "Hammerfall hits this tile next enemy phase: 16 damage", after the foes'
+ * clauses when a foe also reaches the tile.
  */
 export function threatSummaryText(result) {
   if (!result) return '';
-  const hits = result.count || 0;
+  const hazardText = (result.hazards || []).map(hazardClause);
+  const hits = (result.count || 0) - hazardText.length;
   const staffOnly = result.status?.length || 0;
   const area = result.area?.length || 0;
   let text;
@@ -484,8 +512,9 @@ export function threatSummaryText(result) {
   } else if (staffOnly) {
     text = `Only ${staves(staffOnly)} can reach${aimedText}`;
   } else {
-    text = 'No foe can reach';
+    text = hazardText.length ? '' : 'No foe can reach';
   }
+  if (hazardText.length) text = [text, ...hazardText].filter(Boolean).join(' · ');
   const counters = result.counter || [];
   if (counters.length === 1) text += ` · ${counters[0].name || 'A foe'} counters from here`;
   else if (counters.length) text += ` · ${counters.length} foes counter from here`;

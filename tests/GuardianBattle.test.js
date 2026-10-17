@@ -28,7 +28,12 @@ import { registerBattleEntity, resetBattleIdentities } from '../src/engine/Battl
 import { createHammerfallState, slamDamage } from '../src/engine/IronGuardian.js';
 import { getFootprint } from '../src/engine/EntitySystem.js';
 import { processHammerfall } from './harness/headlessConjuring.js';
-import { computeDangerTiles, threatWorldSignature } from '../src/engine/ThreatForecast.js';
+import {
+  computeDangerTiles,
+  threatSummaryText,
+  threatsOnTile,
+  threatWorldSignature,
+} from '../src/engine/ThreatForecast.js';
 import { GameDriver } from './harness/GameDriver.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { loadGameData } from './testData.js';
@@ -222,6 +227,86 @@ describe('Danger shows where the hammer falls', () => {
     for (const k of marks) expect(after.has(k), k).toBe(true);
     // Threat Sight and the pinned zone redraw: the world's signature changed with the marks.
     expect(threatWorldSignature(b._playerThreatContext(), b.enemyUnits)).not.toBe(beforeSig);
+  });
+});
+
+describe('Threat Sight names the hammer, never a foe that "targets you"', () => {
+  // Failure: a marked tile reads "1 foe can reach · none target you" (the AI's own pick is
+  // someone else), though the slam lands on whoever stands there.
+  const occupied = (b) =>
+    new Set(
+      [...b.playerUnits, ...b.enemyUnits].flatMap((u) =>
+        getFootprint(u).map((t) => `${t.col},${t.row}`),
+      ),
+    );
+
+  function markedTile(b, { inMaulReach }) {
+    const ctx = b._playerThreatContext();
+    const guardian = guardianOf(b.enemyUnits);
+    const taken = occupied(b);
+    return b._hammerfallState.marks.find((t) => {
+      if (taken.has(`${t.col},${t.row}`)) return false;
+      const reach = threatsOnTile({ ...ctx, hammerfallMarks: new Set() }, t.col, t.row);
+      return reach.damage.includes(guardian) === inMaulReach;
+    });
+  }
+
+  it('a mark past the maul: no foe reaches, the hazard says the hit and its damage, and it lands', () => {
+    const b = harness();
+    b.turnManager.turnNumber = 1;
+    processHammerfall(b);
+    const guardian = guardianOf(b.enemyUnits);
+    b.enemyUnits = [guardian]; // the hall's other foes would add clauses of their own
+    const tile = markedTile(b, { inMaulReach: false });
+    expect(tile).toBeTruthy();
+    const mover = b.playerUnits[0];
+    mover.col = tile.col;
+    mover.row = tile.row;
+    const result = threatsOnTile(b._playerThreatContext(), tile.col, tile.row, { mover });
+    expect(result.damage).toEqual([]);
+    // STR + the slam's might, less DEF (plates add nothing at full health).
+    const expected = Math.max(0, guardian.stats.STR + guardian.hammerfall.might - mover.stats.DEF);
+    expect(result.hazards).toEqual([{ kind: 'hammerfall', source: guardian, damage: expected }]);
+    // Threat Sight folds in `aimed` = 0 (the AI picks no one here): still no "targets you".
+    const text = threatSummaryText({ ...result, aimed: 0 });
+    expect(text).not.toMatch(/target/);
+    expect(text).not.toMatch(/No foe can reach/);
+    expect(text).toContain(`Hammerfall hits this tile next enemy phase: ${expected} damage`);
+    const before = mover.currentHP;
+    b.turnManager.turnNumber = 2;
+    processHammerfall(b);
+    expect(before - mover.currentHP).toBe(Math.min(before, expected));
+  });
+
+  it('a mark the maul reaches too: the foe and the hazard each get their clause', () => {
+    const b = harness();
+    b.turnManager.turnNumber = 1;
+    processHammerfall(b);
+    // Shock rings the body: its inner ring is in the maul's reach. Front may not reach far
+    // enough, so play on until a mark beside the body is free.
+    let tile = markedTile(b, { inMaulReach: true });
+    for (let turn = 2; !tile && turn < 6; turn++) {
+      b.turnManager.turnNumber = turn;
+      processHammerfall(b);
+      tile = markedTile(b, { inMaulReach: true });
+    }
+    expect(tile).toBeTruthy();
+    const guardian = guardianOf(b.enemyUnits);
+    const result = threatsOnTile(b._playerThreatContext(), tile.col, tile.row);
+    expect(result.damage).toContain(guardian);
+    expect(result.hazards.map((h) => h.source)).toEqual([guardian]);
+    expect(result.count).toBe(result.damage.length + result.ballistas.length + 1);
+    const text = threatSummaryText({ ...result, aimed: 0 });
+    expect(text).toMatch(/^\d+ foes? can reach · none target you · /);
+    expect(text).toContain('Hammerfall hits this tile next enemy phase');
+  });
+
+  it('an unmarked tile reads as before', () => {
+    const b = harness();
+    const mover = b.playerUnits[0];
+    const result = threatsOnTile(b._playerThreatContext(), mover.col, mover.row, { mover });
+    expect(result.hazards).toEqual([]);
+    expect(threatSummaryText(result)).not.toContain('Hammerfall');
   });
 });
 

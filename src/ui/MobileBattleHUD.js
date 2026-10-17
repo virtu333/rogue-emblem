@@ -999,6 +999,7 @@ export class MobileBattleHUD {
             threat.result?.aimed,
             threat.result?.status?.length,
             threat.result?.counter?.length,
+            threat.result?.hazards?.map((h) => h.damage),
           ]
         : null,
       state,
