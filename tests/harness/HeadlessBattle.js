@@ -137,6 +137,7 @@ import {
   getFootprint,
   isEntity,
   isEntityLimb,
+  isLargeUnit,
   runEntitySplashSync,
 } from '../../src/engine/EntitySystem.js';
 import { runDeathburstSync } from '../../src/engine/Deathburst.js';
@@ -1945,9 +1946,10 @@ export class HeadlessBattle {
     resetFortHealStreak(attacker); // as BattleScene.executeCombat
     // As BattleScene.executeCombat: measured before the art's HP cost or any strike.
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
-    // As BattleScene._prepareCombatContext: the Entity fights from its footprint.
+    // As BattleScene._prepareCombatContext: a large unit (the Entity, the Guardian) fights from
+    // its footprint.
     const dist =
-      isEntity(attacker) || isEntity(defender)
+      isLargeUnit(attacker) || isLargeUnit(defender)
         ? combatDistance(attacker, defender)
         : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
@@ -2557,9 +2559,10 @@ export class HeadlessBattle {
     resetFortHealStreak(attacker); // as BattleScene.executeEnemyCombat
     // As BattleScene.executeEnemyCombat: measured before the art's HP cost or any strike.
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
-    // As BattleScene._prepareCombatContext: the Entity fights from its footprint.
+    // As BattleScene._prepareCombatContext: a large unit (the Entity, the Guardian) fights from
+    // its footprint.
     const dist =
-      isEntity(attacker) || isEntity(defender)
+      isLargeUnit(attacker) || isLargeUnit(defender)
         ? combatDistance(attacker, defender)
         : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
@@ -2658,8 +2661,8 @@ export class HeadlessBattle {
 
   getUnitAt(col, row) {
     return (
-      [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].find(
-        (u) => u.col === col && u.row === row,
+      [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].find((u) =>
+        getFootprint(u).some((t) => t.col === col && t.row === row),
       ) || null
     );
   }

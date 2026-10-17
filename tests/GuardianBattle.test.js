@@ -26,7 +26,7 @@ import { validateBattleState } from '../src/engine/BattleStateSnapshot.js';
 import { serializeBattleUnit } from '../src/engine/BattleUnitState.js';
 import { registerBattleEntity, resetBattleIdentities } from '../src/engine/BattleEntityIdentity.js';
 import { createHammerfallState, slamDamage } from '../src/engine/IronGuardian.js';
-import { getFootprint } from '../src/engine/EntitySystem.js';
+import { combatDistance, getFootprint } from '../src/engine/EntitySystem.js';
 import { processHammerfall } from './harness/headlessConjuring.js';
 import {
   computeDangerTiles,
@@ -307,6 +307,55 @@ describe('Threat Sight names the hammer, never a foe that "targets you"', () => 
     const result = threatsOnTile(b._playerThreatContext(), mover.col, mover.row, { mover });
     expect(result.hazards).toEqual([]);
     expect(threatSummaryText(result)).not.toContain('Hammerfall');
+  });
+});
+
+describe("the harness measures a fight from the Guardian's nearest tile", () => {
+  // Failure: the harness measured from the Guardian's top-left tile, so a sword beside its
+  // bottom-right tile fought at distance 3 and no one countered (the scene uses the body).
+  function duel() {
+    const b = harness();
+    const guardian = guardianOf(b.enemyUnits);
+    b.enemyUnits = [guardian];
+    const fencer = b.playerUnits[0];
+    b.playerUnits = [fencer];
+    const sword = structuredClone(data.weapons.find((w) => w.name === 'Iron Sword'));
+    fencer.inventory = [sword];
+    fencer.weapon = sword;
+    Object.assign(fencer.stats, { HP: 300, STR: 40, SKL: 60, SPD: 0, LCK: 0, DEF: 0 });
+    fencer.currentHP = 300;
+    Object.assign(guardian.stats, { SKL: 60, SPD: 0, LCK: 0 });
+    fencer.skills = [];
+    return { b, guardian, fencer };
+  }
+
+  it("a sword beside the Guardian's bottom-right tile is countered", () => {
+    const { b, guardian, fencer } = duel();
+    fencer.col = guardian.col + 2; // right of the bottom-right tile (anchor distance 3)
+    fencer.row = guardian.row + 1;
+    expect(combatDistance(fencer, guardian)).toBe(1);
+    installSeed(11);
+    b._executeCombat(fencer, guardian);
+    restoreMathRandom();
+    expect(fencer.currentHP).toBeLessThan(300);
+  });
+
+  it('the harness finds the Guardian on any of its four tiles', () => {
+    const { b, guardian } = duel();
+    for (const t of getFootprint(guardian)) expect(b.getUnitAt(t.col, t.row)).toBe(guardian);
+  });
+
+  it('the Guardian striking from its bottom-right tile is countered', () => {
+    const { b, guardian, fencer } = duel();
+    const hpBefore = guardian.currentHP;
+    fencer.col = guardian.col + 1; // below the bottom-right tile (anchor distance 3)
+    fencer.row = guardian.row + 2;
+    expect(combatDistance(guardian, fencer)).toBe(1);
+    installSeed(11);
+    b._executeEnemyCombat(guardian, fencer);
+    restoreMathRandom();
+    expect(fencer.currentHP).toBeLessThan(300);
+    expect(guardian.currentHP).toBeLessThan(hpBefore);
   });
 });
 

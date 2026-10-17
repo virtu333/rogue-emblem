@@ -329,6 +329,25 @@ describe('a hidden unit never changes the preview', () => {
     expect(seen.push).toEqual({ to: { col: 4, row: 1 }, crash: false, damage: 0, obstacle: null });
   });
 
+  it("a ram into a 2x2 body's other tiles crashes as the scene would", () => {
+    // The Guardian's anchor is (3,0); its body also fills (4,0), (3,1) and (4,1). The ram
+    // drives the Target from (2,1) into (3,1): a body tile, not the anchor.
+    const ram = {
+      id: 'fixture_ram',
+      targeting: 'normal_attack',
+      effects: { afterCombat: [{ type: 'move', mode: 'ram', distance: 2, collisionDamage: 5 }] },
+      combatMods: {},
+    };
+    const lancer = unit('Lancer', 'player', 1, 1);
+    const target = unit('Target', 'enemy', 2, 1);
+    const guardian = unit('Guardian', 'enemy', 3, 0, {}, { footprint: { width: 2, height: 2 } });
+    const knowledge = createPlayerKnowledge({ grid: fogGrid(), units: [lancer, target, guardian] });
+    const p = previewAreaArt({ attacker: lancer, art: ram, target, knowledge, world });
+    expect(p.push.to).toEqual({ col: 2, row: 1 });
+    expect(p.push.crash).toBe(true);
+    expect(p.push.obstacle).toBe(guardian);
+  });
+
   it('a fogged foe on the ice a ram slides across (a forced slide reads known units only)', () => {
     // Row 1: plain 0, 1, 2; ice 3, 4; plain 5, 6, 7. The Lancer at 1 rams the Target at
     // 2 two tiles east: tile 3 is ice, so the slide goes 4 and lands on 5 (worked by
