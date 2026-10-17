@@ -710,6 +710,7 @@ export const ACCESSORY_ICON_REUSE = Object.freeze({
   'Anchor Stone': 'soothing-stone',
   'Grudge Locket': 'diamond-medallion',
   'Galeforce Charm': 'speedwing',
+  'Longarm Bracer': 'duelists-glove',
 });
 
 /**

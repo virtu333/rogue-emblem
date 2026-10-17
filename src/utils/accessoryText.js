@@ -30,6 +30,7 @@ export const HANDLED_ACCESSORY_COMBAT_EFFECT_KEYS = Object.freeze([
   'goldPerKill',
   'grudgeAtk',
   'hitBonus',
+  'meleeCounterRange',
   'meleeReflect',
   'moontide',
   'moveTypeOverride',
@@ -211,6 +212,10 @@ export function formatAccessoryCombatEffect(accessory) {
   if (combatEffects?.anchored) parts.push("Can't be shoved, pulled, swapped or pushed");
   const galeforce = galeforceText(combatEffects?.galeforce);
   if (galeforce) parts.push(galeforce);
+  // Longarm Bracer (engine/AccessoryReactions.js meleeCounterRangeOf).
+  const counterRange = Math.trunc(Number(combatEffects?.meleeCounterRange));
+  if (counterRange > 1)
+    parts.push(`Swords, lances and axes with range 1 counter from up to ${counterRange} tiles`);
   if (isGeminiRing(accessory)) {
     parts.push(
       `Set: +${geminiBonus(accessory)} to the stat of each other Gemini Ring worn on the field`,

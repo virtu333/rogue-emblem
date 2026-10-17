@@ -12,6 +12,10 @@
 //   (Shove, Pull, Swap, Smite, an art's push or swap, the Entity's Undertow): the
 //   displacement rule reads `isAnchoredByAccessory` through AffixSystem.isDisplacementImmune,
 //   and the ally commands read `holdsGroundAgainstAllies`. It still moves itself.
+// * Longarm Bracer (combatEffects `meleeCounterRange: N`): its wearer's 1-range weapons
+//   counter from up to N tiles (Combat.canCounter, so the forecast, the resolution and the
+//   AI, which reads the forecast, agree). Only counters: an attack still needs the weapon's
+//   own range. A counter from beyond 1 is no melee blow (Thorns and the Briar Cloak skip it).
 
 import { everFallenUnits } from './LaidToRest.js';
 
@@ -25,6 +29,18 @@ const positiveInt = (value) => Math.max(0, Math.trunc(Number(value) || 0));
 export function briarReflectOf(unit, isMelee) {
   if (!isMelee) return 0;
   return positiveInt(ce(unit)?.meleeReflect);
+}
+
+/**
+ * The farthest a Longarm Bracer lets `weapon` counter from in `unit`'s hands: N for a weapon
+ * that reaches 1 tile only (never a staff), 0 when the bracer adds nothing. `range` is the
+ * weapon's parsed `{ min, max }`.
+ */
+export function meleeCounterRangeOf(unit, weapon, range) {
+  if (!weapon || weapon.type === 'Staff') return 0;
+  if (range?.min !== 1 || range?.max !== 1) return 0;
+  const reach = positiveInt(ce(unit)?.meleeCounterRange);
+  return reach > 1 ? reach : 0;
 }
 
 /** Does this unit's accessory keep it from being moved by others? */

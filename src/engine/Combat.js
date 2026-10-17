@@ -23,7 +23,7 @@ import { combatDistance, isEntity } from './EntitySystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { absorbLethal } from './UnitHealth.js';
 import { WARD_ACTIVATION, wardReady, wardStrike } from './AccessoryWard.js';
-import { BRIAR_ACTIVATION, briarReflectOf } from './AccessoryReactions.js';
+import { BRIAR_ACTIVATION, briarReflectOf, meleeCounterRangeOf } from './AccessoryReactions.js';
 import { bannerReadyFor } from './BattleBlessings.js';
 import { revivalStoneCount } from './RevivalStones.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
@@ -1284,6 +1284,16 @@ export function canCounter(defender, defenderWeapon, distance) {
     const { min, max } = parseRange(defenderWeapon.range);
     return Number.isFinite(dist) && dist >= min && dist <= max + reach;
   }
+  // Longarm Bracer: a 1-range weapon answers from farther (engine/AccessoryReactions.js).
+  const counterRange = meleeCounterRangeOf(
+    defender,
+    defenderWeapon,
+    parseRange(defenderWeapon.range),
+  );
+  if (counterRange > 0) {
+    const dist = Number(distance);
+    return Number.isFinite(dist) && dist >= 1 && dist <= counterRange;
+  }
   return isInRange(defenderWeapon, distance);
 }
 
@@ -1373,6 +1383,9 @@ const EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS = new Set([
   'grudgeAtk',
   'anchored',
   'galeforce',
+  // The Longarm Bracer decides whether a counter happens, which the forecast reads through
+  // canCounter like any counter.
+  'meleeCounterRange',
 ]);
 
 /**

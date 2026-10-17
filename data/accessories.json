@@ -424,5 +424,16 @@
     },
     "price": 5000,
     "lore": "A feather from a bird that was never seen to land."
+  },
+  {
+    "name": "Longarm Bracer",
+    "type": "Accessory",
+    "legendary": true,
+    "effects": {},
+    "combatEffects": {
+      "meleeCounterRange": 2
+    },
+    "price": 4500,
+    "lore": "The duelist who wore it never stepped in. People stepped in for her."
   }
 ]

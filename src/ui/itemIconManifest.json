@@ -425,7 +425,7 @@
     "blessing-rally_cry": [248, 5, 8],
     "blessing-war_veteran": [249, 5, 9],
     "blessing-frugal_smith": [250, 5, 8],
-    "blessing-arsenal_pact": [251, 5, 10],
+    "blessing-arsenal_pact": [251, 5, 9],
     "blessing-pilgrim_coin": [252, 5, 8],
     "blessing-merchant_bane": [253, 5, 9],
     "blessing-nomad_pact": [254, 5, 9],
@@ -622,7 +622,8 @@
     "briar-cloak": [221, 3, 5],
     "anchor-stone": [213, 3, 5],
     "grudge-locket": [220, 3, 5],
-    "galeforce-charm": [184, 3, 6]
+    "galeforce-charm": [184, 3, 6],
+    "longarm-bracer": [222, 3, 6]
   },
   "aliases": {
     "greycord": "gravesong",
@@ -713,6 +714,7 @@
     "briar-cloak": "hunters-cloak",
     "anchor-stone": "soothing-stone",
     "grudge-locket": "diamond-medallion",
-    "galeforce-charm": "speedwing"
+    "galeforce-charm": "speedwing",
+    "longarm-bracer": "duelists-glove"
   }
 }

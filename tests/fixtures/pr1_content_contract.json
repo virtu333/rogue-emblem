@@ -2,7 +2,7 @@
   "id": "pr1-accessories-delphi-swiftsoles-v1",
   "description": "Canonical data contract for PR1 accessory expansion, Delphi shield nerf, and Swiftsoles.",
   "expectedTotals": {
-    "accessories": 39,
+    "accessories": 40,
     "consumables": 16
   },
   "accessories": [
@@ -243,6 +243,15 @@
         }
       },
       "price": 5000
+    },
+    {
+      "name": "Longarm Bracer",
+      "type": "Accessory",
+      "effects": {},
+      "combatEffects": {
+        "meleeCounterRange": 2
+      },
+      "price": 4500
     },
     {
       "name": "Pursuit Ring",

@@ -39,6 +39,8 @@ function assertKeyRendered(key, combatText, accessory) {
   if (key === 'gemini') return combatText.includes('other Gemini Ring');
   if (key === 'firstHitWard')
     return combatText.includes('the first hit on you that would deal more than 1 damage deals 1');
+  if (key === 'meleeCounterRange')
+    return combatText.includes(`counter from up to ${combatEffects.meleeCounterRange} tiles`);
   if (key === 'meleeReflect')
     return combatText.includes(`takes ${combatEffects.meleeReflect} damage`);
   if (key === 'grudgeAtk')
