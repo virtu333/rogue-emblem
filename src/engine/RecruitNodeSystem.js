@@ -24,12 +24,8 @@ import { VULNERARY_NAME, consumableTemplateFor } from './VulneraryRecipe.js';
 // range (as every recruit source's do: UnitManager.seasonedGrowthRanges) and they
 // always carry at least one trait (the node is an elite-like fight).
 
-import {
-  BASE_CLASS_LEVEL_CAP,
-  DEPLOY_LIMITS,
-  RECRUIT_NODE_LORD_CHANCE,
-  RECRUIT_SKILL_POOL,
-} from '../utils/constants.js';
+import { BASE_CLASS_LEVEL_CAP, DEPLOY_LIMITS, RECRUIT_SKILL_POOL } from '../utils/constants.js';
+import { lordRecruitChance } from './LordRecruitChance.js';
 import { createSeededRng } from './SeededRng.js';
 import { resolveDeployLimits } from './BattleDeployCount.js';
 import {
@@ -348,6 +344,7 @@ function planRecruitNodeSpawn(
     metaEffects,
     startingLordNames,
     claimedLordNames = [],
+    lordOdds = null,
   },
   rng,
 ) {
@@ -357,11 +354,13 @@ function planRecruitNodeSpawn(
     classesData: classes,
   };
 
-  // Lord roll: the same 15% (+ meta) as before; which lord is drawn from those still free.
-  const lordChance = Math.min(
-    1,
-    Math.max(0, RECRUIT_NODE_LORD_CHANCE + (Number(metaEffects?.lordRecruitChanceBonus) || 0)),
-  );
+  // Lord roll: 15% (+ Hero's Call), falling as the army's lords grow (odds v2; a run from
+  // before them keeps the flat chance); which lord is drawn from those still free.
+  const lordChance = lordRecruitChance({
+    source: 'node',
+    bonus: metaEffects?.lordRecruitChanceBonus,
+    odds: lordOdds,
+  });
   const lordRoll = rng();
   const lordPick = rng();
   const promoteRoll = rng();
@@ -435,6 +434,7 @@ export function resolveRecruitNodeSpawnClass(opts = {}) {
     metaEffects = null,
     startingLordNames,
     claimedLordNames = [],
+    lordOdds = null,
     rng: rngOverride = null,
   } = opts;
   if (!isValidPreview(preview)) return null;
@@ -452,6 +452,7 @@ export function resolveRecruitNodeSpawnClass(opts = {}) {
       metaEffects,
       startingLordNames,
       claimedLordNames,
+      lordOdds,
     },
     rng,
   );
@@ -498,6 +499,7 @@ export function buildRecruitNodeUnit(opts = {}) {
     metaEffects = null,
     startingLordNames,
     claimedLordNames = [],
+    lordOdds = null,
     recruitLevelBonus = 0,
     deployBonus = 0,
     seasoned = true,
@@ -528,6 +530,7 @@ export function buildRecruitNodeUnit(opts = {}) {
           metaEffects,
           startingLordNames,
           claimedLordNames,
+          lordOdds,
         },
         rng,
       );

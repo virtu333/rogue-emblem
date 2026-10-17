@@ -1,4 +1,5 @@
 import { hitProbability } from './HitRoll.js';
+import { keyedBattleRandom } from './BattleRng.js';
 // AIController - Enemy AI with boss throne clamping and guard behavior
 // Processes enemies sequentially: move toward nearest player, attack if in range.
 // Boss enemies on seize maps stay within 1 tile of throne.
@@ -78,11 +79,30 @@ function pathNodeLowerBound(enemy, tile) {
 }
 
 /**
- * What an attack on the army's commander scores over its exchange while foes go for the commander
- * first (Standard of the Sun's cost): more than any blow is worth, so a foe that can strike the
- * commander does (the caravan's 40 included).
+ * What an attack on the army's commander scores over its exchange for a foe that goes for the
+ * commander first (Standard of the Sun's cost): more than any blow is worth, so a foe that can
+ * strike the commander does (the caravan's 40 included).
  */
 export const COMMANDER_PRIORITY_SCORE = 100;
+
+/**
+ * The share of foes that go for the commander first while Standard of the Sun is held: each foe
+ * rolls once per enemy phase on its own keyed draw (`commanderPriorityRoll`), so the battle's
+ * stream never moves and a resume or a rewind replays the same foes.
+ */
+export const COMMANDER_PRIORITY_CHANCE = 0.5;
+
+/**
+ * Whether this foe goes for the commander in this enemy phase: a keyed draw on the battle seed,
+ * the turn and the foe's battle id (never Math.random).
+ */
+export function commanderPriorityRoll(seed, turn, enemy, chance = COMMANDER_PRIORITY_CHANCE) {
+  if (!(chance > 0)) return false;
+  if (chance >= 1) return true;
+  const id = enemy?.battleEntityId ?? `${enemy?.name ?? ''}@${enemy?.col},${enemy?.row}`;
+  const draw = keyedBattleRandom(Math.trunc(Number(seed) || 0) >>> 0, `sun:${turn ?? 0}:${id}`);
+  return draw() < chance;
+}
 
 export class AIController {
   constructor(grid, gameData, options = {}) {
@@ -90,9 +110,12 @@ export class AIController {
     this.gameData = gameData;
     this.objective = options.objective || 'rout';
     this.thronePos = options.thronePos || null;
-    // Standard of the Sun's cost (engine/TradeBoons.js `foes_target_commander`): foes go for the
-    // army's commander first. The battle's own setting, fixed for the battle.
+    // Standard of the Sun's cost (engine/TradeBoons.js `foes_target_commander`): half the foes
+    // go for the army's commander first, chosen per foe and enemy phase on the battle's seed
+    // (`commanderPriorityRoll`). The battle's own setting, fixed for the battle.
     this.commanderPriority = options.commanderPriority === true;
+    this.commanderPrioritySeed = Math.trunc(Number(options.commanderPrioritySeed) || 0) >>> 0;
+    this.phaseTurn = 0;
     this.aggressiveMode = false;
     this.bossEnraged = false;
     this.holdContext = null;
@@ -127,6 +150,7 @@ export class AIController {
    * @returns {Promise<void>}
    */
   async processEnemyPhase(enemyUnits, playerUnits, npcUnits, callbacks) {
+    this.phaseTurn = Number(callbacks.turnNumber) || 0;
     // Holders whose pack meets a wake rule hunt from this phase on (HoldActivation).
     // Anti-turtle aggression is not one of the rules.
     const woken = wakeHolders({
@@ -1272,20 +1296,30 @@ export class AIController {
     return decision;
   }
 
-  /** True when `target` is the army's living commander and foes go for it first. */
-  _isPriorityCommander(target) {
+  /** True when this foe goes for the commander first in this enemy phase (Standard of the Sun). */
+  _goesForCommander(enemy) {
+    return (
+      this.commanderPriority &&
+      commanderPriorityRoll(this.commanderPrioritySeed, this.phaseTurn, enemy)
+    );
+  }
+
+  /** True when `target` is the army's living commander and this foe goes for it first. */
+  _isPriorityCommander(target, enemy) {
     return (
       this.commanderPriority &&
       target?.isCommander === true &&
       target.faction === 'player' &&
-      (Number(target.currentHP) || 0) > 0
+      (Number(target.currentHP) || 0) > 0 &&
+      this._goesForCommander(enemy)
     );
   }
 
   _findPriorityTarget(enemy, playerUnits, forceLowestHpTargeting = false) {
-    // Standard of the Sun's cost: with no one in reach, foes close on the commander.
+    // Standard of the Sun's cost: with no one in reach, a foe that goes for the commander
+    // closes on the commander.
     if (!forceLowestHpTargeting && this.commanderPriority) {
-      const commander = (playerUnits || []).find((p) => this._isPriorityCommander(p));
+      const commander = (playerUnits || []).find((p) => this._isPriorityCommander(p, enemy));
       if (commander) return commander;
     }
     if (forceLowestHpTargeting) {
@@ -1529,7 +1563,7 @@ export class AIController {
     // gated behind aggressiveMode -- the caravan is the whole point of the
     // micro-objective as soon as it's on the field).
     if (target.isCaravan) score += 40;
-    if (this._isPriorityCommander(target)) score += COMMANDER_PRIORITY_SCORE;
+    if (this._isPriorityCommander(target, enemy)) score += COMMANDER_PRIORITY_SCORE;
     if (this.aggressiveMode) {
       const terrainIdx = this.grid?.mapLayout?.[target.row]?.[target.col];
       const fortIdx = getTerrainIndexByName(this.gameData?.terrain, 'Fort');

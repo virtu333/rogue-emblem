@@ -464,6 +464,7 @@ export class HeadlessBattle {
             metaEffects: this.battleParams?.metaEffects || null,
             startingLordNames: this.battleParams?.startingLordNames,
             claimedLordNames: this.battleParams?.recruitClaimedLords || [],
+            lordOdds: this.battleParams?.recruitLordOdds ?? null,
             recruitLevelBonus: Math.trunc(Number(this.battleParams?.recruitLevelBonus) || 0),
             deployBonus: Math.trunc(Number(this.battleParams?.deployBonus) || 0),
           });
@@ -532,6 +533,7 @@ export class HeadlessBattle {
       objective: bc.objective,
       thronePos: bc.thronePos,
       commanderPriority: this.battleParams?.foesTargetCommander === true,
+      commanderPrioritySeed: this._getReinforcementSeed(),
     });
     // As BattleScene: holders wake on the Danger tiles of the board the player knows.
     this.aiController.setHoldContext(() => this._playerThreatContext());

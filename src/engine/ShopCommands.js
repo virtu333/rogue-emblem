@@ -22,6 +22,7 @@ import {
   CONSUMABLE_MAX,
   AMBUSH_SHOP_DISCOUNT,
   SHOP_FORGE_LIMITS,
+  SHOP_FORGE_CREDIT,
 } from '../utils/constants.js';
 
 export function shopOwnedItems(run) {
@@ -248,15 +249,21 @@ export function shopForgeDiscount(run, { ambushDiscount = false } = {}) {
 }
 
 /**
- * Whether this forge use is free (Smith's Mark: a shop's first forge or repair). The engine
- * decides from the run and the shop's count of uses; a caller's own `free` is never read, so
- * a stale or forged flag cannot make anything free. The count itself is the caller's
- * (`forgesUsed`, with `forgeLimit`): the engine trusts it, as it trusts the limit, and the
- * shop menu reads it fresh from the scene's saved shop state before every command.
+ * Whether this forge use takes the shop credit (Smith's Mark: a shop's first forge or repair,
+ * per card held, costs up to SHOP_FORGE_CREDIT less). The engine decides from the run and the
+ * shop's count of uses; a caller's own `free` or `credit` is never read, so a stale or forged
+ * flag cannot make anything cheaper. The count itself is the caller's (`forgesUsed`, with
+ * `forgeLimit`): the engine trusts it, as it trusts the limit, and the shop menu reads it fresh
+ * from the scene's saved shop state before every command.
  */
 export function freeForgeAvailable(run, forgesUsed = 0) {
   const free = Math.max(0, Math.trunc(Number(run?.getFreeForgesPerShop?.()) || 0));
   return (Number(forgesUsed) || 0) < free;
+}
+
+/** The gold this forge use takes off its price: SHOP_FORGE_CREDIT while the credit holds, else 0. */
+export function shopForgeCredit(run, forgesUsed = 0) {
+  return freeForgeAvailable(run, forgesUsed) ? SHOP_FORGE_CREDIT : 0;
 }
 
 /**
@@ -278,18 +285,38 @@ export function shopForgeTerms(
     forgeLimit:
       (SHOP_FORGE_LIMITS[act] || 2) + (run?.blessingRuntimeModifiers?.forgeLimitDelta || 0),
     discount: shopForgeDiscount(run, { ambushDiscount }),
+    // `free`: the next use takes the shop credit (`credit` gold off: Smith's Mark).
     free: freeForgeAvailable(run, forgesUsed),
+    credit: shopForgeCredit(run, forgesUsed),
   };
 }
 
-/** What one forge costs under `terms`: 0 when free, else the discounted price (-1: not forgeable). */
-export function shopForgePrice(weapon, stat, terms) {
-  return terms?.free ? 0 : forgePrice(weapon, stat, terms?.discount || 0);
+/** Gold off a listed price under `terms` (the shop credit), never below 0. -1 stays -1. */
+function afterCredit(listed, terms) {
+  if (listed < 0) return listed;
+  return Math.max(0, listed - Math.max(0, Math.trunc(Number(terms?.credit) || 0)));
 }
 
-/** What one repair costs under `terms`: 0 when free, else the discounted price. */
+/** What one forge costs under `terms`: the discounted price less the credit (-1: not forgeable). */
+export function shopForgePrice(weapon, stat, terms) {
+  return afterCredit(forgePrice(weapon, stat, terms?.discount || 0), terms);
+}
+
+/** What one repair costs under `terms`: the discounted price less the credit. */
 export function shopRepairPrice(weapon, terms) {
-  return terms?.free ? 0 : repairPrice(weapon, terms?.discount || 0);
+  return afterCredit(repairPrice(weapon, terms?.discount || 0), terms);
+}
+
+/** The gold the credit takes off this forge under `terms` (0 without one). */
+export function shopForgeSaving(weapon, stat, terms) {
+  const listed = forgePrice(weapon, stat, terms?.discount || 0);
+  return listed < 0 ? 0 : listed - shopForgePrice(weapon, stat, terms);
+}
+
+/** The gold the credit takes off this repair under `terms` (0 without one). */
+export function shopRepairSaving(weapon, terms) {
+  const listed = repairPrice(weapon, terms?.discount || 0);
+  return listed < 0 ? 0 : listed - shopRepairPrice(weapon, terms);
 }
 
 export function shopForgeBlock(
@@ -310,23 +337,32 @@ export function shopForgeBlock(
   if (forgesUsed >= forgeLimit) return 'No forges remain at this shop.';
   const statBlock = forgeStatBlock(weapon, stat);
   if (statBlock) return statBlock;
-  // A free forge (Smith's Mark) needs no gold at all, even from an empty purse.
-  const cost = freeForgeAvailable(run, forgesUsed) ? 0 : forgePrice(weapon, stat, discount);
+  // The shop credit (Smith's Mark) comes off first: a forge it covers needs no gold at all.
+  const cost = Math.max(0, forgePrice(weapon, stat, discount) - shopForgeCredit(run, forgesUsed));
   return run.gold < cost ? 'Not enough gold.' : '';
 }
+
+/** The result's words for a forge or repair that took the shop credit, or that paid in full. */
+function creditMessage(verb, name, cost, saved) {
+  if (saved <= 0) return `${verb} ${name} for ${cost}G.`;
+  if (cost <= 0) return `${verb} ${name} for free (Smith's Mark).`;
+  return `${verb} ${name} for ${cost}G (Smith's Mark took ${saved}G off).`;
+}
+
 export function forgeShopWeapon(run, weapon, stat, options) {
   const reason = shopForgeBlock(run, weapon, stat, options);
   if (reason) return { ok: false, reason };
-  const free = freeForgeAvailable(run, options.forgesUsed);
-  const result = applyForge(weapon, stat, options.discount, { free });
+  const credit = shopForgeCredit(run, options.forgesUsed);
+  const listed = forgePrice(weapon, stat, options.discount);
+  const result = applyForge(weapon, stat, options.discount, { credit });
   if (!result.success) return { ok: false, reason: 'This forge is unavailable.' };
-  run.spendGold(result.cost); // 0 when free: applyForge is the one place that waives it
+  run.spendGold(result.cost); // applyForge is the one place that takes the credit off
+  const saved = Math.max(0, listed - result.cost);
   return {
     ok: true,
-    free,
-    message: free
-      ? `Forged ${weapon.name} for free (Smith's Mark).`
-      : `Forged ${weapon.name} for ${result.cost}G.`,
+    free: result.cost === 0 && credit > 0,
+    credited: saved,
+    message: creditMessage('Forged', weapon.name, result.cost, saved),
   };
 }
 
@@ -334,7 +370,7 @@ export function forgeShopWeapon(run, weapon, stat, options) {
  * Why a worn weapon cannot be repaired at this shop right now, or '' when it can.
  * A repair is a forge service: it spends one of the shop's forge uses (`forgesUsed` of
  * `forgeLimit`, the counter forging uses) and the shop's forge discount applies. The shop's
- * first use is free under Smith's Mark, a repair as much as a forge.
+ * first use takes Smith's Mark's credit, a repair as much as a forge.
  * `expectedWear` (the wear the player reviewed) refuses a weapon that changed since.
  */
 export function shopRepairBlock(
@@ -349,7 +385,7 @@ export function shopRepairBlock(
     return 'Weapon changed. Review it again.';
   if (!isWorn(weapon)) return 'This weapon is not worn.';
   if (forgesUsed >= forgeLimit) return 'No forges remain at this shop.';
-  const price = freeForgeAvailable(run, forgesUsed) ? 0 : repairPrice(weapon, discount);
+  const price = Math.max(0, repairPrice(weapon, discount) - shopForgeCredit(run, forgesUsed));
   return run.gold < price ? 'Not enough gold.' : '';
 }
 /**
@@ -359,16 +395,17 @@ export function shopRepairBlock(
 export function repairShopWeapon(run, weapon, options) {
   const reason = shopRepairBlock(run, weapon, options);
   if (reason) return { ok: false, reason };
-  const free = freeForgeAvailable(run, options.forgesUsed);
-  const result = repairWeapon(weapon, options.discount, { free });
+  const credit = shopForgeCredit(run, options.forgesUsed);
+  const listed = repairPrice(weapon, options.discount);
+  const result = repairWeapon(weapon, options.discount, { credit });
   if (!result.success) return { ok: false, reason: 'This repair is unavailable.' };
-  run.spendGold(result.cost); // 0 when free: repairWeapon is the one place that waives it
+  run.spendGold(result.cost); // repairWeapon is the one place that takes the credit off
+  const saved = Math.max(0, listed - result.cost);
   return {
     ok: true,
-    free,
-    message: free
-      ? `Repaired ${weapon.name} for free (Smith's Mark).`
-      : `Repaired ${weapon.name} for ${result.cost}G.`,
+    free: result.cost === 0 && credit > 0,
+    credited: saved,
+    message: creditMessage('Repaired', weapon.name, result.cost, saved),
     stat: result.stat,
   };
 }

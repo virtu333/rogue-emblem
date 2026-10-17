@@ -252,6 +252,11 @@ export const SHOP_ITEM_COUNT = { min: 8, max: 10 };
 export const RUINS_SHOP_ITEM_COUNT = { min: 5, max: 6 };
 export const RUINS_SHOP_ITEM_COUNT_FINAL = { min: 8, max: 10 };
 export const RUINS_SHOP_MARKUP = 1.25;
+// Basic medicine on every ordinary shop's shelf, in every act (Vulneraries leave
+// the healing pool from Act III): a hurt army always has a cheap heal to buy.
+// The Ruins' smaller shelf keeps one; a Merchant Caravan none.
+export const SHOP_GUARANTEED_VULNERARIES = 2;
+export const RUINS_GUARANTEED_VULNERARIES = 1;
 // The Ruins offer one of two paths per visit: rest (heal, revive) or scavenge (wares).
 export const RUINS_PATHS = Object.freeze(['rest', 'scavenge']);
 // A church's one vow per visit: a promotion, a minor blessing, or the cleansing of one burden
@@ -297,6 +302,9 @@ export const FORGE_TIER_COST_MULTIPLIER = {
   Legend: 2,
 };
 export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, act4: 5, finalBoss: 0 };
+// Smith's Mark and Smith's Covenant: each shop's first forge or repair (per card held) costs up
+// to this much less, the rest paid (2026-10-17; it was free, worth up to a Legend's 7,000).
+export const SHOP_FORGE_CREDIT = 1000;
 
 // Worn weapons (a forge below zero, docs/specs/worn-weapons.md). A wear step is the
 // negation of one forge step of its stat (FORGE_BONUSES), so the sizes live there.
@@ -307,13 +315,28 @@ export const WEAR_PRICE_PENALTY_PER_STEP = 0.15;
 export const WEAR_MAX_STEPS = 3;
 export const REPAIR_COST_RATIO = 0.5;
 
-// Dual currency economy (Valor = lord-focused, Supply = army-focused)
-export const VALOR_PER_ACT = 50;
-export const VALOR_PER_BATTLE = 15;
-export const VALOR_VICTORY_BONUS = 100;
-export const SUPPLY_PER_ACT = 50;
-export const SUPPLY_PER_BATTLE = 15;
-export const SUPPLY_VICTORY_BONUS = 100;
+// Dual currency economy (Valor = lord-focused, Supply = army-focused). Both currencies earn
+// the same amount, then the rung's currencyMultiplier. The payout is back-loaded so finishing
+// a run pays far more than restarting it: a battle is worth more the deeper its act, the
+// run's first battle pays nothing (so winning the opening map and quitting earns nothing),
+// clearing Act I pays little and every later act more, and a victory carries a large bonus.
+// A battle's worth is banked as it is won (RunManager.metaBattlePoints).
+export const META_BATTLE_REWARD_BY_ACT = Object.freeze({
+  act1: 7,
+  act2: 15,
+  act3: 20,
+  act4: 25,
+  finalBoss: 30,
+});
+export const META_FIRST_BATTLE_REWARD = 0;
+// Paid per act reached: entry i is the act cleared at index i (Act I, Act II, ...); acts past
+// the list take its last entry.
+export const META_ACT_CLEAR_REWARDS = Object.freeze([25, 75, 75, 75]);
+export const META_VICTORY_BONUS = 300;
+// Reaching the first act's boss (one milestone per run).
+export const META_FIRST_BOSS_MILESTONE = 15;
+// What a save from before metaBattlePoints is credited per battle won (the old flat rate).
+export const META_LEGACY_BATTLE_REWARD = 15;
 
 // Maps upgrade category → currency type
 export const CATEGORY_CURRENCY = {

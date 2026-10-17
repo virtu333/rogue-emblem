@@ -24,7 +24,9 @@ import {
   shopForgeBlock,
   shopForgeTerms,
   shopForgePrice,
+  shopForgeSaving,
   shopRepairPrice,
+  shopRepairSaving,
   forgeShopWeapon,
   shopRepairBlock,
   repairShopWeapon,
@@ -53,6 +55,16 @@ import {
   prefersStill,
   vignetteMotes,
 } from './itemMoments.js';
+
+/**
+ * A forge or repair's price as the shop shows it, naming Smith's Mark's credit when it applies
+ * (`short`: the forge picker's line, which leaves the card's name out).
+ */
+function creditedCost(price, saved, { short = false } = {}) {
+  if (!(saved > 0)) return `${price} gold`;
+  if (price <= 0) return short ? 'Free' : "Free (Smith's Mark)";
+  return short ? `${price} gold (${saved} off)` : `${price} gold (Smith's Mark: ${saved} off)`;
+}
 
 export class ShopMenu {
   constructor(controller) {
@@ -374,19 +386,20 @@ export class ShopMenu {
       action.append(b);
     } else {
       const options = this.forgeOptions();
-      // Smith's Mark: the shop's first forge or repair costs nothing while it is unspent.
+      // Smith's Mark: the shop's first forge or repair costs up to `credit` less while unspent.
       const remaining = Math.max(0, options.forgeLimit - options.forgesUsed);
+      const creditNote =
+        options.free && remaining > 0
+          ? ` The ${options.forgesUsed > 0 ? 'next' : 'first'} costs up to ${Number(options.credit).toLocaleString('en-US')} G less.`
+          : '';
       copy.append(
-        el(
-          'p',
-          `${remaining} of ${options.forgeLimit} shop forges remaining.${options.free && remaining > 0 ? (options.forgesUsed > 0 ? ' The next is free.' : ' The first is free.') : ''}`,
-        ),
+        el('p', `${remaining} of ${options.forgeLimit} shop forges remaining.${creditNote}`),
       );
       if (isWorn(item)) {
         // A worn weapon shows Repair in place of the forge stats; it spends a forge use.
         const price = shopRepairPrice(item, options);
         const b = button(
-          options.free ? 'Repair · Free' : `Repair · ${price} G`,
+          options.free && price === 0 ? 'Repair · Free' : `Repair · ${price} G`,
           () => this.repair(item),
           're-btn re-btn--primary',
         );
@@ -549,7 +562,7 @@ export class ShopMenu {
     const owner = this.run.roster.find((u) => u.inventory?.includes(weapon));
     const step = wearDisplay(weapon).steps.at(-1);
     const terms = this.forgeOptions();
-    const cost = terms.free ? "Free (Smith's Mark)" : `${shopRepairPrice(weapon, terms)} gold`;
+    const cost = creditedCost(shopRepairPrice(weapon, terms), shopRepairSaving(weapon, terms));
     this.confirm(
       `Repair ${weapon.name}?`,
       `${step.label}: restores ${step.restore}${repairImpactSuffix(owner, weapon)}. ${cost} and one shop forge.`,
@@ -576,13 +589,15 @@ export class ShopMenu {
       label: (stat) => stat.label,
       describe: (stat) => {
         const terms = this.forgeOptions();
-        // "Free" is offered only where the forge can happen; a stat at its cap (or a weapon that
-        // cannot be forged) has no price to waive.
+        // A price is offered only where the forge can happen; a stat at its cap (or a weapon
+        // that cannot be forged) has no price to take the credit off.
         const cost = forgeStatBlock(weapon, stat.key)
           ? 'Unavailable'
-          : terms.free
-            ? 'Free'
-            : `${shopForgePrice(weapon, stat.key, terms)} gold`;
+          : creditedCost(
+              shopForgePrice(weapon, stat.key, terms),
+              shopForgeSaving(weapon, stat.key, terms),
+              { short: true },
+            );
         return `${cost} · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`;
       },
       blocked: (stat) =>

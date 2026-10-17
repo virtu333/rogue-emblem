@@ -11,7 +11,11 @@
 //                   //   write whole, adoptNgPlusState)
 //     barracks,     // records: a lord's ({ id: 'lord:<name>', kind: 'lord', name, keptSkills,
 //                   //   keptItems, rides, rideLog }) or a recruit's (also className (base),
-//                   //   growths, traits, traitAttackStat, markId, portraitVariant). `rideLog`
+//                   //   growths, growthsBasis, traits, traitAttackStat, markId,
+//                   //   portraitVariant; growthsBasis 'innate' when growths are the roll
+//                   //   and its traits' growth changes only, else absent: a legacy record,
+//                   //   its growths as the unit ended a run, upgrades and blessings in them,
+//                   //   kept as they are because those cannot be taken back out). `rideLog`
 //                   //   is each ride's keeps, newest last, so a lost run can take back the
 //                   //   commander's latest ride (undoLastRide)
 //     bring,        // up to bringLimitFor(Barracks Wing) recruit record ids for the next NG+ run
@@ -41,6 +45,8 @@ export const NG_PLUS_MILESTONE = 'beatLunatic';
 export const NG_PLUS_RUNGS = Object.freeze(['hard', 'lunatic']);
 export const RIDE_LORD_PICKS = 1;
 export const RIDE_RECRUIT_PICKS = 2;
+/** A recruit record's `growthsBasis` when its growths are innate (NgPlusRun.identityOf). */
+export const INNATE_GROWTHS = 'innate';
 /** Recruit veterans an NG+ run brings before any Barracks Wing tier. */
 export const BRING_LIMIT = 2;
 
@@ -162,6 +168,7 @@ function sanitizeIdentity(raw) {
   return {
     className: raw.className,
     growths,
+    ...(raw.growthsBasis === INNATE_GROWTHS ? { growthsBasis: INNATE_GROWTHS } : {}),
     traits: sanitizeSkillIds(raw.traits),
     traitAttackStat:
       raw.traitAttackStat === 'STR' || raw.traitAttackStat === 'MAG' ? raw.traitAttackStat : null,

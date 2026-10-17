@@ -888,7 +888,8 @@ describe('LootSystem', () => {
           gameData.weapons,
           gameData.consumables,
         );
-        const names = inv.map((e) => e.item.name);
+        // The basic medicine pair is the one name a shelf repeats.
+        const names = inv.map((e) => e.item.name).filter((name) => name !== 'Vulnerary');
         expect(new Set(names).size).toBe(names.length);
       }
     });
@@ -1874,7 +1875,95 @@ describe('LootSystem', () => {
       }
     });
 
-    it('no duplicate Vulnerary or Elixir entries', () => {
+    it('every ordinary shop stocks exactly two Vulneraries in every act', () => {
+      // Act III and IV list no Vulnerary in their pools: the guarantee does not
+      // depend on the pool, and each copy is its own row with its own instance.
+      for (const act of ['act1', 'act2', 'act3', 'act4', 'finalBoss']) {
+        for (let i = 0; i < 40; i++) {
+          const shop = generateShopInventory(
+            act,
+            gameData.lootTables,
+            gameData.weapons,
+            gameData.consumables,
+            gameData.accessories,
+          );
+          const vulneraries = shop.filter((s) => s.item.name === 'Vulnerary');
+          expect(vulneraries).toHaveLength(2);
+          expect(vulneraries.every((s) => s.type === 'consumable')).toBe(true);
+          expect(new Set(vulneraries.map((s) => s.item.uid)).size).toBe(2);
+          expect(vulneraries[0]).not.toBe(vulneraries[1]);
+          expect(vulneraries[0].item).not.toBe(vulneraries[1].item);
+          expect(shop.length).toBeLessThanOrEqual(SHOP_ITEM_COUNT.max);
+        }
+      }
+    });
+
+    it('prices a guaranteed Vulnerary with the act markup like any shelf item', () => {
+      const base = gameData.consumables.find((c) => c.name === 'Vulnerary').price;
+      const shop = generateShopInventory(
+        'act3',
+        gameData.lootTables,
+        gameData.weapons,
+        gameData.consumables,
+        gameData.accessories,
+      );
+      const vulnerary = shop.find((s) => s.item.name === 'Vulnerary');
+      // data/economy.json: Act III shelves are marked up 30%.
+      expect(vulnerary.price).toBe(Math.ceil(base * 1.3));
+      expect(vulnerary.price).toBeGreaterThan(base);
+    });
+
+    it('takes its Vulnerary uses from the catalog it is given (the run recipe)', () => {
+      const recipe = gameData.consumables.map((c) =>
+        c.name === 'Vulnerary' ? { ...c, uses: 3 } : c,
+      );
+      const shop = generateShopInventory(
+        'act4',
+        gameData.lootTables,
+        gameData.weapons,
+        recipe,
+        gameData.accessories,
+      );
+      const vulneraries = shop.filter((s) => s.item.name === 'Vulnerary');
+      expect(vulneraries).toHaveLength(2);
+      expect(vulneraries.every((s) => s.item.uses === 3)).toBe(true);
+    });
+
+    it('stocks the number of Vulneraries asked for (the Ruins ask for one)', () => {
+      for (const act of ['act1', 'act3']) {
+        for (let i = 0; i < 30; i++) {
+          const shop = generateShopInventory(
+            act,
+            gameData.lootTables,
+            gameData.weapons,
+            gameData.consumables,
+            gameData.accessories,
+            null,
+            null,
+            { itemCountRange: { min: 5, max: 6 }, guaranteedVulneraries: 1 },
+          );
+          expect(shop.filter((s) => s.item.name === 'Vulnerary')).toHaveLength(1);
+        }
+      }
+    });
+
+    it('a Merchant Caravan is not given the basic medicine guarantee', () => {
+      for (let i = 0; i < 30; i++) {
+        const shop = generateShopInventory(
+          'act3',
+          gameData.lootTables,
+          gameData.weapons,
+          gameData.consumables,
+          gameData.accessories,
+          null,
+          null,
+          { itemCountRange: { min: 3, max: 4 }, rareBias: true },
+        );
+        expect(shop.some((s) => s.item.name === 'Vulnerary')).toBe(false);
+      }
+    });
+
+    it('no duplicate Elixir entries', () => {
       for (let i = 0; i < 100; i++) {
         const shop = generateShopInventory(
           'act2',
@@ -1883,9 +1972,7 @@ describe('LootSystem', () => {
           gameData.consumables,
           gameData.accessories,
         );
-        const vulnCount = shop.filter((s) => s.item.name === 'Vulnerary').length;
         const elixirCount = shop.filter((s) => s.item.name === 'Elixir').length;
-        expect(vulnCount).toBeLessThanOrEqual(1);
         expect(elixirCount).toBeLessThanOrEqual(1);
       }
     });

@@ -21,7 +21,7 @@ import {
   equipWeapon,
   learnSkill,
 } from './UnitManager.js';
-import { applyTraitCreationMods } from './TraitSystem.js';
+import { applyTraitCreationMods, reapplyTraitGrowthMods } from './TraitSystem.js';
 import { applyRecruitJoinBonus } from './RecruitScaling.js';
 import { unitBaseClassName } from './ClassLineage.js';
 import { lockedSkillIds } from './SkillLoadout.js';
@@ -32,7 +32,13 @@ import { isSignatureWeapon } from './SignatureWeapons.js';
 import { findCommander } from './Commander.js';
 import { serializeUnit } from './UnitSerialization.js';
 import { isPrologueRun } from './ScriptedBattle.js';
-import { isNgPlusRung, keptItemKind, lordRecordId, sanitizeRecord } from './NgPlusState.js';
+import {
+  INNATE_GROWTHS,
+  isNgPlusRung,
+  keptItemKind,
+  lordRecordId,
+  sanitizeRecord,
+} from './NgPlusState.js';
 
 export const NG_PLUS_RUN_VERSION = 1;
 
@@ -104,10 +110,31 @@ function applyKit(run, unit, record) {
   for (const item of record.keptItems || []) placeKeptItem(run, unit, item);
 }
 
+/** What a unit's traits add to its growths (the growth half of their creation mods). */
+function traitGrowthDeltas(run, unit) {
+  const probe = { ...unit, growths: {} };
+  reapplyTraitGrowthMods(probe, run.gameData?.traits || null);
+  return probe.growths;
+}
+
+const addGrowths = (growths, deltas, sign = 1) => {
+  const out = { ...growths };
+  for (const [stat, delta] of Object.entries(deltas || {}))
+    if (Number.isFinite(delta) && delta !== 0) out[stat] = (out[stat] || 0) + sign * delta;
+  return out;
+};
+
 /**
  * A recruit veteran as it comes back: its base class at level 1, its own growths and
  * traits (their stat changes, never a second helping of their growth changes), its Mark and
  * face, the run's recruit stat upgrades and the act's join bonus. Null when its class is gone.
+ *
+ * A record whose growths are innate (`growthsBasis: 'innate'`: the roll and its traits'
+ * growth changes, nothing else) takes this run's recruit growth upgrades, scaled by this
+ * run's rung, as any recruit who joins at the start does; the run's blessings reach it with
+ * the rest of the roster. A legacy record (saved before identities were innate: its growths
+ * are the unit's as it ended that run, the run's upgrades and blessings in them, and what
+ * they were cannot be told apart) comes back with exactly those growths and nothing added.
  */
 export function buildVeteranUnit(run, record) {
   const classes = run.gameData?.classes || [];
@@ -137,7 +164,18 @@ export function buildVeteranUnit(run, record) {
     unit.growths = { ...growths };
     applyTraitCreationMods(unit, trait);
   }
-  unit.growths = growths;
+  if (record.growthsBasis === INNATE_GROWTHS) {
+    // Its own roll again (so a later identity reads it), then this run's upgrades on top.
+    unit.rolledGrowths = addGrowths(growths, traitGrowthDeltas(run, unit), -1);
+    const meta = run._scaleGrowthBonuses(
+      run.metaEffects?.growthBonuses || null,
+      run._getGrowthBonusMultiplier(),
+    );
+    unit.growths = addGrowths(growths, meta);
+  } else {
+    delete unit.rolledGrowths;
+    unit.growths = growths;
+  }
   if (record.markId) unit.markId = record.markId;
   if (record.portraitVariant != null) unit.portraitVariant = record.portraitVariant;
   unit.faction = 'player';
@@ -240,20 +278,37 @@ function keepableItems(unit) {
     .map((item) => structuredClone(item));
 }
 
-/** A recruit's identity, read off the unit as it ends the run (its base line's growths). */
+const hasGrowthTable = (value) =>
+  isRecord(value) && Object.values(value).some((v) => Number.isFinite(v));
+
+/**
+ * A recruit's identity, read off the unit as it ends the run. Its growths are innate: the
+ * roll it was made with (`rolledGrowths`, before promotion, meta upgrades or blessings) plus
+ * what its traits add, so the next run lays its own upgrades and blessings on top. A unit
+ * made before the roll was kept (no `rolledGrowths`) is a legacy identity: its base line's
+ * growths as they are now, the promotion's bonus taken off.
+ */
 function identityOf(run, unit) {
   const classes = run.gameData?.classes || [];
   const className = unitBaseClassName(unit, classes);
   if (!className || !unit.growths) return null;
-  const growths = { ...unit.growths };
-  if (unit.tier === 'promoted') {
-    const promoted = classes.find((c) => c?.name === unit.className);
-    for (const [stat, bonus] of Object.entries(promoted?.growthBonuses || {}))
-      if (Number.isFinite(growths[stat])) growths[stat] -= bonus;
+  let growths;
+  let growthsBasis = null;
+  if (hasGrowthTable(unit.rolledGrowths)) {
+    growths = addGrowths(unit.rolledGrowths, traitGrowthDeltas(run, unit));
+    growthsBasis = INNATE_GROWTHS;
+  } else {
+    growths = { ...unit.growths };
+    if (unit.tier === 'promoted') {
+      const promoted = classes.find((c) => c?.name === unit.className);
+      for (const [stat, bonus] of Object.entries(promoted?.growthBonuses || {}))
+        if (Number.isFinite(growths[stat])) growths[stat] -= bonus;
+    }
   }
   return {
     className,
     growths,
+    ...(growthsBasis ? { growthsBasis } : {}),
     traits: [...(unit.traits || [])],
     traitAttackStat: unit.traitAttackStat ?? null,
     markId: unit.markId ?? null,

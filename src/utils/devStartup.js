@@ -574,6 +574,7 @@ function createVictoryRun(gameData, meta, config) {
   if (road.acts) runManager.actSequence = [...road.acts];
   runManager.actIndex = runManager.actSequence.length - 1;
   runManager.completedBattles = 20;
+  runManager.metaBattlePoints = 20 * 20; // about what 20 wins across the acts bank
   runManager.status = 'victory';
   return runManager;
 }

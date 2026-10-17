@@ -38,6 +38,19 @@ export function enemySpawnFallbackLevel(battleConfig, act) {
   return ENEMY_FALLBACK_LEVEL_BY_ACT[act] || 3;
 }
 
+/**
+ * A healer class: every weapon it can use is a staff or Light (Cleric, Bishop). An arrival
+ * is never one; the garrison keeps its healers, a wave only brings fighters.
+ */
+export function isHealerClass(className, classes) {
+  const cls = (classes || []).find((c) => c.name === className);
+  const profs = String(cls?.weaponProficiencies || '')
+    .split(',')
+    .map((p) => p.replace(/\s*\(.*\)\s*$/, '').trim())
+    .filter(Boolean);
+  return profs.length > 0 && profs.every((p) => p === 'Staves' || p === 'Light');
+}
+
 /** The act's class pool (`pools[act][tier]`) this rung and battle may draw on. */
 function allowedActClasses(names, { battleParams, gameData }) {
   const act = battleParams?.act || 'act1';
@@ -51,6 +64,7 @@ function allowedActClasses(names, { battleParams, gameData }) {
       // first two come from the Necromancer's own raise (one per battle), the last two from
       // an Act V set piece's own slots and summons (Necromancy.js `isNeverCopiedClass`).
       !isNeverCopiedClass(className) &&
+      !isHealerClass(className, gameData?.classes) &&
       earlyEnemyAllowed(className, battleParams) &&
       (gameData?.classes || []).some((c) => c.name === className),
   );
@@ -71,6 +85,7 @@ export function buildReinforcementTemplatePool({ battleConfig, battleParams, gam
       spawn.isBoss ||
       typeof spawn.className !== 'string' ||
       isNeverCopiedClass(spawn.className) ||
+      isHealerClass(spawn.className, classes) ||
       !earlyEnemyAllowed(spawn.className, battleParams)
     )
       continue;

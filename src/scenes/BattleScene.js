@@ -2050,8 +2050,9 @@ export class BattleScene extends Phaser.Scene {
       this.aiController = new AIController(this.grid, this.gameData, {
         objective: bc.objective,
         thronePos: bc.thronePos,
-        // Standard of the Sun's cost: foes go for the commander first (TradeBoons).
+        // Standard of the Sun's cost: half the foes go for the commander first (TradeBoons).
         commanderPriority: this.battleParams?.foesTargetCommander === true,
+        commanderPrioritySeed: this.getReinforcementSeed(),
       });
       // Holders wake on the Danger overlay's tiles: the board as the player knows it.
       this.aiController.setHoldContext?.(() => this.threatContext());
