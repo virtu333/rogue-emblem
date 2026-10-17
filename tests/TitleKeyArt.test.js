@@ -161,7 +161,25 @@ describe('title menu model', () => {
       null,
     ]);
     const items = buildTitleMenu({ hasSlots: true, prologueDone: false, resumeSlot });
-    expect(items[0]).toMatchObject({ id: 'resume', label: 'Resume · Prologue', primary: true });
+    expect(items[0]).toMatchObject({
+      id: 'resume',
+      label: 'Resume',
+      sub: 'Prologue',
+      primary: true,
+    });
+  });
+
+  it('a latest prologue run names its slot on the subline, the action stays short', () => {
+    const resumeSlot = pickResumeSlot([
+      { slot: 1, hasActiveRun: true, actReached: 2, savedAt: 1000 },
+      { slot: 2, hasActiveRun: true, actReached: 4, savedAt: 2000 },
+      { slot: 3, hasActiveRun: true, actReached: 1, prologueRun: true, savedAt: 3000 },
+    ]);
+    const [resume] = buildTitleMenu({ hasSlots: true, prologueDone: false, resumeSlot });
+    expect(resume).toMatchObject({ label: 'Resume latest', sub: 'Prologue · Slot 3' });
+    // Neither line is long enough to wrap in the desktop column (~160px of 8px pixel font).
+    expect(resume.label.length).toBeLessThanOrEqual(14);
+    expect(resume.sub.length).toBeLessThanOrEqual(20);
   });
 
   it('returning player with one active run: Resume leads, Save Slots follows New Game', () => {

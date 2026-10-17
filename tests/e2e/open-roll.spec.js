@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForScene, collectErrors } from './helpers.js';
+import { waitForScene, collectErrors, stepBeside } from './helpers.js';
 import { PORTRAIT_PHONES, phone } from './portraitHelpers.js';
 
 // Open Roll (docs/specs/blessings-v3.md §5.3): a recruit knot's card shows the second candidate
@@ -72,6 +72,7 @@ async function swapAndReload(page, vp) {
     );
   expect(await savedPreviewName()).toBe(picked.first);
 
+  expect(await stepBeside(page, picked.id)).toBe(true);
   await route.locator(`.re-node[data-node="${picked.id}"]`).click();
   const card = route.locator('.re-loom-card');
   await expect(card.locator('.re-loom-recruit-name')).toHaveText(picked.first);

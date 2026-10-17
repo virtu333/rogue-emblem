@@ -36,19 +36,31 @@ export function buildTitleMenu({
   };
   const run = [];
   if (promotePrologue) run.push(prologue);
-  if (resumeSlot)
+  if (resumeSlot) {
+    const isLatest = resumeSlot.latestOf > 1;
+    // The prologue has no act, so its run context goes on the subline: "Resume · Prologue"
+    // is 17 characters and wrapped inside the desktop column, which pushed the subline to a
+    // third line. The action stays one short line; the run it opens sits on the second.
+    const prologueResume = !resumeSlot.requiresSelection && resumeSlot.prologueRun;
     run.push({
       id: 'resume',
-      label: resumeSlot.requiresSelection
-        ? 'Continue · Select save'
-        : resumeSlot.prologueRun
-          ? 'Resume · Prologue'
+      label: prologueResume
+        ? isLatest
+          ? 'Resume latest'
+          : 'Resume'
+        : resumeSlot.requiresSelection
+          ? 'Continue · Select save'
           : `Resume · Act ${resumeSlot.actReached ?? 1}`,
       group: 'run',
       // With several runs going, say which one Resume opens. Short: the desktop stage snaps
       // the 7px subline up to the label's size on some screens ("Latest save · Slot 1" was cut).
-      ...(resumeSlot.latestOf > 1 ? { sub: `Latest · Slot ${resumeSlot.slot}` } : {}),
+      ...(prologueResume
+        ? { sub: isLatest ? `Prologue · Slot ${resumeSlot.slot}` : 'Prologue' }
+        : isLatest
+          ? { sub: `Latest · Slot ${resumeSlot.slot}` }
+          : {}),
     });
+  }
   run.push({
     id: 'newGame',
     // With the prologue shipped, New Game always opens the offer (Skip is its default on

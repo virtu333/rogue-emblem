@@ -70,7 +70,13 @@ test('commands have readable targets, toggle feedback and reversible end-turn co
   // minimum so End turn stays visible at 667x375; bottom navigation keeps 44px.
   const heights = (loc) =>
     loc.evaluateAll((buttons) => buttons.map((b) => b.getBoundingClientRect().height));
-  const commandHeights = await heights(hud.locator('.mb-body button'));
+  // Only the commands on screen: a button inside the closed Battle details has no layout
+  // of its own (Chrome may report 0 or a stale size for it, depending on timing).
+  const commandHeights = await hud
+    .locator('.mb-body button')
+    .evaluateAll((buttons) =>
+      buttons.filter((b) => b.checkVisibility()).map((b) => b.getBoundingClientRect().height),
+    );
   expect(commandHeights.length).toBeGreaterThan(0);
   expect(commandHeights.every((h) => h >= 38)).toBe(true);
   const navHeights = await heights(hud.locator('.bl-tools button'));

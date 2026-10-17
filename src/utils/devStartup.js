@@ -574,7 +574,25 @@ function createVictoryRun(gameData, meta, config) {
   if (road.acts) runManager.actSequence = [...road.acts];
   runManager.actIndex = runManager.actSequence.length - 1;
   runManager.completedBattles = 20;
+  runManager.metaBattlePoints = 20 * 20; // about what 20 wins across the acts bank
   runManager.status = 'victory';
+  // A plausible ledger, so the review route shows the grade and credits (engine/RunLedger.js).
+  const now = Date.now();
+  runManager.runLedger = {
+    ...runManager.runLedger,
+    startedAt: now - 6_480_000,
+    lastAt: now,
+    activeMs: 6_480_000,
+    parBattles: 20,
+    underPar: 14,
+    goldStart: 800,
+    goldIn: 9000,
+    goldOut: 7400,
+    losses: 0,
+    worstSurvival: 0.75,
+  };
+  runManager.totalTurns = 95;
+  runManager.gold = 2400;
   return runManager;
 }
 

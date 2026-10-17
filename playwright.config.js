@@ -25,7 +25,11 @@ export default defineConfig({
     browserName: 'chromium',
     headless: true,
     screenshot: 'only-on-failure',
-    trace: 'retain-on-failure',
+    // A trace is recorded for every attempt and kept only when it fails. Its DOM
+    // snapshots (one before and after each action) cost about a fifth of a test's time
+    // on a software-rendered page; the screencast, actions, console and network stay,
+    // and a failure still gets its screenshot.
+    trace: { mode: 'retain-on-failure', snapshots: false },
     viewport: { width: 640, height: 480 },
   },
   webServer: {

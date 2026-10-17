@@ -28,6 +28,9 @@ export function serializeUnit(unit) {
   if (unit?.stats && typeof unit.stats === 'object') {
     data.stats = { ...unit.stats };
   }
+  if (unit?.rolledGrowths && typeof unit.rolledGrowths === 'object') {
+    data.rolledGrowths = { ...unit.rolledGrowths };
+  }
   // Deep-clone mutable collection fields to prevent shared-reference mutations
   if (Array.isArray(data.inventory))
     data.inventory = data.inventory.map((i) => ensureItemUid(structuredClone(i)));

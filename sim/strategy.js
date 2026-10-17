@@ -75,6 +75,7 @@ function recruitParams(rm, node) {
     recruitRoster: structuredClone(ctx.roster),
     startingLordNames: ctx.startingLordNames,
     recruitClaimedLords: ctx.claimedLordNames,
+    recruitLordOdds: ctx.lordOdds,
     recruitLevelBonus: ctx.recruitLevelBonus,
     deployBonus: ctx.deployBonus,
   };

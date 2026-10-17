@@ -690,6 +690,7 @@ export function canUseWeaponArt(unit, weapon, art, context = {}) {
   const hpCost = getEffectiveWeaponArtHpCost(unit, art, {
     weaponArtHpCostDelta: context.weaponArtHpCostDelta,
     playerArtHpCostDelta: context.playerArtHpCostDelta,
+    playerArtHpFree: context.playerArtHpFree,
   });
   const hp = toFiniteNumber(unit.currentHP, toFiniteNumber(unit?.stats?.HP, 0));
   const maxHp = Math.max(0, toFiniteNumber(unit?.stats?.HP, hp));

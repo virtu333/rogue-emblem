@@ -67,6 +67,12 @@ export function recordFacts(record, gameData) {
   const facts = [{ key: 'acts', label: 'Acts cleared', value: String(record.actsCleared || 0) }];
   if (record.totalTurns != null)
     facts.push({ key: 'turns', label: 'Turns', value: String(record.totalTurns) });
+  if (record.grade)
+    facts.push({
+      key: 'grade',
+      label: 'Grade',
+      value: `${record.grade.letter} (${record.grade.score})`,
+    });
   if (record.shadow != null)
     facts.push({
       key: 'eclipse',

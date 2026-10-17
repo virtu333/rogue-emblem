@@ -6,6 +6,7 @@ import {
   describeBattleScout,
   describeLoomNode,
   describeRecruitPreview,
+  recruitShownAt,
   loomHeader,
 } from './loomModel.js';
 import { scoutBattle } from '../engine/BattleScout.js';
@@ -258,9 +259,10 @@ export function renderLoomCard(card, node, ctx = {}) {
   const { model, actId, gameData, runManager: rm } = ctx;
   const state = model.nodeState(node.id);
   const eclipse = ctx.eclipse?.nodes?.get?.(node.id) || null;
-  // Recruit nodes show who waits there (RunManager builds the exact battle unit).
+  // A recruit node shows who waits there (RunManager builds the exact battle unit) once it is
+  // a next step; further down the road the card does not even build it.
   let recruit = null;
-  if (node.type === 'recruit' && !node.eclipse && state !== 'done') {
+  if (node.type === 'recruit' && !node.eclipse && recruitShownAt(state)) {
     try {
       recruit = describeRecruitPreview(rm?.getRecruitNodeUnit?.(node) || null, {
         traitLines: (unit) => traitLines(unit, gameData),

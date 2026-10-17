@@ -177,7 +177,8 @@ it('boss-reaching payout is once per run, durable, and shared by settlement/prev
   const s = setup(),
     run = s.runManager;
   run.completedBattles = 4;
-  // First Light earns x0.8: floor(4 battles x 15 x 0.8) = 48; the milestone adds floor(15 x 0.8) = 12.
+  run.metaBattlePoints = 60;
+  // First Light earns x0.8: floor(60 banked x 0.8) = 48; the milestone adds floor(15 x 0.8) = 12.
   expect(run.previewEndRunRewards()).toMatchObject({ valor: 48, supply: 48 });
   run.beginBattleInProgress('boss', { isBoss: true });
   run.beginBattleInProgress('boss', { isBoss: true });
@@ -224,8 +225,9 @@ it('seen stock falls back to valid repeats instead of unresolvable fresh names',
       },
     );
     expect(stock).toHaveLength(6);
-    expect(new Set(stock.map((entry) => entry.item.name)).size).toBe(6);
-    expect(stock.some((entry) => entry.item.name === 'Vulnerary')).toBe(true);
+    // Every name is a valid one; the basic medicine pair is the one repeat.
+    expect(new Set(stock.map((entry) => entry.item.name)).size).toBe(5);
+    expect(stock.filter((entry) => entry.item.name === 'Vulnerary')).toHaveLength(2);
   } finally {
     random.mockRestore();
   }

@@ -58,6 +58,7 @@ import {
   WEAPON_SWAP_LOCK_FIELD,
   WEAPON_SWAP_LOCK_REASON,
   weaponChangeBlocked,
+  weaponSwapLocked,
 } from '../src/engine/WeaponSwapLock.js';
 import {
   FORGE_FORBIDDEN_REASON,
@@ -73,7 +74,12 @@ import { unitReach } from '../src/engine/ThreatForecast.js';
 import { areaStrikeRange } from '../src/engine/AreaStrike.js';
 import { serializeUnit } from '../src/engine/UnitSerialization.js';
 import { settleRecruitJoin } from '../src/engine/BattleRecruits.js';
-import { AIController, COMMANDER_PRIORITY_SCORE } from '../src/engine/AIController.js';
+import {
+  AIController,
+  COMMANDER_PRIORITY_CHANCE,
+  COMMANDER_PRIORITY_SCORE,
+  commanderPriorityRoll,
+} from '../src/engine/AIController.js';
 import { Grid } from '../src/engine/Grid.js';
 import { rewardDrawParams, rollBattleRewardChoices } from '../src/engine/PendingBattleRewards.js';
 import { purchaseShopItem, shopForgeBlock, shopRepairBlock } from '../src/engine/ShopCommands.js';
@@ -470,19 +476,30 @@ describe('Oathbound Steel: no weapon changes in battle', () => {
     expect(planReorder({ context: 'roster', run: { roster: [unit] } }, from, to).ok).toBe(true);
   });
 
-  it('a spent per-battle weapon is not swapped for another while locked', () => {
-    const make = () => {
-      const u = makeUnit('Sage', 'player', 0, 0, ['Breachbolt', 'Fire']);
+  // Weapon uses (Dave, 2026-10-17): a spent held weapon frees its unit, so the lock never leaves
+  // a unit unable to fight; it takes up a spare and is held to that one.
+  it('a spent held weapon lifts the lock: the unit takes up a spare and is held to it', () => {
+    const make = (gear) => {
+      const u = makeUnit('Sage', 'player', 0, 0, gear);
       u.weapon._usesSpent = 99;
       return u;
     };
-    const free = make();
-    expect(swapSpentWeapons([free])).toHaveLength(1);
-    expect(free.weapon.name).toBe('Fire');
-    const held = make();
+    const held = make(['Breachbolt', 'Fire', 'Wildfire']);
     stampArmyBattleRules([held], { weaponSwapLocked: true });
-    expect(swapSpentWeapons([held])).toEqual([]);
-    expect(held.weapon.name).toBe('Breachbolt');
+    expect(weaponSwapLocked(held)).toBe(false);
+    expect(swapSpentWeapons([held])).toHaveLength(1);
+    expect(held.weapon.name).toBe('Fire');
+    // The spare is now the weapon held: the lock is back on it.
+    expect(weaponSwapLocked(held)).toBe(true);
+    expect(weaponChangeBlocked(held, held.inventory[2])).toBe(true);
+    // A durability weapon (an Iron tier tome) frees its unit the same way once spent.
+    const tome = make(['Fire', 'Wildfire']);
+    stampArmyBattleRules([tome], { weaponSwapLocked: true });
+    tome.weapon._usesSpent = 0;
+    expect(weaponSwapLocked(tome)).toBe(true);
+    tome.weapon._usesSpent = 99;
+    expect(swapSpentWeapons([tome])).toHaveLength(1);
+    expect(tome.weapon.name).toBe('Wildfire');
   });
 
   it('a unit holding a staff (no combat weapon) may take one up; the lock then holds it', () => {
@@ -637,7 +654,7 @@ describe('Siegebreaker: bows and tomes reach a tile further, melee loses 2 Might
 
 // ── Standard of the Sun ─────────────────────────────────────────────────────
 
-describe('Standard of the Sun: foes go for the commander first', () => {
+describe('Standard of the Sun: half the foes go for the commander first', () => {
   const T = Object.fromEntries(data.terrain.map((t, i) => [t.name, i]));
   const stub = new Proxy({}, { get: (_, key) => (key === 'destroy' ? () => {} : () => stub) });
   const scene = {
@@ -655,7 +672,8 @@ describe('Standard of the Sun: foes go for the commander first', () => {
       false,
     );
   const STATS = { HP: 24, STR: 12, MAG: 0, SKL: 8, SPD: 6, LCK: 5, DEF: 6, RES: 4, MOV: 5 };
-  const foe = (col) => ({
+  const foe = (col, battleEntityId = 'u9') => ({
+    battleEntityId,
     name: 'Foe',
     col,
     row: 1,
@@ -679,32 +697,108 @@ describe('Standard of the Sun: foes go for the commander first', () => {
     ...extra,
   });
 
-  it('with both in reach, a foe strikes the commander over a wounded easy kill', () => {
+  // A battle seed whose draw for foe `id` on `turn` sends it at the commander (`goes`) or not.
+  // The tests below check the AI against the draw; the draw's own odds are tested apart.
+  const seedWhere = (goes, id = 'u9', turn = 1) => {
+    for (let seed = 1; seed < 10000; seed++)
+      if (commanderPriorityRoll(seed, turn, { battleEntityId: id }) === goes) return seed;
+    throw new Error('no seed');
+  };
+  const sunAI = (seed) =>
+    new AIController(grid(), data, {
+      objective: 'rout',
+      commanderPriority: true,
+      commanderPrioritySeed: seed,
+    });
+  const atTurn = (ai, turn = 1) => {
+    ai.phaseTurn = turn;
+    return ai;
+  };
+
+  it('with both in reach, a foe that rolls the standard strikes the commander over an easy kill', () => {
     const e = foe(4);
     // The commander is fresh on the left; a near-dead soldier is on the right.
     const commander = player('Edric', 3, { isCommander: true });
     const weak = player('Weak', 5, { currentHP: 3 });
     const plain = new AIController(grid(), data, { objective: 'rout' });
     expect(plain._decideAction(e, [e], [commander, weak], []).target).toBe(weak);
-    const sun = new AIController(grid(), data, { objective: 'rout', commanderPriority: true });
+    const sun = atTurn(sunAI(seedWhere(true)));
     expect(sun._decideAction(e, [e], [commander, weak], []).target).toBe(commander);
     expect(
       sun._scoreAttackTarget(e, commander) - plain._scoreAttackTarget(e, commander),
     ).toBeCloseTo(COMMANDER_PRIORITY_SCORE);
   });
 
-  it('with no one in reach, a foe closes on the commander, not the nearest unit', () => {
+  it('a foe that does not roll it picks its target as it would without the card', () => {
+    const e = foe(4);
+    const commander = player('Edric', 3, { isCommander: true });
+    const weak = player('Weak', 5, { currentHP: 3 });
+    const plain = new AIController(grid(), data, { objective: 'rout' });
+    const sun = atTurn(sunAI(seedWhere(false)));
+    expect(sun._decideAction(e, [e], [commander, weak], []).target).toBe(weak);
+    expect(sun._scoreAttackTarget(e, commander)).toBeCloseTo(
+      plain._scoreAttackTarget(e, commander),
+    );
+  });
+
+  it('with no one in reach, a foe that rolls it closes on the commander, not the nearest unit', () => {
     const e = foe(0);
     const near = player('Near', 7);
     const commander = player('Edric', 8, { isCommander: true });
     // Move 5 from col 0: neither is in reach this turn.
     const plain = new AIController(grid(), data, { objective: 'rout' });
-    const sun = new AIController(grid(), data, { objective: 'rout', commanderPriority: true });
+    const sun = atTurn(sunAI(seedWhere(true)));
     expect(plain._findPriorityTarget(e, [near, commander])).not.toBe(commander);
     expect(sun._findPriorityTarget(e, [near, commander])).toBe(commander);
+    expect(atTurn(sunAI(seedWhere(false)))._findPriorityTarget(e, [near, commander])).toBe(near);
     // A fallen commander is no target.
     commander.currentHP = 0;
     expect(sun._findPriorityTarget(e, [near, commander])).not.toBe(commander);
+  });
+
+  it('the roll is per foe and per enemy phase, about half the time, the same on a replay', () => {
+    expect(COMMANDER_PRIORITY_CHANCE).toBe(0.5);
+    let yes = 0;
+    let total = 0;
+    const flips = new Set();
+    for (let seed = 1; seed <= 20; seed++)
+      for (let turn = 1; turn <= 10; turn++)
+        for (let n = 0; n < 10; n++) {
+          const foeId = { battleEntityId: `u${n}` };
+          const roll = commanderPriorityRoll(seed, turn, foeId);
+          // A resume or a rewind asks again with the same seed, turn and foe.
+          expect(commanderPriorityRoll(seed, turn, foeId)).toBe(roll);
+          yes += roll ? 1 : 0;
+          total++;
+          if (roll !== commanderPriorityRoll(seed, turn + 1, foeId)) flips.add(`${seed}:${n}`);
+        }
+    expect(yes / total).toBeGreaterThan(0.45);
+    expect(yes / total).toBeLessThan(0.55);
+    // A foe's choice changes from one turn to the next (not fixed for the battle).
+    expect(flips.size).toBeGreaterThan(50);
+  });
+
+  it('the roll never draws from the battle stream (Math.random)', () => {
+    const spy = vi.spyOn(Math, 'random');
+    try {
+      const e = foe(4);
+      const commander = player('Edric', 3, { isCommander: true });
+      const weak = player('Weak', 5, { currentHP: 3 });
+      for (let seed = 1; seed <= 30; seed++)
+        atTurn(sunAI(seed))._decideAction(e, [e], [commander, weak], []);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('processEnemyPhase rolls on the turn it is told', async () => {
+    const seed = seedWhere(true, 'u9', 7);
+    const ai = sunAI(seed);
+    ai._delay = () => Promise.resolve();
+    await ai.processEnemyPhase([], [], [], { turnNumber: 7 });
+    expect(ai.phaseTurn).toBe(7);
+    expect(ai._goesForCommander({ battleEntityId: 'u9' })).toBe(true);
   });
 });
 

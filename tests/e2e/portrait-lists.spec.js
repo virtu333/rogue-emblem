@@ -14,7 +14,13 @@
 //   - the unit strip loses the selected card off its edge;
 //   - any of it leaks into landscape: boxes move at 844x390 or 640x480.
 import { test, expect, devices } from '@playwright/test';
-import { waitForGame, waitForScene, openRosterUnit, closeRoster } from './helpers.js';
+import {
+  waitForGame,
+  waitForScene,
+  waitForRouteMapReady,
+  openRosterUnit,
+  closeRoster,
+} from './helpers.js';
 
 // A phone: touch, coarse pointer, mobile layout. Each group sets its own viewport.
 test.use({ ...devices['iPhone 13'] });
@@ -296,6 +302,7 @@ async function openRoster(page) {
   await page.goto('/?devScene=nodemap&preset=weapon_arts&seed=42');
   await waitForGame(page);
   await waitForScene(page, 'NodeMap');
+  await waitForRouteMapReady(page);
   await page.evaluate(() => window.__emblemRogueGame.scene.getScene('NodeMap')._openRoster());
   const sheet = page.getByRole('dialog', { name: 'Manage roster' });
   await expect(sheet).toBeVisible();

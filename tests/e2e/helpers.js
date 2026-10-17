@@ -44,6 +44,23 @@ export async function waitForScene(page, sceneKey) {
 }
 
 /**
+ * Wait until the route map is ready for input, skipping the run's opening lines if they
+ * play. `waitForScene` returns as soon as the scene is active, while the run-start lines
+ * open a moment later (after the audio unlock): a sheet opened in that gap ends up
+ * under the lines' dialogue, which then takes every press. Waits on state.
+ */
+export async function waitForRouteMapReady(page) {
+  const skip = page.getByRole('button', { name: 'Skip conversation', exact: true });
+  const mapReady = () =>
+    page.waitForFunction(
+      () => window.__emblemRogueGame.scene.getScene('NodeMap')?.isSceneReady === true,
+    );
+  await Promise.race([skip.waitFor({ state: 'visible' }), mapReady()]);
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+  await mapReady();
+}
+
+/**
  * Get current SceneGuard state snapshot.
  */
 export async function getSceneState(page) {
@@ -341,4 +358,29 @@ export async function closeRoster(sheet, label = 'Close', { tap = false } = {}) 
 
 function escapeRegExp(text) {
   return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Brings a route node one step ahead: the party stands on a node just before it (marked walked),
+ * and the route map redraws. A recruit card names who waits there only once it is a next step
+ * (`loomModel.recruitShownAt`, docs/specs/lord-recruit-odds.md), so a spec that reads one moves
+ * the party beside it first. Returns false if no such node exists.
+ */
+export async function stepBeside(page, nodeId) {
+  return page.evaluate((id) => {
+    const scene = window.__emblemRogueGame.scene.getScene('NodeMap');
+    const rm = scene.runManager;
+    const nodes = rm.nodeMap.nodes;
+    if (rm.getAvailableNodes().some((n) => n.id === id)) return true;
+    if (rm.nodeMap.startNodeId === id) {
+      rm.currentNodeId = null;
+    } else {
+      const parent = nodes.find((n) => (n.edges || []).includes(id));
+      if (!parent) return false;
+      parent.completed = true;
+      rm.currentNodeId = parent.id;
+    }
+    scene.nodeView.render();
+    return rm.getAvailableNodes().some((n) => n.id === id);
+  }, nodeId);
 }

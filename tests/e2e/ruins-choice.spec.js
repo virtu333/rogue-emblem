@@ -169,17 +169,21 @@ for (const size of SIZES) {
       await expect(sanctuary.getByRole('button', { name: SCAVENGE, exact: true })).toHaveCount(0);
       await page.screenshot({ path: info.outputPath('ruins-rest.png') });
 
-      // Ruinsfallen: a level 2 Fighter, 500 + 2 × 300 gold.
+      // Ruinsfallen: a level 2 Fighter, full price 500 + 2 × 300 = 1100 gold; the act's first
+      // revival costs no more than First Light's dearest Act I mercenary, 1000.
       const gold = (await runState(page, id)).gold;
+      await expect(sanctuary).toContainText(
+        'The first revival each act costs no more than hiring a replacement.',
+      );
       await sanctuary
-        .getByRole('button', { name: /Ruinsfallen · Fighter · Revive 1100 G/ })
+        .getByRole('button', { name: /Ruinsfallen · Fighter · Revive 1000 G/ })
         .click();
       await page
         .getByRole('dialog', { name: 'Revive Ruinsfallen?', exact: true })
         .getByRole('button', { name: 'Confirm', exact: true })
         .click();
       await expect(sanctuary.getByRole('status')).toContainText('Ruinsfallen revived');
-      expect(await runState(page, id)).toMatchObject({ gold: gold - 1100, revived: true });
+      expect(await runState(page, id)).toMatchObject({ gold: gold - 1000, revived: true });
 
       await sanctuary.getByRole('button', { name: 'Leave', exact: true }).click();
       await reenterFromRoute(page, 'You chose to rest here. The wares stay buried.');

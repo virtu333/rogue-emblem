@@ -230,6 +230,19 @@ describe('WeaponArtSystem', () => {
     expect(result.reason).toBe('insufficient_hp');
   });
 
+  it('canUseWeaponArt agrees with the cost helper when Way of the Art makes a player art free', () => {
+    const weapon = { type: 'Sword' };
+    const art = makeArt({ hpCost: 5 });
+    const opts = { playerArtHpFree: true };
+    const hero = makeUnit({ currentHP: 5, faction: 'player' });
+    expect(getEffectiveWeaponArtHpCost(hero, art, opts)).toBe(0);
+    expect(canUseWeaponArt(hero, weapon, art, opts).ok).toBe(true);
+    // Without the boon the same unit still cannot pay, and a foe never gets it.
+    expect(canUseWeaponArt(hero, weapon, art, {}).reason).toBe('insufficient_hp');
+    const foe = makeUnit({ currentHP: 5, faction: 'enemy' });
+    expect(canUseWeaponArt(foe, weapon, art, opts).reason).toBe('insufficient_hp');
+  });
+
   it('computes effective HP cost with Blood Gem reduction and floor of 1', () => {
     const unit = makeUnit({
       accessory: { combatEffects: { weaponArtHpCostReduction: 5 } },

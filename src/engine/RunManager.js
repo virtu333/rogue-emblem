@@ -15,6 +15,7 @@ import {
   migrateSavedPerBattleWeapons,
   migrateSavedStaffUseRules,
 } from './WeaponCatalogMigration.js';
+import { refillBattleUses } from './WeaponUses.js';
 import { migrateSavedLegendaryRelics } from './LegendaryRelicMigration.js';
 import {
   hydrateBattleTimeline,
@@ -23,6 +24,7 @@ import {
 } from './BattleTimeline.js';
 import { compactNarrativeSeen, pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
+import { sanitizeReviveDiscountAct } from './RevivePricing.js';
 import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
 import {
   applyFallenBattleRecord,
@@ -51,9 +53,6 @@ import {
   CONVOY_CONSUMABLE_CAPACITY,
   CONVOY_WEAPON_TYPES,
   RECRUIT_SKILL_POOL,
-  REVIVE_BASE_COST,
-  REVIVE_COST_PER_LEVEL,
-  REVIVE_PROMOTION_MULTIPLIER,
   RUINS_PATHS,
   INVENTORY_MAX,
   XP_SPECIAL_ENEMY_MULTIPLIER,
@@ -61,7 +60,11 @@ import {
 } from '../utils/constants.js';
 import { calculateBattleGold } from './LootSystem.js';
 import { reconcileRecruitSpawnTile, sanitizeEscapeTilePassability } from './MapGenerator.js';
-import { calculateCurrencies } from './MetaProgressionManager.js';
+import {
+  battleMetaReward,
+  runEndMetaReward,
+  savedMetaBattlePoints,
+} from './MetaProgressionManager.js';
 import { lordNamesInRun } from './LordsMet.js';
 import { generateNodeMap } from './NodeMapGenerator.js';
 import { buildDescentNodeMap, descentRouteIdFor, isDescentMap, isGateBossNode } from './Descent.js';
@@ -266,6 +269,11 @@ import { isHuntedBattle } from './HuntedWave.js';
 import { contractRewardOwedAt, normalizeContract, normalizeContractOwed } from './Contracts.js';
 import { settleContract } from './ContractSettlement.js';
 import { everFallenUnits } from './LaidToRest.js';
+import {
+  LORD_RECRUIT_ODDS_VERSION,
+  countRunLords,
+  sanitizeLordRecruitOdds,
+} from './LordRecruitChance.js';
 import { stampExtraShops } from './ExtraShopPass.js';
 import { BLESSING_BOON_REVISION, migrateHeldBlessingBoons } from './BlessingBoonMigration.js';
 import { normalizeChurchVows } from './ChurchVow.js';
@@ -278,6 +286,7 @@ import {
   shrineBoonsOf,
 } from './ShrineBoons.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
+import * as Ledger from './RunLedger.js';
 import {
   chooseStartGift as takeStartGift,
   findGift,
@@ -663,13 +672,7 @@ export function legendaryLordChanceFor(legendaryLordChanceBonus = 0) {
   return Math.min(0.15, 0.05 + Math.max(0, Number(legendaryLordChanceBonus) || 0));
 }
 
-/** Calculate level-scaled revive cost for a fallen unit. */
-export function getReviveCost(unit) {
-  const raw = Number(unit?.level);
-  const level = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
-  const base = REVIVE_BASE_COST + level * REVIVE_COST_PER_LEVEL;
-  return Math.round(unit?.tier === 'promoted' ? base * REVIVE_PROMOTION_MULTIPLIER : base);
-}
+export { getReviveCost } from './RevivePricing.js';
 
 /**
  * The key a unit carries in `recruitBlessingGrants` once an act-scoped stat card's delta (tracker
@@ -730,6 +733,8 @@ export class RunManager {
     this.nodeMap = null;
     this.currentNodeId = null; // last completed node (null = start of act)
     this.completedBattles = 0;
+    // The won battles' worth toward the run-end payout (battleMetaReward), banked as each is won.
+    this.metaBattlePoints = 0;
     this.gold = STARTING_GOLD + (metaEffects?.goldBonus || 0);
     this.accessories = []; // team accessory pool (unequipped accessories)
     this.ngPlus = null; // an NG+ run's Barracks members (engine/NgPlusRun.js)
@@ -754,6 +759,7 @@ export class RunManager {
     this.narrativeSeen = {};
     this.runRecordId = null;
     this.totalTurns = 0;
+    this.runLedger = Ledger.createRunLedger(Date.now(), this.gold);
     this.rngSeed = null;
     this.visionChargesRemaining = 1;
     this.visionCount = 0;
@@ -766,6 +772,10 @@ export class RunManager {
     this.ruinsRevivedByNodeId = {};
     // How many of the fallen each church revived (node id -> count); see ChurchCommands.js.
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
+    // Lord recruit odds v2 (engine/LordRecruitChance.js): `{ v: 2, lordsAtActStart }`, or null
+    // for a run started before them (it keeps the flat chance it began with).
+    this.lordRecruitOdds = null;
     // Each church's one vow ('promote' | 'blessing'); see ChurchVow.js.
     this.churchVowByNodeId = {};
     // The churches whose Tithe Box gold was paid this act (ChurchCommands.payChurchTithe).
@@ -988,11 +998,14 @@ export class RunManager {
     this.battleConfigsByNodeId = {};
     // Before the recruit previews, so no recruit node takes a veteran's name.
     this.ngPlus = startNgPlusRun(this, ngPlus);
+    // A new run follows the current lord odds, counted from its starting lords.
+    this._stampLordsAtActStart();
     this.ensureRecruitPreviews();
     this.shopStateByNodeId = {};
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     this._resetEventState();
@@ -1061,6 +1074,7 @@ export class RunManager {
     this.nodeMap = buildPrologueNodeMap(prologue, gameData);
     this.currentNodeId = null;
     this.completedBattles = 0;
+    this.metaBattlePoints = 0;
     this.fallenUnits = [];
     this.pendingAmbushNodeId = null;
     this.pendingCaravanShop = null;
@@ -1087,9 +1101,11 @@ export class RunManager {
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     this._resetEventState(); // the prologue has no events: it starts empty and stays empty
+    this.lordRecruitOdds = null; // the prologue's army is authored: it rolls no lord
     this.metaUnlockedWeaponArts = [];
     this.actUnlockedWeaponArts = [];
     this.unlockedWeaponArts = [];
@@ -2498,6 +2514,31 @@ export class RunManager {
 
   // ── Third Lord (Power of Friendship meta upgrade) ──────────────
 
+  /** Lord recruit odds v2: record the lords the army has as an act (or the run) begins. */
+  _stampLordsAtActStart() {
+    this.lordRecruitOdds = {
+      v: LORD_RECRUIT_ODDS_VERSION,
+      lordsAtActStart: countRunLords(this.roster, everFallenUnits(this)),
+    };
+  }
+
+  /**
+   * The odds record a lord roll reads (engine/LordRecruitChance.js), or null for a run from
+   * before v2. A recruit node reads the act's starting lords plus the lord cards ahead of it on
+   * the map (_recruitLordWalk), so its card never changes as the act goes on; the boss's draft,
+   * rolled once and saved, reads the lords the run has had by then.
+   * @param {'node'|'boss'} source
+   * @param {object} [node] - the recruit node (source 'node')
+   */
+  getLordRecruitOdds(source, node = null) {
+    if (!this.lordRecruitOdds) return null;
+    const lordCount =
+      source === 'boss'
+        ? countRunLords(this.roster, everFallenUnits(this))
+        : this._recruitLordWalk(node).lordCount;
+    return { v: this.lordRecruitOdds.v, lordCount };
+  }
+
   shouldTriggerThirdLord() {
     if (this.thirdLordJoined) return false;
     if (isPrologueRun(this)) return false; // the prologue's army is authored (§8)
@@ -3537,6 +3578,7 @@ export class RunManager {
       metaEffects: this.getEffectiveMetaEffects(),
       startingLordNames: this.getStartingLordNames(),
       claimedLordNames: this.getClaimedRecruitLordNames(node),
+      lordOdds: this.getLordRecruitOdds('node', node),
       recruitLevelBonus: this.getRecruitLevelBonus(),
       deployBonus: this.getDeployBonus(),
     };
@@ -3552,14 +3594,30 @@ export class RunManager {
    * @returns {Array<string>}
    */
   getClaimedRecruitLordNames(node) {
+    return this._recruitLordWalk(node).claimed;
+  }
+
+  /**
+   * One walk over the act's recruit nodes in the fixed order (row, then column), up to `node`:
+   * the lords the pending nodes ahead of it claim (getClaimedRecruitLordNames), and, under lord
+   * odds v2, the lord count its roll reads: the lords at the act's start plus every recruit node
+   * ahead of it on this map that shows a lord, visited or not. So the act's second lord card is
+   * already rarer than its first, and no choice the player makes ever changes a card. A run from
+   * before v2 walks the pending nodes only, as it always did, and reads no count.
+   * @returns {{ claimed: Array<string>, lordCount: number|null }}
+   */
+  _recruitLordWalk(node) {
+    const odds = this.lordRecruitOdds;
     const nodes = Array.isArray(this.nodeMap?.nodes) ? this.nodeMap.nodes : [];
     const self = nodes.find((n) => n.id === node?.id);
-    if (self?.type !== 'recruit') return [];
+    const start = odds ? odds.lordsAtActStart : null;
+    if (self?.type !== 'recruit') return { claimed: [], lordCount: start };
     const order = (a, b) =>
       (a.row ?? 0) - (b.row ?? 0) ||
       (a.col ?? 0) - (b.col ?? 0) ||
       String(a.id).localeCompare(String(b.id));
     const claimed = [];
+    let shown = 0;
     const base = {
       runSeed: this.runSeed,
       roster: this.roster,
@@ -3568,18 +3626,23 @@ export class RunManager {
       metaEffects: this.getEffectiveMetaEffects(),
       startingLordNames: this.getStartingLordNames(),
     };
-    for (const other of nodes.filter((n) => n.type === 'recruit' && !n.completed).sort(order)) {
+    const ahead = nodes.filter((n) => n.type === 'recruit' && (odds || !n.completed)).sort(order);
+    for (const other of ahead) {
       if (order(other, self) >= 0) break;
-      const lordName = resolveRecruitNodeSpawnClass({
+      const spawn = resolveRecruitNodeSpawnClass({
         ...base,
         preview: other.recruitPreview,
         nodeId: other.id,
         act: other.battleParams?.act || this.currentAct,
-        claimedLordNames: claimed,
-      })?.lordName;
-      if (lordName) claimed.push(lordName);
+        // Which lord a visited node held no longer matters; whether it held one does not
+        // depend on the claims (the roll comes first).
+        claimedLordNames: other.completed ? [] : claimed,
+        lordOdds: odds ? { v: odds.v, lordCount: start + shown } : null,
+      });
+      if (spawn?.isLord) shown++;
+      if (!other.completed && spawn?.lordName) claimed.push(spawn.lordName);
     }
-    return claimed;
+    return { claimed, lordCount: odds ? start + shown : null };
   }
 
   /** Get battleParams for a battle node. */
@@ -3930,6 +3993,7 @@ export class RunManager {
 
   addGold(amount) {
     this.gold += amount;
+    this.runLedger = Ledger.tallyGold(this.runLedger, amount);
   }
 
   awardGold(amount) {
@@ -4154,7 +4218,7 @@ export class RunManager {
 
   spendGold(amount) {
     if (amount > this.gold) return false;
-    this.gold -= amount;
+    this.addGold(-amount);
     return true;
   }
 
@@ -4327,18 +4391,15 @@ export class RunManager {
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
-    // Battle is over either way — never leave a stale suspend flag that
-    // would offer to resume a finished fight on the next load. A Watcher's Grace charge the
-    // battle did not spend fades with it (before the act boss's own +1 below).
+    // Battle is over either way: no stale suspend flag offering to resume a finished fight. A
+    // Watcher's Grace charge the battle did not spend fades with it (before the act boss's +1).
     this._settleBossBattleVision(this.battleInProgress);
     this.battleInProgress = null;
     const node = this.openBattleNode(nodeId);
     if (!node) return false;
     if (this.totalTurns !== null)
       this.totalTurns += Math.max(0, Math.trunc(options.turnCount) || 0);
-    // The battle's gold is known before anything is committed, so burdens settle in one
-    // place (Burdens.burdenEffectsOnVictory: pure; assigned below, at the victory commit
-    // and nowhere else, so a reverted or suspended battle never touches them).
+    // Burdens settle in one place, at the victory commit only (Burdens.burdenEffectsOnVictory).
     const completionGold = Number.isFinite(options?.completionGoldOverride)
       ? Math.max(0, Math.floor(options.completionGoldOverride))
       : undefined;
@@ -4454,13 +4515,14 @@ export class RunManager {
     // Include stored and casualty-retained equipment, not consumables.
     for (const unit of [...this.roster, ...this.fallenUnits]) {
       for (const item of [...(unit.inventory || []), unit.weapon]) {
-        if (item?.perBattleUses) item._usesSpent = 0;
+        refillBattleUses(item);
       }
     }
     for (const item of this.convoy.weapons || []) {
-      if (item?.perBattleUses) item._usesSpent = 0;
+      refillBattleUses(item);
     }
     this._suppressPersonalSkillsForCurrentRosterIfNeeded();
+    this.metaBattlePoints += battleMetaReward(this.currentAct, this.completedBattles === 0);
     this.completedBattles++;
     this.winStreak++;
     if (this.winStreak > this.maxWinStreak) this.maxWinStreak = this.winStreak;
@@ -4493,6 +4555,7 @@ export class RunManager {
       losses: newlyFallen.length,
     });
 
+    this.runLedger = Ledger.settleLedger(this, options, survivingUnits, newlyFallen);
     const isRewardBossNode = isActBossVictory(this, node);
     const isRewardAct =
       this.nodeMap?.actId === 'act1' ||
@@ -4954,11 +5017,15 @@ export class RunManager {
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     // Each act's events are its own (the log, flags and burdens run on).
     this.eventStateByNodeId = {};
     this.pendingEventNodeId = null;
+    // The new act's recruit nodes read the lords the army has as it begins (after the boss's
+    // draft), so taking one lord never turns another card of the same act into someone else.
+    if (this.lordRecruitOdds) this._stampLordsAtActStart();
     this.ensureRecruitPreviews();
     // Every act opens on a fresh land: act pressure restarts at 0 (the global meter,
     // after any boss relief, carries on).
@@ -5186,10 +5253,8 @@ export class RunManager {
   }
 
   /**
-   * Mark the run as a defeat.
-   * @param {{defeatedBy?: string|null, wasBoss?: boolean}|null} context - who
-   *   ended the run (for narrative memory). Abandon/retreat callers pass
-   *   nothing: retreating is not "slain by".
+   * Mark the run as a defeat. `context`: who ended it (`defeatedBy`, `wasBoss`: narrative memory;
+   * retreat callers pass nothing, retreating is not "slain by") and the final board (`terminal`).
    */
   failRun(context = null) {
     // The prologue never settles a defeat (§8): its falls restart the chapter. A
@@ -5199,6 +5264,7 @@ export class RunManager {
       return false;
     }
     this.status = 'defeat';
+    this.runLedger = Ledger.withTerminalSummary(this.runLedger, context?.terminal);
     this.winStreak = 0;
     this.battleInProgress = null;
     this.defeatContext =
@@ -5264,6 +5330,7 @@ export class RunManager {
                 actsCleared: this.actIndex + 1,
                 totalTurns: this.totalTurns,
                 shadow: this.isEclipseActive() ? this.eclipse.shadow : null,
+                ...Ledger.gradeRecordField(this, summary.result),
                 roster: this.roster.map(survivorRecord),
                 fallen: fallenForRecord(everFallenUnits(this)).map(fallenRecord),
               }
@@ -5315,15 +5382,7 @@ export class RunManager {
   previewEndRunRewards(result = 'defeat') {
     if (this.endRunRewards) return { ...this.endRunRewards };
     const multiplier = this.getDifficultyModifier('currencyMultiplier', 1) || 1;
-    const reward = calculateCurrencies(
-      this.actIndex,
-      this.completedBattles,
-      result === 'victory',
-      multiplier,
-    );
-    // One milestone per run, settled through the same defeat/abandon/victory path.
-    const milestone = this.reachedFirstActBoss ? Math.floor(15 * multiplier) : 0;
-    return { valor: reward.valor + milestone, supply: reward.supply + milestone };
+    return runEndMetaReward(this, result === 'victory', multiplier);
   }
 
   /** Serialize run state to a plain object for localStorage. */
@@ -5701,6 +5760,7 @@ export class RunManager {
     rm.nodeMap = saved.nodeMap;
     rm.currentNodeId = saved.currentNodeId;
     rm.completedBattles = saved.completedBattles;
+    rm.metaBattlePoints = savedMetaBattlePoints(saved);
     const ws = saved.winStreak;
     rm.winStreak = Number.isFinite(ws) && ws >= 0 ? Math.trunc(ws) : 0;
     const mws = saved.maxWinStreak;
@@ -5927,6 +5987,7 @@ export class RunManager {
         : {};
     rm.runRecordId =
       typeof saved.runRecordId === 'string' ? saved.runRecordId : `legacy-${saved.runSeed}`;
+    rm.runLedger = Ledger.sanitizeRunLedger(saved.runLedger);
     rm.totalTurns = Number.isFinite(saved.totalTurns)
       ? Math.max(0, Math.trunc(saved.totalTurns))
       : null;
@@ -5961,6 +6022,9 @@ export class RunManager {
     rm.ruinsRevivedByNodeId = sanitizeRuinsRevivals(saved.ruinsRevivedByNodeId);
     // Saves from before the church limit carry none: no church has revived anyone yet.
     rm.churchRevivesByNodeId = sanitizeChurchRevives(saved.churchRevivesByNodeId);
+    rm.reviveDiscountAct = sanitizeReviveDiscountAct(saved.reviveDiscountAct);
+    // Saves from before lord odds v2 carry none: the run keeps the flat chance it began with.
+    rm.lordRecruitOdds = sanitizeLordRecruitOdds(saved.lordRecruitOdds);
     rm.churchVowByNodeId = sanitizeChurchVows(saved.churchVowByNodeId);
     // Saves from before the Tithe Box carry none: no church has paid it.
     rm.churchTitheByNodeId = sanitizeChurchTithes(saved.churchTitheByNodeId);

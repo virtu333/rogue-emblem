@@ -1368,7 +1368,7 @@
   {
     "id": "heros_call",
     "name": "Hero's Call",
-    "description": "+8% lord recruit chance per tier",
+    "description": "+5% lord recruit chance per tier",
     "category": "economy",
     "maxLevel": 3,
     "costs": [
@@ -1378,13 +1378,13 @@
     ],
     "effects": [
       {
-        "lordRecruitChanceBonus": 0.08
+        "lordRecruitChanceBonus": 0.05
       },
       {
-        "lordRecruitChanceBonus": 0.16
+        "lordRecruitChanceBonus": 0.1
       },
       {
-        "lordRecruitChanceBonus": 0.24
+        "lordRecruitChanceBonus": 0.15
       }
     ],
     "requires": {
