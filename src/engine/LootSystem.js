@@ -16,6 +16,7 @@ import {
   SHOP_SELL_RATIO,
   LOOT_CHOICES,
   SHOP_ITEM_COUNT,
+  SHOP_GUARANTEED_VULNERARIES,
   NODE_GOLD_MULTIPLIER,
   LOOT_GOLD_TEAM_XP,
   GOLD_BATTLE_REWARD_MULTIPLIER,
@@ -1327,7 +1328,7 @@ export function generateShopInventory(
   // tight 3-4 item count has no room for two more unconditional guarantees
   // on top of the rare-item guarantee above.
   if (!generateOptions?.rareBias) {
-    const guaranteedConsumables = ['Vulnerary', 'Elixir'];
+    const guaranteedConsumables = ['Elixir'];
     for (const name of guaranteedConsumables) {
       if (usedNames.has(name)) continue;
       const inHealingOrPromotion = [
@@ -1336,6 +1337,22 @@ export function generateShopInventory(
       ].includes(name);
       if (!inHealingOrPromotion) continue;
       addByName(name, 'consumable');
+    }
+    // Basic medicine: a set number of Vulneraries in every act, pool or not
+    // (Acts III-IV list none). Each is its own row and instance, bought once.
+    // The first is always stocked, as before; another only while the shelf
+    // has room, so a small shelf keeps its size.
+    const requestedVulneraries = generateOptions?.guaranteedVulneraries;
+    const vulneraryCount = Number.isInteger(requestedVulneraries)
+      ? Math.max(0, requestedVulneraries)
+      : SHOP_GUARANTEED_VULNERARIES;
+    let vulneraries = inventory.filter((entry) => entry.item?.name === 'Vulnerary').length;
+    while (vulneraries < vulneraryCount && (vulneraries === 0 || inventory.length < itemCount)) {
+      const item = findItem('Vulnerary', allWeapons, consumables, allAccessories);
+      if (!item || item.price <= 0) break;
+      usedNames.add('Vulnerary');
+      inventory.push({ item: structuredClone(item), price: item.price, type: 'consumable' });
+      vulneraries++;
     }
   }
 

@@ -718,6 +718,9 @@ export function createRecruitUnit(
     ? seasonedGrowthRanges(growthSource.growthRanges)
     : growthSource.growthRanges;
   const growths = growthRanges ? rollGrowthRates(growthRanges) : {};
+  // The roll itself, before the class's promotion bonus, meta upgrades, traits or blessings:
+  // the growths that are the recruit's own (an NG+ veteran's identity, NgPlusRun.identityOf).
+  const rolledGrowths = growthRanges ? { ...growths } : null;
   if (classData.growthBonuses) {
     for (const [stat, bonus] of Object.entries(classData.growthBonuses)) {
       growths[stat] = (growths[stat] || 0) + bonus;
@@ -739,6 +742,7 @@ export function createRecruitUnit(
     isLord: false,
     personalGrowths: null,
     growths,
+    ...(rolledGrowths ? { rolledGrowths } : {}),
     proficiencies,
     skills: [],
     col: 0,
@@ -1685,6 +1689,8 @@ export function reclassUnit(
   }
   if (growthSource.growthRanges) {
     const newGrowths = rollGrowthRates(growthSource.growthRanges);
+    // A recruit's own growths are the new roll now (NgPlusRun.identityOf reads them).
+    if (!unit.isLord) unit.rolledGrowths = { ...newGrowths };
     // Promoted targets layer their growthBonuses on the base class ranges,
     // matching promoteUnit's behavior.
     if (newClassData.growthBonuses) {

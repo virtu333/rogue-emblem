@@ -50,6 +50,22 @@
         }
       ]
     },
+    "debt_medium": {
+      "label": "Debt: {owed} gold",
+      "points": 3,
+      "tags": [
+        "gold"
+      ],
+      "effects": [
+        {
+          "type": "burden",
+          "params": {
+            "id": "debt",
+            "owed": 2500
+          }
+        }
+      ]
+    },
     "debt_large": {
       "label": "Debt: {owed} gold",
       "points": 3.5,
@@ -572,7 +588,7 @@
       "lore": "Honored at any forge that still stamps Varen's mark. The first blow is on the smith.",
       "name": "Smith's Mark",
       "tier": 2,
-      "description": "Each shop's first forge or repair is free, and every shop forges once more.",
+      "description": "Each shop's first forge or repair is up to 1,000 G off; every shop forges once more.",
       "weight": 1,
       "boons": [
         {
@@ -601,7 +617,7 @@
       "id": "arsenal_pact",
       "lore": "The shrine lends silver to pilgrims bound for the worst roads. It never asks twice.",
       "name": "Arsenal Pact",
-      "tier": 4,
+      "tier": 3,
       "description": "Start with a silver weapon.",
       "weight": 1,
       "boons": [
@@ -613,8 +629,8 @@
           }
         }
       ],
-      "pact": [
-        "debt_heavy"
+      "prices": [
+        "debt_medium"
       ],
       "costs": []
     },
@@ -1632,7 +1648,7 @@
           "kind": "event"
         }
       ],
-      "description": "Each shop's first forge is free, and your weapons never take wear.",
+      "description": "Each shop's first forge is up to 1,000 gold off, and your weapons never take wear.",
       "lore": "A smith's word, struck into the steel itself. Nothing he has blessed will dull.",
       "boons": [
         {
@@ -2408,7 +2424,7 @@
         }
       ],
       "twist": {
-        "label": "Foes go for your commander first",
+        "label": "Half the foes go for your commander first",
         "effects": [
           {
             "type": "foes_target_commander",

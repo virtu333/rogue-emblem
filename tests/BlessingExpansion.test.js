@@ -34,7 +34,7 @@ describe('Blessing Expansion v2 � data validation', () => {
     expect(gameData.blessings.blessings.filter((b) => b.earned)).toHaveLength(37);
   });
 
-  it('tier distribution is 4/15/15/6', () => {
+  it('tier distribution is 4/15/16/5 (Arsenal Pact moved IV -> III, Oct 2026)', () => {
     const gameData = loadGameData();
     const tiers = { 1: 0, 2: 0, 3: 0, 4: 0 };
     // Earned blessings have no tier; they are not part of the offered split.
@@ -42,8 +42,8 @@ describe('Blessing Expansion v2 � data validation', () => {
       tiers[blessing.tier]++;
     expect(tiers[1]).toBe(4);
     expect(tiers[2]).toBe(15);
-    expect(tiers[3]).toBe(15);
-    expect(tiers[4]).toBe(6);
+    expect(tiers[3]).toBe(16);
+    expect(tiers[4]).toBe(5);
   });
 
   // Blessings v3 (docs/specs/blessings-v3.md §4): retiered by what they are worth, every

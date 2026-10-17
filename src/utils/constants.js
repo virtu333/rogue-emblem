@@ -252,6 +252,11 @@ export const SHOP_ITEM_COUNT = { min: 8, max: 10 };
 export const RUINS_SHOP_ITEM_COUNT = { min: 5, max: 6 };
 export const RUINS_SHOP_ITEM_COUNT_FINAL = { min: 8, max: 10 };
 export const RUINS_SHOP_MARKUP = 1.25;
+// Basic medicine on every ordinary shop's shelf, in every act (Vulneraries leave
+// the healing pool from Act III): a hurt army always has a cheap heal to buy.
+// The Ruins' smaller shelf keeps one; a Merchant Caravan none.
+export const SHOP_GUARANTEED_VULNERARIES = 2;
+export const RUINS_GUARANTEED_VULNERARIES = 1;
 // The Ruins offer one of two paths per visit: rest (heal, revive) or scavenge (wares).
 export const RUINS_PATHS = Object.freeze(['rest', 'scavenge']);
 // A church's one vow per visit: a promotion, a minor blessing, or the cleansing of one burden
@@ -297,6 +302,9 @@ export const FORGE_TIER_COST_MULTIPLIER = {
   Legend: 2,
 };
 export const SHOP_FORGE_LIMITS = { act1: 2, act2: 3, act3: 4, act4: 5, finalBoss: 0 };
+// Smith's Mark and Smith's Covenant: each shop's first forge or repair (per card held) costs up
+// to this much less, the rest paid (2026-10-17; it was free, worth up to a Legend's 7,000).
+export const SHOP_FORGE_CREDIT = 1000;
 
 // Worn weapons (a forge below zero, docs/specs/worn-weapons.md). A wear step is the
 // negation of one forge step of its stat (FORGE_BONUSES), so the sizes live there.

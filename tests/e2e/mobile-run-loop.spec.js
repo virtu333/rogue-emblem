@@ -195,6 +195,8 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
   await page
     .locator('.shop-row')
     .filter({ has: page.getByText(entry.name, { exact: true }) })
+    // Every shelf stocks two Vulneraries, so a name can match more than one row.
+    .first()
     .tap();
   await page.locator('.shop-commit button').tap();
   await page
