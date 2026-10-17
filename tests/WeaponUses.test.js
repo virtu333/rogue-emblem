@@ -25,6 +25,7 @@ import {
   weaponSwapMessage,
 } from '../src/engine/PerBattleWeapons.js';
 import {
+  playerBattleUses,
   refillBattleUses,
   setWeaponUsesConfigForTesting,
   validateWeaponUsesConfig,
@@ -35,6 +36,8 @@ import {
   weaponUsesShort,
 } from '../src/engine/ItemKeywords.js';
 import { forecastNotes } from '../src/ui/forecastDisplay.js';
+import { HELP_TABS } from '../src/data/helpContent.js';
+import { PROLOGUE_NOTES } from '../src/data/prologueContent.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { loadGameData } from './testData.js';
 import { readFileSync } from 'node:fs';
@@ -278,5 +281,30 @@ describe('what the player reads', () => {
     const defending = forecastNotes(forecast, false, forecast.attacker.hp, { unit: kira });
     expect(defending.some((n) => n.includes('uses this battle'))).toBe(false);
     expect(plannedWeaponUsesNote(foe.weapon, foe)).toBeNull();
+  });
+});
+
+describe('where the rule is taught', () => {
+  it("the Compendium's figure is a player unit's uses each battle; staves have none", () => {
+    expect(playerBattleUses(weapon('Iron Sword'))).toBe(OWNER_USES.Iron);
+    expect(playerBattleUses(weapon('Silver Lance'))).toBe(OWNER_USES.Silver);
+    expect(playerBattleUses(weapon('Breachbolt'))).toBe(weapon('Breachbolt').uses);
+    expect(playerBattleUses(weapon('Heal'))).toBeNull();
+    setWeaponUsesConfigForTesting({ ...weaponUsesData, enabled: false });
+    expect(playerBattleUses(weapon('Iron Sword'))).toBeNull();
+  });
+
+  it("Help's Weapon Uses page names where the count is read", () => {
+    const page = HELP_TABS.flatMap((t) => t.pages).find((p) => p.title === 'Weapon Uses');
+    const text = page.lines.map((l) => l.text).join('\n');
+    expect(text).toContain(`Iron ${OWNER_USES.Iron}`);
+    expect(text).toMatch(/Equip and the forecast show uses left/);
+    expect(page.lines.length).toBeLessThanOrEqual(15);
+  });
+
+  it("the prologue's first forecast note teaches the uses while the rule is on", () => {
+    expect(PROLOGUE_NOTES.battle_forecast()).toMatch(/each fight spends one, and they refill/);
+    setWeaponUsesConfigForTesting({ ...weaponUsesData, enabled: false });
+    expect(PROLOGUE_NOTES.battle_forecast()).not.toMatch(/uses/);
   });
 });

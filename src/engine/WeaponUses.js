@@ -82,6 +82,14 @@ export function perBattleMaxUses(weapon, unit, cfg = config) {
   return Number.isFinite(byFaction) ? byFaction : (weapon?.uses ?? 0);
 }
 
+/** A player unit's uses each battle with this weapon (the Compendium's figure); null when none. */
+export function playerBattleUses(weapon, cfg = config) {
+  const unit = { faction: 'player' };
+  if (!tracksBattleUses(weapon, unit, cfg)) return null;
+  const n = perBattleMaxUses(weapon, unit, cfg);
+  return n > 0 ? n : null;
+}
+
 /** True when this unit's weapon keeps a count and has none left this battle. */
 export function isSpentForBattle(weapon, unit, cfg = config) {
   if (!tracksBattleUses(weapon, unit, cfg)) return false;

@@ -19,7 +19,9 @@ Nothing new is saved: a weapon holds only `_usesSpent` (already saved for Breach
 
 - The forecast's attacker notes always give the planned weapon's count ("Silver Sword: 7/10 uses this battle", `ItemKeywords.plannedWeaponUsesNote`), so cycling weapons in the forecast shows each one's (the phone forecast puts it beside the weapon's name instead, "4/15 uses", so an upright phone keeps both sides in view); the battle's Equip menu shows it on every row ("Iron Sword 12/20", `weaponUsesShort`). No separate low-uses warning (Dave, 2026-10-17).
 - The phone HUD's unit line ("Myrmidon · Iron Sword (12/20)"), the desktop inspect tooltip (`equippedWeaponUsesLine`), the unit detail weapon tooltip and the roster sheet ("Uses 12/20 this battle", `perBattleUsesText`).
-- Help › Arms › Weapon Uses (numbers read from the data).
+- Help › Arms › Weapon Uses (numbers read from the data), which also says where the count is read.
+- Compendium › Arms: each weapon's entry gives a player unit's uses each battle (`Uses:15`; `WeaponUses.playerBattleUses`, none for a staff).
+- The prologue's first forecast note (P1, `battle_forecast`) adds one sentence on uses while the rule is on.
 
 ## Next (not built)
 

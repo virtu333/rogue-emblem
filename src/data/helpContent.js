@@ -44,6 +44,7 @@ function weaponUsesPages() {
         { text: '  A double attack is still one use.' },
         { text: '' },
         { text: 'All uses refill after each battle.', color: GREEN },
+        { text: 'Equip and the forecast show uses left.', color: GRAY },
         { text: '' },
         { text: 'A spent weapon cannot attack or counter.', color: CYAN },
         { text: 'The unit switches to its next usable', color: GRAY },
