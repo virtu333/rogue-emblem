@@ -532,12 +532,12 @@ describe('loot', () => {
     );
 
   it('the category weights are exactly the ones the game had', () => {
-    // Copied from data/lootTables.json on main before 3H.
+    // Copied from data/lootTables.json before 3H; only the legendary weights moved since (Act III 7 to 5, Act IV 18 to 7).
     const before = {
       act1: { weapon: 20, healing: 12, statBooster: 0, promotion: 3, skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 15, forge: 15, gold: 35 }, // prettier-ignore
       act2: { weapon: 20, healing: 3, statBooster: 10, promotion: 2, skillScroll: 4, weaponArtScroll: 6, legendaryWeapon: 0, accessory: 15, forge: 20, gold: 20 }, // prettier-ignore
-      act3: { weapon: 25, healing: 2, statBooster: 11, promotion: 2, skillScroll: 5, weaponArtScroll: 5, legendaryWeapon: 7, accessory: 15, forge: 15, gold: 15 }, // prettier-ignore
-      act4: { weapon: 15, healing: 2, statBooster: 10, promotion: 1, skillScroll: 5, weaponArtScroll: 10, legendaryWeapon: 18, accessory: 12, forge: 20, gold: 7 }, // prettier-ignore
+      act3: { weapon: 25, healing: 2, statBooster: 11, promotion: 2, skillScroll: 5, weaponArtScroll: 5, legendaryWeapon: 5, accessory: 15, forge: 15, gold: 15 }, // prettier-ignore
+      act4: { weapon: 15, healing: 2, statBooster: 10, promotion: 1, skillScroll: 5, weaponArtScroll: 10, legendaryWeapon: 7, accessory: 12, forge: 20, gold: 7 }, // prettier-ignore
       finalBoss: { gold: 100 },
     };
     for (const [act, weights] of Object.entries(before))
