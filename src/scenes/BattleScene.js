@@ -742,10 +742,9 @@ export class BattleScene extends Phaser.Scene {
 
     // Determine deploy limits for this act (+ meta upgrade bonus): the act's limits are
     // deployLimitsForParams, the rule the route map's scout reads too.
-    // A re-entered battle keeps its locked map, so it deploys no more units than that
-    // map has spawns (resolveDeployLimits). A prologue chapter with a deploy rule (P4)
-    // fields one unit per authored spawn and at least its own minimum, in the run and
-    // in a replay alike.
+    // A re-entered battle deploys no more units than its locked map has spawns
+    // (resolveDeployLimits). A prologue chapter with a deploy rule (P4) fields one unit per
+    // authored spawn and at least its own minimum, in the run and in a replay alike.
     const chapter = prologueChapterOf(this.battleParams, this.gameData);
     const deployRule = prologueDeployRule(chapter);
     const chapterSpawns = chapter?.playerSpawns?.length || 0;
@@ -761,6 +760,7 @@ export class BattleScene extends Phaser.Scene {
             : this.runManager?.getLockedSpawnCount?.(this.nodeId),
         });
 
+    this._deployLimits = limits; // the formation's minimum: past it, a waiting unit sits out
     // Back from the formation's Roster: the same army again, without asking twice.
     const returning =
       !this._resumeCheckpoint && this.roster

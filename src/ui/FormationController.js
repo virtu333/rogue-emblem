@@ -33,6 +33,7 @@ import {
 } from '../engine/FormationPlacement.js';
 import { FormationPicker } from './FormationPicker.js';
 import { unitIdentityKey } from '../engine/UnitIdentity.js';
+import { findCommander } from '../engine/Commander.js';
 import { mirrorTemplateY } from '../engine/TemplateLayout.js';
 import {
   canOpenFormationRoster,
@@ -326,6 +327,34 @@ export class FormationController {
     return isComplete(this.formation) && this.formation.at.every((t, u) => !this.issue(u, t));
   }
 
+  /**
+   * Units that must stand on the field to start: the deploy screen's minimum for this battle
+   * (never more than the army has). Anyone past it may wait out the battle, as a unit the
+   * deploy screen left off does.
+   */
+  minToStart() {
+    const min = Math.trunc(Number(this.scene?._deployLimits?.min) || 1);
+    return Math.max(1, Math.min(min, this.units.length));
+  }
+
+  /** '' when the battle may start, else why not (the commander always deploys, as on the deploy screen). */
+  startBlock() {
+    const need = this.minToStart();
+    if (this.placed() < need) return { kind: 'count', need };
+    const commander = findCommander(this.units);
+    const c = commander ? this.units.indexOf(commander) : -1;
+    if (c !== -1 && this.formation.at[c] === null)
+      return { kind: 'commander', name: commander.name };
+    if (!this.formation.at.every((t, u) => t === null || !this.issue(u, t)))
+      return { kind: 'tile' };
+    return null;
+  }
+
+  /** The army is placed well enough to start: enough units, the commander, every one on a legal tile. */
+  canStart() {
+    return this.startBlock() === null;
+  }
+
   /** Whether placing u on t sends the unit there back to waiting (it can't take u's tile). */
   displaces(u, t) {
     const occupant = unitOnTile(this.formation, t);
@@ -575,7 +604,7 @@ export class FormationController {
 
   /** Start the battle with the chosen formation. */
   start() {
-    if (!this.ready || !this.complete()) return false;
+    if (!this.ready || !this.canStart()) return false;
     this.commit();
     return true;
   }
@@ -590,14 +619,27 @@ export class FormationController {
     this.heldUnit = null;
     this.selectedTile = null;
     if (s.unitDetailOverlay?.visible) s.unitDetailOverlay.hide();
+    // A unit left waiting sits the battle out like one the deploy screen left off: it joins
+    // the non-deployed units, who come back with the survivors on victory.
+    const field = [];
     for (const [u, unit] of this.units.entries()) {
-      const tile = this.tiles[this.formation.at[u]];
+      const t = this.formation.at[u];
+      if (t === null) {
+        s.removeUnitGraphic?.(unit);
+        (s.nonDeployedUnits ||= []).push(unit);
+        continue;
+      }
+      const tile = this.tiles[t];
       unit.col = tile.col;
       unit.row = tile.row;
+      field.push(unit);
     }
+    // The Last deed counts the army that fought.
+    if (field.length < this.units.length && s.battleParams)
+      s.battleParams.deployCount = field.length;
     s.playerUnits.length = 0;
-    s.playerUnits.push(...this.units);
-    for (const unit of this.units) {
+    s.playerUnits.push(...field);
+    for (const unit of field) {
       this.setUnitShown(unit, true);
       s.updateUnitPosition(unit);
     }

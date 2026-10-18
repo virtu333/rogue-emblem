@@ -96,18 +96,26 @@ export function renderFormationPanel(container, formation, makeButton, { withSta
 }
 
 export function startButton(formation, makeButton) {
-  const ready = formation.complete();
+  const block = formation.startBlock();
+  const ready = block === null;
   const start = makeButton(
     'Start battle',
     () => formation.start(),
     'mb-primary re-btn--primary fm-start',
   );
   start.disabled = !ready;
-  if (!ready)
-    start.setAttribute(
-      'aria-label',
-      `Start battle (place everyone first: ${formation.placed()} of ${formation.units.length})`,
-    );
+  if (!ready) {
+    const n = formation.units.length;
+    const why =
+      block.kind === 'count'
+        ? block.need >= n
+          ? `place everyone first: ${formation.placed()} of ${n}`
+          : `place at least ${block.need}: ${formation.placed()} of ${n}`
+        : block.kind === 'commander'
+          ? `place ${block.name} first`
+          : 'a unit is on a tile it cannot stand on';
+    start.setAttribute('aria-label', `Start battle (${why})`);
+  }
   return start;
 }
 

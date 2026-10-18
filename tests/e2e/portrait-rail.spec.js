@@ -741,7 +741,9 @@ test.describe('Formation upright', () => {
     );
     const hud = rail(page);
     const tools = ['Overview', 'Back', 'Menu'];
-    const start = 'Start battle (place everyone first: 0 of 5)';
+    // Start needs the deploy minimum placed (everyone, when the minimum is the whole army).
+    const need = await battle(page, `return Math.min(s._formation.minToStart(), 5);`);
+    const start = `Start battle (${need >= 5 ? 'place everyone first' : `place at least ${need}`}: 0 of 5)`;
     expectWholeRow(await bottomRow(page), [start, 'Danger', ...tools]);
     // At 375x667 the first row of the bench shows whole before any scroll: the turn's
     // counters (par, Visions) stand aside until the battle begins (review, build 24).

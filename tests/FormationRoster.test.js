@@ -129,6 +129,7 @@ function formationScene({ rm, nodeId }) {
     { col: 3, row: 1 },
   ];
   f.formation = { tiles: f.tiles, at: units.map((_, i) => (i === 0 ? 2 : i === 1 ? 0 : null)) };
+  f.leniency = units.map(() => 'any');
   f.ready = true;
   f.active = true;
   f.drawMarkers = vi.fn();
