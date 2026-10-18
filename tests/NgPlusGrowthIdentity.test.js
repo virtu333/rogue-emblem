@@ -122,11 +122,11 @@ describe('a veteran keeps its own growths, not the run’s upgrades and blessing
   });
 
   it('comes back on Black Sun with Black Sun’s scaled upgrades and no blessing it did not take', () => {
-    // Failure: the veteran returns with Nightfall's larger upgrade share and the old run's
-    // blessing still in its growths, and this run's upgrades never reach it.
+    // Failure: the veteran returns with the old run's upgrade share and blessing still in
+    // its growths (counted twice), and this run's upgrades never reach it.
     const metaManager = unlockedMeta();
     const rm = startRun({
-      difficultyId: 'hard',
+      difficultyId: 'lunatic',
       seed: 43,
       metaEffects: { growthBonuses: META_GROWTHS },
     });
@@ -138,8 +138,8 @@ describe('a veteran keeps its own growths, not the run’s upgrades and blessing
     expect(record.growthsBasis).toBe('innate');
     const innate = minus(
       recruit.growths,
-      Object.fromEntries(STATS.map((s) => [s, 4])),
-      scaled(META_GROWTHS, 0.8),
+      Object.fromEntries(STATS.map((s) => [s, Math.round(5 * 0.5)])),
+      scaled(META_GROWTHS, 0.5),
     );
     expect(record.growths).toEqual(innate);
 

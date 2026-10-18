@@ -260,9 +260,9 @@ describe('every record is kept only once it is saved', () => {
 });
 
 describe('a run is paid once across sessions', () => {
-  function nightfallWinSaved() {
+  function blackSunWinSaved() {
     const rm = new RunManager(data);
-    rm.startRun({ runSeed: 11, applyBlessingsAtStart: false, difficultyId: 'hard' });
+    rm.startRun({ runSeed: 11, applyBlessingsAtStart: false, difficultyId: 'lunatic' });
     rm.actIndex = rm.actSequence.length - 1;
     rm.status = 'victory';
     expect(saveRun(rm, null, 1).ok).toBe(true);
@@ -274,7 +274,7 @@ describe('a run is paid once across sessions', () => {
     const unlocked = seed(5000);
     unlocked.recordMilestone('beatLunatic');
     expect(unlocked.unlockNgPlus().ok).toBe(true);
-    nightfallWinSaved();
+    blackSunWinSaved();
 
     const metaA = freshMeta();
     const metaB = freshMeta();

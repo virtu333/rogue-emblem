@@ -168,7 +168,7 @@ export class DifficultySelectScene extends Phaser.Scene {
     this._draw();
   }
 
-  /** True when the chosen rung can be played as an NG+ run (bought, Nightfall up, army upgrades on). */
+  /** True when the chosen rung can be played as an NG+ run (bought, Black Sun, army upgrades on). */
   _ngPlusAvailable() {
     const mode = this.modes?.[this.selectedIndex];
     return Boolean(

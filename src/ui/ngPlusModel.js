@@ -64,8 +64,8 @@ export function unlockView(meta) {
     unlocked: block === 'unlocked',
     title: 'New Game+',
     lines: [
-      'Nightfall and Black Sun runs where your best keep what they earned.',
-      'After each win on those rungs, 1 lord and 2 recruits can ride again: each keeps 1 skill and 1 item.',
+      'Black Sun runs where your best keep what they earned.',
+      'After each Black Sun win, 1 lord and 2 recruits can ride again: each keeps 1 skill and 1 item.',
       'Veterans come back at level 1 in their base class, with their growths, traits and Mark.',
       'Anyone from the Barracks who falls leaves it for good, except a lost run’s commander, who loses only their latest ride.',
     ],
@@ -228,7 +228,7 @@ export function barracksView(state, gameData = {}, bringLimit = BRING_LIMIT) {
     title: 'Barracks',
     lead: records.length
       ? `Bring up to ${bringLimit} recruits into each NG+ run. Lords bring their kit whenever they ride. Every ride a member has had adds 1 Echo, and Echo makes the enemies stronger.`
-      : 'Empty. Win on Nightfall or Black Sun to send someone here.',
+      : 'Empty. Win on Black Sun to send someone here.',
     bringCount: `Bringing ${bring.size}/${bringLimit}`,
     records: records.map((record) => ({
       id: record.id,
@@ -245,7 +245,7 @@ export function barracksView(state, gameData = {}, bringLimit = BRING_LIMIT) {
 
 /**
  * Begin Run's warning while "Who rides again?" is still open on a bought NG+: the next
- * Nightfall or Black Sun win replaces an open pick, so it asks once first. Null otherwise.
+ * Black Sun win replaces an open pick, so it asks once first. Null otherwise.
  */
 export function openRideWarning(meta) {
   const ride = meta?.getNgPlus?.()?.pendingRide;
@@ -256,7 +256,7 @@ export function openRideWarning(meta) {
     left.recruit ? plural(left.recruit, 'recruit') : null,
   ].filter(Boolean);
   return {
-    text: `Who rides again? still has ${open.join(' and ') || 'room'} to send (NG+ tab). Your next Nightfall or Black Sun win replaces this pick.`,
+    text: `Who rides again? still has ${open.join(' and ') || 'room'} to send (NG+ tab). Your next Black Sun win replaces this pick.`,
     confirmLabel: 'Begin anyway',
   };
 }

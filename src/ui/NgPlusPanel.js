@@ -1,5 +1,5 @@
 // NgPlusPanel.js - the Home Base NG+ tab (docs/specs/ng-plus.md): buy NG+, pick who rides
-// again after a Nightfall or Black Sun win, and choose which veterans to bring. Presentation
+// again after a Black Sun win, and choose which veterans to bring. Presentation
 // only: the words come from ui/ngPlusModel.js and every change is a meta command, saved there.
 import {
   barracksView,

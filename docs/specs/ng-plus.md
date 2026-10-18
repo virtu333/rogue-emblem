@@ -100,15 +100,16 @@ Rules around the edges:
   run save is cleared, so a refresh on that screen comes back to it.
 
 ### 4.5 First NG+ after unlocking
-- Every Nightfall/Black Sun win (before or after buying) stores its survivors as a pending pick
+- Every Black Sun win (before or after buying) stores its survivors as a pending pick
   on the slot, so buying NG+ right after the win opens "Who rides again?" from that win, not a
   wait for the next one.
 - A slot that won Nightfall before this ships has no stored win: its first NG+ run starts with
   lords only and fills the Barracks from its first win.
 
 ### 4.6 Which rungs
-- NG+ runs on Nightfall and Black Sun only. A lower rung stays a normal run (no carry). Keeps NG+
-  an endgame mode and avoids farming First Light.
+- NG+ runs on Black Sun only (Dave, 2026-10-18; it was Nightfall and Black Sun until then). A
+  lower rung stays a normal run (no carry). Keeps NG+ an endgame mode and avoids farming an
+  easier rung.
 
 ## 5. NG+ cycles (the endless ladder)
 
@@ -153,7 +154,7 @@ bonuses are pointless once Home Base is bought out, so no currency reward.
 ## 7. UI touch points
 
 - Home Base: the NG+ item; after purchase, a Barracks page (veterans, their kit, release).
-- Difficulty select: on Nightfall/Black Sun with NG+ owned, an "NG+" toggle and the cycle.
+- Difficulty select: on Black Sun with NG+ owned, an "NG+" toggle and the cycle.
 - New run: "Bring veterans" picker (up to 2) and an Omen picker.
 - Victory: "Who rides again?" (before Run Complete hands off to Home Base).
 - Slot card and run records: "NG+N", Omen total.
@@ -209,7 +210,7 @@ Phases:
 - Omens as Slay the Spire ascensions / Hades Heat: agreed.
 
 - NG+ runs allowed on Nightfall and Black Sun (player's choice; phase 2 scaling and Omens carry
-  the challenge).
+  the challenge). Changed 2026-10-18: Black Sun only (§14).
 - **Pacing rule (overrides the 4.2 table):** at each "Who rides again?", each picked character
   keeps **1 item and 1 skill or ability** of their choice from this run. Kept things build up
   over loops: kept skills cap at **10 skills and 5 abilities** per character (at the cap, a new
@@ -289,3 +290,15 @@ Write-up: project file `reviews/ascension-true-ending.md`.
   build) keeps every forge it has, and every Barracks record keeps what it already stores.
   The roster card says "N kept forges still waking".
 - Tests: `tests/NgPlusEcho.test.js`.
+
+## 14. Black Sun only (2026-10-18)
+
+Dave chose Black Sun only: NG+ runs and "Who rides again?" happen only on Black Sun, and
+Nightfall plays as a normal run. `NgPlusState.NG_PLUS_RUNGS` is `['lunatic']`, the one rule
+the difficulty screen's switch, `meta.ngPlusRunStart` and the ride (`ngPlusRunEnd`) read.
+Nothing already saved is lost: a ride a Nightfall win stored before the change can still be
+picked, and an NG+ run already under way on Nightfall plays and settles its Barracks as before
+(its fallen leave, its win counts), but its win stores no new ride. Knots (Heat) stay on
+Nightfall and Black Sun. `sim/ngplus.js` still harvests veterans from Nightfall runs: the
+scripted player wins those far more often, and a harvest only reads the survivors
+(`rideCandidates`), so it stays a fair stand-in for Black Sun veterans.
