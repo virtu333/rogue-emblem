@@ -41,6 +41,7 @@ import { attachInfo, holdTip } from './infoAffordance.js';
 import { decorateDisclosure } from './disclosure.js';
 import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { isWorn, wearCount, wearLine } from '../engine/WeaponWear.js';
+import { dormantForgeLine } from '../engine/KeptForges.js';
 import { composeWeaponName, itemDisplayName, stripItemNameSuffix } from '../utils/itemNames.js';
 import {
   accessorySkillAlreadyKnown,
@@ -1722,6 +1723,9 @@ export class MobileRosterSheet {
             .join(' · ')}`,
         ),
       );
+    // An NG+ kept weapon whose forges are still asleep says so (engine/KeptForges.js).
+    const dormant = dormantForgeLine(item);
+    if (dormant) c.append(el('p', dormant));
     // Wear, by name: a worn weapon says what it lost and that a village forge mends it.
     if (isWorn(item)) c.append(el('p', wearLine(item), 'mr-wear'));
     const imbue = getImbueDisplayInfo(item, this.gameData.imbues);

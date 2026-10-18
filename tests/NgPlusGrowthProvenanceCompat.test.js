@@ -60,9 +60,9 @@ function startRun({ difficultyId, seed, ngPlus = null }) {
   return rm;
 }
 
-/** A Nightfall win with one recruit; its ride left open. Returns the recruit. */
+/** A Black Sun win with one recruit; its ride left open. Returns the recruit. */
 function winWithRecruit(meta, seed) {
-  const rm = startRun({ difficultyId: 'hard', seed });
+  const rm = startRun({ difficultyId: 'lunatic', seed });
   rm.roster.push(rm._createExtraStartingUnit('Fighter'));
   rm.ensureUnitUids();
   const recruit = rm.roster.at(-1);

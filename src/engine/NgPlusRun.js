@@ -5,13 +5,16 @@
 // Pure apart from the RunManager it is handed (its roster, convoy and ledgers). No Phaser,
 // no Math.random: a veteran is rebuilt from its saved growths and traits, never rolled.
 //
-//   run.ngPlus = { v: 1, members: [{ id, uid, keptUids }], lordKits: [record] } | null
+//   run.ngPlus = { v: 1, members: [{ id, uid, keptUids }], lordKits: [record], echo } | null
 //
 // `members` are the Barracks records playing this run (a brought veteran, or a lord whose
 // kit came back), by the record id and the unit's run uid; `keptUids` the items its record
 // keeps, so the run's end can read each one as it is then (forged, worn, used) or find it
 // gone; `lordKits` the Barracks lords not in the starting roster, kept for a third lord who
-// joins later. A run without the record (null) is an ordinary run.
+// joins later; `echo` the run's Echo, the rides of every member counted as it joins
+// (engine/NgPlusEcho.js: the enemies' scaling). A kept weapon's forges above the act's limit
+// sleep and wake act by act (engine/KeptForges.js); the Barracks always stores them awake.
+// A run without the record (null) is an ordinary run.
 import {
   addToConsumables,
   addToInventory,
@@ -32,6 +35,8 @@ import { isSignatureWeapon } from './SignatureWeapons.js';
 import { findCommander } from './Commander.js';
 import { serializeUnit } from './UnitSerialization.js';
 import { isPrologueRun } from './ScriptedBattle.js';
+import { carriedCopy, keptForgeAwakeLimit, lullForges } from './KeptForges.js';
+import { keptForgeAwakeTable, keptForgeCarry, recordEcho } from './NgPlusEcho.js';
 import {
   INNATE_GROWTHS,
   isNgPlusRung,
@@ -62,7 +67,8 @@ export function sanitizeNgPlusRun(raw) {
   const lordKits = (Array.isArray(raw.lordKits) ? raw.lordKits : [])
     .map(sanitizeRecord)
     .filter((record) => record?.kind === 'lord');
-  return { v: NG_PLUS_RUN_VERSION, members, lordKits };
+  const echo = Math.max(0, Math.floor(Number(raw.echo) || 0));
+  return { v: NG_PLUS_RUN_VERSION, members, lordKits, echo };
 }
 
 /** True when the run is an NG+ run. */
@@ -92,6 +98,11 @@ function placeKeptItem(run, unit, item) {
   } else if (kind === 'consumable') {
     if (!addToConsumables(unit, copy)) run._keepMigratedItem(copy);
   } else if (kind === 'weapon') {
+    // Its forges above the act's limit sleep until a later act (engine/KeptForges.js).
+    lullForges(
+      copy,
+      keptForgeAwakeLimit(run.currentAct || 'act1', keptForgeAwakeTable(run.gameData)),
+    );
     makeRoomForSignature(unit, copy);
     if (addToInventory(unit, copy)) {
       const placed = unit.inventory.at(-1);
@@ -196,7 +207,7 @@ const keptUidsOf = (record) => (record.keptItems || []).map((item) => item.uid).
  */
 export function startNgPlusRun(run, start) {
   if (!isRecord(start) || isPrologueRun(run)) return null;
-  const ngPlus = { v: NG_PLUS_RUN_VERSION, members: [], lordKits: [] };
+  const ngPlus = { v: NG_PLUS_RUN_VERSION, members: [], lordKits: [], echo: 0 };
   const kits = new Map(
     (start.lordKits || [])
       .map(sanitizeRecord)
@@ -208,6 +219,7 @@ export function startNgPlusRun(run, start) {
     if (!record) continue;
     kits.delete(unit.name);
     applyKit(run, unit, record);
+    ngPlus.echo += recordEcho(record);
     ngPlus.members.push({
       id: record.id,
       uid: run.assignUnitUid(unit),
@@ -221,6 +233,7 @@ export function startNgPlusRun(run, start) {
     const unit = buildVeteranUnit(run, record);
     if (!unit) continue;
     applyKit(run, unit, record);
+    ngPlus.echo += recordEcho(record);
     const saved = serializeUnit(unit);
     run.roster.push(saved);
     ngPlus.members.push({
@@ -241,6 +254,8 @@ export function applyNgPlusThirdLord(run, unit) {
   if (!record || run.ngPlus.members.some((m) => m.id === record.id)) return false;
   run.ngPlus.lordKits = kits.filter((r) => r !== record);
   applyKit(run, unit, record);
+  // The third lord's Echo counts from their arrival (the maps made from then on).
+  run.ngPlus.echo = (run.ngPlus.echo || 0) + recordEcho(record);
   run.ngPlus.members.push({
     id: record.id,
     uid: run.assignUnitUid(unit),
@@ -299,12 +314,26 @@ function keepableSkills(run, unit) {
   );
 }
 
+/** Uids of the items the run's Barracks members brought (kept before this run). */
+function memberKeptUids(run) {
+  return new Set((run.ngPlus?.members || []).flatMap((m) => m?.keptUids || []));
+}
+
+/**
+ * What the Barracks stores of an item: every kept forge awake, and only `ngPlus.keptForgeCarry`
+ * of this run's forges (engine/KeptForges.js `carriedCopy`).
+ */
+function carriedItem(run, item, keptUids = memberKeptUids(run)) {
+  return carriedCopy(item, keptForgeCarry(run.gameData), { kept: keptUids.has(item?.uid) });
+}
+
 /** Items a unit could keep: its bag, belt and worn accessory (no other lord's weapon). */
-function keepableItems(unit) {
+function keepableItems(run, unit) {
+  const keptUids = memberKeptUids(run);
   return [...(unit.inventory || []), ...(unit.consumables || []), unit.accessory]
     .filter((item) => keptItemKind(item) && isId(item.uid))
     .filter((item) => !isSignatureWeapon(item) || item.signatureOf === unit.name)
-    .map((item) => structuredClone(item));
+    .map((item) => carriedItem(run, item, keptUids));
 }
 
 const hasGrowthTable = (value) =>
@@ -376,7 +405,7 @@ export function rideCandidates(run) {
       tier: unit.tier === 'promoted' ? 'promoted' : 'base',
       recordId: members.get(unit.unitUid) || null,
       identity: kind === 'recruit' ? identityOf(run, unit) : null,
-      items: keepableItems(unit),
+      items: keepableItems(run, unit),
       skills,
       skillKinds,
     };
@@ -436,7 +465,7 @@ export function ngPlusRunEnd(run, summary) {
         keptItems: member.keptUids
           .map((uid) => held.get(uid))
           .filter(Boolean)
-          .map((item) => structuredClone(item)),
+          .map((item) => carriedItem(run, item)),
       });
     }
   }

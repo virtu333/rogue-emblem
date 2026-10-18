@@ -62,6 +62,8 @@ export class BlessingSelectScene extends Phaser.Scene {
     this.noMetaUpgrades = data.noMetaUpgrades === true;
     this.ngPlusRun = data.ngPlusRun === true && !this.noMetaUpgrades;
     this.ngPlusPreference = data.ngPlusPreference !== false;
+    // Omens (engine/Omens.js): the ranks the difficulty screen chose, or null.
+    this.omens = data.omens && typeof data.omens === 'object' ? data.omens : null;
     this.isTransitioning = false;
     this._blessingCommitted = false;
     this._blessingRunSeed =
@@ -147,6 +149,7 @@ export class BlessingSelectScene extends Phaser.Scene {
       narrativeSeen: meta?.getNarrativeSeen?.() ?? null,
       // NG+: the veterans brought and the Barracks lords' kits (NgPlusRun.js).
       ngPlus: this.ngPlusRun ? (meta?.ngPlusRunStart?.(this.difficultyId) ?? null) : null,
+      omens: this.omens,
     });
     if (!Number.isFinite(this._blessingRunSeed)) this._blessingRunSeed = this.runManager.runSeed;
     writePendingRunSeed(this.registry, this._blessingRunSeed, {
@@ -306,6 +309,7 @@ export class BlessingSelectScene extends Phaser.Scene {
         gameData: this.gameData,
         noMetaUpgrades: this.noMetaUpgrades === true,
         ngPlusRun: this.ngPlusPreference,
+        omensChoice: this.omens,
       },
       { reason: TRANSITION_REASONS.BACK, retryBlocked: hasDOMHost() },
     ).then((ok) => {

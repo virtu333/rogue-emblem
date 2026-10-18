@@ -84,8 +84,8 @@ export function eclipseExplainer(view, config, { kindlePrice = null } = {}) {
   const next = view.nextFall;
   const fallLine =
     next == null
-      ? 'No knot within reach is left for the dark to take this act.'
-      : `The next knot within reach falls in ${next} more shadow.`;
+      ? 'No stop within reach is left for the dark to take this act.'
+      : `The next stop within reach falls in ${next} more shadow.`;
   const relief = Math.max(0, Math.trunc(Number(config.bossRelief) || 0));
   const kindle = Math.max(0, Math.trunc(Number(config.kindleAmount) || 0));
   return {
@@ -111,7 +111,7 @@ export function eclipseExplainer(view, config, { kindlePrice = null } = {}) {
                 'The sun can darken no further, but the land still can: every slow victory gathers shadow for this act.',
               ]
             : []),
-          'Eclipsed knots become harder battles with elite spoils (pick 2 of 4).',
+          'Eclipsed stops become harder battles with elite spoils (pick 2 of 4).',
         ],
       },
     ],

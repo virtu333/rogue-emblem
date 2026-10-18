@@ -52,6 +52,8 @@ export const getSlotCloudPendingKey = (slot) => `${META_KEY_PREFIX}${slot}_cloud
  * device-local, never synced or archived; deleteSlot clears it.
  */
 export const getSlotPendingSeedKey = (slot) => `${META_KEY_PREFIX}${slot}_pendingSeed`;
+/** The Omens the slot chose last (utils/omenChoice.js): device-local; deleteSlot clears it. */
+export const getSlotOmensKey = (slot) => `${META_KEY_PREFIX}${slot}_omens`;
 export const UNKNOWN_SLOT_RECOVERY_OWNER = Symbol('unknown-slot-recovery-owner');
 
 function parseRecoveryOwner(raw) {
@@ -374,6 +376,7 @@ export function deleteSlot(slot) {
     localStorage.removeItem(getSlotRecoveryOwnerKey(slot));
     localStorage.removeItem(getSlotCloudPendingKey(slot));
     localStorage.removeItem(getSlotPendingSeedKey(slot));
+    localStorage.removeItem(getSlotOmensKey(slot));
   } catch (err) {
     console.warn('[SlotManager] deleteSlot failed:', err?.message || err);
   }

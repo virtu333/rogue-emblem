@@ -74,8 +74,8 @@ afterEach(() => vi.restoreAllMocks());
 const weapon = (name) => structuredClone(data.weapons.find((w) => w.name === name));
 const consumable = (name) => structuredClone(data.consumables.find((c) => c.name === name));
 
-/** A Nightfall run whose army holds a Fighter recruit with a learned skill and a kept axe. */
-function wonRun({ difficultyId = 'hard', seed = 11, ngPlus = null } = {}) {
+/** A Black Sun run whose army holds a Fighter recruit with a learned skill and a kept axe. */
+function wonRun({ difficultyId = 'lunatic', seed = 11, ngPlus = null } = {}) {
   const rm = new RunManager(data);
   rm.startRun({ runSeed: seed, applyBlessingsAtStart: false, difficultyId, ngPlus });
   return rm;
@@ -172,7 +172,7 @@ describe('the unlock', () => {
 });
 
 describe('a win leaves its survivors to pick from', () => {
-  it('a Nightfall win stores a pending ride with every army survivor but Gaspar', () => {
+  it('a Black Sun win stores a pending ride with every army survivor but Gaspar', () => {
     // Failure: the special veteran (Gaspar) becomes a Barracks veteran.
     const meta = freshMeta();
     const rm = wonRun();
@@ -184,12 +184,12 @@ describe('a win leaves its survivors to pick from', () => {
     expect(names).toContain('Edric');
     expect(names).toContain(fighter.name);
     expect(names).not.toContain('Gaspar');
-    expect(ngPlusResultNote(freshMeta(), rm)).toMatch(/Black Sun/);
+    expect(ngPlusResultNote(freshMeta(), rm)).toMatch(/unlock New Game\+/);
   });
 
-  it('a First Light or Dusk win stores none, and a defeat stores none', () => {
-    // Failure: a lower rung farms the Barracks.
-    for (const difficultyId of ['normal', 'dusk']) {
+  it('a First Light, Dusk or Nightfall win stores none, and a defeat stores none', () => {
+    // Failure: a lower rung farms the Barracks (NG+ is Black Sun only, the owner's call).
+    for (const difficultyId of ['normal', 'dusk', 'hard']) {
       const meta = freshMeta();
       winRun(wonRun({ difficultyId }), meta);
       expect(meta.getNgPlus().pendingRide).toBeNull();
@@ -426,6 +426,22 @@ describe('"Who rides again?"', () => {
     expect(rideView(meta.getNgPlus(), {}).warnText).toBe('');
   });
 
+  it('the ride shows what riding again does to each survivor’s Echo', () => {
+    // Failure (the owner's ask): the pick names class and level only, so a player sends a
+    // veteran in without seeing the enemies will scale up with it.
+    const meta = unlockedMeta();
+    const first = wonRun();
+    winRun(first, meta);
+    const edric = first.roster.find((u) => u.name === 'Edric');
+    const chipOf = (name) => rideView(meta.getNgPlus(), {}).candidates.find((c) => c.name === name);
+    expect(chipOf('Edric').echoText).toBe('Riding again: Echo 0 → 1');
+    expect(meta.chooseNgPlusRide([{ ref: edric.unitUid }]).ok).toBe(true);
+    if (meta.getNgPlus().pendingRide) expect(meta.chooseNgPlusRide([]).ok).toBe(true);
+    winRun(wonRun({ seed: 12 }), meta);
+    expect(chipOf('Edric').echoText).toBe('Riding again: Echo 1 → 2');
+    expect(chipOf('Sera').echoText).toBe('Riding again: Echo 0 → 1');
+  });
+
   it('the model draws the ride and a picked survivor’s choices', () => {
     const meta = unlockedMeta();
     const rm = wonRun();
@@ -449,9 +465,14 @@ describe('an NG+ run starts with its veterans and kits', () => {
     // Failure: the veteran is re-rolled (new growths), keeps its level, or the trait's growth
     // change lands twice.
     const { meta, vet } = metaWithBarracks();
-    const start = meta.ngPlusRunStart('hard');
+    const start = meta.ngPlusRunStart('lunatic');
     const rm = new RunManager(data);
-    rm.startRun({ runSeed: 21, applyBlessingsAtStart: false, difficultyId: 'hard', ngPlus: start });
+    rm.startRun({
+      runSeed: 21,
+      applyBlessingsAtStart: false,
+      difficultyId: 'lunatic',
+      ngPlus: start,
+    });
     const unit = rm.roster.find((u) => u.name === vet.name);
     expect(unit).toBeTruthy();
     expect(unit.level).toBe(1);
@@ -481,7 +502,7 @@ describe('an NG+ run starts with its veterans and kits', () => {
       rm.startRun({
         runSeed: 21,
         applyBlessingsAtStart: false,
-        difficultyId: 'hard',
+        difficultyId: 'lunatic',
         ngPlus: start,
       });
       vi.restoreAllMocks();
@@ -499,8 +520,8 @@ describe('an NG+ run starts with its veterans and kits', () => {
     rm.startRun({
       runSeed: 21,
       applyBlessingsAtStart: false,
-      difficultyId: 'hard',
-      ngPlus: meta.ngPlusRunStart('hard'),
+      difficultyId: 'lunatic',
+      ngPlus: meta.ngPlusRunStart('lunatic'),
     });
     const saved = JSON.parse(JSON.stringify(rm.toJSON()));
     expect(saved.requiresCapabilities).toContain('ngPlus');
@@ -508,7 +529,7 @@ describe('an NG+ run starts with its veterans and kits', () => {
     const loaded = RunManager.fromJSON(saved, data);
     expect(loaded.ngPlus).toEqual(rm.ngPlus);
     const plain = new RunManager(data);
-    plain.startRun({ runSeed: 21, applyBlessingsAtStart: false, difficultyId: 'hard' });
+    plain.startRun({ runSeed: 21, applyBlessingsAtStart: false, difficultyId: 'lunatic' });
     expect(plain.toJSON().ngPlus).toBeUndefined();
     expect(plain.toJSON().requiresCapabilities || []).not.toContain('ngPlus');
   });
@@ -521,8 +542,8 @@ describe('an NG+ run starts with its veterans and kits', () => {
     rm.startRun({
       runSeed: 23,
       applyBlessingsAtStart: false,
-      difficultyId: 'hard',
-      ngPlus: meta.ngPlusRunStart('hard'),
+      difficultyId: 'lunatic',
+      ngPlus: meta.ngPlusRunStart('lunatic'),
     });
     rm.actIndex = rm.actSequence.indexOf('finalBoss') - 1;
     rm.advanceAct();
@@ -557,11 +578,14 @@ describe('an NG+ run starts with its veterans and kits', () => {
     );
   });
 
-  it('no NG+ start below Nightfall or before the unlock', () => {
+  it('no NG+ start below Black Sun or before the unlock', () => {
+    // Failure: Nightfall still starts an NG+ run (NG+ is Black Sun only, the owner's call).
     const { meta } = metaWithBarracks();
     expect(meta.ngPlusRunStart('dusk')).toBeNull();
+    expect(meta.ngPlusRunStart('hard')).toBeNull();
+    expect(meta.ngPlusRunStart('lunatic')).not.toBeNull();
     expect(
-      new MetaProgressionManager(data.metaUpgrades, getMetaKey(2)).ngPlusRunStart('hard'),
+      new MetaProgressionManager(data.metaUpgrades, getMetaKey(2)).ngPlusRunStart('lunatic'),
     ).toBeNull();
   });
 
@@ -589,7 +613,7 @@ describe('an NG+ run starts with its veterans and kits', () => {
       rm.startRun({
         runSeed: 3,
         applyBlessingsAtStart: false,
-        difficultyId: 'hard',
+        difficultyId: 'lunatic',
         ngPlus: runStartOf(state),
       });
       return rm.roster.find((u) => u.name === 'Bjorn');
@@ -623,7 +647,7 @@ describe('an NG+ run starts with its veterans and kits', () => {
     rm.startRun({
       runSeed: 3,
       applyBlessingsAtStart: false,
-      difficultyId: 'hard',
+      difficultyId: 'lunatic',
       ngPlus: runStartOf(state),
     });
     expect(rm.legendaryGrants).toContain(legend.name);
@@ -650,8 +674,8 @@ describe('an NG+ run starts with its veterans and kits', () => {
     rm.startRun({
       runSeed: 5,
       applyBlessingsAtStart: false,
-      difficultyId: 'hard',
-      ngPlus: meta.ngPlusRunStart('hard'),
+      difficultyId: 'lunatic',
+      ngPlus: meta.ngPlusRunStart('lunatic'),
     });
     const edric = rm.roster.find((u) => u.name === 'Edric');
     const held = new Set([
@@ -679,7 +703,7 @@ describe('an NG+ run starts with its veterans and kits', () => {
     rm.startRun({
       runSeed: 3,
       applyBlessingsAtStart: false,
-      difficultyId: 'hard',
+      difficultyId: 'lunatic',
       ngPlus: runStartOf(state),
     });
     const lordDef = data.lords.find((l) => l.name === 'Kira');
@@ -712,7 +736,7 @@ describe('a Barracks lord who joins mid-run takes their kit, however they join',
     rm.startRun({
       runSeed: 3,
       applyBlessingsAtStart: false,
-      difficultyId: 'hard',
+      difficultyId: 'lunatic',
       ngPlus: runStartOf(state),
     });
     const voss = rm._buildStartingLord(
@@ -774,11 +798,58 @@ describe('the run’s end settles the Barracks', () => {
     rm.startRun({
       runSeed: seed,
       applyBlessingsAtStart: false,
-      difficultyId: 'hard',
-      ngPlus: meta.ngPlusRunStart('hard'),
+      difficultyId: 'lunatic',
+      ngPlus: meta.ngPlusRunStart('lunatic'),
     });
     return rm;
   }
+
+  it('an NG+ run saved on Nightfall before it went Black Sun only still settles, but offers no ride', () => {
+    // Failure: the narrowing strands a run already under way (its fallen veteran stays in
+    // the Barracks), or its win still stores a new pick.
+    const { meta, vet } = metaWithBarracks();
+    const saved = new RunManager(data);
+    saved.startRun({
+      runSeed: 23,
+      applyBlessingsAtStart: false,
+      difficultyId: 'lunatic',
+      ngPlus: meta.ngPlusRunStart('lunatic'),
+    });
+    const json = saved.toJSON();
+    json.difficultyId = 'hard';
+    const rm = RunManager.fromJSON(json, data);
+    expect(rm.difficultyId).toBe('hard');
+    expect(rm.ngPlus).not.toBeNull();
+    const unit = rm.roster.find((u) => u.name === vet.name);
+    rm.roster = rm.roster.filter((u) => u !== unit);
+    rm.fallenUnits.push(unit);
+    winRun(rm, meta);
+    const state = freshMeta().getNgPlus();
+    expect(state.barracks.some((r) => r.id === vet.id)).toBe(false);
+    expect(state.pendingRide).toBeNull();
+    expect(state.wins).toBe(1);
+  });
+
+  it('a ride a Nightfall win stored before the change can still be picked', () => {
+    // Failure: an open pick from a Nightfall win is dropped or refused.
+    const meta = unlockedMeta();
+    const rm = wonRun({ seed: 29 });
+    const fighter = addRecruit(rm);
+    winRun(rm, meta);
+    // The save as the build before wrote it: the same ride, from a Nightfall win.
+    const payload = JSON.parse(store[META_KEY]);
+    expect(payload.ngPlus.pendingRide.runId).toBe(rm.runRecordId);
+    payload.ngPlus.pendingRide.difficultyId = 'hard';
+    store[META_KEY] = JSON.stringify(payload);
+    const later = freshMeta();
+    expect(later.getNgPlus().pendingRide.difficultyId).toBe('hard');
+    expect(later.chooseNgPlusRide([{ ref: fighter.unitUid }]).ok).toBe(true);
+    expect(
+      freshMeta()
+        .getNgPlus()
+        .barracks.some((r) => r.name === fighter.name),
+    ).toBe(true);
+  });
 
   it('a veteran who fell leaves the Barracks, even on a loss', () => {
     // Failure: a fallen veteran comes back next run.
@@ -1046,8 +1117,8 @@ function startNgPlus(meta, seed = 21) {
   rm.startRun({
     runSeed: seed,
     applyBlessingsAtStart: false,
-    difficultyId: 'hard',
-    ngPlus: meta.ngPlusRunStart('hard'),
+    difficultyId: 'lunatic',
+    ngPlus: meta.ngPlusRunStart('lunatic'),
   });
   return rm;
 }
@@ -1218,7 +1289,7 @@ describe('a kept Oath', () => {
   });
 });
 
-/** A meta whose Barracks holds `n` recruit veterans (two per Nightfall win, keeping nothing). */
+/** A meta whose Barracks holds `n` recruit veterans (two per Black Sun win, keeping nothing). */
 function metaWithRecruitVets(n) {
   const meta = unlockedMeta();
   for (let won = 0; won * 2 < n; won += 1) {
@@ -1304,7 +1375,7 @@ describe('the NG+ tab upgrades (repeatable sinks)', () => {
     expect(meta.setNgPlusBring(ids.slice(0, 3)).ok).toBe(true);
     expect(meta.setNgPlusBring(ids)).toEqual({ ok: false, reason: 'too_many' });
     expect(freshMeta().getNgPlus().bring).toEqual(ids.slice(0, 3));
-    const start = meta.ngPlusRunStart('hard');
+    const start = meta.ngPlusRunStart('lunatic');
     expect(start.veterans.map((v) => v.id)).toEqual(ids.slice(0, 3));
     const rm = wonRun({ seed: 77, ngPlus: start });
     // By the run's member records, never by name: two veterans may share a random name,
@@ -1389,10 +1460,15 @@ describe('a full Barracks Wing: six recruit veterans ride', () => {
     expect(freshMeta().getNgPlus().bring).toEqual(ids);
 
     // The start: every veteran, at level 1 in its base class, beside the lords.
-    const start = freshMeta().ngPlusRunStart('hard');
+    const start = freshMeta().ngPlusRunStart('lunatic');
     expect(start.veterans.map((v) => v.id)).toEqual(ids);
     const rm = new RunManager(data);
-    rm.startRun({ runSeed: 31, applyBlessingsAtStart: false, difficultyId: 'hard', ngPlus: start });
+    rm.startRun({
+      runSeed: 31,
+      applyBlessingsAtStart: false,
+      difficultyId: 'lunatic',
+      ngPlus: start,
+    });
     // Two veterans may share a name (the roster renames the second "Bram II"): match by member.
     const vetUnits = ids.map((id) => {
       const member = rm.ngPlus.members.find((m) => m.id === id);

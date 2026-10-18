@@ -1,4 +1,4 @@
-// NG+ at Home Base (docs/specs/ng-plus.md): buy it, pick who rides again from a Nightfall win,
+// NG+ at Home Base (docs/specs/ng-plus.md): buy it, pick who rides again from a Black Sun win,
 // bring a veteran, and see the NG+ switch on the difficulty screen. Played by taps on the DOM.
 import { test, expect, devices } from '@playwright/test';
 import { waitForScene } from './helpers.js';
@@ -67,7 +67,7 @@ async function seedWin(page) {
   });
 }
 
-test('buy NG+, pick who rides again, bring a veteran, and start NG+ on Nightfall', async ({
+test('buy NG+, pick who rides again, bring a veteran, and start NG+ on Black Sun', async ({
   page,
 }) => {
   await boot(page);
@@ -143,14 +143,17 @@ test('buy NG+, pick who rides again, bring a veteran, and start NG+ on Nightfall
   await page.locator('[data-focus="ngplus"]').tap();
   await expect(page.locator('[data-focus^="vet-vet:"]')).toContainText('Bringing');
 
-  // The difficulty screen offers NG+ on Nightfall, never on Dusk.
+  // The difficulty screen offers NG+ on Black Sun only, never on Dusk or Nightfall.
   await page.getByRole('button', { name: 'Begin Run', exact: true }).tap();
   await waitForScene(page, 'DifficultySelect');
   await page.locator('[data-mode="dusk"]').tap();
   await expect(page.locator('[data-focus="ngplus"]')).toHaveCount(0);
   await page.locator('[data-mode="hard"]').tap();
+  await expect(page.locator('[data-focus="ngplus"]')).toHaveCount(0);
+  await page.locator('[data-mode="lunatic"]').tap();
   const toggle = page.locator('[data-focus="ngplus"]');
-  await expect(toggle).toHaveText('New Game+: On');
+  // Bjorn and Edric have ridden once each: the switch names the run's Echo.
+  await expect(toggle).toHaveText('New Game+: On · Echo 2');
   await expect(page.locator('.ch-banner-detail')).toContainText('1 veteran rides with you');
   await toggle.tap();
   await expect(toggle).toHaveText('New Game+: Off');

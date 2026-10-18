@@ -1,10 +1,12 @@
 // NgPlusPanel.js - the Home Base NG+ tab (docs/specs/ng-plus.md): buy NG+, pick who rides
-// again after a Nightfall or Black Sun win, and choose which veterans to bring. Presentation
+// again after a Black Sun win, and choose which veterans to bring. Presentation
 // only: the words come from ui/ngPlusModel.js and every change is a meta command, saved there.
 import {
   barracksView,
   candidateDetail,
   draftPicks,
+  echoLine,
+  echoPreview,
   ngPlusBlockText,
   rideView,
   unlockView,
@@ -77,12 +79,21 @@ export class NgPlusPanel {
             `${c.name}${c.sent ? ' · Sent to the Barracks' : c.picked ? ' · Rides again' : ''}`,
           ),
           node('span', '', c.line),
+          ...(c.echoText ? [node('span', 'ng-echo', c.echoText)] : []),
         );
         list.append(b);
       }
     }
     const barracks = barracksView(state, this.gameData, this.meta.ngPlusBringLimit());
     list.append(node('h3', 'ng-heading', `${barracks.title} · ${barracks.bringCount}`));
+    if (barracks.records.length)
+      list.append(
+        node(
+          'p',
+          'mu-help ng-echo',
+          `Next NG+ run · ${echoLine(echoPreview(this.meta), this.gameData)}`,
+        ),
+      );
     for (const r of barracks.records) {
       const b = this.button(
         '',

@@ -4,6 +4,7 @@
 
 import { DEPLOY_LIMITS } from '../utils/constants.js';
 import { isPrologueRun } from './ScriptedBattle.js';
+import { omenDeployCut } from './Omens.js';
 
 /**
  * @param {{deployedRoster?: object[]|null, resuming?: boolean, recorded?: unknown}} options
@@ -45,14 +46,20 @@ export function deployLimitsForParams(battleParams) {
  * spawn would never be placed (and, missing from both the field and the bench, would be
  * counted as fallen at victory).
  *
+ * A deploy cut (`deployCut`, below 0: the Thin Ranks Knot) lands after a set piece's cap, so an
+ * authored map that caps the deploy still fields one fewer (the review of #444); it never takes
+ * the max below the min, and the lock then holds as before (a map locked with the cut in force
+ * has as many spawns as the cut leaves).
+ *
  * @param {{base?: {min: number, max: number, cap?: number}, deployBonus?: number,
- *          lockedSpawnCount?: number|null}} options
+ *          deployCut?: number, lockedSpawnCount?: number|null}} options
  * @returns {{min: number, max: number, lockedTo: number|null}}
  *   lockedTo: the lock's spawn count when it lowered the cap, else null.
  */
 export function resolveDeployLimits({
   base = { min: 3, max: 4 },
   deployBonus = 0,
+  deployCut = 0,
   lockedSpawnCount = null,
 } = {}) {
   // A deploy bonus (Tactical Advantage, Scout Blessing) opens more slots; it never
@@ -66,6 +73,8 @@ export function resolveDeployLimits({
     max = cap;
     min = Math.min(min, cap);
   }
+  const cut = Math.min(0, Math.trunc(Number(deployCut) || 0));
+  if (cut) max = Math.max(min, max + cut);
   let lockedTo = null;
   const locked = Number(lockedSpawnCount);
   if (Number.isInteger(locked) && locked > 0 && locked < max) {
@@ -74,6 +83,22 @@ export function resolveDeployLimits({
     lockedTo = locked;
   }
   return { min, max, lockedTo };
+}
+
+/**
+ * resolveDeployLimits with a run's deploy bonus and cut: the one call every deploy reader makes
+ * (the deploy screen, the scout, the roster's header, the sims).
+ * @param {object|null} run a RunManager
+ * @param {{min: number, max: number, cap?: number}} base deployLimitsForParams' limits
+ * @param {{ lockedSpawnCount?: number|null }} [options]
+ */
+export function runDeployLimits(run, base, { lockedSpawnCount = null } = {}) {
+  return resolveDeployLimits({
+    base,
+    deployBonus: run?.getDeployBonus?.() || 0,
+    deployCut: omenDeployCut(run),
+    lockedSpawnCount,
+  });
 }
 
 /**
@@ -105,13 +130,15 @@ export function rosterDeploySlots(run) {
   const params = activeEventBattleParams(run);
   const base = deployLimitsForParams({ act: run.currentAct, deployCap: params?.deployCap });
   const bonus = Math.trunc(Number(run.getDeployBonus?.()) || 0);
-  const { max } = resolveDeployLimits({ base, deployBonus: bonus });
+  const cut = omenDeployCut(run);
+  const { max } = runDeployLimits(run, base);
   const actBase = deployLimitsForParams({ act: run.currentAct });
-  const capped = max < actBase.max + bonus;
+  const open = resolveDeployLimits({ base: actBase, deployBonus: bonus, deployCut: cut }).max;
+  const capped = max < open;
   return {
     slots: max,
     // The cap swallows part of the bonus first: only what still opens a slot is shown.
-    bonus: capped ? Math.max(0, max - actBase.max) : bonus,
+    bonus: capped ? Math.max(0, max - actBase.max) : bonus + cut,
     units: Array.isArray(run.roster) ? run.roster.length : 0,
     capped,
   };

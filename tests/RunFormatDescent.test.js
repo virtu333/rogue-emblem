@@ -90,6 +90,8 @@ describe('the Descent’s capabilities', () => {
       ...DESCENT_IDS,
       'entityKit',
       'ngPlus',
+      'ngPlusEcho',
+      'omens',
       'vigilWards',
       'abyss',
       'hammerfall',

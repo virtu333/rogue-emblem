@@ -377,7 +377,7 @@ import { buildRecruitNodeUnit, spawnTilesForDeployment } from '../engine/Recruit
 import {
   battleDeployCount,
   deployLimitsForParams,
-  resolveDeployLimits,
+  runDeployLimits,
 } from '../engine/BattleDeployCount.js';
 import {
   adaptDialogueEntries,
@@ -755,9 +755,7 @@ export class BattleScene extends Phaser.Scene {
           max: chapterSpawns,
           lockedTo: null,
         }
-      : resolveDeployLimits({
-          base: deployLimitsForParams(this.battleParams),
-          deployBonus: this.runManager?.getDeployBonus?.() || 0,
+      : runDeployLimits(this.runManager, deployLimitsForParams(this.battleParams), {
           lockedSpawnCount: isStandaloneScriptedBattle(this.battleParams, this.runManager)
             ? null
             : this.runManager?.getLockedSpawnCount?.(this.nodeId),

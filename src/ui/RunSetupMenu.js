@@ -4,7 +4,9 @@ import { MenuSurface, element, button } from './MenuSurface.js';
 import { blessingCardContent, difficultyBannerContent, giftCardContent } from './choiceContent.js';
 import { blessingTerms } from '../engine/BlessingTerms.js';
 import { ContextHelp } from './ContextHelp.js';
-import { ngPlusRunNote } from './ngPlusModel.js';
+import { ngPlusRunNote, ngPlusToggleLabel } from './ngPlusModel.js';
+import { OmensPicker } from './OmensPicker.js';
+import { heatLabel, omensNote } from './omensModel.js';
 import {
   blessingTarotCard,
   choiceButton,
@@ -82,10 +84,16 @@ export class RunSetupMenu {
       meta.setAttribute('aria-pressed', String(!s._noMetaUpgrades));
       footer.append(meta);
       if (s._ngPlusAvailable?.()) {
-        const ngPlus = button(`New Game+: ${s._ngPlus ? 'On' : 'Off'}`, () => s._toggleNgPlus());
+        const ngPlus = button(ngPlusToggleLabel(s._ngPlus, s.meta), () => s._toggleNgPlus());
         ngPlus.dataset.focus = 'ngplus';
         ngPlus.setAttribute('aria-pressed', String(s._ngPlus));
         footer.append(ngPlus);
+      }
+      if (s._omensAvailable?.()) {
+        const omens = button(heatLabel(s._omensHeat()), () => this.openOmens());
+        omens.dataset.focus = 'omens';
+        omens.setAttribute('aria-haspopup', 'dialog');
+        footer.append(omens);
       }
     }
     const chosen = blessing ? null : s.modes[s.selectedIndex];
@@ -302,11 +310,33 @@ export class RunSetupMenu {
         element('p', `Commander: ${pair.commander} · Partner: ${pair.partner}`, 're-note'),
       );
     if (s._ngPlusAvailable?.() && s._ngPlus)
-      detail.append(element('p', ngPlusRunNote(s.meta), 're-note'));
+      detail.append(element('p', ngPlusRunNote(s.meta, s.gameData), 're-note'));
+    const omensLine = s._omensAvailable?.() ? omensNote(s.gameData, s._omenRanks()) : '';
+    if (omensLine) detail.append(element('p', omensLine, 're-note'));
     appendDetailScrollControls(footer, detail);
     return [row, detail];
   }
+  /** The Omens picker over this menu; closing it redraws the menu with the choice kept. */
+  openOmens() {
+    const s = this.scene;
+    if (this.omensPicker || s.isTransitioning || !s._omensAvailable?.()) return;
+    this.omensPicker = new OmensPicker(s, this.surface.root, {
+      gameData: s.gameData,
+      best: s._omensBest(),
+      startVision: s._startVision?.() ?? null,
+      getRanks: () => s._omenRanks(),
+      onChange: (ranks) => s._setOmens(ranks),
+      onClose: () => {
+        this.omensPicker = null;
+        this.initialFocusSet = true;
+        s._draw();
+        this.surface.body.querySelector('[data-focus="omens"]')?.focus();
+      },
+    });
+  }
   destroy() {
+    this.omensPicker?.destroy();
+    this.omensPicker = null;
     this.leadBoonObserver?.disconnect();
     this.leadBoonObserver = null;
     this.fitStop?.();

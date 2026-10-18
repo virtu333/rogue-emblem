@@ -10,6 +10,7 @@ import { createEclipseState } from './EclipseSystem.js';
 import { sanitizeRite } from './Rite.js';
 import { ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { sanitizeNgPlusRun } from './NgPlusRun.js';
+import { sanitizeOmensRecord } from './Omens.js';
 import { sanitizeRunFeats } from './RunFeats.js';
 
 /**
@@ -115,5 +116,6 @@ export function serializeRun(rm, blessings) {
     blessingBoonRevision: rm.blessingBoonRevision,
     // NG+ (engine/NgPlusRun.js): written only for an NG+ run, so every other save is unchanged.
     ...(rm.ngPlus ? { ngPlus: sanitizeNgPlusRun(rm.ngPlus) } : {}),
+    ...(rm.omens ? { omens: sanitizeOmensRecord(rm.omens) } : {}),
   };
 }

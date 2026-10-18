@@ -484,7 +484,7 @@ describe('Loom inspect card', () => {
     expect(card.place).toBe('Pursuit Road');
     expect(card.tags.map((t) => t.text)).toEqual(['Foes Lv 2–3', 'Loot: pick 2 of 4']);
     expect(card.flavor).toBe('elite line');
-    expect(card.stateLine).toEqual({ tone: 'live', text: 'Within reach · the next knot' });
+    expect(card.stateLine).toEqual({ tone: 'live', text: 'Within reach · the next stop' });
   });
 
   it('applies the difficulty level offset and the first-battle fog rule', () => {

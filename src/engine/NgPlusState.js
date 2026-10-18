@@ -42,8 +42,12 @@ export const NG_PLUS_UNLOCK_KEY = 'ng_plus';
 export const NG_PLUS_COST = Object.freeze({ valor: 1750, supply: 1750 });
 /** A Black Sun win opens the unlock. */
 export const NG_PLUS_MILESTONE = 'beatLunatic';
-/** The rungs an NG+ run is played on, and whose wins offer "Who rides again?". */
-export const NG_PLUS_RUNGS = Object.freeze(['hard', 'lunatic']);
+/**
+ * The rungs an NG+ run is played on, and whose wins offer "Who rides again?": Black Sun only
+ * (the owner's call, 2026-10-18). Nightfall plays as a normal run; a ride a Nightfall win
+ * already stored, and an NG+ run already under way there, are kept.
+ */
+export const NG_PLUS_RUNGS = Object.freeze(['lunatic']);
 export const RIDE_LORD_PICKS = 1;
 export const RIDE_RECRUIT_PICKS = 2;
 /** A recruit record's `growthsBasis` when its growths are innate (NgPlusRun.identityOf). */
