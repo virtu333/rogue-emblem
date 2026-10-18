@@ -113,7 +113,7 @@ for (const [width, height] of [
     await page.evaluate(() => document.fonts.ready);
     for (const [open, name] of [
       ['Settings', 'Settings'],
-      ['Records', 'Victory records'],
+      ['Records', 'Records'],
       ['Compendium', 'Compendium'],
     ]) {
       await page.getByRole('button', { name: open, exact: true }).click();

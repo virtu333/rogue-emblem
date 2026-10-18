@@ -13,6 +13,7 @@ import { validateSetPiecesConfig } from '../src/engine/SetPieces.js';
 import { validateDescentConfig } from '../src/engine/Descent.js';
 import { validateRepeatableUpgrades } from '../src/engine/RepeatableUpgrades.js';
 import { validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
+import { validateAchievementsCatalog } from '../src/engine/Achievements.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 import { validateWeaponUsesConfig } from '../src/engine/WeaponUses.js';
 
@@ -117,6 +118,16 @@ if (repeatableErrors.length === 0) {
 } else {
   console.error('FAIL  metaUpgrades.json repeatable tiers (engine validator)');
   for (const err of repeatableErrors) console.error(`      ${err}`);
+  failed = true;
+}
+
+// The achievements catalog (engine validator: shape, tiers, sections, a rule for every id)
+const achievementsResult = validateAchievementsCatalog(readData('achievements.json'));
+if (achievementsResult.valid) {
+  console.log('  OK  achievements.json (engine validator)');
+} else {
+  console.error('FAIL  achievements.json (engine validator)');
+  for (const err of achievementsResult.errors) console.error(`      ${err}`);
   failed = true;
 }
 

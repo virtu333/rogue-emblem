@@ -6,6 +6,7 @@ import { restoreBattleBlessings, snapshotBattleBlessings } from './BattleBlessin
 import { normalizePendingTerrainTiles } from './TerrainPhases.js';
 import { applyVigilWards, sanitizeVigilState } from './Vigil.js';
 import { sanitizeEntityKitState } from './EntityKit.js';
+import { sanitizeBattleFeats } from './BattleFeats.js';
 import { sanitizeHammerfallState } from './IronGuardian.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
 // in snapshot order; references into that table survive JSON and duplicate names.
@@ -46,6 +47,8 @@ export function captureBattleWorldState(scene) {
     ...(scene._entityKitState
       ? { entityKitState: sanitizeEntityKitState(scene._entityKitState) }
       : {}),
+    // What the battle did that only the achievements ask (engine/BattleFeats.js).
+    ...(scene._battleFeats ? { battleFeats: sanitizeBattleFeats(scene._battleFeats) } : {}),
     // The Iron Guardian's marks (engine/IronGuardian.js): only on a map that fields one, so a
     // resume shows the same marks and a rewind takes a slam back with the HP it took.
     ...(scene._hammerfallState
@@ -106,6 +109,9 @@ export function restoreBattleWorldState(scene, snapshot) {
     scene._vigilState = sanitizeVigilState(snapshot.vigilState);
   if (snapshot.entityKitState !== undefined)
     scene._entityKitState = sanitizeEntityKitState(snapshot.entityKitState);
+  // A snapshot from before the field: the battle's feats start over from it (only what an
+  // achievement would have counted is lost, never anything the battle plays by).
+  scene._battleFeats = sanitizeBattleFeats(snapshot.battleFeats);
   if (snapshot.hammerfallState !== undefined)
     scene._hammerfallState = sanitizeHammerfallState(snapshot.hammerfallState);
   // The Voices' wards are read again from the state and the roster just restored, never trusted

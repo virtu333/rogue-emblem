@@ -930,7 +930,7 @@ test.describe('run records upright', () => {
     await waitForScene(page, 'Title');
     await emulateSafeArea(page);
     await page.getByRole('button', { name: 'Records', exact: true }).tap();
-    const records = page.getByRole('dialog', { name: 'Victory records' });
+    const records = page.getByRole('dialog', { name: 'Records' });
     await expect(records).toBeVisible();
     // The body is the scroll owner: bounded by the screen and scrollable by touch.
     const body = records.locator('.re-menu-body');
@@ -1031,7 +1031,7 @@ test.describe('detailed victory records upright', () => {
     await page.goto('/?devScene=title');
     await waitForScene(page, 'Title');
     await page.getByRole('button', { name: 'Records', exact: true }).tap();
-    const records = page.getByRole('dialog', { name: 'Victory records' });
+    const records = page.getByRole('dialog', { name: 'Records' });
     const rows = records.locator('.rr-entry');
     await expect(rows).toHaveCount(3);
     // The difficulty reads by its ladder name, never its save id.
@@ -1097,7 +1097,7 @@ test.describe('victory records by keyboard (640x480)', () => {
     await page.goto('/?devScene=title');
     await waitForScene(page, 'Title');
     await page.getByRole('button', { name: 'Records', exact: true }).click();
-    const records = page.getByRole('dialog', { name: 'Victory records' });
+    const records = page.getByRole('dialog', { name: 'Records' });
     const rows = records.locator('.rr-entry');
     await expect(rows.first()).toBeFocused();
     await page.keyboard.press('ArrowDown');

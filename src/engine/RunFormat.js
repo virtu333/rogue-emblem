@@ -225,6 +225,9 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     bossState: 'bossKit',
     vigilState: 'vigil',
     entityKitState: 'entityKit',
+    // What the battle did that only the achievements ask (engine/BattleFeats.js): an older
+    // client plays on without it.
+    battleFeats: 'inert',
     hammerfallState: 'hammerfall',
   }),
   // The serialized run's top level.
@@ -246,6 +249,8 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     metaBattlePoints: 'inert',
     // Lord recruit odds v2 (engine/LordRecruitChance.js): an older client rolls the flat chance.
     lordRecruitOdds: 'inert',
+    // The achievements' run counters (engine/RunFeats.js): an older client keeps none.
+    feats: 'inert',
     // The end-of-run grade's tally (engine/RunLedger.js): an older client ignores it.
     runLedger: 'inert',
   }),

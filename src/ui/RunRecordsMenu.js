@@ -5,6 +5,7 @@ import { withUnitFace, unitPortrait } from './unitPortrait.js';
 import { itemIcon } from './itemIcons.js';
 import { baseItemName } from './itemIconIds.js';
 import { InputAction } from '../utils/InputActions.js';
+import { renderAchievementsTab } from './AchievementsTab.js';
 import {
   fellAtText,
   isDetailedRecord,
@@ -147,11 +148,15 @@ function sectionTitle(text, count) {
   return h;
 }
 
-export function showRunRecords(scene) {
+/**
+ * Records: two tabs, Victories (every slot's won runs) and Achievements (AchievementsTab.js).
+ * @param {{ tab?: 'victories'|'achievements' }} [options] the tab to open on
+ */
+export function showRunRecords(scene, { tab = 'victories' } = {}) {
   if (scene.nativeMenu) return scene.nativeMenu;
   const gameData = scene.gameData || {};
   const rows = readRecords();
-  const menu = new MenuSurface(scene, 'Victory records', () => {
+  const menu = new MenuSurface(scene, 'Records', () => {
     menu.destroy();
     scene.nativeMenu = null;
   });
@@ -160,9 +165,49 @@ export function showRunRecords(scene) {
   let view = 'list';
   let listScroll = 0;
 
+  // The tab strip sits between the header and the scrolling body, so it never scrolls away.
+  const tabs = element('div', null, 'rr-tabs');
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', 'Records');
+  const tabButtons = {};
+  const selectTab = (id) => {
+    for (const [key, el] of Object.entries(tabButtons)) {
+      el.setAttribute('aria-selected', String(key === id));
+      el.classList.toggle('is-selected', key === id);
+      el.tabIndex = key === id ? 0 : -1;
+    }
+    menu.root.dataset.tab = id;
+  };
+  for (const [id, label] of [
+    ['victories', 'Victories'],
+    ['achievements', 'Achievements'],
+  ]) {
+    const el = button(
+      label,
+      () => (id === 'achievements' ? renderAchievements() : renderList()),
+      're-btn rr-tab',
+    );
+    el.setAttribute('role', 'tab');
+    el.dataset.tab = id;
+    tabButtons[id] = el;
+    tabs.append(el);
+  }
+  menu.root.insertBefore(tabs, menu.body);
+  menu.body.setAttribute('role', 'tabpanel');
+
+  const renderAchievements = () => {
+    view = 'achievements';
+    menu.root.dataset.view = 'achievements';
+    selectTab('achievements');
+    menu.body.scrollTop = 0;
+    renderAchievementsTab(menu.body, { gameData });
+    tabButtons.achievements.focus({ preventScroll: true });
+  };
+
   const renderList = (focusRow = null) => {
     view = 'list';
     menu.root.dataset.view = 'list';
+    selectTab('victories');
     menu.body.replaceChildren(
       element(
         'p',
@@ -276,7 +321,22 @@ export function showRunRecords(scene) {
     return true;
   };
   menu.onKey = (event) => {
-    if (view !== 'detail' || event.metaKey || event.ctrlKey || event.altKey) return false;
+    if (event.metaKey || event.ctrlKey || event.altKey) return false;
+    if (view === 'achievements') {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp')
+        return scrollDetail(event.key === 'ArrowDown' ? 1 : -1) || true;
+      if (event.key === 'PageDown' || event.key === 'PageUp')
+        return scrollDetail(event.key === 'PageDown' ? 1 : -1, true) || true;
+      if (event.key === 'ArrowLeft') return (renderList(), true);
+      return false;
+    }
+    if (
+      view === 'list' &&
+      event.key === 'ArrowRight' &&
+      document.activeElement === tabButtons.victories
+    )
+      return (renderAchievements(), true);
+    if (view !== 'detail') return false;
     if (event.key === 'Escape') {
       menu.body.querySelector('.rr-back')?.click();
       return true;
@@ -288,6 +348,12 @@ export function showRunRecords(scene) {
     return false;
   };
   menu.onAction = (action, payload) => {
+    if (view === 'achievements') {
+      if (action === InputAction.NAVIGATE && payload?.dy)
+        return scrollDetail(Math.sign(payload.dy)) || true;
+      if (action === InputAction.NAVIGATE && payload?.dx < 0) return (renderList(), true);
+      return false;
+    }
     if (view !== 'detail') return false;
     if (action === InputAction.CANCEL) {
       menu.body.querySelector('.rr-back')?.click();
@@ -297,6 +363,7 @@ export function showRunRecords(scene) {
     return false;
   };
 
-  renderList();
+  if (tab === 'achievements') renderAchievements();
+  else renderList();
   return menu;
 }

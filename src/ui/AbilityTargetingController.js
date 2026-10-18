@@ -31,6 +31,7 @@ import {
   settleTransfuse,
 } from '../engine/ActionAbilitySystem.js';
 import { STEAL_ABILITY_KIND, settleSteal, stealReasonLabel } from '../engine/Steal.js';
+import { battleFeats } from './AchievementBattleController.js';
 import { stealRunOptions } from '../engine/ShrineBoons.js';
 
 const FOE_TILE_COLOR = UI_HEX.warn;
@@ -154,7 +155,12 @@ export class AbilityTargetingController {
         if (Number(ability.perMapLimit) > 0) markUsed(unit, skill.id);
         if (smite) {
           observeHistoryAction(scene, 'smote', unit, current.unit);
-          return { kind, ...settleSmite(current, forcedMoveProbes(scene).world) };
+          const from = { col: current.unit.col, row: current.unit.row };
+          const smote = settleSmite(current, forcedMoveProbes(scene).world);
+          const sent =
+            Math.abs(current.unit.col - from.col) + Math.abs(current.unit.row - from.row);
+          battleFeats.push(scene, current.unit, sent); // the achievements' Rink
+          return { kind, ...smote };
         }
         if (steal) {
           // One atomic transfer (engine/Steal.js): room is checked first, the same item
@@ -162,6 +168,7 @@ export class AbilityTargetingController {
           const facts = settleSteal(unit, current.unit, { run: scene.runManager });
           if (!facts) throw new Error('Steal refused after its target was validated');
           observeHistoryAction(scene, 'stole from', unit, facts.carrier, facts.item.name);
+          battleFeats.steal(scene);
           return { kind, ...facts };
         }
         const facts = settleTransfuse(unit, current, ability);

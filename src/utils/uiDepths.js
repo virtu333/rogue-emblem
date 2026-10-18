@@ -76,4 +76,5 @@ export const DOM_UI_DEPTHS = {
   DIALOGUE: 1200,
   MENU: 1250,
   RITE: 1300, // Promotion rite: plays over the church / roster menu that confirmed it.
+  TOAST: 1400, // The achievement card: a small corner notice over everything, click-through.
 };

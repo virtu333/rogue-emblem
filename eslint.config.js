@@ -46,6 +46,7 @@ export default [
       'src/engine/WeaponUses.js',
       'src/engine/SkillSlots.js',
       'src/engine/MetaProgressionManager.js',
+      'src/engine/Achievements.js',
       'src/utils/audioAssets.js',
       'tests/fixtures/legacy/**/*.js', // older builds' code, kept as it shipped
     ],

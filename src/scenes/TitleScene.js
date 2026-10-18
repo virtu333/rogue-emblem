@@ -1,3 +1,4 @@
+import { reconcileSlotAchievements } from '../engine/AchievementFacts.js';
 import { showRunRecords } from '../ui/RunRecordsMenu.js';
 import { applyCompletedTutorialHints, TUTORIAL_COMPLETED_KEY } from '../ui/prologueLessons.js';
 import { getCloudSaveConflict } from '../engine/CloudSaveConflict.js';
@@ -691,6 +692,7 @@ export class TitleScene extends Phaser.Scene {
       new HintManager(nextSlot, () => this.registry.get('settings')?.getHints?.() !== false, meta),
     );
     applyCompletedTutorialHints(this.registry.get('hints'));
+    reconcileSlotAchievements(meta, this.gameData); // what older records already earned
     this.registry.set('activeSlot', nextSlot);
     try {
       // A brand-new slot is always fresh: the prologue run, or (skipped, or no

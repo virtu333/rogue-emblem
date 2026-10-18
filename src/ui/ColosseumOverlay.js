@@ -1,3 +1,4 @@
+import { bumpRunFeat } from '../engine/RunFeats.js';
 import { ArenaMenu } from './ArenaMenu.js';
 import { MobileRosterSheet } from './MobileRosterSheet.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
@@ -494,6 +495,10 @@ export class ColosseumOverlay {
     // a loss or a yield: nothing). `reward.goldDelta` stays the bout's net result.
     const payout = reward.goldDelta + feePaid;
     if (payout > 0) this.runManager.awardGold(payout);
+    // The achievements' arena wins (engine/RunFeats.js), saved with this bout (_persistVisit).
+    if (outcome === 'win' && tier?.name === 'gold') bumpRunFeat(this.runManager, 'arenaGoldWins');
+    if (outcome === 'win' && tier?.name === 'platinum')
+      bumpRunFeat(this.runManager, 'arenaPlatinumWins');
 
     // The Colosseum's earned blessing (D-8): the first gold or platinum win rolls its offer, saved
     // with this bout (_persistVisit below); the menu opens it.

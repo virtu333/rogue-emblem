@@ -1,0 +1,548 @@
+{
+  "version": 1,
+  "sections": [
+    {
+      "id": "march",
+      "label": "The March"
+    },
+    {
+      "id": "field",
+      "label": "The Field"
+    },
+    {
+      "id": "company",
+      "label": "The Company"
+    },
+    {
+      "id": "road",
+      "label": "The Road"
+    },
+    {
+      "id": "challenge",
+      "label": "The Challenge"
+    },
+    {
+      "id": "secrets",
+      "label": "Secrets"
+    }
+  ],
+  "tiers": [
+    {
+      "id": "bronze",
+      "label": "Bronze"
+    },
+    {
+      "id": "silver",
+      "label": "Silver"
+    },
+    {
+      "id": "gold",
+      "label": "Gold"
+    },
+    {
+      "id": "blacksun",
+      "label": "Black Sun"
+    }
+  ],
+  "achievements": [
+    {
+      "id": "banner_at_dawn",
+      "name": "Banner at Dawn",
+      "rule": "Finish the Prologue.",
+      "tier": "bronze",
+      "section": "march"
+    },
+    {
+      "id": "first_blood",
+      "name": "First Blood",
+      "rule": "Win a battle in a run.",
+      "tier": "bronze",
+      "section": "march"
+    },
+    {
+      "id": "past_the_first_gate",
+      "name": "Past the First Gate",
+      "rule": "Defeat an Act I boss.",
+      "tier": "bronze",
+      "section": "march"
+    },
+    {
+      "id": "deeper_roads",
+      "name": "Deeper Roads",
+      "rule": "Win a battle in Act III.",
+      "tier": "bronze",
+      "section": "march"
+    },
+    {
+      "id": "first_light",
+      "name": "First Light",
+      "rule": "Win a run on First Light.",
+      "tier": "silver",
+      "section": "march"
+    },
+    {
+      "id": "down_the_stair",
+      "name": "Down the Stair",
+      "rule": "Win a battle in the Descent.",
+      "tier": "silver",
+      "section": "march"
+    },
+    {
+      "id": "into_the_dusk",
+      "name": "Into the Dusk",
+      "rule": "Win a run on Dusk.",
+      "tier": "gold",
+      "section": "march"
+    },
+    {
+      "id": "the_glass_breaks",
+      "name": "The Glass Breaks",
+      "rule": "Defeat the Lieutenant at the Descent's gate.",
+      "tier": "gold",
+      "section": "march"
+    },
+    {
+      "id": "the_sleeper_falls",
+      "name": "The Sleeper Falls",
+      "rule": "Defeat the Entity.",
+      "tier": "gold",
+      "section": "march"
+    },
+    {
+      "id": "black_sun",
+      "name": "Black Sun",
+      "rule": "Win a run on Black Sun.",
+      "tier": "blacksun",
+      "section": "march"
+    },
+    {
+      "id": "every_rung",
+      "name": "Every Rung",
+      "rule": "Win a run on all four difficulties.",
+      "tier": "blacksun",
+      "section": "march",
+      "progress": "rungs"
+    },
+    {
+      "id": "kingslayers_ledger",
+      "name": "Kingslayer's Ledger",
+      "rule": "Slay every act boss at least once.",
+      "tier": "gold",
+      "section": "march",
+      "progress": "bosses"
+    },
+    {
+      "id": "who_rides_again",
+      "name": "Who Rides Again",
+      "rule": "Win a battle in an NG+ run with a veteran riding again.",
+      "tier": "gold",
+      "section": "march"
+    },
+    {
+      "id": "seize_the_day",
+      "name": "Seize the Day",
+      "rule": "Win a seize battle.",
+      "tier": "bronze",
+      "section": "field"
+    },
+    {
+      "id": "ahead_of_the_dark",
+      "name": "Ahead of the Dark",
+      "rule": "Win a battle 3 turns under par.",
+      "tier": "silver",
+      "section": "field"
+    },
+    {
+      "id": "not_a_scratch",
+      "name": "Not a Scratch",
+      "rule": "Defeat 6 or more foes in a battle without a foe's blow landing on an ally.",
+      "tier": "silver",
+      "section": "field"
+    },
+    {
+      "id": "all_out",
+      "name": "All Out",
+      "rule": "Win an escape battle with every unit escaping alive.",
+      "tier": "silver",
+      "section": "field"
+    },
+    {
+      "id": "heavy_hand",
+      "name": "Heavy Hand",
+      "rule": "Deal 50 or more damage in a single blow.",
+      "tier": "silver",
+      "section": "field"
+    },
+    {
+      "id": "red_harvest",
+      "name": "Red Harvest",
+      "rule": "One unit defeats 10 foes in a single battle.",
+      "tier": "gold",
+      "section": "field"
+    },
+    {
+      "id": "shatter",
+      "name": "Shatter",
+      "rule": "Break every Revival Stone of a boss and defeat it in one player phase.",
+      "tier": "gold",
+      "section": "field"
+    },
+    {
+      "id": "dawn_strike",
+      "name": "Dawn Strike",
+      "rule": "Win a battle on turn 1.",
+      "tier": "gold",
+      "section": "field"
+    },
+    {
+      "id": "encore",
+      "name": "Encore",
+      "rule": "Refresh 3 allies with one Goddess Dance.",
+      "tier": "silver",
+      "section": "field"
+    },
+    {
+      "id": "light_fingers",
+      "name": "Light Fingers",
+      "rule": "Steal an item a foe carries.",
+      "tier": "bronze",
+      "section": "field"
+    },
+    {
+      "id": "cutpurse",
+      "name": "Cutpurse",
+      "rule": "Steal 15 items.",
+      "tier": "silver",
+      "section": "field",
+      "progress": "steals",
+      "goal": 15
+    },
+    {
+      "id": "bolt_from_the_blue",
+      "name": "Bolt from the Blue",
+      "rule": "Defeat a boss with a captured ballista.",
+      "tier": "silver",
+      "section": "field",
+      "secret": true
+    },
+    {
+      "id": "rink",
+      "name": "Rink",
+      "rule": "Send a foe 4 or more tiles with one Smite.",
+      "tier": "silver",
+      "section": "field",
+      "secret": true
+    },
+    {
+      "id": "bone_dry",
+      "name": "Bone Dry",
+      "rule": "Defeat a Necromancer before it raises a single Skeleton.",
+      "tier": "silver",
+      "section": "field",
+      "secret": true
+    },
+    {
+      "id": "silent_vigil",
+      "name": "Silent Vigil",
+      "rule": "Win the Vigil without a circle calling a Hollowed.",
+      "tier": "gold",
+      "section": "field"
+    },
+    {
+      "id": "root_and_branch",
+      "name": "Root and Branch",
+      "rule": "Defeat the Entity before a single Grasping Limb sprouts.",
+      "tier": "blacksun",
+      "section": "field"
+    },
+    {
+      "id": "talked_down",
+      "name": "Talked Down",
+      "rule": "Recruit a unit by talking to them.",
+      "tier": "bronze",
+      "section": "company"
+    },
+    {
+      "id": "new_colours",
+      "name": "New Colours",
+      "rule": "Promote a unit.",
+      "tier": "bronze",
+      "section": "company"
+    },
+    {
+      "id": "a_name_to_remember",
+      "name": "A Name to Remember",
+      "rule": "A unit earns an epithet.",
+      "tier": "bronze",
+      "section": "company"
+    },
+    {
+      "id": "sworn",
+      "name": "Sworn",
+      "rule": "Promote a unit who swears an Oath.",
+      "tier": "silver",
+      "section": "company"
+    },
+    {
+      "id": "spoils_of_war",
+      "name": "Spoils of War",
+      "rule": "Take a recruit from a boss's draft.",
+      "tier": "silver",
+      "section": "company"
+    },
+    {
+      "id": "marked",
+      "name": "Marked",
+      "rule": "Recruit a unit who bears a Mark.",
+      "tier": "silver",
+      "section": "company"
+    },
+    {
+      "id": "five_marks",
+      "name": "Five Marks",
+      "rule": "Recruit units bearing each of the five Marks.",
+      "tier": "gold",
+      "section": "company",
+      "progress": "marks"
+    },
+    {
+      "id": "perfect_year",
+      "name": "Perfect Year",
+      "rule": "A level-up raises every stat.",
+      "tier": "silver",
+      "section": "company"
+    },
+    {
+      "id": "living_legend",
+      "name": "Living Legend",
+      "rule": "One unit holds 5 deeds.",
+      "tier": "gold",
+      "section": "company"
+    },
+    {
+      "id": "full_banner",
+      "name": "Full Banner",
+      "rule": "Have all seven lords in one army.",
+      "tier": "gold",
+      "section": "company"
+    },
+    {
+      "id": "lone_lord",
+      "name": "Lone Lord",
+      "rule": "Win a battle in Act III or later with only your commander deployed.",
+      "tier": "gold",
+      "section": "company"
+    },
+    {
+      "id": "nobody_left_behind",
+      "name": "Nobody Left Behind",
+      "rule": "Win a run on Nightfall or Black Sun with no ally ever falling.",
+      "tier": "blacksun",
+      "section": "company"
+    },
+    {
+      "id": "every_deed",
+      "name": "Every Deed",
+      "rule": "Earn every deed at least once.",
+      "tier": "blacksun",
+      "section": "company",
+      "progress": "deeds"
+    },
+    {
+      "id": "seven_banners",
+      "name": "Seven Banners",
+      "rule": "Win a run with each lord as commander.",
+      "tier": "blacksun",
+      "section": "company",
+      "progress": "commanders"
+    },
+    {
+      "id": "a_vow_taken",
+      "name": "A Vow Taken",
+      "rule": "Take a blessing at a church.",
+      "tier": "bronze",
+      "section": "road"
+    },
+    {
+      "id": "a_price_paid",
+      "name": "A Price Paid",
+      "rule": "Take a card an act boss offers.",
+      "tier": "bronze",
+      "section": "road"
+    },
+    {
+      "id": "not_today",
+      "name": "Not Today",
+      "rule": "Rewind a battle with Vision.",
+      "tier": "bronze",
+      "section": "road"
+    },
+    {
+      "id": "cleansed",
+      "name": "Cleansed",
+      "rule": "Cleanse a burden at a church.",
+      "tier": "bronze",
+      "section": "road"
+    },
+    {
+      "id": "paid_in_full",
+      "name": "Paid in Full",
+      "rule": "Collect a contract's reward.",
+      "tier": "bronze",
+      "section": "road"
+    },
+    {
+      "id": "dark_omen",
+      "name": "Dark Omen",
+      "rule": "Walk through a Dark Omen.",
+      "tier": "silver",
+      "section": "road"
+    },
+    {
+      "id": "old_stones",
+      "name": "Old Stones",
+      "rule": "Find an Old Sanctum.",
+      "tier": "silver",
+      "section": "road"
+    },
+    {
+      "id": "under_the_dark",
+      "name": "Under the Dark",
+      "rule": "Win an eclipsed elite battle.",
+      "tier": "silver",
+      "section": "road"
+    },
+    {
+      "id": "crowd_pleaser",
+      "name": "Crowd Pleaser",
+      "rule": "Win a gold bout at the Colosseum.",
+      "tier": "silver",
+      "section": "road"
+    },
+    {
+      "id": "champion_of_the_pit",
+      "name": "Champion of the Pit",
+      "rule": "Win a platinum bout at the Colosseum.",
+      "tier": "gold",
+      "section": "road"
+    },
+    {
+      "id": "deep_pockets",
+      "name": "Deep Pockets",
+      "rule": "Hold 10,000 gold at once.",
+      "tier": "silver",
+      "section": "road"
+    },
+    {
+      "id": "masterwork",
+      "name": "Masterwork",
+      "rule": "Forge one weapon 10 times.",
+      "tier": "silver",
+      "section": "road"
+    },
+    {
+      "id": "one_of_a_kind",
+      "name": "One of a Kind",
+      "rule": "Find an epic weapon.",
+      "tier": "silver",
+      "section": "road"
+    },
+    {
+      "id": "trophy_hunter",
+      "name": "Trophy Hunter",
+      "rule": "Claim a boss's trophy weapon.",
+      "tier": "gold",
+      "section": "road"
+    },
+    {
+      "id": "every_road_a_tale",
+      "name": "Every Road a Tale",
+      "rule": "See every Event.",
+      "tier": "gold",
+      "section": "road",
+      "progress": "events"
+    },
+    {
+      "id": "armory_of_legends",
+      "name": "Armory of Legends",
+      "rule": "Hold every epic weapon at least once.",
+      "tier": "blacksun",
+      "section": "road",
+      "progress": "epics"
+    },
+    {
+      "id": "self_reliant",
+      "name": "Self-Reliant",
+      "rule": "Win a run without buying from a shop.",
+      "tier": "gold",
+      "section": "challenge"
+    },
+    {
+      "id": "clear_sight",
+      "name": "Clear Sight",
+      "rule": "Win a run on Nightfall or Black Sun without using Vision.",
+      "tier": "gold",
+      "section": "challenge"
+    },
+    {
+      "id": "few_and_proud",
+      "name": "Few and Proud",
+      "rule": "Win a run holding The Chosen Few.",
+      "tier": "gold",
+      "section": "challenge"
+    },
+    {
+      "id": "on_schedule",
+      "name": "On Schedule",
+      "rule": "Win a run on Nightfall or Black Sun with every battle at or under par.",
+      "tier": "blacksun",
+      "section": "challenge"
+    },
+    {
+      "id": "no_blessing",
+      "name": "No Blessing",
+      "rule": "Win a run on Black Sun after choosing No blessing at the shrine.",
+      "tier": "blacksun",
+      "section": "challenge"
+    },
+    {
+      "id": "the_unbroken_thread",
+      "name": "The Unbroken Thread",
+      "rule": "Win a run on Black Sun with no ally falling and no Vision used.",
+      "tier": "blacksun",
+      "section": "challenge"
+    },
+    {
+      "id": "not_this_thread",
+      "name": "Not This Thread",
+      "rule": "Lose someone you must not lose in the Prologue.",
+      "tier": "bronze",
+      "section": "secrets",
+      "secret": true
+    },
+    {
+      "id": "third_time",
+      "name": "Third Time",
+      "rule": "Defeat a boss that has beaten you three times.",
+      "tier": "silver",
+      "section": "secrets",
+      "secret": true
+    },
+    {
+      "id": "unfathomed",
+      "name": "Unfathomed",
+      "rule": "Land a critical hit on the Entity.",
+      "tier": "silver",
+      "section": "secrets",
+      "secret": true
+    },
+    {
+      "id": "the_heralds_ear",
+      "name": "The Herald's Ear",
+      "rule": "Defeat the Entity on Black Sun after hearing the Herald.",
+      "tier": "silver",
+      "section": "secrets",
+      "secret": true
+    }
+  ]
+}
