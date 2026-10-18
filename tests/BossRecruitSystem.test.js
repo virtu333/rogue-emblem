@@ -650,6 +650,14 @@ describe('BossRecruitSystem', () => {
   });
 
   describe('createBossLordUnit', () => {
+    it('Sera joining as a recruited lord can use staves and carries Heal', () => {
+      const lordDef = gameData.lords.find((l) => l.name === 'Sera');
+      const classData = gameData.classes.find((c) => c.name === lordDef.class);
+      const unit = createBossLordUnit(lordDef, classData, gameData.weapons, 8, null);
+      expect(unit.proficiencies).toContainEqual({ type: 'Staff', rank: 'Prof' });
+      expect(unit.inventory.map((w) => w.name)).toContain('Heal');
+    });
+
     it('creates lord at target level', () => {
       const lordDef = gameData.lords.find((l) => l.name === 'Kira');
       const classData = gameData.classes.find((c) => c.name === lordDef.class);
