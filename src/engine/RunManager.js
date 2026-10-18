@@ -3763,9 +3763,8 @@ export class RunManager {
     // its own stream, so the first pass's carriers are the same with or without it). Only
     // written when it changes something, so other runs' params are as they were.
     const shrine = shrineBoonsOf(this);
-    if (shrine.carryMultiplier > 1 && battleParams.carryConfig)
-      battleParams.carryPasses = shrine.carryMultiplier;
-    else delete battleParams.carryPasses;
+    const carryPasses = shrine.carryMultiplier > 1 && battleParams.carryConfig;
+    putParam(battleParams, 'carryPasses', shrine.carryMultiplier, carryPasses);
     // Patient Dawn: turns TurnBonusCalculator.calculatePar adds to the map's par, last.
     putParam(battleParams, 'blessingParTurns', shrine.parTurnDelta, shrine.parTurnDelta > 0);
     // Battle pacing (docs/specs/dusk-pressure.md), written into the map when it is
@@ -3779,9 +3778,8 @@ export class RunManager {
     // Revival Stones (engine/RevivalStones.js): the rung's table, written into the boss spawn
     // when the map is generated. Added only when a kind carries one, so a rung (or a run saved
     // before stones) without them leaves the params exactly as they were.
-    if (hasRevivalStones(this.difficultyModifiers?.revivalStones))
-      battleParams.revivalStones = { ...this.difficultyModifiers.revivalStones };
-    else delete battleParams.revivalStones;
+    const stones = this.difficultyModifiers?.revivalStones;
+    putParam(battleParams, 'revivalStones', { ...stones }, hasRevivalStones(stones));
     const entityKit =
       battleAct === 'finalBoss' && sanitizeEntityKit(this.difficultyModifiers?.entityKit);
     putParam(battleParams, 'entityKit', entityKit, entityKit);
@@ -3797,9 +3795,8 @@ export class RunManager {
     const bossBattle = node.type === 'boss' || battleParams.isBoss === true;
     const hunted = huntedWaveFor(this, { isBoss: bossBattle });
     putParam(battleParams, 'huntedWave', hunted, hunted);
-    if (bossBattle && isSwornEnemy(this))
-      battleParams.swornEnemy = { seed: eclipseHash(`sworn:${this.runSeed}:${node.id}`) };
-    else delete battleParams.swornEnemy;
+    const sworn = { seed: eclipseHash(`sworn:${this.runSeed}:${node.id}`) };
+    putParam(battleParams, 'swornEnemy', sworn, bossBattle && isSwornEnemy(this));
     // Battle-start stat deltas: the Lingering Injury burden's, and Cavalier's Hour's by move
     // type (engine/ShrineBoons.js). Applied at a fresh start only; taken back at the battle's end.
     const debuffs = [
