@@ -33,6 +33,14 @@ import {
 } from '../engine/ShopCommands.js';
 import { isWorn, wearCount, wearDisplay } from '../engine/WeaponWear.js';
 import { canForge, forgeStatBlock, getStatForgeCount } from '../engine/ForgeSystem.js';
+import { dormantForgeCount, hasDormantForges } from '../engine/KeptForges.js';
+import {
+  nextDormantForge,
+  shopWakeBlock,
+  shopWakeLimit,
+  wakePrice,
+  wakeShopWeapon,
+} from '../engine/ShopForgeWake.js';
 import { getSellPrice } from '../engine/LootSystem.js';
 import { itemDisplayName } from '../utils/itemNames.js';
 import { canEquip } from '../engine/UnitManager.js';
@@ -140,7 +148,8 @@ export class ShopMenu {
     return tab === 'sell'
       ? rows.filter((row) => getSellPrice(row.item) > 0)
       : // A worn weapon is repaired here instead of forged (the forge tab lists both).
-        rows.filter((row) => canForge(row.item) || isWorn(row.item));
+        // An NG+ kept weapon with sleeping forges is listed even at the forge cap: it can wake.
+        rows.filter((row) => canForge(row.item) || isWorn(row.item) || hasDormantForges(row.item));
   }
   render(message) {
     if (!this.surface || this.surface.destroyed) return;
@@ -413,9 +422,16 @@ export class ShopMenu {
         action.append(b);
       } else {
         const b = button('Choose forge', () => this.forge(item), 're-btn re-btn--primary');
-        b.disabled = options.forgesUsed >= options.forgeLimit;
-        if (b.disabled) reason = 'No forges remain at this shop.';
+        b.disabled = options.forgesUsed >= options.forgeLimit || !canForge(item);
+        if (options.forgesUsed >= options.forgeLimit) reason = 'No forges remain at this shop.';
+        else if (!canForge(item)) reason = 'This weapon cannot be forged further.';
         action.append(b);
+      }
+      if (hasDormantForges(item)) {
+        // The wake has its own button; its reason joins the forge's (each said once).
+        const wakeReason = this.appendWake(item, copy, action);
+        if (wakeReason && wakeReason !== reason)
+          reason = [reason, wakeReason].filter(Boolean).join(' ');
       }
     }
     if (reason)
@@ -560,6 +576,53 @@ export class ShopMenu {
       forgesUsed: this.scene.shopForgesUsed,
       ambushDiscount: !!this.scene._currentShopHasAmbushDiscount,
     });
+  }
+  wakeOptions() {
+    const limit = shopWakeLimit(this.run);
+    return {
+      wakesUsed: this.scene.shopWakesUsed || 0,
+      wakeLimit: limit,
+      discount: this.forgeOptions().discount,
+    };
+  }
+  /**
+   * An NG+ kept weapon's sleeping forges: how many sleep, the shop's wakes left and a Wake
+   * button for the next one. Returns the reason it is blocked, or ''.
+   */
+  appendWake(weapon, copy, action) {
+    const options = this.wakeOptions();
+    const sleeping = dormantForgeCount(weapon);
+    const left = Math.max(0, options.wakeLimit - options.wakesUsed);
+    const limit = Number.isFinite(options.wakeLimit)
+      ? ` · ${left} of ${options.wakeLimit} shop wakes left`
+      : '';
+    copy.append(el('p', `${sleeping} kept forge${sleeping === 1 ? '' : 's'} sleeping${limit}.`));
+    const next = nextDormantForge(weapon);
+    const price = wakePrice(weapon, options.discount);
+    const b = button(`Wake ${next.label} · ${price} G`, () => this.wake(weapon), 're-btn');
+    b.dataset.shopWake = 'true';
+    let reason = shopWakeBlock(this.run, weapon, options);
+    b.disabled = !!reason;
+    if (reason === 'Not enough gold.')
+      reason = `Not enough gold: ${price - this.run.gold} G short.`;
+    action.append(b);
+    return reason;
+  }
+  /** Wake the next sleeping forge: one confirm naming the stat, the price and the shop's wake. */
+  wake(weapon) {
+    const expectedDormant = dormantForgeCount(weapon);
+    const options = this.wakeOptions();
+    const next = nextDormantForge(weapon);
+    if (!next) return;
+    this.confirm(
+      `Wake a forge on ${weapon.name}?`,
+      `${next.label} wakes now instead of at an act start. ${wakePrice(weapon, options.discount)} gold and one of this shop's wakes.`,
+      () => {
+        const result = wakeShopWeapon(this.run, weapon, { ...this.wakeOptions(), expectedDormant });
+        if (result.ok) this.scene.shopWakesUsed = (this.scene.shopWakesUsed || 0) + 1;
+        return this.complete(result, 'sfx_purchase');
+      },
+    );
   }
   /** Mend the most recent wear step: one confirm naming the stat, the cost and the forge use. */
   repair(weapon) {
