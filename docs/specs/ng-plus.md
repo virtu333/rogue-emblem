@@ -291,6 +291,31 @@ Write-up: project file `reviews/ascension-true-ending.md`.
   The roster card says "N kept forges still waking".
 - Tests: `tests/NgPlusEcho.test.js`.
 
+### 13.1 Waking at a shop (2026-10-18)
+
+The owner's ask: a shop's smith can wake a kept weapon's sleeping forges early, up to the act's
+awake limit per shop (Act I 2, II 4, III 6, IV 8). `engine/ShopForgeWake.js` (pure):
+
+- **One wake** brings back the weapon's earliest sleeping forge (`wakeForges` to one more than
+  are awake, so the run's own forges stay on top), at the price forging that stat would cost the
+  weapon now (`FORGE_COSTS` at the stat's awake count, times the tier, the shop's discount
+  applied; Smith's Mark's first-forge credit is for forges and repairs, not wakes). The weapon's
+  price is unchanged: a sleeping forge was always counted in it.
+- **The shop's count**: `shopWakeLimit(run)` reads `ngPlus.keptForgeAwake` for the act, shared by
+  the whole army and apart from the shop's forge uses. It is saved with the shop
+  (`shopStateByNodeId[node].wakesUsed`, written only once a wake is made; an older client drops it
+  harmlessly), so leaving, re-entering or reloading never resets it. The final act wakes every
+  forge at its start, so it has nothing left to wake.
+- **The act start counts them**: a forge woken early is awake, so the next act start wakes only up
+  to that act's limit (two shop wakes in Act I leave Act II's start two to wake).
+- **Refused** (nothing spent): no forge asleep, Smith's Exile, the shop's wakes spent, gold short,
+  or the weapon changed since the player reviewed it (`expectedDormant`). A kept weapon is forged,
+  so it never wears.
+- **Shop screen** (`ui/ShopMenu.js`): the Forge tab lists a weapon with sleeping forges even at
+  the forge cap; its card says "N kept forges sleeping · L of X shop wakes left." beside a
+  "Wake +5 Crit · 300 G" button with one confirm.
+- Tests: `tests/ShopForgeWake.test.js`, `tests/ShopForgeWakeMenu.test.js`.
+
 ## 14. Black Sun only (2026-10-18)
 
 Dave chose Black Sun only: NG+ runs and "Who rides again?" happen only on Black Sun, and

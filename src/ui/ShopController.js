@@ -180,6 +180,7 @@ export class ShopController {
     scene.activeShopTab = 'buy';
     const cachedShop = options?.cachedShop;
     scene.shopForgesUsed = cachedShop?.forgesUsed || 0;
+    scene.shopWakesUsed = cachedShop?.wakesUsed || 0;
     scene._currentShopIsRuins = options?.ruins === true;
     scene._currentShopIsCaravan = options?.caravan === true;
     scene.shopScrollOffsets =
@@ -269,6 +270,8 @@ export class ShopController {
     const state = {
       items: (scene.shopBuyItems || []).map(({ index, ...rest }) => rest),
       forgesUsed: scene.shopForgesUsed || 0,
+      // NG+ sleeping forges this shop woke (ShopForgeWake); kept off a shop that woke none.
+      ...(scene.shopWakesUsed > 0 ? { wakesUsed: scene.shopWakesUsed } : {}),
       rerollCount: scene.shopRerollCount || 0,
       originalSlotCount: scene._shopOriginalSlotCount || 0,
       ambushDiscountActive: scene._currentShopHasAmbushDiscount || false,
