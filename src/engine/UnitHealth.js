@@ -25,6 +25,8 @@
 // (`{ blessings }`); a caller that hands none holds nobody, so a blessing-free battle is
 // untouched.
 //
+// The fourth: a ward (engine/Vigil.js). A unit stamped `warded` loses no HP here at all.
+//
 // Callers keep what belongs to their action: XP, staff uses, deeds, floors such as
 // "poison never kills", death removal, banners and animation.
 
@@ -148,6 +150,9 @@ export function damageUnitDetailed(
   { floor = 0, disturbs = true, blessings = null } = {},
 ) {
   const prev = Number(unit.currentHP) || 0;
+  // A warded Voice (engine/Vigil.js) loses nothing to anything: area blows, Deathburst, the
+  // ballista, a ram, ground damage.
+  if (unit?.warded === true) return { lost: 0, stoneBroken: false, warded: true };
   const next = Math.min(prev, Math.max(floor, prev - Math.max(0, Number(amount) || 0)));
   if (prev > 0 && next <= 0) {
     const absorbed = absorbLethal(unit, next, { blessings });

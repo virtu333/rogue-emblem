@@ -89,7 +89,7 @@ const A = ['luna', 'sol', 'lifetaker', 'speedtaker', 'pavise', 'aegis', 'renewal
 const S = ['astra', 'aether', 'miracle', 'blink', 'pass']; // Pass: Phase 3E, Act IV only (a Trickster innate, lent)
 const POOLS = { act1: [...C, ...B], act2: [...C, ...B], act3: [...B, ...A], act4: [...A, ...S] };
 const CHANCES = { act1: 0.03, act2: 0.05, act3: 0.06, act4: 0.08 };
-const LEGENDARY = ["Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Pursuit Ring'];
+const LEGENDARY = ["Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Pursuit Ring', 'Galeforce Charm', 'Longarm Bracer']; // prettier-ignore
 const NEVER = ['dance', 'shove', 'pull', 'lethality', 'steal', 'goddess_dance'];
 
 const catalog = (name) => structuredClone(data.accessories.find((a) => a.name === name));
@@ -223,7 +223,7 @@ describe('the data', () => {
     expect([...innateInPools].sort()).toEqual([...config.lentInnates].sort());
   });
 
-  it('the four legendary accessories are marked, and only they', () => {
+  it('the six legendary accessories are marked, and only they', () => {
     expect(
       data.accessories
         .filter((a) => a.legendary)
@@ -532,12 +532,12 @@ describe('loot', () => {
     );
 
   it('the category weights are exactly the ones the game had', () => {
-    // Copied from data/lootTables.json on main before 3H.
+    // Copied from data/lootTables.json before 3H; only the legendary weights moved since (Act III 7 to 5, Act IV 18 to 7).
     const before = {
       act1: { weapon: 20, healing: 12, statBooster: 0, promotion: 3, skillScroll: 0, weaponArtScroll: 0, legendaryWeapon: 0, accessory: 15, forge: 15, gold: 35 }, // prettier-ignore
       act2: { weapon: 20, healing: 3, statBooster: 10, promotion: 2, skillScroll: 4, weaponArtScroll: 6, legendaryWeapon: 0, accessory: 15, forge: 20, gold: 20 }, // prettier-ignore
-      act3: { weapon: 25, healing: 2, statBooster: 11, promotion: 2, skillScroll: 5, weaponArtScroll: 5, legendaryWeapon: 7, accessory: 15, forge: 15, gold: 15 }, // prettier-ignore
-      act4: { weapon: 15, healing: 2, statBooster: 10, promotion: 1, skillScroll: 5, weaponArtScroll: 10, legendaryWeapon: 18, accessory: 12, forge: 20, gold: 7 }, // prettier-ignore
+      act3: { weapon: 25, healing: 2, statBooster: 11, promotion: 2, skillScroll: 5, weaponArtScroll: 5, legendaryWeapon: 5, accessory: 15, forge: 15, gold: 15 }, // prettier-ignore
+      act4: { weapon: 15, healing: 2, statBooster: 10, promotion: 1, skillScroll: 5, weaponArtScroll: 10, legendaryWeapon: 7, accessory: 12, forge: 20, gold: 7 }, // prettier-ignore
       finalBoss: { gold: 100 },
     };
     for (const [act, weights] of Object.entries(before))
@@ -580,6 +580,11 @@ describe('loot', () => {
         const { value } = withSeed(seed, () => loot(data, act, { count: 3 }));
         for (const c of value) {
           if (c.type !== 'accessory') continue;
+          // The chance is a bindable accessory's: a legendary never binds (below).
+          if (c.item.legendary === true) {
+            expect(c.item._boundSkill).toBeUndefined();
+            continue;
+          }
           accessories += 1;
           if (!c.item._boundSkill) {
             expect(c.item.price).toBe(basePrices.get(c.item.name));

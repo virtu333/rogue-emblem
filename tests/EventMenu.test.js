@@ -32,7 +32,7 @@ import {
 } from '../src/engine/EventCommands.js';
 import { guidanceText } from '../src/engine/Guidance.js';
 import { addUnit, arriveAs, baseData, fallAlly, newRun } from './eventKit.js';
-import { eventTriples, routesToPages, walkRoute } from './eventWalk.js';
+import { eventTriples, routesToPages, walkRoute, meetCounterBounds } from './eventWalk.js';
 import { RESULT_CHIPS } from '../src/ui/eventMenuModel.js';
 import { applyWear } from '../src/engine/WeaponWear.js';
 import { pageOf } from '../src/engine/EventSystem.js';
@@ -381,6 +381,12 @@ describe('every shipped outcome renders a clean page', () => {
       if (event.pool) run.rite = createRite({ start: 6 });
       const node = arriveAs(run, eventId);
       if (!walkRoute(run, node.id, route)) continue;
+      // A choice met only once the torches are spent (the Mine's dark ways) is met so.
+      meetCounterBounds(
+        run,
+        node.id,
+        pageOf(event, pageId).choices.find((c) => c.id === choiceId),
+      );
       const view = eventView(run, node.id);
       const choice = view.choices.find((c) => c.id === choiceId);
       const target = choice.target

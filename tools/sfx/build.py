@@ -437,10 +437,67 @@ def sfx_page():
     return snes_air(sig), -26.0
 
 
+def sfx_ward_break():
+    """A Voice's ward giving way: a glassy shimmer swells, then breaks downward into falling
+    chimes, a soft rush of air under it. Brighter and more arcane than the stone's shatter."""
+    rng = np.random.default_rng(113)
+    dur = 1.05
+    t = t_axis(dur)
+    sig = np.zeros_like(t)
+    # the swell: three detuned high partials rising in level for a breath
+    swell_t = t_axis(0.16)
+    swell_env = attack(swell_t, 0.14) * np.clip(1 - (swell_t - 0.14) / 0.02, 0, 1)
+    swell = sum(np.sin(2 * np.pi * f * swell_t) for f in (2637.0, 2649.0, 3951.0)) * swell_env
+    place(sig, swell, 0.0, 0.18)
+    # the break: a bright crack and a falling glissando of chimes (E7 down an octave and more)
+    crack_t = t_axis(0.2)
+    crack = svf(noise(rng, 0.2), 6000.0, 0.9, 'hp') * exp_decay(crack_t, 0.04)
+    place(sig, crack, 0.15, 0.7)
+    chime_t = t_axis(0.5)
+    steps = (2637.02, 2349.32, 1975.53, 1760.0, 1479.98, 1318.51)  # E7 D7 B6 A6 F#6 E6
+    for i, f in enumerate(steps):
+        ring = (partial(chime_t, f, 0.32, 1.0) + partial(chime_t, f * 2.76, 0.12, 0.3)
+                + partial(chime_t, f * 5.4, 0.05, 0.12)) * attack(chime_t, 0.002)
+        place(sig, ring, 0.16 + i * 0.07, 0.5 - 0.05 * i)
+    # the air rushing out under it
+    rush = svf(noise(rng, dur), 3200.0 * (700.0 / 3200.0) ** (t / dur), 0.8, 'bp')
+    sig += rush * bell_curve(t, 0.3, 0.14, 0.4) * 0.22
+    return snes_air(soften(sig, 1.3)), -22.0
+
+
+def sfx_hammerfall():
+    """The Iron Guardian's hammer meeting stone: a deep falling thump, the floor cracking, an
+    iron clang that rings dull, and grit raining back down."""
+    rng = np.random.default_rng(104)
+    dur = 1.1
+    t = t_axis(dur)
+    sig = np.zeros_like(t)
+    # the weight landing: a low sine falling from 78 to 38 Hz, felt more than heard
+    thump = glide(t, 78.0, 38.0) * exp_decay(t, 0.22) * attack(t, 0.003)
+    sig += thump * 0.9
+    sig += partial(t, 112.0, 0.09, 0.6)
+    # the floor cracking: a wide noise burst, low-passed as it dies
+    crack = svf(noise(rng, dur), 900.0, 0.8, 'bp') * exp_decay(t, 0.07)
+    sig += crack * 1.1
+    sig += svf(noise(rng, dur), 3600.0, 0.9, 'hp') * exp_decay(t, 0.025) * 0.5
+    # the iron: a heavy, inharmonic clang, dulled above 3 kHz
+    clang = metal(t, 196.0, (1.0, 2.41, 3.17, 4.53, 5.88),
+                  (0.38, 0.27, 0.19, 0.13, 0.09), (1.0, 0.6, 0.42, 0.26, 0.16))
+    sig += svf(clang, 3000.0, 0.7, 'lp') * 0.55
+    # grit: small stones falling back over the next half second, thinning out
+    grit_t = t_axis(0.05)
+    for _ in range(26):
+        at = 0.08 + 0.6 * (rng.random() ** 1.5)
+        tick = svf(noise(rng, 0.05), rng.uniform(1800.0, 4200.0), 2.0, 'bp')
+        place(sig, tick * exp_decay(grit_t, 0.008), at, rng.uniform(0.08, 0.25) * (1.2 - at))
+    return snes_air(soften(sig, 2.6)), -21.0
+
+
 CUES = {
     fn.__name__: fn
     for fn in (sfx_miss, sfx_nodamage, sfx_shatter, sfx_purchase, sfx_equip, sfx_menu_open,
-               sfx_menu_close, sfx_steal, sfx_turn, sfx_chime, sfx_loot, sfx_page)
+               sfx_menu_close, sfx_steal, sfx_turn, sfx_chime, sfx_loot, sfx_page, sfx_ward_break,
+               sfx_hammerfall)
 }
 
 

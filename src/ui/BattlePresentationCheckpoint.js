@@ -12,6 +12,7 @@ import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { xpGaugeFor } from './XpGaugeController.js';
 import { progressSteps } from './xpGaugeModel.js';
 import { restUnitAppearance } from './UnitRestAppearance.js';
+import { refreshUnitAction } from '../engine/ActionRefresh.js';
 
 // Save fields are untrusted; the one definition of the shape lives in the engine.
 export { readActionContinuation };
@@ -249,18 +250,13 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
       )
         continue;
       observeHistoryAction(scene, 'refreshed', unit, ally, `Commander's Gambit`);
-      ally.hasActed = false;
-      ally.hasMoved = false;
-      ally._movementCommitted = false;
-      ally._movementSpent = 0;
+      // The shared refresh: a Galeforce Charm proc on this kill is used up by it.
+      refreshUnitAction(ally);
       safeBattlePresentation('Gambit tint', () => restUnitAppearance(scene, ally), { scene });
     }
   } else if (galeforce) {
     observeHistoryAction(scene, 'refreshed', unit, unit, 'Galeforce');
-    unit.hasActed = false;
-    unit.hasMoved = false;
-    unit._movementCommitted = false;
-    unit._movementSpent = 0;
+    refreshUnitAction(unit);
     safeBattlePresentation('Galeforce tint', () => restUnitAppearance(scene, unit), { scene });
   } else if (unit) {
     const afterCombat = continuation.kind === 'combat' || continuation.afterCombat === true;

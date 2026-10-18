@@ -132,6 +132,18 @@ const isObject = (value) => value !== null && typeof value === 'object' && !Arra
 const isInt = (value) => Number.isInteger(value);
 
 /** Flatten an outcome's every effect list (effects, fallback, spoils) with where it sits. */
+/** A requirement that is one counter bound and nothing else (its `reason` aside), or null. */
+function counterBoundOf(requires) {
+  if (!isObject(requires)) return null;
+  const keys = Object.keys(requires).filter((k) => k !== 'reason');
+  if (keys.length !== 1) return null;
+  const [key] = keys;
+  const bound = requires[key];
+  if ((key !== 'counterAtLeast' && key !== 'counterAtMost') || !isObject(bound)) return null;
+  if (typeof bound.key !== 'string' || !isInt(bound.n)) return null;
+  return { side: key === 'counterAtLeast' ? 'atLeast' : 'atMost', key: bound.key, n: bound.n };
+}
+
 function effectLists(outcome) {
   const lists = [{ where: 'effects', phase: 'o', effects: outcome.effects || [] }];
   if (Array.isArray(outcome.fallback))
@@ -460,6 +472,18 @@ export function validateEventsConfig(config, data = {}) {
           err(where, '`requires.counterAtLeast` must be { key, n } with a whole n >= 1');
         else if (!Object.hasOwn(event?.counters || {}, value.key))
           err(where, `counterAtLeast names a counter the event does not declare ("${value.key}")`);
+      } else if (key === 'counterAtMost') {
+        if (atEvent)
+          err(where, 'an event cannot require a counter: it has none until it is picked');
+        else if (
+          !isObject(value) ||
+          typeof value.key !== 'string' ||
+          !isInt(value.n) ||
+          value.n < 0
+        )
+          err(where, '`requires.counterAtMost` must be { key, n } with a whole n >= 0');
+        else if (!Object.hasOwn(event?.counters || {}, value.key))
+          err(where, `counterAtMost names a counter the event does not declare ("${value.key}")`);
       } else if (['minRow', 'maxRow', 'goldAtLeast'].includes(key)) {
         if (key === 'goldAtLeast' ? !isAmount(value) : !isInt(value)) err(where, `bad ${key}`);
       }
@@ -540,6 +564,20 @@ export function validateEventsConfig(config, data = {}) {
       if (!choice.target)
         err(where, `${effect.type} reads the chosen unit but the choice has no target`);
     };
+    // An effect for some acts only (EventEffects.effectsForAct): acts the event can meet.
+    if (effect.acts !== undefined) {
+      const acts = effect.acts;
+      if (
+        !Array.isArray(acts) ||
+        acts.length === 0 ||
+        acts.some((a) => !AMOUNT_ACT_ORDER.includes(a))
+      )
+        err(where, `acts must be a list of ${AMOUNT_ACT_ORDER.join(', ')}`);
+      else if (Array.isArray(event?.acts) && acts.some((a) => !event.acts.includes(a)))
+        err(where, 'acts names an act the event never meets');
+      if (effect.type === 'battle' || phase === 'k')
+        err(where, 'a battle or a contract term takes no acts (one fight, one saved term)');
+    }
     switch (effect.type) {
       case 'gold':
         if (effect.refund !== undefined) {
@@ -587,9 +625,20 @@ export function validateEventsConfig(config, data = {}) {
             );
             if (have.length === 0) err(where, `no accessory exists in ${act}'s pool at that tier`);
           }
+        } else if (isObject(effect.pool) && effect.pool.kind === 'epic') {
+          // An epic weapon from the act's loot-table list (an accessory a tier up when none is left).
+          const pool = effect.pool;
+          if (Object.keys(pool).some((k) => k !== 'kind'))
+            err(where, 'an epic pool takes no other keys');
+          if (effect.wear !== undefined) err(where, 'an epic weapon does not wear');
+          if (phase !== 'a') err(where, "an epic pool belongs in a battle's afterVictory");
+          for (const act of effect.acts || joinActs(event, choice))
+            if (!(data.lootTables?.[act]?.epicWeapons || []).length)
+              err(where, `${act} has no epic weapons`);
         } else if (isObject(effect.pool)) {
           const pool = effect.pool;
-          if (pool.kind !== 'weapon') err(where, 'item.pool.kind must be "weapon" or "accessory"');
+          if (pool.kind !== 'weapon')
+            err(where, 'item.pool.kind must be "weapon", "accessory" or "epic"');
           if (pool.weaponTypes === '$target') needsTarget();
           else if (pool.weaponTypes !== '$army') {
             if (
@@ -1057,6 +1106,7 @@ export function validateEventsConfig(config, data = {}) {
         }
         const choiceIds = new Set();
         let hasFreeChoice = false;
+        const bounds = [];
         for (const choice of page.choices) {
           const cw = `${pw}.${isObject(choice) ? choice.id : '(no id)'}`;
           if (!isObject(choice)) {
@@ -1244,8 +1294,7 @@ export function validateEventsConfig(config, data = {}) {
 
           // Always-available: nothing required, nothing to pay or pick, nothing to carry, and
           // no contract to open (one may already be open).
-          const unconditional =
-            !choice.requires &&
+          const unblocked =
             !choice.cost &&
             !choice.target &&
             !choiceMayGrantItem(choice) &&
@@ -1256,11 +1305,23 @@ export function validateEventsConfig(config, data = {}) {
                 ['blessing', 'earnedBlessing', 'consume'].includes(e?.type),
               ),
             );
+          const unconditional = unblocked && !choice.requires;
           if (unconditional) {
             hasFreeChoice = true;
             guaranteed.get(page.id).push(nexts);
           }
+          const bound = unblocked && counterBoundOf(choice.requires);
+          if (bound) bounds.push({ ...bound, nexts });
         }
+        // Two choices whose only requirements split one counter (at least n | at most n - 1):
+        // one of them is always open, so together they are an always-available choice (and a
+        // way out only when both are).
+        for (const lo of bounds.filter((b) => b.side === 'atLeast'))
+          for (const hi of bounds.filter((b) => b.side === 'atMost'))
+            if (lo.key === hi.key && hi.n === lo.n - 1) {
+              hasFreeChoice = true;
+              guaranteed.get(page.id).push([...lo.nexts, ...hi.nexts]);
+            }
         if (!hasFreeChoice)
           err(
             pw,

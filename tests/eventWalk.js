@@ -79,3 +79,20 @@ export function takeAnExit(run, nodeId, event) {
     targetUid: pickTargetUid(run, nodeId, exit.id),
   });
 }
+
+/**
+ * Burn (or keep) a page's counters so a choice gated on one is open, the way a player who
+ * spent their torches on the way down would stand: `counterAtMost` sets the counter to its
+ * bound, `counterAtLeast` raises it to its bound. Only a counter the choice names is touched.
+ */
+export function meetCounterBounds(run, nodeId, choiceDef) {
+  const state = run?.eventStateByNodeId?.[nodeId];
+  const requires = choiceDef?.requires || {};
+  if (!state) return;
+  for (const [kind, bound] of Object.entries(requires)) {
+    if (kind !== 'counterAtMost' && kind !== 'counterAtLeast') continue;
+    const now = Math.trunc(Number(state.counters?.[bound.key]) || 0);
+    const value = kind === 'counterAtMost' ? Math.min(now, bound.n) : Math.max(now, bound.n);
+    state.counters = { ...(state.counters || {}), [bound.key]: value };
+  }
+}

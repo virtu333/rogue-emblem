@@ -57,10 +57,15 @@ export function selectRingStyle(unit) {
 }
 
 /** Ellipse geometry in world pixels (pure). */
-export function ringGeometry(styleKey, { entityWidthTiles = 3, tileSize = 32 } = {}) {
+export function ringGeometry(
+  styleKey,
+  { entityWidthTiles = 3, bodyWidthTiles = 1, tileSize = 32 } = {},
+) {
   if (styleKey === 'entity') {
     return { rx: (entityWidthTiles * tileSize - 8) / 2, ry: 8, pad: 3 };
   }
+  // Any other big body (the Iron Guardian's 2x2) spans its tiles as the Entity's does.
+  if (bodyWidthTiles > 1) return { rx: (bodyWidthTiles * tileSize - 8) / 2, ry: 7, pad: 3 };
   if (styleKey === 'boss') return { rx: 16, ry: 6, pad: 3 };
   return { rx: 15, ry: 5.5, pad: 2 };
 }

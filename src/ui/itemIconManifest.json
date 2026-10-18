@@ -425,7 +425,7 @@
     "blessing-rally_cry": [248, 5, 8],
     "blessing-war_veteran": [249, 5, 9],
     "blessing-frugal_smith": [250, 5, 8],
-    "blessing-arsenal_pact": [251, 5, 10],
+    "blessing-arsenal_pact": [251, 5, 9],
     "blessing-pilgrim_coin": [252, 5, 8],
     "blessing-merchant_bane": [253, 5, 9],
     "blessing-nomad_pact": [254, 5, 9],
@@ -536,6 +536,7 @@
     "generic-upgrade": [359, 6, 5],
     "greycord": [62, 0, 1],
     "grasping-coil": [16, 0, 4],
+    "ironfall-maul": [37, 0, 4],
     "toppling-blow-scroll": [118, 1, 3],
     "hunters-focus-scroll": [130, 1, 3],
     "prodding-spear": [23, 0, 3],
@@ -616,11 +617,19 @@
     "blessing-standard_of_the_sun_ii": [219, 5, 4],
     "blessing-oathbound_steel": [12, 5, 4],
     "blessing-siegebreaker": [49, 5, 4],
-    "blessing-smiths_exile": [37, 5, 4]
+    "blessing-smiths_exile": [37, 5, 4],
+    "gemini-ring": [226, 3, 5],
+    "wardens-buckler": [203, 3, 5],
+    "briar-cloak": [221, 3, 5],
+    "anchor-stone": [213, 3, 5],
+    "grudge-locket": [220, 3, 5],
+    "galeforce-charm": [184, 3, 6],
+    "longarm-bracer": [222, 3, 6]
   },
   "aliases": {
     "greycord": "gravesong",
     "grasping-coil": "eldritch-grasp",
+    "ironfall-maul": "hammer",
     "toppling-blow-scroll": "lunge-scroll",
     "hunters-focus-scroll": "encloser-scroll",
     "prodding-spear": "short-spear",
@@ -701,6 +710,13 @@
     "blessing-standard_of_the_sun_ii": "vanguard-crest",
     "blessing-oathbound_steel": "oathblade",
     "blessing-siegebreaker": "longbow",
-    "blessing-smiths_exile": "hammer"
+    "blessing-smiths_exile": "hammer",
+    "gemini-ring": "phalanx-band",
+    "wardens-buckler": "delphi-shield",
+    "briar-cloak": "hunters-cloak",
+    "anchor-stone": "soothing-stone",
+    "grudge-locket": "diamond-medallion",
+    "galeforce-charm": "speedwing",
+    "longarm-bracer": "duelists-glove"
   }
 }

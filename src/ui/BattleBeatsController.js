@@ -284,7 +284,9 @@ export class BattleBeatsController {
         .setOrigin(0.5, 1)
         .setDepth(QUIP_DEPTH + 2)
         .setAlpha(0);
-      const halfW = (text.width || 0) / 2;
+      // The wider of the line and its name tab stays on the board: a short line under a long
+      // name ("Voice of the Feeding") beside the board's edge would push the tab off it.
+      const halfW = Math.max(text.width || 0, name.width || 0) / 2;
       const halfH = (text.height || 0) / 2;
       const tab = name.height || 14;
       text.x = Math.max(8 + halfW, Math.min(width - 8 - halfW, screen.x));

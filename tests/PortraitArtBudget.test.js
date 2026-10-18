@@ -23,9 +23,9 @@ const variants = ids.filter((id) => manifest.portraits[id].variant);
 // +2 for the Soldier class (generic_soldier, enemy_soldier; 2026-09-26), +3 for Phase 3
 // (generic_merchant, the caravan's Merchant; enemy_necromancer and enemy_skeleton, single
 // portraits that ship ahead of their classes), +2 for Act V (enemy_circle_adept and
-// enemy_hollowed: the 101st default opens an eleventh atlas row). Variety adds no defaults; a
-// new class adds its own.
-const DEFAULTS_BEFORE_VARIETY = 101;
+// enemy_hollowed: the 101st default opens an eleventh atlas row), +1 for the Iron Guardian
+// (enemy_iron_guardian, inside that row). Variety adds no defaults; a new class adds its own.
+const DEFAULTS_BEFORE_VARIETY = 102;
 
 describe('portrait variety texture budget', () => {
   it('ships many more faces than defaults', () => {

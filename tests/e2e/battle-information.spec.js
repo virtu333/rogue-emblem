@@ -230,7 +230,11 @@ test('Canto Danger works through mobile events, keyboard and hold, with Back and
   const pinned = await danger.boundingBox();
   await page.mouse.move(pinned.x + pinned.width / 2, pinned.y + pinned.height / 2);
   await page.mouse.down();
-  await page.waitForTimeout(650);
+  // Hold until the page has seen the hold (a busy page can take the press late, so a
+  // fixed wait may lift before its 550 ms hold timer runs and read as a tap).
+  await page.waitForFunction(
+    () => window.__emblemRogueGame.scene.getScene('Battle').keepDangerVisible === true,
+  );
   await page.mouse.up();
   await expect(page.getByRole('button', { name: 'Danger · pinned' })).toBeVisible();
   expect(

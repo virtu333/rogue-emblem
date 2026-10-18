@@ -474,7 +474,7 @@ keeps stat-line text plain.
 ### 5.8 Destroy: break structures
 
 - **The minimal gate.**
-  - `data/terrain.json` gains `Gate` **appended at index 19** (never reorder). It is
+  - `data/terrain.json` gains `Gate` **appended at index 20** (never reorder; 19 went to the Vigil's Abyss). It is
     impassable to all four move types, like Wall.
   - `battleConfig.structures` gives each gate its HP and defences. `objectiveState`
     holds its live HP.
@@ -1055,7 +1055,7 @@ outside an allowlist (generation, words fallbacks, prologue), no `src/` file may
   lists; an old checkpoint without it; gate HP and terrain together.
 - `tests/EscortRoute.test.js`, `tests/AssassinateCalibration.test.js`,
   `tests/Structures.test.js` (damage, Strike availability, `brokenTerrain`, a phase
-  opening it, terrain index 19 appended).
+  opening it, terrain index 20 appended).
 - `tests/TurnBonusCalculator.test.js`: every primary kind has a `turnBonus.json` base; a
   derived config's par is unchanged. `02`'s `groups-v1` tests own where `parAdjust` enters
   (added to `raw` before the max and the cap).

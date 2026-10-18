@@ -87,6 +87,16 @@ export const RUN_CAPABILITIES = Object.freeze({
   // Omens (engine/Omens.js): `run.omens`. An older client keeps the levers laid on the run's
   // difficulty modifiers but drops the rest (Grave Road, Hunting Party, Marked Foes' extra affix).
   omens: 2,
+  // The Vigil's shields (act-v-descent §3.1.1): a locked `vigil` with `wards` or `choir`, a
+  // checkpoint's `vigilState.broken`. An older client would let the Voices be cut down warded.
+  vigilWards: 2,
+  // The Abyss terrain (index 19, fliers only): a locked map or checkpoint layout holding it. An
+  // older client has no such terrain index and could not build the map.
+  abyss: 2,
+  // The Iron Guardian (engine/IronGuardian.js, docs/specs/large-units.md): a locked config's
+  // `hammerfall` and a checkpoint's `hammerfallState`. An older client has no class for the
+  // Guardian, no big body, no plates and no slam.
+  hammerfall: 2,
 });
 
 export const CAPABILITY_IDS = Object.freeze(Object.keys(RUN_CAPABILITIES));
@@ -96,8 +106,8 @@ export const DESCENT_CAPABILITY = 'descent';
 
 /**
  * The capabilities this build plays: each writer's PR adds its id here. The guard shipped
- * before any; the Descent added its four, the Entity kit its one, NG+ its two (the run, then Echo and kept forges), Omens
- * theirs.
+ * before any; the Descent added its four, the Entity kit its one, NG+ its two (the run, then
+ * Echo and kept forges), Omens theirs, the Vigil rework its two and the Iron Guardian its one.
  */
 export const CLIENT_CAPABILITIES = Object.freeze([
   'descent',
@@ -108,10 +118,19 @@ export const CLIENT_CAPABILITIES = Object.freeze([
   'ngPlus',
   'ngPlusEcho',
   'omens',
+  'vigilWards',
+  'abyss',
+  'hammerfall',
 ]);
 
-/** The terrain index the Gate takes (03 §5.7): terrain.json holds 0..18 today. */
-export const GATE_TERRAIN_INDEX = 19;
+/** The Abyss's terrain index (data/terrain.json, utils/constants.js TERRAIN.Abyss). */
+export const ABYSS_TERRAIN_INDEX = 19;
+
+/**
+ * The terrain index the Gate takes (03 §5.7): terrain.json holds 0..19 today (the Abyss took 19,
+ * which the Gate's spec had reserved before any Gate was written).
+ */
+export const GATE_TERRAIN_INDEX = 20;
 
 /** A run that cannot be loaded by this client (thrown by RunManager.fromJSON). */
 export class RunFormatError extends Error {
@@ -195,6 +214,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     riteMods: 'rite',
     entitySplashCount: 'rite',
     entityKit: 'entityKit',
+    hammerfall: 'hammerfall',
   }),
   // A locked config's enemy spawn.
   enemySpawn: Object.freeze({
@@ -216,6 +236,7 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     bossState: 'bossKit',
     vigilState: 'vigil',
     entityKitState: 'entityKit',
+    hammerfallState: 'hammerfall',
   }),
   // The serialized run's top level.
   run: Object.freeze({
@@ -399,14 +420,21 @@ function scanRouteMap(nodeMap, found) {
 // ---------------------------------------------------------------------------------------------
 // The places a run holds mechanics.
 
-function mapLayoutHasGate(layout) {
+function mapLayoutHas(layout, index) {
   if (!Array.isArray(layout)) return false;
   for (const row of layout) {
     if (!Array.isArray(row)) continue;
-    for (const tile of row) if (tile === GATE_TERRAIN_INDEX) return true;
+    for (const tile of row) if (tile === index) return true;
   }
   return false;
 }
+
+const mapLayoutHasGate = (layout) => mapLayoutHas(layout, GATE_TERRAIN_INDEX);
+const mapLayoutHasAbyss = (layout) => mapLayoutHas(layout, ABYSS_TERRAIN_INDEX);
+
+/** A locked vigil that fields the shields (engine/Vigil.js vigilHasShields, by its own keys). */
+const vigilHoldsWards = (vigil) =>
+  isRecord(vigil) && (present(vigil, 'wards') || present(vigil, 'choir'));
 
 /** A not-yet-complete node's battle params. */
 function scanNodeParams(params, found) {
@@ -438,7 +466,10 @@ function scanBattleConfig(config, found) {
   if (objectives) found.add(objectives);
   if (present(config, 'npcAllies')) found.add('objectives');
   if (present(config, 'vigil')) found.add('vigil');
+  if (vigilHoldsWards(config.vigil)) found.add('vigilWards');
+  if (mapLayoutHasAbyss(config.mapLayout)) found.add('abyss');
   if (present(config, 'entityKit')) found.add('entityKit');
+  if (present(config, 'hammerfall')) found.add('hammerfall');
   if (present(config, 'riteMods') || present(config, 'entitySplashCount')) found.add('rite');
   if (nonEmptyArray(config.structures)) found.add('gateTerrain');
   if (mapLayoutHasGate(config.mapLayout)) found.add('gateTerrain');
@@ -479,7 +510,10 @@ function scanBattleState(state, found) {
     found.add('bossKit');
   if (mapLayoutHasGate(state.mapLayout)) found.add('gateTerrain');
   if (present(state, 'vigilState')) found.add('vigil');
+  if (isRecord(state.vigilState) && present(state.vigilState, 'broken')) found.add('vigilWards');
+  if (mapLayoutHasAbyss(state.mapLayout)) found.add('abyss');
   if (present(state, 'entityKitState')) found.add('entityKit');
+  if (present(state, 'hammerfallState')) found.add('hammerfall');
   for (const list of STATE_UNIT_LISTS) {
     for (const unit of Array.isArray(state[list]) ? state[list] : []) {
       if (unitHoldsEncounter(unit)) found.add('encounters');

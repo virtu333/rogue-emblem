@@ -22,6 +22,8 @@ import { isSleeping, isSilenced, isWounded, removeCondition } from './StatusCond
 import { combatDistance, isEntity } from './EntitySystem.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { absorbLethal } from './UnitHealth.js';
+import { WARD_ACTIVATION, wardReady, wardStrike } from './AccessoryWard.js';
+import { BRIAR_ACTIVATION, briarReflectOf, meleeCounterRangeOf } from './AccessoryReactions.js';
 import { bannerReadyFor } from './BattleBlessings.js';
 import { revivalStoneCount } from './RevivalStones.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
@@ -42,6 +44,14 @@ import {
 const PHYSICAL_TYPES = new Set(['Sword', 'Lance', 'Axe', 'Bow']);
 const MAGICAL_TYPES = new Set(['Tome', 'Light', 'Breath']);
 const IS_DEV = Boolean(import.meta?.env?.DEV);
+
+/**
+ * Is this unit behind a ward (engine/Vigil.js `applyVigilWards`, the one writer of the stamp)?
+ * A warded unit takes no damage from a strike, a counter or a forecast.
+ */
+export function isWardedUnit(unit) {
+  return unit?.warded === true;
+}
 
 function normalizeCombatStatScaling(value) {
   if (!value || typeof value !== 'object') return null;
@@ -262,6 +272,15 @@ function procMultiplierOf(mods) {
 function sideProcMultiplier(mods, foe) {
   const own = procMultiplierOf(mods);
   return isEntity(foe) ? own * ENTITY_PROC_RATE_MULT : own;
+}
+
+/**
+ * A side's proc stat view (`procStatBonus` on its raw skill mods: a Gemini partner's SKL, SPD or
+ * LCK, SkillSystem.getSkillCombatMods), read as procChanceMultiplier is: built, never merged.
+ */
+function procStatBonusOf(mods) {
+  const bonus = mods?.procStatBonus;
+  return bonus && typeof bonus === 'object' ? bonus : null;
 }
 
 /** A Hit rating as a roll's input: 0 to 100. */
@@ -966,6 +985,8 @@ export function calculateDamage(
     Number.isFinite(effectivenessMultiplier) ? effectivenessMultiplier : null,
   );
   const { def, terrainDef } = strikeDefense(defender, atkWeapon, defenderTerrain, options);
+  // A warded Voice (engine/Vigil.js) takes nothing while its ward stands.
+  if (isWardedUnit(defender)) return 0;
   const result = Math.max(0, atk - def - terrainDef);
   if (IS_DEV && Number.isNaN(result)) {
     console.warn('[Combat] NaN damage:', { attacker: attacker?.name, weapon: atkWeapon?.name });
@@ -1029,7 +1050,7 @@ export function strikeDamage(
   defMods = null,
   { effectivenessCap = null } = {},
 ) {
-  if (!atkWeapon) return 0;
+  if (!atkWeapon || isWardedUnit(defender)) return 0;
   const ignoreTriangle = Boolean(atkMods?.ignoreWeaponTriangle || defMods?.ignoreWeaponTriangle);
   const hitsRes = strikeHitsRes(atkWeapon, atkMods);
   const defWeaponDef = defWeapon
@@ -1117,6 +1138,8 @@ export function artFollowUpStrike(
     : 0;
   const effectiveness = getCombinedEffectivenessMultiplier(strikerWeapon, target, strikerMods);
   const strikeDmg = (halveDefense) => {
+    // A warded Voice (engine/Vigil.js) takes nothing: no bonus is added to a blow it turns aside.
+    if (isWardedUnit(target)) return 0;
     let dmg = Math.max(
       0,
       calculateDamage(striker, strikerWeapon, target, targetWeapon, targetTerrain, isInitiating, {
@@ -1202,12 +1225,12 @@ function markArtFollowUpStrikes(events, fromIndex) {
 }
 
 /** A forecast side's `followUp` entry (null without an art follow-up), drain and Thorns included. */
-function forecastFollowUpInfo(followUp, unit, plainMods, thornsPct = 0) {
+function forecastFollowUpInfo(followUp, unit, plainMods, thornsPct = 0, briar = 0) {
   if (!followUp) return null;
   const wounded = isWounded(unit);
   return {
     ...followUp,
-    thornsReflect: thornsReflectDamage(followUp.damage, thornsPct),
+    thornsReflect: thornsReflectDamage(followUp.damage, thornsPct) + briar,
     drainPercent: wounded ? 0 : plainMods?.drainPercent || 0,
     drainMaxPerHit: wounded ? null : plainMods?.drainMaxPerHit || null,
     drainPerHit: wounded ? 0 : plainMods?.drainPerHit || 0,
@@ -1282,6 +1305,16 @@ export function canCounter(defender, defenderWeapon, distance) {
     const dist = Number(distance);
     const { min, max } = parseRange(defenderWeapon.range);
     return Number.isFinite(dist) && dist >= min && dist <= max + reach;
+  }
+  // Longarm Bracer: a 1-range weapon answers from farther (engine/AccessoryReactions.js).
+  const counterRange = meleeCounterRangeOf(
+    defender,
+    defenderWeapon,
+    parseRange(defenderWeapon.range),
+  );
+  if (counterRange > 0) {
+    const dist = Number(distance);
+    return Number.isFinite(dist) && dist >= 1 && dist <= counterRange;
   }
   return isInRange(defenderWeapon, distance);
 }
@@ -1362,6 +1395,19 @@ const EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS = new Set([
   'weaponArtDefBuff',
   'buffDEF',
   'buffRES',
+  // The Gemini Ring's partner stats are combat mods the forecast already holds, and the
+  // forecast's projection plays the Warden's Buckler's ward (forecastDisplay).
+  'gemini',
+  'firstHitWard',
+  // The Briar Cloak's prick rides the striker's `thornsReflect`, the Grudge Locket's Atk is
+  // a combat mod, and the Anchor Stone and Galeforce Charm never touch the exchange.
+  'meleeReflect',
+  'grudgeAtk',
+  'anchored',
+  'galeforce',
+  // The Longarm Bracer decides whether a counter happens, which the forecast reads through
+  // canCounter like any counter.
+  'meleeCounterRange',
 ]);
 
 /**
@@ -1652,6 +1698,10 @@ export function getCombatForecast(
       : 0;
   const notesHideProjection = (notes, thornsPct) =>
     notes.some((note) => note.affixId !== 'thorns' || !(thornsPct > 0));
+  // Briar Cloak: a flat prick on each landed blow from beside its wearer (AccessoryReactions).
+  // A warded Voice's blows taken never reach its cloak (rollStrike).
+  const atkBriar = isWardedUnit(defender) ? 0 : briarReflectOf(defender, distance === 1);
+  const defBriar = isWardedUnit(attacker) ? 0 : briarReflectOf(attacker, distance === 1);
 
   // Read-only display metadata. Resolution order and RNG are untouched.
   const forecast = {
@@ -1737,6 +1787,8 @@ export function getCombatForecast(
       stones: revivalStoneCount(attacker).remaining,
       // The Unbroken Banner would hold this side at 1 HP (present only while it would).
       ...(bannerReadyFor(skillCtx?.battleBlessings, attacker) ? { banner: true } : {}),
+      // A ready Warden's Buckler: the first blow on this side that lands deals 1.
+      ...(wardReady(attacker) ? { ward: true } : {}),
       damage: atkDmg,
       hit: atkHit,
       firstHit: atkFirstHit,
@@ -1751,6 +1803,7 @@ export function getCombatForecast(
         attacker,
         plainSideMods(skillCtx, 'attacker', atkWeapon),
         atkThornsPct,
+        atkBriar,
       ),
       // Wounded: no drain heals (resolveCombat zeroes them); the forecast agrees.
       drainPercent: isWounded(attacker) ? 0 : atkMods?.drainPercent || 0,
@@ -1758,7 +1811,8 @@ export function getCombatForecast(
       drainPerHit: isWounded(attacker) ? 0 : atkMods?.drainPerHit || 0,
       skills: atkActivated,
       affixNotes: affixNotes.attacker,
-      thornsReflect: thornsReflectDamage(atkDmg, atkThornsPct),
+      thornsReflect: thornsReflectDamage(atkDmg, atkThornsPct) + atkBriar,
+      ...(atkBriar > 0 ? { briar: atkBriar } : {}),
     },
     defender: {
       name: defender.name,
@@ -1767,6 +1821,9 @@ export function getCombatForecast(
       // the exchange (the projection says "Breaks a bar").
       stones: revivalStoneCount(defender).remaining,
       ...(bannerReadyFor(skillCtx?.battleBlessings, defender) ? { banner: true } : {}),
+      ...(wardReady(defender) ? { ward: true } : {}),
+      // A warded Voice (engine/Vigil.js): every strike on it deals 0 while the ward stands.
+      ...(isWardedUnit(defender) ? { warded: true } : {}),
       canCounter: defCanCounter,
       damage: defDmg,
       hit: defHit,
@@ -1781,13 +1838,15 @@ export function getCombatForecast(
         defender,
         plainSideMods(skillCtx, 'defender', defWeapon),
         defThornsPct,
+        defBriar,
       ),
       drainPercent: isWounded(defender) ? 0 : defMods?.drainPercent || 0,
       drainMaxPerHit: isWounded(defender) ? null : defMods?.drainMaxPerHit || null,
       drainPerHit: isWounded(defender) ? 0 : defMods?.drainPerHit || 0,
       skills: defActivated,
       affixNotes: affixNotes.defender,
-      thornsReflect: thornsReflectDamage(defDmg, defThornsPct),
+      thornsReflect: thornsReflectDamage(defDmg, defThornsPct) + defBriar,
+      ...(defBriar > 0 ? { briar: defBriar } : {}),
     },
   };
 
@@ -1874,6 +1933,7 @@ function rollStrike(
       strikeSkills.skillsData,
       strikeSkills.combatState,
       strikeSkills.procMultiplier ?? 1,
+      strikeSkills.procStatBonus ?? null,
     );
     if (skillResult.commandersGambit) commandersGambit = true;
     if (skillResult.aetherLuna) aetherLuna = true;
@@ -1902,6 +1962,16 @@ function rollStrike(
     huntSkipped = Boolean(skillResult.lethal);
   }
 
+  // A warded Voice (engine/Vigil.js) takes nothing, whatever rolled above (a crit, Luna, a
+  // Lethality proc, a skill that adds or sets damage such as Flare): the blow lands and is
+  // turned aside here, before the Hunt, the target's defenses and its affixes, so nothing that
+  // reads the damage (a skill's or a weapon's drain, Thorns, Teleporter) reacts to it.
+  const warded = isWardedUnit(targetUnit);
+  if (warded) {
+    finalDmg = 0;
+    heal = 0;
+  }
+
   // Mark of the Hunt (3C): a strike-level chance of +damage on a strike that deals any, on the
   // battle's Math.random, after the on-attack procs. Not a skill: Silence does not stop it,
   // and a Lethality kill does not need it.
@@ -1913,8 +1983,8 @@ function rollStrike(
     mergeActivations([markActivation(hunt)]);
   }
 
-  // On-defend skills (Pavise, Aegis, Miracle, Intimidate)
-  if (strikeSkills?.rollDefenseSkills && finalDmg >= 0) {
+  // On-defend skills (Pavise, Aegis, Miracle, Intimidate): a warded blow never reaches them.
+  if (!warded && strikeSkills?.rollDefenseSkills && finalDmg >= 0) {
     const isPhysicalAtk = strikeSkills.strikerWeaponPhysical;
     const defResult = strikeSkills.rollDefenseSkills(
       strikeSkills.target,
@@ -1924,6 +1994,7 @@ function rollStrike(
       targetHP,
       strikeSkills.marksData,
       strikeSkills.targetProcMultiplier ?? 1,
+      strikeSkills.targetProcStatBonus ?? null,
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;
@@ -1936,8 +2007,8 @@ function rollStrike(
     mergeActivations(defResult.activated);
   }
 
-  // On-defend affixes (Shielded, Teleporter, Thorns)
-  if (strikeSkills?.rollDefenseAffixes && finalDmg >= 0) {
+  // On-defend affixes (Shielded, Teleporter, Thorns): a warded blow never reaches them.
+  if (!warded && strikeSkills?.rollDefenseAffixes && finalDmg >= 0) {
     const defResult = strikeSkills.rollDefenseAffixes(
       strikeSkills.target,
       finalDmg,
@@ -1956,6 +2027,28 @@ function rollStrike(
     }
     // Always surface all on-defend affix activations
     mergeActivations(defResult.activated);
+  }
+
+  // Warden's Buckler (engine/AccessoryWard.js): the first blow that lands for more than 1
+  // this battle deals 1. After every defence above, before drain and the stones read it.
+  // A Voice's ward already took the blow to 0, so the Buckler is never spent on one.
+  let buckler = false;
+  if (!warded && targetUnit && Number.isFinite(finalDmg)) {
+    const ward = wardStrike(targetUnit, finalDmg);
+    if (ward.warded) {
+      finalDmg = ward.damage;
+      buckler = true;
+      mergeActivations([{ ...WARD_ACTIVATION, side: 'target' }]);
+    }
+  }
+
+  // Briar Cloak (engine/AccessoryReactions.js): a landed blow from beside the wearer pricks
+  // its striker for a flat N, on top of any Thorns; applyReflect keeps the striker's last HP.
+  // A blow a Voice's ward turned aside never reaches the wearer, as it never reaches Thorns.
+  const briar = warded ? 0 : briarReflectOf(targetUnit, strikeSides?.isMelee === true);
+  if (briar > 0) {
+    reflectDamage += briar;
+    mergeActivations([{ ...BRIAR_ACTIVATION, side: 'target' }]);
   }
 
   // Drain resolution: highest resulting heal wins across skill/weapon/art sources.
@@ -2007,6 +2100,8 @@ function rollStrike(
     commandersGambit,
     reflectDamage,
     warpRange,
+    ...(warded ? { warded: true } : {}),
+    ...(buckler ? { buckler: true } : {}),
     ...(absorbed?.stoneBroken ? { stoneBroken: true, hpBeforeBreak: targetHP } : {}),
     ...(absorbed?.bannerHeld ? { bannerHeld: true, hpBeforeHold: targetHP } : {}),
   };
@@ -2024,7 +2119,9 @@ function applyReflect(evt, strikerHP) {
   // What the striker actually lost (Thorns never takes the last HP).
   evt.reflectTaken = strikerHP - after;
   if (evt.reflectTaken === 0 && Array.isArray(evt.skillActivations))
-    evt.skillActivations = evt.skillActivations.filter((a) => a.id !== 'thorns');
+    evt.skillActivations = evt.skillActivations.filter(
+      (a) => a.id !== 'thorns' && a.id !== BRIAR_ACTIVATION.id,
+    );
   return after;
 }
 
@@ -2327,6 +2424,9 @@ export function resolveCombat(
         // Gambler's Edge: each side's own procs (its odds scaled), on-defend ones the target's.
         procMultiplier: sideProcMultiplier(skillCtx.atkMods, defender),
         targetProcMultiplier: sideProcMultiplier(skillCtx.defMods, attacker),
+        // A Gemini partner's SKL/SPD/LCK counts in each side's own proc odds.
+        procStatBonus: procStatBonusOf(skillCtx.atkMods),
+        targetProcStatBonus: procStatBonusOf(skillCtx.defMods),
       }
     : null;
   const defStrikeSkills =
@@ -2347,6 +2447,8 @@ export function resolveCombat(
           combatState: combatSkillState,
           procMultiplier: sideProcMultiplier(skillCtx.defMods, attacker),
           targetProcMultiplier: sideProcMultiplier(skillCtx.atkMods, defender),
+          procStatBonus: procStatBonusOf(skillCtx.defMods),
+          targetProcStatBonus: procStatBonusOf(skillCtx.atkMods),
         }
       : null;
 
@@ -2404,7 +2506,7 @@ export function resolveCombat(
         targetHP,
         strikeSkills,
         weaponSpecial,
-        { attackerSide, targetSide },
+        { attackerSide, targetSide, isMelee },
         drainPct,
         strikePerHitHeal,
         strikeCritMult,
@@ -2471,7 +2573,7 @@ export function resolveCombat(
           bonusTargetHP,
           bonusStrikeSkills,
           weaponSpecial,
-          { attackerSide, targetSide },
+          { attackerSide, targetSide, isMelee },
           drainPct,
           strikePerHitHeal,
           strikeCritMult,
@@ -2549,6 +2651,7 @@ export function resolveCombat(
         unit === attacker
           ? sideProcMultiplier(skillCtx.atkMods, defender)
           : sideProcMultiplier(skillCtx.defMods, attacker),
+        procStatBonusOf(unit === attacker ? skillCtx.atkMods : skillCtx.defMods),
       );
       if (astra.triggered) {
         count = astra.strikeCount;
@@ -2689,8 +2792,8 @@ export function resolveCombat(
       // A unit the banner just held cannot fall again in this combat, and its weapon poison
       // would only claim a 0 HP loss: skipped. Status and debuff effects (an imbue's status,
       // Grievous, Corrosive, Intimidate, an art's status or debuff) still land, as they do
-      // after a broken Revival Stone.
-      if (atkPoison > 0 && !brokeBar.defender && !heldBar.defender) {
+      // after a broken Revival Stone. A warded Voice (engine/Vigil.js) loses nothing to it.
+      if (atkPoison > 0 && !brokeBar.defender && !heldBar.defender && !isWardedUnit(defender)) {
         defHP = Math.max(1, defHP - atkPoison); // Poison can't kill (leave at 1 HP)
         poisonEffects.push({ target: 'defender', damage: atkPoison });
       }
@@ -2700,7 +2803,7 @@ export function resolveCombat(
         defCanCounter && defWeapon
           ? parsePoisonDamage(defWeapon) + getImbuePostCombatPoison(defWeapon, skillCtx?.imbuesData)
           : 0;
-      if (defPoison > 0 && !brokeBar.attacker && !heldBar.attacker) {
+      if (defPoison > 0 && !brokeBar.attacker && !heldBar.attacker && !isWardedUnit(attacker)) {
         atkHP = Math.max(1, atkHP - defPoison);
         poisonEffects.push({ target: 'attacker', damage: defPoison });
       }

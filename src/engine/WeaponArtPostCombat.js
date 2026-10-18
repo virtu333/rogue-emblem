@@ -9,11 +9,12 @@ import {
 } from './WeaponArtSystem.js';
 import { mergeCombatMods } from './Combat.js';
 import { isRooted } from './StatusConditionSystem.js';
-import { getFootprint, isEntity } from './EntitySystem.js';
+import { getFootprint, isLargeUnit } from './EntitySystem.js';
 import { traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills } from './EffectiveSkills.js';
 import { getUnitMarkFor } from './MarkSystem.js';
 import { epicAfterCombatSteps, keepsCombatRecord } from './EpicWeapons.js';
+import { galeforceConfig } from './GaleforceCharm.js';
 
 const SIDE_ORDER = ['attacker', 'defender'];
 const TIER2_EFFECT_ORDER = [
@@ -406,6 +407,12 @@ export function getPostCombatPipelineSteps({
     });
   }
 
+  // The Galeforce Charm (GaleforceCharm.js): its wearer attacked and killed, after every kill
+  // above has been read. The roll and its limits are read at application.
+  if (galeforceConfig(attacker)) {
+    steps.push({ type: 'galeforce', sourceSide: 'attacker', targetSide: 'defender' });
+  }
+
   // Epic weapons that keep a record of their combats (Tallyblade, Frightened Acclaim, Gorgemaw,
   // Hollowsong): last of all, so every kill this combat made is read (EpicWeapons.recordEpicCombat).
   for (const side of SIDE_ORDER) {
@@ -543,8 +550,8 @@ export function resolvePostCombatMove({
   if (movesTarget && targetUnit && isImmovable?.(targetUnit)) {
     return { ok: false, reason: 'immovable' };
   }
-  // The Entity's footprint never moves: no swap, push or ram displaces it.
-  if (movesTarget && isEntity(targetUnit)) return { ok: false, reason: 'immovable' };
+  // A big body never moves (the Entity's footprint, a 2x2): no swap, push or ram displaces it.
+  if (movesTarget && isLargeUnit(targetUnit)) return { ok: false, reason: 'immovable' };
 
   if (normalizedMode === 'dash') {
     // Oathblade's lunge (docs/specs/legendary-arts-rework.md §4): the user runs on through the
@@ -761,7 +768,7 @@ function resolvePull({
   if (dCol !== 0 && dRow !== 0) return { ok: false, reason: 'not_in_line' };
   const gap = Math.abs(dCol) + Math.abs(dRow) - 1;
   if (gap < 1) return { ok: false, reason: 'not_in_line' };
-  if (isEntity(targetUnit)) return { ok: false, reason: 'immovable' };
+  if (isLargeUnit(targetUnit)) return { ok: false, reason: 'immovable' };
   if (isRooted(targetUnit)) return { ok: false, reason: 'rooted' };
   if (isImmovable?.(targetUnit)) return { ok: false, reason: 'immovable' };
   const dc = -Math.sign(dCol);

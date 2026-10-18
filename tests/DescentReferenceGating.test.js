@@ -86,14 +86,17 @@ describe('the data tags', () => {
 });
 
 describe('Help', () => {
-  it('shows the Court Circle page only when the Descent is on', () => {
-    expect(helpTitles(helpTabsFor(dark))).not.toContain('The Court Circle');
-    expect(helpTitles(helpTabsFor(darkByFlag))).not.toContain('The Court Circle');
-    expect(helpTitles(helpTabsFor(null))).not.toContain('The Court Circle');
-    expect(helpTitles(helpTabsFor(lit))).toContain('The Court Circle');
-    // The catalog keeps the page; nothing else is dropped while dark.
-    expect(helpTitles(HELP_TABS)).toContain('The Court Circle');
-    expect(helpTitles(helpTabsFor(dark)).length).toBe(helpTitles(HELP_TABS).length - 1);
+  it('shows the Court Circle and Vigil pages only when the Descent is on', () => {
+    for (const title of ['The Court Circle', 'The Vigil']) {
+      expect(helpTitles(helpTabsFor(dark))).not.toContain(title);
+      expect(helpTitles(helpTabsFor(darkByFlag))).not.toContain(title);
+      expect(helpTitles(helpTabsFor(null))).not.toContain(title);
+      expect(helpTitles(helpTabsFor(lit))).toContain(title);
+      // The catalog keeps the page.
+      expect(helpTitles(HELP_TABS)).toContain(title);
+    }
+    // Nothing else is dropped while dark.
+    expect(helpTitles(helpTabsFor(dark)).length).toBe(helpTitles(HELP_TABS).length - 2);
   });
 
   const scene = (extra = {}) => ({

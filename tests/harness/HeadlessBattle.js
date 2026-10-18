@@ -116,11 +116,15 @@ import { applyEnemySpawnGear, applySpawnLoadout } from '../../src/engine/EnemySp
 import { applyHoldSpawn } from '../../src/engine/HoldActivation.js';
 import { crumbleFor, isNecromancer } from '../../src/engine/Necromancy.js';
 import { entityKitWorld, initialEntityKitState } from '../../src/engine/EntityKit.js';
+import { initialHammerfallState, markedTileKeys } from '../../src/engine/IronGuardian.js';
 import {
   entityLimbsOnFall,
+  hammerfallOnFall,
   processEntityLimbs,
+  processHammerfall,
   processNecromancy,
   processVigil,
+  settleVigilWards,
 } from './headlessConjuring.js';
 import { createPlayerKnowledge, unitPositionEntry } from '../../src/engine/PlayerKnowledge.js';
 import {
@@ -135,6 +139,7 @@ import {
   getFootprint,
   isEntity,
   isEntityLimb,
+  isLargeUnit,
   runEntitySplashSync,
 } from '../../src/engine/EntitySystem.js';
 import { runDeathburstSync } from '../../src/engine/Deathburst.js';
@@ -219,6 +224,10 @@ import { deriveNodeBattleSeed } from '../../src/engine/BattleScout.js';
 import { bindEnemyAreaArt } from '../../src/engine/EnemyAreaArts.js';
 import { applyPostSpawn, settleArtilleryStances } from '../../src/engine/SiegeArtillery.js';
 import { createVigilState } from '../../src/engine/Vigil.js';
+import { readyBattleAccessories } from '../../src/engine/BattleAccessories.js';
+import { playerAlliesLost } from '../../src/engine/AccessoryReactions.js';
+import { consumeGaleforce } from '../../src/engine/GaleforceCharm.js';
+import { refreshUnitAction } from '../../src/engine/ActionRefresh.js';
 import { applyDueHybridOverrides } from '../../src/engine/TerrainPhases.js';
 import {
   buildRisenUnit,
@@ -389,6 +398,7 @@ export class HeadlessBattle {
     // As BattleScene: a Vigil map counts its words and calls from a fresh state.
     this._vigilState = bc.vigil ? createVigilState() : null;
     this._entityKitState = initialEntityKitState(bc); // the Entity's limbs (EntityKit.js)
+    this._hammerfallState = initialHammerfallState(bc); // the Iron Guardian (IronGuardian.js)
     // The run's earned blessings that act in battle, as BattleScene reads them at a fresh
     // start (engine/BattleBlessings.js): from the run when one is attached, else from the
     // numbers a sim hands in `battleParams.battleBlessings`.
@@ -412,6 +422,7 @@ export class HeadlessBattle {
         unit.hasActed = false;
         unit._miracleUsed = false;
         unit._phoenixBroochUsed = false;
+        readyBattleAccessories(unit);
         unit._gambitUsedThisTurn = false;
         for (const w of unit.inventory || []) refillBattleUses(w);
         this.playerUnits.push(unit);
@@ -429,6 +440,8 @@ export class HeadlessBattle {
     for (const spawn of bc.enemySpawns) {
       this._addEnemyFromSpawn(spawn);
     }
+    // As BattleScene: the Voices' wards (engine/Vigil.js) stand from the first turn.
+    settleVigilWards(this);
 
     // Spawn NPC for recruit battles — the same RecruitNodeSystem build as BattleScene (own
     // seeded stream; the battle's Math.random is not consumed). A full run hands in the
@@ -1263,6 +1276,7 @@ export class HeadlessBattle {
       positions: () => knowledge.positions(),
       isKnown: knowledge.isKnown,
       costModifier: (unit) => getTerrainCostReduction(unit, this.gameData?.skills),
+      hammerfallMarks: markedTileKeys(this._hammerfallState),
     };
   }
 
@@ -1402,8 +1416,7 @@ export class HeadlessBattle {
   _buildUnitPositionMap(moverFaction) {
     const map = new Map();
     for (const u of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
-      for (const t of isEntity(u) ? getFootprint(u) : [u])
-        map.set(`${t.col},${t.row}`, unitPositionEntry(u));
+      for (const t of getFootprint(u)) map.set(`${t.col},${t.row}`, unitPositionEntry(u));
     }
     return map;
   }
@@ -1811,6 +1824,8 @@ export class HeadlessBattle {
       classesData: this.gameData.classes,
       traitsData: this.gameData.traits || null,
       turn: this.turnManager?.turnNumber, // Epic weapons' "has not moved this turn"
+      // As the scene: the run's lost allies plus this battle's (the Grudge Locket).
+      playerAlliesLost: playerAlliesLost(this.runManager, this._playerFalls),
     };
     const atkMods = getSkillCombatMods(
       attacker,
@@ -1940,9 +1955,10 @@ export class HeadlessBattle {
     resetFortHealStreak(attacker); // as BattleScene.executeCombat
     // As BattleScene.executeCombat: measured before the art's HP cost or any strike.
     const defenderHpAtStart = Math.max(0, Math.trunc(Number(defender?.currentHP) || 0));
-    // As BattleScene._prepareCombatContext: the Entity fights from its footprint.
+    // As BattleScene._prepareCombatContext: a large unit (the Entity, the Guardian) fights from
+    // its footprint.
     const dist =
-      isEntity(attacker) || isEntity(defender)
+      isLargeUnit(attacker) || isLargeUnit(defender)
         ? combatDistance(attacker, defender)
         : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
@@ -2041,11 +2057,7 @@ export class HeadlessBattle {
             toRefresh.push(ally);
           }
         }
-        for (const u of toRefresh) {
-          u.hasActed = false;
-          u.hasMoved = false;
-          u._movementSpent = 0;
-        }
+        for (const u of toRefresh) refreshUnitAction(u);
         this.selectedUnit = null;
         this._clearSelectedWeaponArt();
         this.attackTargets = [];
@@ -2228,10 +2240,13 @@ export class HeadlessBattle {
     // Canto (including Measured Step) is disabled in this harness; scene tests cover it.
     unit.hasActed = true;
     this._handleVillageVisit(unit);
+    // As BattleActionCompletion: a Galeforce Charm that procced readies the unit again.
+    const again = consumeGaleforce(unit);
     this.selectedUnit = null;
     this.preMoveLoc = null;
     this.battleState = HEADLESS_STATES.PLAYER_IDLE;
     this._refreshFogVisibility();
+    if (again) return;
     if (this.playerUnits.includes(unit)) this.turnManager.unitActed(unit);
     else this.turnManager.checkPlayerPhaseComplete();
   }
@@ -2311,6 +2326,7 @@ export class HeadlessBattle {
     if (unit.faction === 'player') {
       const idx = this.playerUnits.indexOf(unit);
       if (idx !== -1) this.playerUnits.splice(idx, 1);
+      this._playerFalls = (this._playerFalls || 0) + 1; // the scene's _fallenBattleRecords
     } else if (unit.faction === 'npc') {
       const idx = this.npcUnits.indexOf(unit);
       if (idx !== -1) this.npcUnits.splice(idx, 1);
@@ -2328,6 +2344,8 @@ export class HeadlessBattle {
       // no gold, no XP), before any battle-end check reads the roster.
       if (isNecromancer(unit)) crumbleFor(unit, this.enemyUnits);
       entityLimbsOnFall(this, unit, killer); // the Entity's limbs (EntityKit.js)
+      hammerfallOnFall(this, unit); // the Iron Guardian's marks (IronGuardian.js)
+      settleVigilWards(this, unit); // a Voice's fall may lift the Waking's choir ward
     }
     // As BattleScene.removeUnit: a Deathburst bursts last (engine/Deathburst.js), each victim
     // it fells removed with the burster's credit before the next is struck.
@@ -2440,6 +2458,7 @@ export class HeadlessBattle {
       this._processNecromancy();
       this._processVigil();
       processEntityLimbs(this);
+      processHammerfall(this);
       if (this.battleState === HEADLESS_STATES.BATTLE_END) return;
       this._applyDueHybridOverridesForTurn(this.turnManager?.turnNumber || 0);
       this.currentEnemyPhaseAiStats = this._createEnemyPhaseAiStats();
@@ -2550,9 +2569,10 @@ export class HeadlessBattle {
     resetFortHealStreak(attacker); // as BattleScene.executeEnemyCombat
     // As BattleScene.executeEnemyCombat: measured before the art's HP cost or any strike.
     const attackerHpAtStart = Math.max(0, Math.trunc(Number(attacker?.currentHP) || 0));
-    // As BattleScene._prepareCombatContext: the Entity fights from its footprint.
+    // As BattleScene._prepareCombatContext: a large unit (the Entity, the Guardian) fights from
+    // its footprint.
     const dist =
-      isEntity(attacker) || isEntity(defender)
+      isLargeUnit(attacker) || isLargeUnit(defender)
         ? combatDistance(attacker, defender)
         : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
@@ -2651,8 +2671,8 @@ export class HeadlessBattle {
 
   getUnitAt(col, row) {
     return (
-      [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].find(
-        (u) => u.col === col && u.row === row,
+      [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits].find((u) =>
+        getFootprint(u).some((t) => t.col === col && t.row === row),
       ) || null
     );
   }

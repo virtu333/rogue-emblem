@@ -155,7 +155,9 @@ export function previewAreaArt({
 
   const ram = (getWeaponArtTier2Effects(art).postCombatMove || []).find((m) => m.mode === 'ram');
   if (ram && target) {
-    const knownAt = (col, row) => known.find((u) => u.col === col && u.row === row) || null;
+    // Any tile of a body blocks the ram, as the scene's board does (a 2x2's other three too).
+    const knownAt = (col, row) =>
+      known.find((u) => getFootprint(u).some((t) => t.col === col && t.row === row)) || null;
     const move = resolvePostCombatMove({
       sourceUnit: attacker,
       targetUnit: target,

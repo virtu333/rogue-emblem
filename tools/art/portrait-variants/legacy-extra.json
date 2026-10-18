@@ -49,5 +49,16 @@
     "take": 1,
     "model": "pro",
     "generator": "gen-legacy-extra.mjs"
+  },
+  "enemy_iron_guardian": {
+    "prompt": "A 128 by 128 pixel art character portrait for a dark-fantasy tactics RPG, drawn exactly in the style of the first two reference images (the same game): crisp square pixels, a dark outline, three-tone cel shading lit from the upper left, a head-and-shoulders bust in three-quarter view facing right, the shoulders filling the bottom edge, on a flat dark navy (#1b1d33) background. One character, no text, no frame, no glow. The character: an enemy Iron Guardian, a colossal animated keeper of BLACK IRON that has guarded a buried hall under an old imperial mine for centuries: not a man in armour, there is no one inside. A small featureless great helm of pitted blue-black iron sunk low between huge rounded riveted pauldrons, a narrow visor slit with only a faint dull ember glow deep inside, a little tarnished gold trim on the helm. Thick layered iron plates like scales across the chest, a few hanging loose and cracked, a frayed old crimson imperial sash across one shoulder, and the top of the iron haft of a huge war maul rising beside it with both massive gauntlets resting on it. Heavy, patient, utterly still. The iron must not sink into the dark: clearly lighter cold grey highlights on every plate edge and rivet. No face, no skull, no runes, no particles. The third reference image is the class map sprite: follow it. Palette: blue-black iron, cold grey, crimson, a touch of tarnished gold.",
+    "refs": [
+      "assets/portraits/enemy_general.png",
+      "assets/portraits/enemy_revenant.png",
+      "docs/art/class-sprite-review-2026-09-22/sheets/iron-guardian.png"
+    ],
+    "take": 2,
+    "model": "pro",
+    "generator": "gen-legacy-extra.mjs"
   }
 }

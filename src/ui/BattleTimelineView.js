@@ -5,6 +5,7 @@ import {
   validHistoryFrame,
 } from '../engine/BattleHistoryPresentation.js';
 import { previewTiles } from '../engine/BattleTimelineFacts.js';
+import { footprintSize } from '../engine/EntitySystem.js';
 import { BattleHistorySession } from './BattleHistorySession.js';
 import { captureHistoryFrame } from './BattleHistoryRecorder.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -358,7 +359,7 @@ export class BattleTimelineView {
     } catch {
       spriteKey = '';
     }
-    return { className: unit.className || '', spriteKey, size: unit.isEntity ? 3 : 1 };
+    return { className: unit.className || '', spriteKey, size: footprintSize(unit).width };
   }
 
   select(entryId) {

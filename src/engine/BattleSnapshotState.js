@@ -4,8 +4,9 @@ import { normalizeBattleRecruits, reconcileRecruitIdentities } from './BattleRec
 import { normalizeFallenBattleRecords } from './DeedSystem.js';
 import { restoreBattleBlessings, snapshotBattleBlessings } from './BattleBlessings.js';
 import { normalizePendingTerrainTiles } from './TerrainPhases.js';
-import { sanitizeVigilState } from './Vigil.js';
+import { applyVigilWards, sanitizeVigilState } from './Vigil.js';
 import { sanitizeEntityKitState } from './EntityKit.js';
+import { sanitizeHammerfallState } from './IronGuardian.js';
 // Shared world-state contract for Vision and suspend. Unit arrays are restored
 // in snapshot order; references into that table survive JSON and duplicate names.
 const UNIT_GROUPS = ['playerUnits', 'enemyUnits', 'npcUnits'];
@@ -44,6 +45,11 @@ export function captureBattleWorldState(scene) {
     // when the battle keeps one (a kit with limbs).
     ...(scene._entityKitState
       ? { entityKitState: sanitizeEntityKitState(scene._entityKitState) }
+      : {}),
+    // The Iron Guardian's marks (engine/IronGuardian.js): only on a map that fields one, so a
+    // resume shows the same marks and a rewind takes a slam back with the HP it took.
+    ...(scene._hammerfallState
+      ? { hammerfallState: sanitizeHammerfallState(scene._hammerfallState) }
       : {}),
   };
 }
@@ -100,6 +106,12 @@ export function restoreBattleWorldState(scene, snapshot) {
     scene._vigilState = sanitizeVigilState(snapshot.vigilState);
   if (snapshot.entityKitState !== undefined)
     scene._entityKitState = sanitizeEntityKitState(snapshot.entityKitState);
+  if (snapshot.hammerfallState !== undefined)
+    scene._hammerfallState = sanitizeHammerfallState(snapshot.hammerfallState);
+  // The Voices' wards are read again from the state and the roster just restored, never trusted
+  // from a unit's saved stamp.
+  if (scene.battleConfig?.vigil)
+    applyVigilWards(scene.battleConfig.vigil, scene._vigilState, scene.enemyUnits);
   if ('latePressureWarningShown' in snapshot) {
     scene._latePressureWarningShown = snapshot.latePressureWarningShown === true;
   }

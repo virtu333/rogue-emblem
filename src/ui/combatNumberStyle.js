@@ -12,6 +12,7 @@ export const COMBAT_NUMBER_KINDS = Object.freeze([
   'strike', // a blow that landed
   'crit', // a critical blow
   'noDamage', // a blow that landed for 0
+  'warded', // a blow a Vigil Voice's ward turned aside (engine/Vigil.js)
   'heal', // a heal (a staff, Fort, a skill, a renewal)
   'drain', // what a draining weapon gave back to its wielder
   'poison', // a poison tick
@@ -28,6 +29,7 @@ export const COMBAT_NUMBER_KINDS = Object.freeze([
 const DAMAGE_KINDS = new Set(['strike', 'crit', 'ballista', 'deathburst', 'splash']);
 
 export const NO_DAMAGE_TEXT = 'No damage';
+export const WARDED_TEXT = 'Warded';
 export const MISS_TEXT = 'MISS';
 
 /** Reduced motion: the number holds still, then fades. No rise, no pop, no spark growth. */
@@ -42,6 +44,7 @@ const KINDS = {
   strike: { size: 13, color: UI_PALETTE.text, rise: 16, duration: 600, depth: 300 },
   crit: { size: 18, color: UI_PALETTE.accentText, rise: 20, duration: 750, depth: 300 },
   noDamage: { size: 10, color: UI_PALETTE.muted, rise: 10, duration: 550, depth: 300 },
+  warded: { size: 11, color: UI_PALETTE.info, rise: 10, duration: 600, depth: 300 },
   heal: { size: 13, color: UI_PALETTE.good, rise: 20, duration: 600, depth: 300 },
   drain: { size: 11, color: UI_PALETTE.good, rise: 20, duration: 600, depth: 300 },
   poison: { size: 12, color: UI_PALETTE.threatStatus, rise: 16, duration: 600, depth: 301 },
@@ -113,6 +116,8 @@ function textFor(kind, amount) {
       return `${amount}!`;
     case 'noDamage':
       return NO_DAMAGE_TEXT;
+    case 'warded':
+      return WARDED_TEXT;
     case 'heal':
     case 'drain':
       return `+${amount}`;

@@ -197,7 +197,9 @@ function validRestoreFields(state, width, height) {
         record(vigil) &&
         ['words', 'summoned', 'lastProcessedTurn'].every((key) => integer(vigil[key])) &&
         idCounts(vigil.byVoice) &&
-        idCounts(vigil.byCircle),
+        idCounts(vigil.byCircle) &&
+        // The circles a ward rework's battle has broken, by the turn each broke.
+        (vigil.broken === undefined || idCounts(vigil.broken)),
     )
   )
     return false;
@@ -210,6 +212,20 @@ function validRestoreFields(state, width, height) {
         record(kit) &&
         ['sprouted', 'severed', 'lastProcessedTurn'].every((key) => integer(kit[key])) &&
         list(kit.strikes, tile, 16),
+    )
+  )
+    return false;
+  // The Iron Guardian's marks (engine/IronGuardian.js): counts, patterns and the marked tiles.
+  if (
+    !optional(
+      state,
+      'hammerfallState',
+      (hf) =>
+        record(hf) &&
+        ['slams', 'lastProcessedTurn'].every((key) => integer(hf[key])) &&
+        ['front', 'shock'].includes(hf.next) &&
+        (hf.pattern === null || ['front', 'shock'].includes(hf.pattern)) &&
+        list(hf.marks, tile, 64),
     )
   )
     return false;

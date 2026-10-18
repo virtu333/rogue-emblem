@@ -228,5 +228,17 @@
     "defBonus": "0",
     "special": "Slow for all.",
     "hazardStatus": "acid"
+  },
+  {
+    "name": "Abyss",
+    "moveCost": {
+      "Infantry": "--",
+      "Armored": "--",
+      "Cavalry": "--",
+      "Flying": "1"
+    },
+    "avoidBonus": "0",
+    "defBonus": "0",
+    "special": "A drop into the dark. Flying only"
   }
 ]

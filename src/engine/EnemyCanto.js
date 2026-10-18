@@ -16,7 +16,7 @@
 import { cantoAllowance } from './CantoRule.js';
 import { canEquip } from './UnitManager.js';
 import { isStaff } from './Combat.js';
-import { isEntity } from './EntitySystem.js';
+import { isLargeUnit } from './EntitySystem.js';
 import { HOLD_AI_MODE } from './HoldActivation.js';
 import { holdsPost, isOffAuthoredPost, POST_AI_MODE } from './SiegeArtillery.js';
 import { isRooted, isSleeping, willRemainRootedNextPhase } from './StatusConditionSystem.js';
@@ -30,7 +30,7 @@ export const ENEMY_CANTO_SHARE = 0.5;
 /** May this enemy take a Canto step at all (before its budget is counted)? */
 export function enemyMayCanto(enemy) {
   if (!enemy || enemy.faction !== 'enemy' || enemy.currentHP <= 0 || enemy._removing) return false;
-  if (enemy.isBoss || isEntity(enemy)) return false;
+  if (enemy.isBoss || isLargeUnit(enemy)) return false;
   if (enemy.aiMode === HOLD_AI_MODE || enemy.aiMode === 'guard') return false;
   if (enemy.aiMode === POST_AI_MODE || isOffAuthoredPost(enemy) || holdsPost(enemy)) return false;
   if (isSleeping(enemy) || isRooted(enemy)) return false;

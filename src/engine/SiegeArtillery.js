@@ -27,7 +27,7 @@
 // A Vigil Voice is such a post: it speaks only on its sigil (engine/Vigil.js).
 
 import { hasPerBattleUsesLeft, isStaff, nextStrikeWeapon } from './Combat.js';
-import { isEntity } from './EntitySystem.js';
+import { isLargeUnit } from './EntitySystem.js';
 
 /** Units whose own orders come before the artillery stance. */
 const OWN_ORDERS = new Set(['hold', 'seek_tile']);
@@ -45,7 +45,7 @@ export function isSiegeWeapon(weapon) {
  * siege tome with shots left.
  */
 export function artilleryWeapon(unit) {
-  if (!unit || unit.faction !== 'enemy' || isEntity(unit) || OWN_ORDERS.has(unit.aiMode))
+  if (!unit || unit.faction !== 'enemy' || isLargeUnit(unit) || OWN_ORDERS.has(unit.aiMode))
     return null;
   const weapon = nextStrikeWeapon(unit);
   return isSiegeWeapon(weapon) && hasPerBattleUsesLeft(weapon, unit) ? weapon : null;
@@ -53,7 +53,7 @@ export function artilleryWeapon(unit) {
 
 /** An enemy status staff (Sleep / Silence) with a use left, or null. */
 export function readyStatusStaff(unit) {
-  if (!unit || unit.faction !== 'enemy' || isEntity(unit) || OWN_ORDERS.has(unit.aiMode))
+  if (!unit || unit.faction !== 'enemy' || isLargeUnit(unit) || OWN_ORDERS.has(unit.aiMode))
     return null;
   const staff = unit.statusStaff;
   return staff && staff.uses > 0 && (staff._usesSpent || 0) < staff.uses ? staff : null;
@@ -66,7 +66,7 @@ const isTile = (t) => Boolean(t) && Number.isInteger(t.col) && Number.isInteger(
 
 /** An authored post moved off its tile: it walks back rather than holding (the header). */
 export function isOffAuthoredPost(unit) {
-  if (unit?.aiMode !== POST_AI_MODE || isEntity(unit) || !isTile(unit.postTile)) return false;
+  if (unit?.aiMode !== POST_AI_MODE || isLargeUnit(unit) || !isTile(unit.postTile)) return false;
   return unit.postTile.col !== unit.col || unit.postTile.row !== unit.row;
 }
 
@@ -75,7 +75,7 @@ export function isOffAuthoredPost(unit) {
  * walks. (A post with no stamped tile, from before `postTile`, holds wherever it stands.)
  */
 export function holdsAuthoredPost(unit) {
-  return unit?.aiMode === POST_AI_MODE && !isEntity(unit) && !isOffAuthoredPost(unit);
+  return unit?.aiMode === POST_AI_MODE && !isLargeUnit(unit) && !isOffAuthoredPost(unit);
 }
 
 /**

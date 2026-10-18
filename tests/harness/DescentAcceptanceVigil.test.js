@@ -1,8 +1,10 @@
 // Acceptance, scenario 1 (the Vigil's objective and its commit): on the shipped Vigil (data's
 // `the_vigil`, generated and locked for a real Descent run's node, not the review fixture), the
-// last Voice falling to a real attack wins the battle while its guards and the circles' Hollowed
-// still stand; the Rite takes the battle's words and the rewards are paid exactly once. Ways this
-// breaks:
+// army breaks the circles that ward the Voices, the last Voice falling to a real attack wins the
+// battle while its guards and the circles' Hollowed still stand; the Rite takes the battle's words
+// and the rewards are paid exactly once. Ways this breaks:
+//   - a Voice is hurt through its ward, or stays warded once its circle is broken, or the Waking
+//     falls while another Voice still lives (the choir)
 //   - the defeat objective waits for the guards, the Warden (an elite captain, a boss) or the
 //     Hollowed, or ends before the last Voice falls
 //   - the run's victory commit takes the words twice (a second commit, a reload and a second
@@ -17,6 +19,7 @@ import {
   descentData,
   descentRun,
   endTurn,
+  standOn,
   nodeOf,
   playNode,
   strike,
@@ -41,7 +44,7 @@ function atTheVigil({ words = 6, seed = 21 } = {}) {
 }
 
 describe('the last Voice falls: the Vigil is won with its guards standing', () => {
-  it('the shipped Vigil, a real enemy phase of words and summons, then four real kills', async () => {
+  it('the shipped Vigil: circles broken, real enemy phases of words and summons, four real kills', async () => {
     const rm = atTheVigil();
     const node = nodeOf(rm, 'vigil');
     const army = strongArmy(rm, 2);
@@ -56,15 +59,39 @@ describe('the last Voice falls: the Vigil is won with its guards standing', () =
     const guards = b.enemyUnits.filter((u) => !VOICES.includes(u.authoredId));
     expect(guards.length).toBeGreaterThanOrEqual(5);
 
-    // One enemy phase: the Voices speak and the circles call (none of the army stands on one).
+    // Every Voice starts warded; a blow on one does nothing.
+    const attackers = [...b.playerUnits];
+    expect(attackers.length).toBeGreaterThanOrEqual(5);
+    for (const id of VOICES) expect(voiceOf(b, id).warded, id).toBe(true);
+    const calling = voiceOf(b, 'voice_calling');
+    const hp = calling.currentHP;
+    await strike(driver, attackers[4], calling);
+    expect(calling.currentHP).toBe(hp);
+
+    // Turn 1: three of the army stand on the circles of the Calling, the Binding and the Feeding;
+    // the Waking's circle stays open.
+    const circle = (id) => battleConfig.vigil.circles.find((c) => c.id === id);
+    for (const [i, id] of ['circle_calling', 'circle_binding', 'circle_feeding'].entries())
+      await standOn(driver, attackers[i], circle(id));
+
+    // One enemy phase: the three circles break, the Voices speak, the open circle calls.
     await endTurn(driver);
     expect(b.result).toBeNull();
+    expect(Object.keys(b._vigilState.broken).sort()).toEqual([
+      'circle_binding',
+      'circle_calling',
+      'circle_feeding',
+    ]);
     const spoken = b._vigilState.words;
     expect(spoken).toBeGreaterThan(0);
     expect(called(b).length).toBeGreaterThan(0);
+    // (A Voice may already have fallen to a counter in that phase: no ward holds it now.)
+    for (const id of VOICES.slice(0, 3)) expect(voiceOf(b, id)?.warded, id).toBeUndefined();
+    // The Waking: its own circle and the choir.
+    expect(voiceOf(b, 'voice_waking')).toMatchObject({ warded: true, wardReason: 'both' });
 
-    // Player turn 2: three Voices fall to real attacks; the battle goes on.
-    const attackers = [...b.playerUnits];
+    // Player turn 2: three Voices fall to real attacks; the battle goes on. One more of the army
+    // stands on the Waking's circle.
     for (const [i, id] of VOICES.slice(0, 3).entries()) {
       const voice = voiceOf(b, id);
       for (let tries = 0; voiceOf(b, id) && tries < 3; tries++) {
@@ -74,6 +101,15 @@ describe('the last Voice falls: the Vigil is won with its guards standing', () =
       expect(voiceOf(b, id), `${id} fell`).toBeUndefined();
       expect(b.result).toBeNull();
     }
+    // The choir is silent; the Waking's circle still wards it.
+    expect(voiceOf(b, 'voice_waking')).toMatchObject({ warded: true, wardReason: 'circle' });
+    await standOn(driver, attackers[3], circle('circle_waking'));
+    await endTurn(driver);
+    expect(b.result).toBeNull();
+    expect(b._vigilState.broken).toHaveProperty('circle_waking');
+    expect(voiceOf(b, 'voice_waking').warded).toBeUndefined();
+    const wordsBeforeKill = b._vigilState.words;
+    expect(wordsBeforeKill).toBeGreaterThan(spoken);
 
     // The last Voice falls: victory, with guards (the Warden among them) and Hollowed standing.
     await strike(driver, attackers[3], voiceOf(b, 'voice_waking'));
@@ -81,9 +117,10 @@ describe('the last Voice falls: the Vigil is won with its guards standing', () =
     expect(b.result).toBe('victory');
     expect(b.enemyUnits.filter((u) => !VOICES.includes(u.authoredId)).length).toBeGreaterThan(0);
     expect(b.enemyUnits).toContain(warden);
-    expect(called(b).length).toBeGreaterThan(0);
-    // Nothing more speaks after the win: the words are the ones the enemy phase spoke.
-    expect(b._vigilState.words).toBe(spoken);
+    // The Hollowed the open circle called (a strong army's counters may have cut them down).
+    expect(b._vigilState.summoned).toBeGreaterThan(0);
+    // Nothing more speaks after the win: the words are the ones the enemy phases spoke.
+    expect(b._vigilState.words).toBe(wordsBeforeKill);
 
     // The run's commit, as PostCombatController hands it over (riteWords from the battle).
     const before = {
@@ -99,9 +136,9 @@ describe('the last Voice falls: the Vigil is won with its guards standing', () =
         riteWords: b._vigilState.words,
       });
     expect(commit()).toBe(true);
-    expect(rm.rite.words).toBe(before.words + spoken);
+    expect(rm.rite.words).toBe(before.words + wordsBeforeKill);
     expect(rm.rite.log.filter((e) => e.source === 'vigil')).toEqual([
-      expect.objectContaining({ source: 'vigil', delta: spoken, nodeId: node.id }),
+      expect.objectContaining({ source: 'vigil', delta: wordsBeforeKill, nodeId: node.id }),
     ]);
     expect(nodeOf(rm, 'vigil').completed).toBe(true);
     expect(rm.completedBattles).toBe(before.battles + 1);
@@ -122,7 +159,7 @@ describe('the last Voice falls: the Vigil is won with its guards standing', () =
         riteWords: 99,
       }),
     ).toBe(false);
-    expect(reloaded.rite.words).toBe(before.words + spoken);
+    expect(reloaded.rite.words).toBe(before.words + wordsBeforeKill);
     expect(reloaded.gold).toBe(rm.gold);
   }, 60_000);
 });

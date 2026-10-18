@@ -9,6 +9,7 @@
 //   { sigils:  [{ id, col, row, target, waking? }],   // `target`: the Voice's authoredId
 //     circles: [{ id, col, row, voice }],             // `voice`: the Voice that keeps it
 //     maxCalled?, maxPerCircle?,                      // caps (defaults below)
+//     wards?, choir?,                                 // the shields (below)
 //     levelRange: [lo, hi],                           // the battle's adjusted range
 //     perWordLevel?, levelCap? }                      // the Rite's level rule (defaults below)
 //
@@ -38,10 +39,22 @@
 //     phase (as a raised Skeleton does). It is never a `defeat` target (no authoredId) and never
 //     falls with its Voice: the guards and the called need not die (BattleObjectives).
 //
+// THE SHIELDS (the Vigil rework, docs/specs/act-v-descent.md §3.1.1):
+//   - WARDS (`wards: true`). A Voice is warded while any circle that names it stands: it takes
+//     no damage from anything (Combat.rollStrike and strikeDamage, UnitHealth.damageUnitDetailed
+//     read the stamp `unit.warded`). A circle breaks for good when a player or NPC unit stands on
+//     it as an enemy phase starts (before the words and the calls: a broken circle calls
+//     nothing), recorded in `state.broken` by turn.
+//   - CHOIR (`choir: true`). The Waking (its sigil `waking: true`) is warded while any other
+//     Voice lives, whatever its circle.
+//   The stamp is derived, never a source of truth: `applyVigilWards` re-reads it from the state
+//   and the roster, and the scene and the harness call it at the battle's start, after each
+//   phase step, after a Voice leaves the roster and after a restore, so it can never drift.
+//
 // The battle's state rides the suspend checkpoint and the Vision snapshot
 // (BattleSnapshotState.captureBattleWorldState, as `vigilState`):
 //   { words, byVoice: { <voiceId>: n }, byCircle: { <circleId>: n }, summoned,
-//     lastProcessedTurn }
+//     lastProcessedTurn, broken?: { <circleId>: turn } }   (`broken` only once one breaks)
 // `lastProcessedTurn` makes the step run at most once a turn: an enemy-phase resume skips the
 // turn-start pipeline anyway, and a pipeline that ran twice for a turn speaks and calls once.
 // A rewind restores the earlier state with the earlier units, so the phase replays exactly.
@@ -91,6 +104,11 @@ export function createVigilState() {
   return { words: 0, byVoice: {}, byCircle: {}, summoned: 0, lastProcessedTurn: 0 };
 }
 
+/** The circles broken so far, as a map of circle id to the turn it broke (never null). */
+export function brokenCircles(state) {
+  return isRecord(state?.broken) ? state.broken : {};
+}
+
 /** A saved state, made whole: counts are whole numbers from 0, maps of ids to counts. */
 export function sanitizeVigilState(raw) {
   if (!isRecord(raw)) return createVigilState();
@@ -102,12 +120,18 @@ export function sanitizeVigilState(raw) {
             .map(([id, n]) => [id, count(n)]),
         )
       : {};
+  // A broken circle keeps the turn it broke (1 or later); anything else is no break.
+  const broken = Object.fromEntries(
+    Object.entries(counts(raw.broken)).filter(([, turn]) => turn >= 1),
+  );
   return {
     words: count(raw.words),
     byVoice: counts(raw.byVoice),
     byCircle: counts(raw.byCircle),
     summoned: count(raw.summoned),
     lastProcessedTurn: count(raw.lastProcessedTurn),
+    // Only once a circle has broken, so a battle without wards saves exactly what it did.
+    ...(Object.keys(broken).length > 0 ? { broken } : {}),
   };
 }
 
@@ -170,6 +194,88 @@ function coveredBy(tile, playerUnits, npcUnits) {
   return [...(playerUnits || []), ...(npcUnits || [])].some(
     (u) => alive(u) && u.col === tile.col && u.row === tile.row,
   );
+}
+
+/** Does this Vigil field the shields (wards or the choir)? */
+export function vigilHasShields(vigil) {
+  return vigil?.wards === true || vigil?.choir === true;
+}
+
+/**
+ * Why `voice` (a living Voice) is warded now: `circle` while a circle that names it stands
+ * (wards on), `choir` while it keeps the Waking's sigil and any other Voice lives (choir on).
+ * Both false: it can be hurt. Read from the state and the roster alone.
+ * @returns {{ circle: boolean, choir: boolean, circles: string[] }} `circles`: the ids still
+ *   standing that hold its ward (empty without wards)
+ */
+export function wardOf(vigil, state, enemyUnits, voice) {
+  const none = { circle: false, choir: false, circles: [] };
+  const sigil = sigilOf(vigil, voice);
+  if (!sigil || !alive(voice)) return none;
+  const broken = brokenCircles(state);
+  const circles =
+    vigil?.wards === true
+      ? partsOf(vigil)
+          .circles.filter((c) => c.voice === sigil.target && !Object.hasOwn(broken, c.id))
+          .map((c) => c.id)
+      : [];
+  const choir =
+    vigil?.choir === true &&
+    sigil.waking === true &&
+    partsOf(vigil).sigils.some(
+      (other) => other !== sigil && Boolean(voiceUnit(other.target, enemyUnits)),
+    );
+  return { circle: circles.length > 0, choir, circles };
+}
+
+/**
+ * The circles still standing that ward a living Voice (wards on), in data order: where the army
+ * must stand to break them. Empty without wards. The agents' and sims' read.
+ * @returns {{ id: string, voice: string, col: number, row: number }[]}
+ */
+export function openWardCircles(vigil, state, enemyUnits) {
+  if (vigil?.wards !== true) return [];
+  const broken = brokenCircles(state);
+  return partsOf(vigil).circles.filter(
+    (c) => !Object.hasOwn(broken, c.id) && Boolean(voiceUnit(c.voice, enemyUnits)),
+  );
+}
+
+/** Is `voice` warded now (wardOf, either reason)? */
+export function isWarded(vigil, state, enemyUnits, voice) {
+  const ward = wardOf(vigil, state, enemyUnits, voice);
+  return ward.circle || ward.choir;
+}
+
+/**
+ * Stamp each living Voice's `warded` (true, or the key removed) and `wardReason` (`circle` |
+ * `choir` | `both`) from the state and the roster: the one writer of the stamps combat and the
+ * unit card read. Call it at the battle's start, after each phase step, after a Voice leaves
+ * the roster and after a restore. Idempotent.
+ * @returns {{ raised: object[], dropped: object[] }} the Voices whose ward this call put up or
+ *   took down (the presentation's "A ward breaks.")
+ */
+export function applyVigilWards(vigil, state, enemyUnits) {
+  const raised = [];
+  const dropped = [];
+  if (!vigil) return { raised, dropped };
+  for (const unit of enemyUnits || []) {
+    if (!isVoiceOf(vigil, unit)) continue;
+    const was = unit.warded === true;
+    const ward = vigilHasShields(vigil) ? wardOf(vigil, state, enemyUnits, unit) : null;
+    const now = Boolean(ward?.circle || ward?.choir);
+    if (now) {
+      unit.warded = true;
+      // What the unit card says holds it: its circle, the choir, or both.
+      unit.wardReason = ward.circle && ward.choir ? 'both' : ward.circle ? 'circle' : 'choir';
+    } else {
+      delete unit.warded;
+      delete unit.wardReason;
+    }
+    if (now && !was) raised.push(unit);
+    if (!now && was) dropped.push(unit);
+  }
+  return { raised, dropped };
 }
 
 /**
@@ -255,7 +361,7 @@ export function buildSummonedHollowed(circle, tile, world) {
 }
 
 /**
- * One enemy-phase start of the Vigil: the words, then the summons. Pure: it changes none of its
+ * One enemy-phase start of the Vigil: the breaks (wards on), the words, then the summons. Pure: it changes none of its
  * inputs; the caller adds each summoned unit to its roster and keeps the returned state.
  * A turn already processed (`state.lastProcessedTurn`) does nothing.
  * @param {object} p
@@ -272,7 +378,9 @@ export function buildSummonedHollowed(circle, tile, world) {
  * @param {object|number} [p.difficultyConfig]
  * @returns {{ words: { voiceId: string, sigilId: string, count: number }[],
  *   summons: { circleId: string, voiceId: string, tile: { col: number, row: number },
- *   unit: object }[], state: object, skipped: boolean }}
+ *   unit: object }[], breaks: { circleId: string, voiceId: string, col: number, row: number }[],
+ *   state: object, skipped: boolean }} the caller stamps the wards (applyVigilWards) from the
+ *   returned state once the called units are on its roster
  */
 export function vigilPhaseStep({
   vigil,
@@ -294,10 +402,23 @@ export function vigilPhaseStep({
   const before = sanitizeVigilState(state);
   const phase = Math.max(1, Math.trunc(Number(turn) || 1));
   if (!vigil || phase <= before.lastProcessedTurn)
-    return { words: [], summons: [], state: before, skipped: true };
+    return { words: [], summons: [], breaks: [], state: before, skipped: true };
   const next = structuredClone(before);
 
-  // The words first: the summons read the battle's count with this phase's words in it.
+  // The breaks first (wards on): a circle a player or NPC unit stands on as the phase starts
+  // breaks for good, so it calls nothing below and its Voice's ward may drop.
+  const breaks = [];
+  if (vigil.wards === true) {
+    for (const circle of partsOf(vigil).circles) {
+      if (Object.hasOwn(brokenCircles(next), circle.id)) continue;
+      if (!voiceUnit(circle.voice, enemyUnits)) continue; // a closed circle has nothing to break
+      if (!coveredBy(circle, playerUnits, npcUnits)) continue;
+      next.broken = { ...brokenCircles(next), [circle.id]: phase };
+      breaks.push({ circleId: circle.id, voiceId: circle.voice, col: circle.col, row: circle.row });
+    }
+  }
+
+  // The words: the summons read the battle's count with this phase's words in it.
   const words = wordsSpoken(vigil, enemyUnits);
   for (const word of words) {
     next.words += word.count;
@@ -320,6 +441,7 @@ export function vigilPhaseStep({
     if (called >= maxPerCircle) continue;
     const voice = voiceUnit(circle.voice, enemyUnits);
     if (!voice) continue; // silenced: the circle is closed for good
+    if (Object.hasOwn(brokenCircles(next), circle.id)) continue; // broken: it calls no more
     if (coveredBy(circle, playerUnits, npcUnits)) continue;
     const tile = riseTile(
       { col: circle.col, row: circle.row, snapshot: { moveType: 'Infantry' } },
@@ -349,15 +471,20 @@ export function vigilPhaseStep({
     summons.push({ circleId: circle.id, voiceId: circle.voice, tile, unit });
   }
   next.lastProcessedTurn = phase;
-  return { words, summons, state: next, skipped: false };
+  return { words, summons, breaks, state: next, skipped: false };
 }
 
 /**
  * What the markers draw, from the board as it stands (the controller applies the fog):
- * each sigil with its Voice (alive, on it) and each circle (its Voice alive, covered).
+ * each sigil with its Voice (alive, on it, its ward) and each circle (its Voice alive, covered,
+ * broken: pass the battle's `state` for the wards and the breaks).
  */
-export function vigilBoardView(vigil, { enemyUnits = [], playerUnits = [], npcUnits = [] } = {}) {
+export function vigilBoardView(
+  vigil,
+  { enemyUnits = [], playerUnits = [], npcUnits = [], state = null } = {},
+) {
   const { sigils, circles } = partsOf(vigil);
+  const broken = brokenCircles(state);
   return {
     sigils: sigils.map((sigil) => {
       const voice = voiceUnit(sigil.target, enemyUnits);
@@ -369,6 +496,7 @@ export function vigilBoardView(vigil, { enemyUnits = [], playerUnits = [], npcUn
         waking: sigil.waking === true,
         voice,
         onSigil: Boolean(voice) && voice.col === sigil.col && voice.row === sigil.row,
+        ward: voice ? wardOf(vigil, state, enemyUnits, voice) : null,
       };
     }),
     circles: circles.map((circle) => {
@@ -380,6 +508,7 @@ export function vigilBoardView(vigil, { enemyUnits = [], playerUnits = [], npcUn
         voiceId: circle.voice,
         voice,
         covered: coveredBy(circle, playerUnits, npcUnits),
+        broken: Object.hasOwn(broken, circle.id),
       };
     }),
   };

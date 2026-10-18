@@ -103,6 +103,9 @@ import { revivalStoneCount } from '../engine/RevivalStones.js';
 import { applyDueHybridOverrides } from '../engine/TerrainPhases.js';
 import RevivalStoneController from '../ui/RevivalStoneController.js';
 import UnbrokenBannerController from '../ui/UnbrokenBannerController.js';
+import WardController, { drawWardPip, redrawWardPips, wardReady } from '../ui/WardController.js';
+import { isAnchoredByAccessory, playerAlliesLost } from '../engine/AccessoryReactions.js';
+import { readyBattleAccessories } from '../engine/BattleAccessories.js';
 import {
   WHISTLE_NAME,
   battleBlessingsAtStart,
@@ -210,8 +213,10 @@ import {
   getFootprintKeys,
   combatDistance,
   entitySplash,
-  getEntityCenter,
   entityHealth,
+  isLargeUnit,
+  footprintSize,
+  bodyCenter,
 } from '../engine/EntitySystem.js';
 import { bindEnemyAreaArt } from '../engine/EnemyAreaArts.js';
 import {
@@ -290,7 +295,6 @@ import {
   TERRAIN,
   LAVA_CRACK_DAMAGE,
   GOLD_LOOT_REWARD_MULTIPLIER,
-  ENTITY_FOOTPRINT,
   ENTITY_PRIMARY_ATTACK_RANGE,
 } from '../utils/constants.js';
 import { displayEdge, hasRoomRightOf } from '../utils/boardOrientation.js';
@@ -441,9 +445,11 @@ import { RecruitBeaconController } from '../ui/RecruitBeaconController.js';
 import { SMASH_TARGET_STATE, ZombieRemainsController } from '../ui/ZombieRemainsController.js';
 import { NecromancyController } from '../ui/NecromancyController.js';
 import { isNecromancer } from '../engine/Necromancy.js';
-import { createVigilState, isVoiceOf } from '../engine/Vigil.js';
+import { applyVigilWards, createVigilState, isVoiceOf } from '../engine/Vigil.js';
 import { VigilController } from '../ui/VigilController.js';
 import { EntityLimbController } from '../ui/EntityLimbController.js';
+import { HammerfallController } from '../ui/HammerfallController.js';
+import { initialHammerfallState, markedTileKeys } from '../engine/IronGuardian.js';
 import { entityKitWorld, initialEntityKitState } from '../engine/EntityKit.js';
 import { classChangeItemBlock } from '../engine/TwistedBoons.js';
 import { HealController } from '../ui/HealController.js';
@@ -569,6 +575,7 @@ export function resetUnitForBattle(unit) {
   unit._movementCommitted = false;
   unit.hasActed = false;
   unit._miracleUsed = false;
+  readyBattleAccessories(unit); // the Warden's Buckler, the Galeforce Charm
   unit._gambitUsedThisTurn = false;
   unit._conditions = [];
   delete unit._speedtakerStacks;
@@ -882,7 +889,8 @@ export class BattleScene extends Phaser.Scene {
     this._stoneFx?.destroy?.();
     this._stoneFx = null;
     this._bannerFx?.destroy?.();
-    this._bannerFx = null;
+    this._wardFx?.destroy?.();
+    this._bannerFx = this._wardFx = null;
     this._combatSpeedSnapshot = undefined;
     if (this._procBanner) {
       this._procBanner.destroy();
@@ -932,6 +940,7 @@ export class BattleScene extends Phaser.Scene {
       this._vigilCtrl = null;
     }
     this._entityLimbCtrl = this._entityLimbCtrl?.destroy() ?? null;
+    this._hammerfallCtrl = this._hammerfallCtrl?.destroy() ?? null;
     if (this._promotionController) {
       this._promotionController.destroy();
       this._promotionController = null;
@@ -1749,6 +1758,7 @@ export class BattleScene extends Phaser.Scene {
       // its own back (restoreBattleWorldState). PR 9's victory commit reads `.words`.
       this._vigilState = bc.vigil ? createVigilState() : null;
       this._entityKitState = initialEntityKitState(bc); // EntityKit.js: the limbs, as the Vigil
+      this._hammerfallState = initialHammerfallState(bc); // IronGuardian.js: its marks
 
       // Input lockout to prevent menu clicks bleeding through to map
       this._uiClickBlocked = false;
@@ -1889,9 +1899,13 @@ export class BattleScene extends Phaser.Scene {
       // checkpoint; the controller only re-renders/re-applies terrain).
       (this._villageController ||= new VillageController(this)).create();
 
-      // The Vigil's sigil and circle markers (a Vigil map only).
+      // The Vigil's sigil and circle markers (a Vigil map only), over the Voices' wards
+      // (engine/Vigil.js), which stand from the first turn.
+      if (bc.vigil) applyVigilWards(bc.vigil, this._vigilState, this.enemyUnits);
       this._vigilCtrl?.destroy();
       this._vigilCtrl = bc.vigil ? new VigilController(this).create() : null;
+      this._hammerfallCtrl?.destroy();
+      this._hammerfallCtrl = bc.hammerfall ? new HammerfallController(this).create() : null;
 
       // Spawn NPC for recruit battles. RecruitNodeSystem builds the exact recruit the
       // Loom previewed (own seeded stream, so the battle RNG is not consumed).
@@ -1949,6 +1963,7 @@ export class BattleScene extends Phaser.Scene {
       if (!this._resumeCheckpoint) {
         for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
           unit._phoenixBroochUsed = false;
+          readyBattleAccessories(unit);
         }
         // The Lingering Injury burden (id `wounded`, engine/Burdens.js) and Cavalier's Hour (by move
         // type, engine/ShrineBoons.js): battle stat deltas applied once, here, so the first forecast
@@ -3353,22 +3368,25 @@ export class BattleScene extends Phaser.Scene {
     placeBattlePortrait(this, unit); // stable face per unit (portrait variety)
     const color = FACTION_COLORS[unit.faction];
 
-    // Entity: 3x3 footprint, center graphic on middle tile
-    if (isEntity(unit)) {
-      const center = getEntityCenter(unit);
+    // A big body (the Entity's 3x3, the Iron Guardian's 2x2): one graphic over its middle
+    if (isLargeUnit(unit)) {
+      const body = footprintSize(unit);
+      const center = bodyCenter(unit);
       const cPos = this.grid.gridToPixel(center.col, center.row);
-      const entitySize = TILE_SIZE * ENTITY_FOOTPRINT.width;
+      const entitySize = TILE_SIZE * body.width;
       const spriteKey = this.getSpriteKey(unit);
       if (this.textures.exists(spriteKey)) {
         unit.graphic = this.add.image(cPos.x, cPos.y, contrastSpriteKey(this, spriteKey));
-        // rebuilt / traced Entity textures are 128 world px with their own foot baseline
+        // rebuilt / traced big bodies are a tile wider than the body, with their own baseline
         const baked = spriteKey.startsWith('rebuilt-') || spriteKey.startsWith('traced-');
-        unit.graphic.setDisplaySize(baked ? 128 : entitySize - 4, baked ? 128 : entitySize - 4);
+        const shown = baked ? entitySize + TILE_SIZE : entitySize - 4;
+        unit.graphic.setDisplaySize(shown, shown);
         unit.label = null;
       } else {
-        unit.graphic = this.add.rectangle(cPos.x, cPos.y, entitySize - 4, entitySize - 4, 0x440066);
+        const fill = isEntity(unit) ? 0x440066 : color;
+        unit.graphic = this.add.rectangle(cPos.x, cPos.y, entitySize - 4, entitySize - 4, fill);
         unit.label = this.add
-          .text(cPos.x, cPos.y, 'E', {
+          .text(cPos.x, cPos.y, isEntity(unit) ? 'E' : unit.className[0], {
             fontFamily: 'monospace',
             fontSize: '24px',
             color: UI_PALETTE.rarityEpic,
@@ -3380,7 +3398,8 @@ export class BattleScene extends Phaser.Scene {
       const ringY = cPos.y + entitySize / 2 - 10;
       unit.factionIndicator = createFactionRing(this, unit, cPos.x, ringY, {
         color,
-        entityWidthTiles: ENTITY_FOOTPRINT.width,
+        entityWidthTiles: body.width,
+        bodyWidthTiles: body.width,
       });
       const barWidth = entitySize - 8;
       const barHeight = 4;
@@ -3495,7 +3514,8 @@ export class BattleScene extends Phaser.Scene {
     const staff = (statusStaffInfo(unit)?.uses || 0) > 0;
     // A defeat objective's named target (a captain, a Voice) leads the row with a pale diamond.
     const target = !unit.isBoss && isObjectiveTarget(this.battleConfig, unit);
-    const count = affixIds.length + stones + (carries ? 1 : 0) + (staff ? 1 : 0) + (target ? 1 : 0);
+    const ward = wardReady(unit); // a ready Warden's Buckler: a pale blue round pip, last
+    const count = affixIds.length + stones + [carries, staff, target, ward].filter(Boolean).length;
     if (count === 0) return;
 
     const pos = this.grid.gridToPixel(unit.col, unit.row);
@@ -3555,7 +3575,9 @@ export class BattleScene extends Phaser.Scene {
         .setDepth(14)
         .setVisible(inView);
       unit.affixPips.push(staffPip);
+      startX += pipSize + gap;
     }
+    if (ward) unit.affixPips.push(drawWardPip(this, startX, pipY, pipSize).setVisible(inView));
   }
 
   /**
@@ -3585,19 +3607,13 @@ export class BattleScene extends Phaser.Scene {
    * refill, RevivalStoneController); the bar is redrawn from HP as soon as it is dropped.
    */
   updateHPBar(unit, { ratio: shownRatio = null } = {}) {
-    let pos, barWidth, barHeight;
-    if (isEntity(unit)) {
-      const center = getEntityCenter(unit);
-      pos = this.grid.gridToPixel(center.col, center.row);
-      barWidth = TILE_SIZE * ENTITY_FOOTPRINT.width - 8;
-      barHeight = 4;
-    } else {
-      pos = this.grid.gridToPixel(unit.col, unit.row);
-      barWidth = TILE_SIZE - 6;
-      barHeight = 3;
-    }
-    const entityH = isEntity(unit) ? TILE_SIZE * ENTITY_FOOTPRINT.height : TILE_SIZE;
-    const barY = pos.y + entityH / 2 - 4;
+    const body = footprintSize(unit);
+    const center = bodyCenter(unit);
+    const pos = this.grid.gridToPixel(center.col, center.row);
+    const large = isLargeUnit(unit);
+    const barWidth = large ? TILE_SIZE * body.width - 8 : TILE_SIZE - 6;
+    const barHeight = large ? 4 : 3;
+    const barY = pos.y + (TILE_SIZE * body.height) / 2 - 4;
     const ratio = shownRatio ?? Math.max(0, unit.currentHP / unit.stats.HP);
     const fillWidth = barWidth * ratio;
 
@@ -3654,8 +3670,7 @@ export class BattleScene extends Phaser.Scene {
     return (
       all.find((u) => {
         if (!u || u.currentHP <= 0 || u._removing) return false;
-        if (isEntity(u)) return getFootprintKeys(u).includes(`${col},${row}`);
-        return u.col === col && u.row === row;
+        return getFootprintKeys(u).includes(`${col},${row}`);
       }) || null
     );
   }
@@ -3680,13 +3695,7 @@ export class BattleScene extends Phaser.Scene {
     const occupied = new Set();
     for (const unit of [...this.playerUnits, ...this.enemyUnits, ...this.npcUnits]) {
       if (!unit || unit === excludeUnit || unit._removing || unit.currentHP <= 0) continue;
-      if (isEntity(unit)) {
-        for (const tile of getFootprint(unit)) {
-          occupied.add(`${tile.col},${tile.row}`);
-        }
-      } else {
-        occupied.add(`${unit.col},${unit.row}`);
-      }
+      for (const tile of getFootprint(unit)) occupied.add(`${tile.col},${tile.row}`);
     }
     return occupied;
   }
@@ -3714,9 +3723,7 @@ export class BattleScene extends Phaser.Scene {
           u !== unit &&
           !u._removing &&
           u.currentHP > 0 &&
-          (isEntity(u)
-            ? getFootprint(u).some((t) => t.col === col && t.row === row)
-            : u.col === col && u.row === row),
+          getFootprint(u).some((t) => t.col === col && t.row === row),
       ) || null;
     const knowledge = playerKnowledgeOf(this);
     const costMod = this._getCostModifier(unit);
@@ -3848,6 +3855,7 @@ export class BattleScene extends Phaser.Scene {
     this._recruitBeacon?.sync();
     this._remainsCtrl?.sync();
     this._vigilCtrl?.sync();
+    this._hammerfallCtrl?.sync();
     this._mobileBattleHud?.sync();
     this._portraitBattle?.update();
     if (!this._uiCamera) return;
@@ -5419,8 +5427,8 @@ export class BattleScene extends Phaser.Scene {
     this.tradeMutatedThisSession = false;
     this._clearSelectedWeaponArt();
 
-    // Check for Canto: use remaining movement after acting
-    if (!skipCanto) {
+    // Check for Canto: use remaining movement after acting (not when Galeforce readied it)
+    if (!skipCanto && unit._galeforceReady !== true) {
       // Rooted units cannot use Canto (root may land mid-action via counter-art)
       const movSpent = unit._movementSpent || 0;
       // The same MOV the unit's move range read (selectUnit), less the terrain cost spent,
@@ -5518,7 +5526,7 @@ export class BattleScene extends Phaser.Scene {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
       const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally || isRooted(ally)) continue;
+      if (!ally || isRooted(ally) || isAnchoredByAccessory(ally)) continue;
       // Unit retreats opposite direction
       const retreatC = unit.col - dc;
       const retreatR = unit.row - dr;
@@ -5560,7 +5568,7 @@ export class BattleScene extends Phaser.Scene {
 
   findSwapTargets(unit) {
     const targets = [];
-    if (isRooted(unit)) return targets; // both units move: a rooted one holds either end
+    if (isRooted(unit) || isAnchoredByAccessory(unit)) return targets;
     const dirs = [
       { dc: 0, dr: -1 },
       { dc: 0, dr: 1 },
@@ -5571,7 +5579,7 @@ export class BattleScene extends Phaser.Scene {
       const ac = unit.col + dc;
       const ar = unit.row + dr;
       const ally = this.playerUnits.find((u) => u !== unit && u.col === ac && u.row === ar);
-      if (!ally || isRooted(ally)) continue;
+      if (!ally || isRooted(ally) || isAnchoredByAccessory(ally)) continue;
 
       // Check if both positions are walkable by both units
       const unitCanWalkToAlly = this.grid.getMoveCost(ac, ar, unit.moveType) !== Infinity;
@@ -7979,6 +7987,7 @@ export class BattleScene extends Phaser.Scene {
       traitsData: this.gameData.traits || null,
       // The battle's turn: an Epic weapon's "has not moved this turn" reads it.
       turn: this.turnManager?.turnNumber,
+      playerAlliesLost: playerAlliesLost(this.runManager, this._fallenBattleRecords?.length),
     };
     const atkMods = getSkillCombatMods(
       attacker,
@@ -8353,7 +8362,7 @@ export class BattleScene extends Phaser.Scene {
     { isPlayerInitiator = true, equipArtWeapon = false } = {},
   ) {
     const dist =
-      isEntity(attacker) || isEntity(defender)
+      isLargeUnit(attacker) || isLargeUnit(defender)
         ? combatDistance(attacker, defender)
         : gridDistance(attacker.col, attacker.row, defender.col, defender.row);
     const atkTerrain = this.grid.getTerrainAt(attacker.col, attacker.row);
@@ -8531,6 +8540,7 @@ export class BattleScene extends Phaser.Scene {
     // Per-battle weapons (Breachbolt) spend a shot for each side that struck with them
     // (the switch away from a dry weapon waits for the deaths: _swapSpentWeapons).
     spendCombatShots(attacker, defender, result);
+    redrawWardPips(this, result, [attacker, defender]); // whether or not strikes were shown
 
     // Debug invincibility: restore player-faction units to full HP
     if (this.isDevToolsEnabled() && debugState.invincible) {
@@ -9167,7 +9177,8 @@ export class BattleScene extends Phaser.Scene {
     const pos = this.grid.gridToPixel(target.col, target.row);
     // The number's look (crit pop, "No damage" spark, reduced motion) is ui/combatNumberStyle.js.
     floatCombatNumber(this, {
-      kind: event.isCrit ? 'crit' : 'strike',
+      // A Vigil Voice's ward turned the blow aside: "Warded", never "No damage".
+      kind: event.warded ? 'warded' : event.isCrit ? 'crit' : 'strike',
       value: event.damage,
       x: pos.x,
       y: pos.y - 16,
@@ -9180,6 +9191,7 @@ export class BattleScene extends Phaser.Scene {
     if (event.stoneBroken) this._stoneBreakFx().playBreak(target);
     // The Unbroken Banner held the target at 1 HP on this blow (settled: UnbrokenBannerController).
     if (event.bannerHeld) this._bannerHoldFx().playHold(target);
+    if (event.buckler) (this._wardFx ||= new WardController(this)).playWard(target, { reduced });
 
     // Sleep: wake on damage -- remove the Zzz icon; the look follows the woken unit's state
     // (a player unit hit in the enemy phase has acted and stays spent until its turn).
@@ -9637,6 +9649,7 @@ export class BattleScene extends Phaser.Scene {
       // The Entity's limbs: a cut one wounds it; its fall withers them (EntityKit.js).
       await limbsOf(this).onEnemyFell(unit, killer);
       if (!isCurrentBattleSession(this, session)) return;
+      this._hammerfallCtrl?.onEnemyFell(unit);
     }
     safeBattlePresentation('death hover', () => this._inputController?.refreshHoverInfo(), {
       scene: this,
@@ -10099,6 +10112,7 @@ export class BattleScene extends Phaser.Scene {
           await this.processNecromancy();
           await this.processVigil();
           await limbsOf(this).processPhase();
+          await this._hammerfallCtrl?.processPhase(); // the Iron Guardian's slam (IronGuardian.js)
           await this.processBallistaFire(this.playerUnits, 'enemy');
           this.applyDueHybridOverridesForTurn(turn);
           await this.startEnemyPhase();
@@ -11662,6 +11676,7 @@ export class BattleScene extends Phaser.Scene {
       // Who the player knows of (the hold wake rule's targets): PlayerKnowledge.
       isKnown: (unit) => playerKnowledgeOf(this).isKnown(unit),
       costModifier: (unit) => this._getCostModifier(unit),
+      hammerfallMarks: markedTileKeys(this._hammerfallState),
       areaArtOf: (unit) =>
         (this._weaponArtController ||= new WeaponArtController(this)).enemyAreaArt(unit),
     };
