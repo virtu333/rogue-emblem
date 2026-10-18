@@ -50,6 +50,7 @@ import {
   undoLastRide,
 } from '../src/engine/NgPlusState.js';
 import { isNgPlusRun, ngPlusRunEnd, rideCandidates } from '../src/engine/NgPlusRun.js';
+import { resolveBossRecruit } from '../src/engine/PendingBossRecruit.js';
 import {
   barracksView,
   candidateDetail,
@@ -713,6 +714,81 @@ describe('an NG+ run starts with its veterans and kits', () => {
     expect(joined.skills).toContain('vantage');
     expect(rm.ngPlus.members.some((m) => m.id === lordRecordId('Kira'))).toBe(true);
     expect(rm.ngPlus.lordKits).toEqual([]);
+  });
+});
+
+describe('a Barracks lord who joins mid-run takes their kit, however they join', () => {
+  // Jeff's report (Oct 2026): Voss came back without his kept bow when he joined at a recruit
+  // node; as the chosen third lord he had it. Only Power of Friendship applied the kit.
+  const BOW_UID = 'itm_voss_kept_bow';
+  function vossRun() {
+    const state = defaultNgPlusState();
+    state.barracks.push({
+      id: lordRecordId('Voss'),
+      kind: 'lord',
+      name: 'Voss',
+      keptSkills: ['vantage'],
+      skillKinds: {},
+      keptItems: [{ ...weapon('Steel Bow'), uid: BOW_UID }],
+      rides: 1,
+    });
+    const rm = new RunManager(data);
+    rm.startRun({
+      runSeed: 3,
+      applyBlessingsAtStart: false,
+      difficultyId: 'lunatic',
+      ngPlus: runStartOf(state),
+    });
+    const voss = rm._buildStartingLord(
+      data.lords.find((l) => l.name === 'Voss'),
+      { isCommander: false },
+    );
+    return { rm, voss };
+  }
+  const bowsOf = (rm) =>
+    [...rm.roster.flatMap((u) => u.inventory || []), ...(rm.convoy.weapons || [])].filter(
+      (i) => i.uid === BOW_UID,
+    );
+  const expectKit = (rm) => {
+    const joined = rm.roster.find((u) => u.name === 'Voss');
+    expect(joined.inventory.map((i) => i.uid)).toContain(BOW_UID);
+    expect(joined.skills).toContain('vantage');
+    expect(bowsOf(rm)).toHaveLength(1);
+    expect(rm.ngPlus.members.some((m) => m.id === lordRecordId('Voss'))).toBe(true);
+    expect(rm.ngPlus.lordKits).toEqual([]);
+  };
+
+  it('a boss draft', () => {
+    const { rm, voss } = vossRun();
+    resolveBossRecruit(rm, voss);
+    expectKit(rm);
+  });
+
+  it('a recruit node (Talked over in battle, joined at the victory)', () => {
+    const { rm, voss } = vossRun();
+    const node = rm.getAvailableNodes()[0];
+    rm.completeBattle([...rm.getRoster(), voss], node.id, 0, { turnCount: 5, turnPar: 7 });
+    expectKit(rm);
+    // A second victory hands nothing over again.
+    const next = rm.getAvailableNodes()[0];
+    rm.completeBattle(rm.getRoster(), next.id, 0, { turnCount: 5, turnPar: 7 });
+    expect(bowsOf(rm)).toHaveLength(1);
+  });
+
+  it('a save where he already joined without it gets it on load, never over a battle', () => {
+    const { rm, voss } = vossRun();
+    rm.roster.push(voss); // joined by the old path: the kit still waits
+    rm.ensureUnitUids();
+    const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+    expect(saved.ngPlus.lordKits.map((r) => r.name)).toEqual(['Voss']);
+    expectKit(RunManager.fromJSON(structuredClone(saved), data));
+    // A suspended battle keeps its own copies of the army: the victory hands it over instead.
+    const suspended = RunManager.fromJSON(
+      { ...structuredClone(saved), battleInProgress: { nodeId: 'n', checkpoint: {} } },
+      data,
+    );
+    expect(suspended.ngPlus.lordKits.map((r) => r.name)).toEqual(['Voss']);
+    expect(bowsOf(suspended)).toHaveLength(0);
   });
 });
 

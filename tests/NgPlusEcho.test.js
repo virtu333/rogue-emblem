@@ -206,6 +206,32 @@ describe('kept forges sleep and wake', () => {
     expect(read(findKept(rm, 'itm_kept_sword'))).toEqual(expectedAt(7));
   });
 
+  it('a Barracks lord who joins mid-run brings the kept sword at that act’s limit, then wakes it', () => {
+    // Failure: a kit that arrives late (Power of Friendship, a boss draft, a Talk: one rule,
+    // NgPlusRun.applyPendingNgPlusLordKits) comes fully forged, or sleeps for good.
+    const state = defaultNgPlusState();
+    state.barracks.push({
+      id: lordRecordId('Kira'),
+      kind: 'lord',
+      name: 'Kira',
+      keptSkills: [],
+      skillKinds: {},
+      keptItems: [forgedSword('itm_kira_sword')],
+      rides: 1,
+    });
+    const rm = ngPlusRun(state);
+    expect(findKept(rm, 'itm_kira_sword')).toBeUndefined();
+    rm.advanceAct();
+    rm.advanceAct();
+    expect(rm.currentAct).toBe('act3');
+    const lordDef = data.lords.find((l) => l.name === 'Kira');
+    rm.resolveThirdLord(rm._buildStartingLord(lordDef, { isCommander: false }));
+    const limits = data.difficulty.ngPlus.keptForgeAwake;
+    expect(read(findKept(rm, 'itm_kira_sword'))).toEqual(expectedAt(limits.act3));
+    rm.advanceAct();
+    expect(read(findKept(rm, 'itm_kira_sword'))).toEqual(expectedAt(Math.min(7, limits.act4)));
+  });
+
   it('a weapon moved to the convoy still wakes', () => {
     // Failure: only bags are woken, so a stored kept weapon sleeps for good.
     const rm = ngPlusRun(lordState({ items: [forgedSword()] }));

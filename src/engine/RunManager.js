@@ -5,9 +5,9 @@ import { epicVictoryTerms, settleEpicVictory } from './EpicWeapons.js';
 import { migrateSavedItemNames } from './ItemNameMigration.js';
 import { serializeRun } from './RunSerialization.js';
 import {
-  applyNgPlusThirdLord,
+  applyPendingNgPlusLordKits,
   ngPlusRunEnd,
-  sanitizeNgPlusRun,
+  restoreNgPlusRun,
   startNgPlusRun,
 } from './NgPlusRun.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
@@ -2684,8 +2684,8 @@ export class RunManager {
       );
       this.grantRecruitBlessingConsumables(unit);
       this.assignUnitUid(unit);
-      applyNgPlusThirdLord(this, unit); // an NG+ run: a Barracks lord's kit comes back
       this.roster.push(unit);
+      applyPendingNgPlusLordKits(this); // an NG+ run: a Barracks lord's kit comes back
     }
   }
 
@@ -4502,9 +4502,9 @@ export class RunManager {
       return data;
     });
     this.ensureUnitUids();
-    // Refill at the completed-battle boundary so rewards and the node-map
-    // roster show ready staves. Never do this during serialization/resume.
-    // Include stored and casualty-retained equipment, not consumables.
+    applyPendingNgPlusLordKits(this); // NG+: a lord recruited in this battle takes their kit
+    // Refill at the completed-battle boundary so rewards and the node-map roster show ready
+    // staves (stored and casualty-retained equipment, never consumables; never on resume).
     for (const unit of [...this.roster, ...this.fallenUnits]) {
       for (const item of [...(unit.inventory || []), unit.weapon]) {
         refillBattleUses(item);
@@ -6122,7 +6122,7 @@ export class RunManager {
     rm.rewardRerollsSpent = Math.max(0, Math.trunc(Number(saved.rewardRerollsSpent) || 0));
     // Saves from before the ledger have none (what the army holds still counts).
     rm.legendaryGrants = sanitizeLegendaryGrants(saved.legendaryGrants);
-    rm.ngPlus = sanitizeNgPlusRun(saved.ngPlus);
+    rm.ngPlus = restoreNgPlusRun(rm, saved);
     rm.omens = sanitizeOmensRecord(saved.omens);
     adoptHeldLegendaries(rm);
     rm.pendingBossRecruit = restorePendingBossRecruit(saved.pendingBossRecruit, {

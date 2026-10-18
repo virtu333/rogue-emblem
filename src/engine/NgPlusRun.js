@@ -113,12 +113,14 @@ function placeKeptItem(run, unit, item) {
   recordLegendaryGrant(run, copy);
 }
 
-/** A record's kept skills and items put on the unit. */
+/** A record's kept skills and items put on the unit (never a second copy of an item held). */
 function applyKit(run, unit, record) {
   const skillsData = run.gameData?.skills;
   for (const skillId of record.keptSkills || []) learnSkill(unit, skillId, { skillsData });
   if (!Array.isArray(run.accessories)) run.accessories = [];
-  for (const item of record.keptItems || []) placeKeptItem(run, unit, item);
+  const held = heldItemsByUid(run);
+  for (const item of record.keptItems || [])
+    if (!isId(item?.uid) || !held.has(item.uid)) placeKeptItem(run, unit, item);
 }
 
 /** What a unit's traits add to its growths (the growth half of their creation mods). */
@@ -260,6 +262,33 @@ export function applyNgPlusThirdLord(run, unit) {
     keptUids: keptUidsOf(record),
   });
   return true;
+}
+
+/**
+ * Every lord on the roster whose Barracks kit still waits takes it, once (the kit leaves
+ * `lordKits` as it is applied). Every way a lord joins after the run's start reaches it:
+ * Power of Friendship (RunManager.resolveThirdLord), a boss draft
+ * (PendingBossRecruit.resolveBossRecruit), a recruit node's Talk (the victory commit,
+ * RunManager.completeBattle), and a save where one joined before this was so (fromJSON,
+ * restoreNgPlusRun). Returns the names that took a kit.
+ */
+export function applyPendingNgPlusLordKits(run) {
+  if (!isNgPlusRun(run) || !run.ngPlus.lordKits?.length) return [];
+  const applied = [];
+  for (const unit of run.roster || []) if (applyNgPlusThirdLord(run, unit)) applied.push(unit.name);
+  return applied;
+}
+
+/**
+ * A loaded run's `ngPlus` (RunManager.fromJSON, after the roster and stores): sanitized, and a
+ * lord who joined before every join path applied the kit (a boss draft, a recruit node) takes
+ * it now. Never over a suspended battle: its checkpoint holds the army's own copies, and the
+ * victory commit hands the kit over instead.
+ */
+export function restoreNgPlusRun(run, saved) {
+  run.ngPlus = sanitizeNgPlusRun(saved?.ngPlus);
+  if (!saved?.battleInProgress) applyPendingNgPlusLordKits(run);
+  return run.ngPlus;
 }
 
 /** Skills a class line teaches by level (relearned by levelling, never kept). */
