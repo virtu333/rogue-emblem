@@ -888,6 +888,13 @@
 .ch-reward .ch-lines p.ch-lottery {
   color: var(--re-accent-text);
 }
+/* A weapon comparison: gains green, losses red (the signs and arrows stay in the text). */
+.cmp-up {
+  color: var(--re-good);
+}
+.cmp-down {
+  color: var(--re-bad);
+}
 .ch-forwhom {
   display: flex;
   flex-direction: column;

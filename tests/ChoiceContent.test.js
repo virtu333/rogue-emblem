@@ -291,6 +291,15 @@ describe('rewardForWhom', () => {
     expect(result.detail).toBe(
       'Atk 15 → 18 · AS\u00a0\u22124 · Hit\u00a0\u221210 · Crit\u00a0+30 · Range\u00a01\u00a0→\u00a01-2 · 1 can wield',
     );
+    // Each piece says whether it is a gain (true), a loss (false) or neither (null), so the
+    // card can colour it: Atk up, AS down, Hit down, Crit up, range and count neutral.
+    expect(result.parts.map((p) => p.better)).toEqual([true, false, false, true, null, null]);
+    // A heavier weapon that hits less hard is worse in Atk even when speed and hit improve.
+    const weak = { ...blade, name: 'Weak Blade', might: 2, weight: 1, hit: 100, crit: 0 };
+    const weakParts = rewardForWhom({ type: 'weapon', item: weak }, run([brom])).parts;
+    expect(weakParts[0]).toEqual({ text: 'Atk 15 → 12', better: false });
+    expect(weakParts.find((p) => p.text.startsWith('AS')).better).toBe(true);
+    expect(weakParts.find((p) => p.text.startsWith('Hit')).better).toBe(true);
     // Nothing else changes: attack alone.
     const same = { ...iron, name: 'Iron Sword Copy', might: 6 };
     expect(rewardForWhom({ type: 'weapon', item: same }, run([brom])).detail).toBe(

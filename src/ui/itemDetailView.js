@@ -4,7 +4,7 @@
 // detail sheet (long press, Details) both build it here, so they cannot disagree.
 
 import { shopRequirementLabel } from './itemDecisionText.js';
-import { equipmentComparison } from './equipmentComparison.js';
+import { comparisonFragment, equipmentComparisonSegments } from './equipmentComparison.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
 import { itemHero } from './itemIcons.js';
@@ -170,7 +170,10 @@ export function appendItemDetail(
       comparisons.append(
         el(
           'p',
-          `${unit.name}: ${equipmentComparison(unit, item, unit.weapon, { ...compareOptions, run })}`,
+          comparisonFragment([
+            { text: `${unit.name}: `, better: null },
+            ...equipmentComparisonSegments(unit, item, unit.weapon, { ...compareOptions, run }),
+          ]),
         ),
       );
     if (!able.length)

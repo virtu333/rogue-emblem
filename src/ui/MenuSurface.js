@@ -7,7 +7,8 @@ import { InputAction } from '../utils/InputActions.js';
 
 export function element(tag, text, className = '') {
   const el = document.createElement(tag);
-  if (text != null) el.textContent = text;
+  if (text?.nodeType) el.append(text);
+  else if (text != null) el.textContent = text;
   el.className = className;
   return el;
 }

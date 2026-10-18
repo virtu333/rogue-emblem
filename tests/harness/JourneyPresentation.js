@@ -1,10 +1,20 @@
 // Rendering-only substitutes. Production menus still create their real action
 // callbacks; this is NOT a DOM/input/layout emulator (headed tests own those).
+// The words a node (or a string) reads as, children included.
+export const wordsOf = (node) =>
+  typeof node === 'string'
+    ? node
+    : node && typeof node === 'object'
+      ? (node.textContent || '') + (node.children || []).map(wordsOf).join('')
+      : '';
 export class PresentationNode {
   constructor(tag = 'div', text = '', classes = '') {
     this.tag = tag;
-    this.textContent = text || '';
-    this.children = [];
+    // A node given as the text (a coloured comparison line) is kept whole as a child and
+    // read as its words, as the browser's textContent reads it.
+    const wrapped = text && typeof text === 'object';
+    this.textContent = wrapped ? wordsOf(text) : text || '';
+    this.children = wrapped ? [text] : [];
     this.dataset = {};
     this.style = {};
     this.attributes = {};

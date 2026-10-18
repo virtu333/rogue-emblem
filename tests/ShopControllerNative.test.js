@@ -1,5 +1,6 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
+import { wordsOf } from './harness/JourneyPresentation.js';
 import { RunDriver, JourneyStorage } from './harness/RunDriver.js';
 import { InputAction } from '../src/utils/InputActions.js';
 import { getForgeCost } from '../src/engine/ForgeSystem.js';
@@ -89,7 +90,7 @@ it.each(['weapon', 'consumable'])(
     d.scene.shopBuyItems = [entry];
     menu.buy(entry);
     const options = menu.child.options;
-    expect(options.describe(unit)).toContain('Full: sent to convoy');
+    expect(wordsOf(options.describe(unit))).toContain('Full: sent to convoy');
     const gold = d.run.gold;
     const spend = vi.spyOn(d.run, 'spendGold').mockReturnValueOnce(false);
     expect(options.apply(unit).ok).toBe(false);

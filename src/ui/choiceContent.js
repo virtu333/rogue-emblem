@@ -274,10 +274,12 @@ function sideChanges(unit, item) {
   const parts = [];
   for (const row of rows) {
     if (SIDE_LABELS[row.id] && row.delta)
-      parts.push(
-        `${SIDE_LABELS[row.id]}\u00a0${row.delta > 0 ? '+' : '\u2212'}${Math.abs(row.delta)}`,
-      );
-    else if (row.id === 'range') parts.push(`Range\u00a0${row.from}\u00a0→\u00a0${row.to}`);
+      parts.push({
+        text: `${SIDE_LABELS[row.id]}\u00a0${row.delta > 0 ? '+' : '\u2212'}${Math.abs(row.delta)}`,
+        better: row.delta > 0,
+      });
+    else if (row.id === 'range')
+      parts.push({ text: `Range\u00a0${row.from}\u00a0→\u00a0${row.to}`, better: null });
   }
   return parts;
 }
@@ -394,9 +396,17 @@ export function rewardForWhom(choice, run) {
       best = { u, next, now: now ?? 0, delta };
   }
   if (!best) return { who: count, detail: '', tone: 'muted' };
+  // `parts` is the same line in pieces, each marked better / worse / neutral so a card can
+  // colour it (the signs and arrows stay in the text: colour is never the only cue).
+  const parts = [
+    { text: `Atk ${best.now} → ${best.next}`, better: best.delta === 0 ? null : best.delta > 0 },
+    ...sideChanges(best.u, item),
+    { text: count, better: null },
+  ];
   return {
     who: `For ${best.u.name}`,
-    detail: [`Atk ${best.now} → ${best.next}`, ...sideChanges(best.u, item), count].join(' · '),
+    detail: parts.map((p) => p.text).join(' · '),
+    parts,
     tone: best.delta > 0 ? 'good' : best.delta < 0 ? 'bad' : 'muted',
     unit: best.u.name,
     delta: best.delta,
