@@ -289,7 +289,7 @@ for (const view of VIEWS) {
       await expect(cards.nth(0).locator('.re-item-tag')).toHaveText(['Crit 30']);
       await expect(cards.nth(0).locator('.ch-lines')).not.toContainText('Critical specialist');
       await expect(cards.nth(2).locator('.re-item-base')).toHaveText('Legend Sword');
-      await expect(cards.nth(2).locator('.re-item-tag')).toHaveText(['+5 DEF']);
+      await expect(cards.nth(2).locator('.re-item-tag')).toHaveText(['+5 DEF', 'One per run']);
       await expect(cards.nth(1).locator('.re-item-keys')).toHaveCount(0);
       await cards.nth(2).click();
       await expect(cards.nth(2)).toHaveAttribute('aria-pressed', 'true');
