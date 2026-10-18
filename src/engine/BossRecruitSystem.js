@@ -7,6 +7,7 @@ import {
   BOSS_RECRUIT_COUNT,
   BASE_CLASS_LEVEL_CAP,
   RECRUIT_SKILL_POOL,
+  startingStaffNames,
 } from '../utils/constants.js';
 import { ensureItemUid } from '../utils/itemUid.js';
 import { resolveRecruitScalingTargets, applyRecruitJoinBonus } from './RecruitScaling.js';
@@ -194,6 +195,15 @@ export function createBossLordUnit(
   recruitContext = null,
 ) {
   const unit = createLordUnit(lordDef, classData, allWeapons);
+
+  // Sera's healer kit travels with her, whichever slot she joins in (RunManager._buildStartingLord).
+  if (lordDef?.name === 'Sera') {
+    if (!unit.proficiencies.some((p) => p.type === 'Staff')) {
+      unit.proficiencies.push({ type: 'Staff', rank: 'Prof' });
+    }
+    const heal = allWeapons.find((w) => w.name === startingStaffNames(0)[0]);
+    if (heal) unit.inventory.push(ensureItemUid(structuredClone(heal)));
+  }
 
   // Apply lord meta growth bonuses BEFORE leveling
   if (metaEffects?.lordGrowthBonuses) {
