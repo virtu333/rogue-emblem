@@ -15,7 +15,9 @@
 //                   //   portraitVariant; growthsBasis 'innate' when growths are the roll
 //                   //   and its traits' growth changes only, else absent: a legacy record,
 //                   //   its growths as the unit ended a run, upgrades and blessings in them,
-//                   //   kept as they are because those cannot be taken back out). `rideLog`
+//                   //   kept as they are because those cannot be taken back out). `homeUids`
+//                   //   (absent when empty) are kept items left home: the record keeps them,
+//                   //   untouched, and they stay out of the runs until brought again. `rideLog`
 //                   //   is each ride's keeps, newest last, so a lost run can take back the
 //                   //   commander's latest ride (undoLastRide)
 //     bring,        // up to bringLimitFor(Barracks Wing) recruit record ids for the next NG+ run
@@ -217,6 +219,10 @@ export function sanitizeRecord(raw) {
     rides: count(raw.rides),
     rideLog: sanitizeRideLog(raw.rideLog),
   };
+  const kept = new Set(record.keptItems.map((item) => item.uid));
+  const homeUids = [...new Set((Array.isArray(raw.homeUids) ? raw.homeUids : []).filter(isId))];
+  if (homeUids.some((uid) => kept.has(uid)))
+    record.homeUids = homeUids.filter((uid) => kept.has(uid));
   if (kind === 'recruit') {
     const identity = sanitizeIdentity(raw);
     if (!identity) return null;
@@ -294,6 +300,7 @@ export function normalizeNgPlusState(raw) {
       ownedUids.add(item.uid);
       return true;
     });
+    pruneHomeUids(record);
     state.barracks.push(record);
   }
   for (const record of state.barracks)
@@ -396,6 +403,44 @@ export function lordRecord(state, name) {
   return findRecord(state, lordRecordId(name));
 }
 
+/** A record's `homeUids` held to the items it still keeps (dropped when none are left). */
+function pruneHomeUids(record) {
+  if (!record?.homeUids) return record;
+  const kept = new Set(record.keptItems.map((item) => item.uid));
+  const homeUids = record.homeUids.filter((uid) => kept.has(uid));
+  if (homeUids.length) record.homeUids = homeUids;
+  else delete record.homeUids;
+  return record;
+}
+
+/** True when the record leaves this kept item home (it rides in no run until brought again). */
+export function isKeptItemHome(record, uid) {
+  return Boolean(record?.homeUids?.includes(uid));
+}
+
+/**
+ * Leave one of a record's kept items home, or bring it again. The record keeps the item
+ * either way; a run never places an item left home and never touches it at its end.
+ */
+export function setKeptItemHome(state, id, uid, home) {
+  const record = findRecord(state, id);
+  if (!record) return { ok: false, reason: 'unknown' };
+  if (!record.keptItems.some((item) => item.uid === uid))
+    return { ok: false, reason: 'unknown_item' };
+  if (isKeptItemHome(record, uid) === Boolean(home)) return { ok: true };
+  record.homeUids = home
+    ? [...(record.homeUids || []), uid]
+    : (record.homeUids || []).filter((other) => other !== uid);
+  pruneHomeUids(record);
+  bump(state);
+  return { ok: true };
+}
+
+/** The items a record brings into a run: every kept item not left home. */
+export function ridingKeptItems(record) {
+  return (record?.keptItems || []).filter((item) => !isKeptItemHome(record, item.uid));
+}
+
 const bump = (state) => {
   state.rev = count(state.rev) + 1;
   return state;
@@ -446,9 +491,19 @@ export function applyRunEnd(state, end) {
   for (const refresh of Array.isArray(end.refresh) ? end.refresh : []) {
     const record = findRecord(state, refresh?.id);
     if (!record) continue;
-    record.keptItems = sanitizeItems(refresh.keptItems).filter(
+    const refreshed = sanitizeItems(refresh.keptItems).filter(
       (item) => !ownedElsewhere(state, record, item.uid),
     );
+    if (Array.isArray(refresh.keptUids)) {
+      // Only the items that rode this run are read again (one gone is gone); an item left
+      // home, or one a second copy kept home, stays as the record holds it.
+      const rode = new Set(refresh.keptUids);
+      const byUid = new Map(refreshed.map((item) => [item.uid, item]));
+      record.keptItems = record.keptItems
+        .map((item) => (rode.has(item.uid) ? byUid.get(item.uid) : item))
+        .filter(Boolean);
+    } else record.keptItems = refreshed;
+    pruneHomeUids(record);
     changed = true;
   }
   const ride = sanitizePendingRide(end.pendingRide);
@@ -601,6 +656,7 @@ export function applyRidePicks(state, picks) {
       if (pick.replaceItemUid != null)
         record.keptItems = record.keptItems.filter((i) => i.uid !== pick.replaceItemUid);
       record.keptItems.push(structuredClone(candidate.items.find((i) => i.uid === pick.itemUid)));
+      pruneHomeUids(record);
     }
     record.rides += 1;
     record.rideLog = [...(record.rideLog || []), entry].slice(-RIDE_LOG_LIMIT);
@@ -640,6 +696,7 @@ export function undoLastRide(state, id) {
     !ownedElsewhere(state, record, entry.replacedItem.uid)
   )
     record.keptItems.push(structuredClone(entry.replacedItem));
+  pruneHomeUids(record);
   record.rides = Math.max(0, count(record.rides) - 1);
   if (!record.rides && !record.keptSkills.length && !record.keptItems.length)
     removeRecords(state, [record.id]);

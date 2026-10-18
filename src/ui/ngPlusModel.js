@@ -11,6 +11,7 @@ import {
   NG_PLUS_UPGRADE_IDS,
   RIDE_LORD_PICKS,
   RIDE_RECRUIT_PICKS,
+  isKeptItemHome,
   keptItemKind,
   keptItemsOfKind,
   keptOfKind,
@@ -18,8 +19,10 @@ import {
   recordFor,
   ridePickBlock,
   rideSlotsLeft,
+  ridingKeptItems,
 } from '../engine/NgPlusState.js';
-import { itemDisplayName } from '../utils/itemNames.js';
+import { isOnePerRunWeapon } from '../engine/LegendaryOwnership.js';
+import { itemDisplayName, stripItemNameSuffix } from '../utils/itemNames.js';
 import { echoEffectLines, recordEcho } from '../engine/NgPlusEcho.js';
 
 export const NG_PLUS_TAB_LABEL = 'NG+';
@@ -46,6 +49,17 @@ const PICK_BLOCK_TEXT = {
 };
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** A kept weapon's plain name ("Breachbolt", never "Breachbolt +3") for the one-per-run notes. */
+const weaponName = (item) => stripItemNameSuffix(item?._baseName || item?.name || '');
+
+const listWords = (words) =>
+  words.length <= 1 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
+
+/** What a kept one-per-run weapon means for the runs it rides in (the Barracks, the pick). */
+export function onePerRunKeepNote(item) {
+  return `${weaponName(item)} is one per run: in a run it rides in, no other copy turns up. Leave it home from the Barracks to find it fresh.`;
+}
 
 /** The NG+ tab shows once the slot has won Black Sun or bought NG+. */
 export function ngPlusTabVisible(meta) {
@@ -215,8 +229,32 @@ export function candidateDetail(state, ref, pick, gameData = {}) {
           chosen: pick?.replaceItemUid === i.uid,
         }))
       : null,
+    itemNote: item && isOnePerRunWeapon(item) ? onePerRunKeepNote(item) : '',
     caps: `Kept skills cap at ${KEPT_SKILL_CAPS.skill} skills and ${KEPT_SKILL_CAPS.ability} abilities.`,
   };
+}
+
+/** The one-per-run weapons a record brings into its runs, as a note, or ''. */
+function onePerRunRidingNote(record) {
+  const names = ridingKeptItems(record).filter(isOnePerRunWeapon).map(weaponName);
+  if (!names.length) return '';
+  const them = names.length === 1 ? 'it' : 'them';
+  return `One per run: a run ${listWords(names)} ${names.length === 1 ? 'rides' : 'ride'} in offers no other copy. Leave ${them} home to find ${them} fresh.`;
+}
+
+/**
+ * The kept one-per-run weapons the next NG+ run brings: the brought veterans' and every
+ * Barracks lord's (a lord's when they are in the run), each by name with its keeper.
+ */
+export function ridingLegends(state, bringLimit = BRING_LIMIT) {
+  const bring = new Set((state?.bring || []).slice(0, bringLimit));
+  const out = [];
+  for (const record of state?.barracks || []) {
+    if (record.kind !== 'lord' && !bring.has(record.id)) continue;
+    for (const item of ridingKeptItems(record))
+      if (isOnePerRunWeapon(item)) out.push({ name: weaponName(item), keeper: record.name });
+  }
+  return out;
 }
 
 /** The Barracks: every record, the recruits marked when brought into the next NG+ run. */
@@ -237,6 +275,14 @@ export function barracksView(state, gameData = {}, bringLimit = BRING_LIMIT) {
       line: `${describeRecord(record)} · Rode ${plural(record.rides, 'time')} · Echo ${recordEcho(record)}`,
       skills: record.keptSkills.map((id) => skillName(id, skills)),
       items: record.keptItems.map((i) => itemDisplayName(i, skills)),
+      // Each kept item with its toggle: brought into the runs, or left home.
+      kit: record.keptItems.map((i) => ({
+        uid: i.uid,
+        label: itemDisplayName(i, skills),
+        home: isKeptItemHome(record, i.uid),
+        onePerRun: isOnePerRunWeapon(i),
+      })),
+      legendNote: onePerRunRidingNote(record),
       brought: bring.has(record.id),
       canBring: record.kind === 'recruit' && (bring.has(record.id) || bring.size < bringLimit),
     })),
@@ -295,7 +341,11 @@ export function ngPlusRunNote(meta, gameData = null) {
   const rides = brought === 1 ? '1 veteran rides' : `${brought} veterans ride`;
   const kits =
     lords === 1 ? '1 Barracks lord brings their kit' : `${lords} Barracks lords bring their kit`;
-  const note = `New Game+: ${rides} with you; ${kits} when in the run.`;
+  const legends = ridingLegends(state, meta?.ngPlusBringLimit?.() ?? BRING_LIMIT);
+  const legendLine = legends.length
+    ? ` Kept legends ride along, so you won't find another copy this run: ${legends.map((l) => `${l.name} (${l.keeper})`).join(', ')}.`
+    : '';
+  const note = `New Game+: ${rides} with you; ${kits} when in the run.${legendLine}`;
   return gameData ? `${note} ${echoLine(echoPreview(meta), gameData)}` : note;
 }
 

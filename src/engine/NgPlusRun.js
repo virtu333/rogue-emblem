@@ -8,9 +8,9 @@
 //   run.ngPlus = { v: 1, members: [{ id, uid, keptUids }], lordKits: [record], echo } | null
 //
 // `members` are the Barracks records playing this run (a brought veteran, or a lord whose
-// kit came back), by the record id and the unit's run uid; `keptUids` the items its record
-// keeps, so the run's end can read each one as it is then (forged, worn, used) or find it
-// gone; `lordKits` the Barracks lords not in the starting roster, kept for a third lord who
+// kit came back), by the record id and the unit's run uid; `keptUids` the kept items that
+// rode with it (not one left home, nor a one-per-run weapon the run already had), so the
+// run's end can read each one as it is then (forged, worn, used) or find it gone; `lordKits` the Barracks lords not in the starting roster, kept for a third lord who
 // joins later; `echo` the run's Echo, the rides of every member counted as it joins
 // (engine/NgPlusEcho.js: the enemies' scaling). A kept weapon's forges above the act's limit
 // sleep and wake act by act (engine/KeptForges.js); the Barracks always stores them awake.
@@ -30,7 +30,7 @@ import { unitBaseClassName } from './ClassLineage.js';
 import { lockedSkillIds } from './SkillLoadout.js';
 import { slotKindOf, swornOathSkillId } from './SkillSlots.js';
 import { everFallenUnits } from './LaidToRest.js';
-import { recordLegendaryGrant } from './LegendaryOwnership.js';
+import { isDuplicateLegendary, recordLegendaryGrant } from './LegendaryOwnership.js';
 import { isSignatureWeapon } from './SignatureWeapons.js';
 import { findCommander } from './Commander.js';
 import { serializeUnit } from './UnitSerialization.js';
@@ -42,6 +42,7 @@ import {
   isNgPlusRung,
   keptItemKind,
   lordRecordId,
+  ridingKeptItems,
   sanitizeRecord,
 } from './NgPlusState.js';
 
@@ -113,14 +114,27 @@ function placeKeptItem(run, unit, item) {
   recordLegendaryGrant(run, copy);
 }
 
-/** A record's kept skills and items put on the unit (never a second copy of an item held). */
+/**
+ * A record's kept skills and items put on the unit (never a second copy of an item held).
+ * An item left home stays in the Barracks, and so does a one-per-run weapon the run already
+ * has (another member's kept copy, or one found before this lord joined): the run holds one.
+ * Returns the uids of the kept items riding with the unit, the ones the run's end reads again.
+ */
 function applyKit(run, unit, record) {
   const skillsData = run.gameData?.skills;
   for (const skillId of record.keptSkills || []) learnSkill(unit, skillId, { skillsData });
   if (!Array.isArray(run.accessories)) run.accessories = [];
   const held = heldItemsByUid(run);
-  for (const item of record.keptItems || [])
-    if (!isId(item?.uid) || !held.has(item.uid)) placeKeptItem(run, unit, item);
+  const riding = [];
+  for (const item of ridingKeptItems(record)) {
+    if (!isId(item?.uid)) continue;
+    if (!held.has(item.uid)) {
+      if (isDuplicateLegendary(run, item)) continue;
+      placeKeptItem(run, unit, item);
+    }
+    riding.push(item.uid);
+  }
+  return riding;
 }
 
 /** What a unit's traits add to its growths (the growth half of their creation mods). */
@@ -197,8 +211,6 @@ export function buildVeteranUnit(run, record) {
   return unit;
 }
 
-const keptUidsOf = (record) => (record.keptItems || []).map((item) => item.uid).filter(isId);
-
 /**
  * Start an NG+ run on a fresh roster (RunManager.startRun, after the starting roster and the
  * run's ledgers are made): every starting lord with a Barracks record takes its kit back and
@@ -218,13 +230,9 @@ export function startNgPlusRun(run, start) {
     const record = unit?.isLord ? kits.get(unit.name) : null;
     if (!record) continue;
     kits.delete(unit.name);
-    applyKit(run, unit, record);
+    const keptUids = applyKit(run, unit, record);
     ngPlus.echo += recordEcho(record);
-    ngPlus.members.push({
-      id: record.id,
-      uid: run.assignUnitUid(unit),
-      keptUids: keptUidsOf(record),
-    });
+    ngPlus.members.push({ id: record.id, uid: run.assignUnitUid(unit), keptUids });
   }
   ngPlus.lordKits = [...kits.values()];
   for (const raw of start.veterans || []) {
@@ -232,15 +240,11 @@ export function startNgPlusRun(run, start) {
     if (record?.kind !== 'recruit') continue;
     const unit = buildVeteranUnit(run, record);
     if (!unit) continue;
-    applyKit(run, unit, record);
+    const keptUids = applyKit(run, unit, record);
     ngPlus.echo += recordEcho(record);
     const saved = serializeUnit(unit);
     run.roster.push(saved);
-    ngPlus.members.push({
-      id: record.id,
-      uid: run.assignUnitUid(saved),
-      keptUids: keptUidsOf(record),
-    });
+    ngPlus.members.push({ id: record.id, uid: run.assignUnitUid(saved), keptUids });
   }
   run.ensurePortraitVariants?.();
   return ngPlus;
@@ -253,14 +257,10 @@ export function applyNgPlusThirdLord(run, unit) {
   const record = kits.find((r) => r?.id === lordRecordId(unit.name));
   if (!record || run.ngPlus.members.some((m) => m.id === record.id)) return false;
   run.ngPlus.lordKits = kits.filter((r) => r !== record);
-  applyKit(run, unit, record);
+  const keptUids = applyKit(run, unit, record);
   // The third lord's Echo counts from their arrival (the maps made from then on).
   run.ngPlus.echo = (run.ngPlus.echo || 0) + recordEcho(record);
-  run.ngPlus.members.push({
-    id: record.id,
-    uid: run.assignUnitUid(unit),
-    keptUids: keptUidsOf(record),
-  });
+  run.ngPlus.members.push({ id: record.id, uid: run.assignUnitUid(unit), keptUids });
   return true;
 }
 
@@ -462,6 +462,7 @@ export function ngPlusRunEnd(run, summary) {
       if (fallenUids.has(member.uid) || !standing.has(member.uid)) continue;
       refresh.push({
         id: member.id,
+        keptUids: [...member.keptUids],
         keptItems: member.keptUids
           .map((uid) => held.get(uid))
           .filter(Boolean)
