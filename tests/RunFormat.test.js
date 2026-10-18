@@ -69,7 +69,7 @@ const battleNode = (run) => run.nodeMap.nodes.find((n) => n.type === 'battle' &&
 const ids = (saved) => requiredRunFormat(saved).capabilities;
 
 describe('the capability table', () => {
-  it('every capability needs format 2, and this build plays only the Descent’s, the Entity kit and NG+', () => {
+  it('every capability needs format 2, and this build plays only the Descent’s, the Entity kit, NG+, the Vigil’s shields and Hammerfall', () => {
     expect(RUN_FORMAT).toBe(2);
     expect(LEGACY_RUN_FORMAT).toBe(1);
     expect(CAPABILITY_IDS).toEqual([
@@ -86,6 +86,9 @@ describe('the capability table', () => {
       'defeatObjective',
       'entityKit',
       'ngPlus',
+      'vigilWards',
+      'abyss',
+      'hammerfall',
     ]);
     for (const id of CAPABILITY_IDS) expect(RUN_CAPABILITIES[id]).toBe(2);
     // The Descent's writers have shipped; no large-maps writer has. A client never writes
@@ -98,6 +101,9 @@ describe('the capability table', () => {
       'defeatObjective',
       'entityKit',
       'ngPlus',
+      'vigilWards',
+      'abyss',
+      'hammerfall',
     ]);
   });
 
@@ -204,7 +210,7 @@ const DETECTION_ROWS = [
   ['Vision rewards for objectives', 'objectives', { run: { bonusVisionActs: ['act2'] } }],
   // gateTerrain
   ['a structure', 'gateTerrain', { config: config({ structures: [{ id: 'gate' }] }) }],
-  ['a Gate tile', 'gateTerrain', { state: state({ mapLayout: [[0, 19]] }) }],
+  ['a Gate tile', 'gateTerrain', { state: state({ mapLayout: [[0, 20]] }) }],
   // bossKit
   ['a boss kit', 'bossKit', { config: config({ bossKit: { id: 'archmage' } }) }],
   ['a boss signature', 'bossKit', { config: config({ bossSignature: { id: 'calculation' } }) }],
@@ -218,6 +224,13 @@ const DETECTION_ROWS = [
   ['an assembled piece’s fallback', 'setPiece', { params: { setPiece: 'mill_ford', setPieceFallback: { objective: 'seize' } } }], // prettier-ignore
   ['an assembled piece’s choices', 'setPiece', { config: config({ setPieceVersion: 1, setPieceChoices: {} }) }], // prettier-ignore
   ['set pieces offered', 'setPiece', { run: { setPiecesOffered: ['mill_ford'] } }],
+  // vigilWards: a locked Vigil's shields (which is a Vigil too), a checkpoint's broken circles
+  ['a warded Vigil', 'vigilWards', { config: config({ vigil: { sigils: [], circles: [], wards: true } }) }, ['vigil', 'vigilWards']], // prettier-ignore
+  ['a choir', 'vigilWards', { config: config({ vigil: { sigils: [], circles: [], choir: true } }) }, ['vigil', 'vigilWards']], // prettier-ignore
+  ['a broken circle', 'vigilWards', { state: state({ vigilState: { words: 0, broken: { circle_a: 2 } } }) }, ['vigil', 'vigilWards']], // prettier-ignore
+  // abyss
+  ['an Abyss tile on a locked map', 'abyss', { config: config({ mapLayout: [[0, 19]] }) }],
+  ['an Abyss tile on a checkpoint', 'abyss', { state: state({ mapLayout: [[19, 0]] }) }],
 ];
 
 /** A run save holding `planted` in its place. */

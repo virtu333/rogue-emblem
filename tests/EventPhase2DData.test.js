@@ -203,7 +203,7 @@ describe('accessory pools', () => {
   it('a pool kind that is neither weapon nor accessory', () => {
     plant(
       (e) => (effectOf(e, 'relic', 'taken', 'item').pool.kind = 'potion'),
-      'must be "weapon" or "accessory"',
+      'must be "weapon", "accessory" or "epic"',
     );
   });
   it('an act whose table has nothing at that tier is refused', () => {

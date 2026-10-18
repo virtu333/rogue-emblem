@@ -337,6 +337,19 @@ describe('The Sunken Mine', () => {
     return { run, node };
   };
   const torches = (run, node) => eventView(run, node.id).counters.find((c) => c.key === 'torches');
+  /** Burn the torches out by hand (a player who spent them on the way down). */
+  const burnOut = (run, node) => {
+    run.eventStateByNodeId[node.id].counters.torches = 0;
+  };
+  /** Climb down to a level on a seed whose ladders hold steady (no draft). */
+  const descend = (run, node, levels) => {
+    for (let i = 0; i < levels; i++) {
+      const result = pick(run, node, 'deeper');
+      expect(result.ok, result.reason).toBe(true);
+    }
+  };
+  // Act IV's epic weapons (lootTables.json act4.epicWeapons), by hand.
+  const ACT4_EPICS = ['Haulhook', 'Phalanx Pike', 'Mirrorglass', 'Cinderstring', 'Tallyblade', 'Wakelight', 'Gorgemaw', 'Hollowsong']; // prettier-ignore
 
   it('starts with three torches (two on Black Sun)', () => {
     for (const [difficulty, n] of [
@@ -350,18 +363,24 @@ describe('The Sunken Mine', () => {
     }
   });
 
-  it("taking the ore forges the target's weapon for free and ends the event, keeping the torches", () => {
-    const { run, node } = stand();
-    const gold = run.gold;
-    const target = run.roster.find((u) => u.name === 'Hale');
-    const bow = target.weapon;
-    const result = chooseEventOption(run, node.id, 'take_ore', { targetUid: target.unitUid });
-    expect(result.ok, result.reason).toBe(true);
-    expect(result.next).toBeNull();
-    expect(bow._forgeLevel).toBe(1);
-    expect(run.gold).toBe(gold);
-    expect(torches(run, node).value).toBe(3);
-    expect(leaveEvent(run, node.id).ok).toBe(true);
+  it("the ore forges the target's weapon and its sack sells by act: 100 / 250 / 450 G", () => {
+    for (const [act, purse] of [
+      [1, 100],
+      [2, 250],
+      [3, 450],
+    ]) {
+      const { run, node } = stand({ act });
+      const gold = run.gold;
+      const target = run.roster.find((u) => u.name === 'Hale');
+      const bow = target.weapon;
+      const result = chooseEventOption(run, node.id, 'take_ore', { targetUid: target.unitUid });
+      expect(result.ok, result.reason).toBe(true);
+      expect(result.next).toBeNull();
+      expect(bow._forgeLevel).toBe(1);
+      expect(run.gold - gold).toBe(purse);
+      expect(torches(run, node).value).toBe(3);
+      expect(leaveEvent(run, node.id).ok).toBe(true);
+    }
   });
 
   it('only a unit whose weapon can still be forged can work the ore', () => {
@@ -377,7 +396,16 @@ describe('The Sunken Mine', () => {
     );
   });
 
-  it('going deeper spends a torch and moves to the next level; a draft takes a second', () => {
+  it('the shaft can always be left with nothing taken', () => {
+    const { run, node } = stand();
+    const gold = run.gold;
+    expect(eventChoiceBlock(run, node.id, 'leave')).toBe('');
+    expect(pick(run, node, 'leave')).toMatchObject({ ok: true, next: null });
+    expect(run.gold).toBe(gold);
+    expect(torches(run, node).value).toBe(3);
+  });
+
+  it('climbing down spends a torch and moves to the next level; a draft takes a second', () => {
     const seen = { steady: 0, draft: 0 };
     for (let seed = 1; seed <= 80; seed++) {
       const { run, node } = stand({ seed });
@@ -396,26 +424,41 @@ describe('The Sunken Mine', () => {
   });
 
   it('drafts come about 25% of the time, 40% on Black Sun', () => {
-    const rate = async (difficulty, seeds) => {
-      const counts = tally('sunken_mine', 'deeper', { seeds, difficulty, act: 1 });
-      return (counts.draft || 0) / seeds;
-    };
     const normal = tally('sunken_mine', 'deeper', { seeds: 240, difficulty: 'normal', act: 1 });
     const black = tally('sunken_mine', 'deeper', { seeds: 240, difficulty: 'lunatic', act: 1 });
     expect(normal.draft / 240).toBeGreaterThan(0.17);
     expect(normal.draft / 240).toBeLessThan(0.34);
     expect(black.draft / 240).toBeGreaterThan(0.31);
     expect(black.draft / 240).toBeLessThan(0.5);
-    void rate;
   });
 
-  it('with no torch left only the dark way out is open', () => {
+  it('a Pathfinder says the ladder will hold only when no draft is coming', () => {
+    let said = 0;
+    for (let seed = 1; seed <= 120; seed++) {
+      const run = army({ seed, act: 1 });
+      const hale = run.roster.find((u) => u.name === 'Hale');
+      hale.skills = [...(hale.skills || []), 'pathfinder'];
+      const node = at(run, 'sunken_mine');
+      const tells = eventView(run, node.id).choices.find((c) => c.id === 'deeper').tells;
+      const result = pick(run, node, 'deeper');
+      if (tells.length) {
+        said++;
+        expect(tells[0].line).toBe("Hale: The air's still down there. No draft tonight.");
+        expect(result.outcomeId, `seed ${seed}`).toBe('steady');
+      }
+    }
+    expect(said).toBeGreaterThan(40);
+  });
+
+  it('with no torch left only the dark way out is open, and with one it is shut', () => {
     // Black Sun: 2 torches, a draft on the first descent leaves none.
     let found = null;
     for (let seed = 1; seed <= 200 && !found; seed++) {
       const { run, node } = stand({ seed, difficulty: 'lunatic' });
       const result = pick(run, node, 'deeper');
       if (result.outcomeId === 'draft') found = { run, node };
+      else
+        expect(eventChoiceBlock(run, node.id, 'blind')).toBe('You still have light to climb by.');
     }
     expect(found, 'no draft in 200 seeds').toBeTruthy();
     const { run, node } = found;
@@ -425,38 +468,56 @@ describe('The Sunken Mine', () => {
     expect(eventChoiceBlock(run, node.id, 'blind')).toBe('');
   });
 
-  it("level two's chest pays the act's amount: 500 G in Act II, and ends the event", () => {
-    const { run, node } = stand();
-    expect(pick(run, node, 'deeper').ok).toBe(true);
-    const gold = run.gold;
-    const result = pick(run, node, 'take_chest');
-    expect(result.ok, result.reason).toBe(true);
-    expect(result.next).toBeNull();
-    expect(run.gold - gold).toBe(500);
+  it("level two's chest pays by act: 500 G; 550 G and a Master Seal; 850 G and a Speedwing", () => {
+    for (const [act, purse, extra] of [
+      [1, 500, null],
+      [2, 550, 'Master Seal'],
+      [3, 850, 'Speedwing'],
+    ]) {
+      const { run, node } = stand({ act });
+      descend(run, node, 1);
+      const gold = run.gold;
+      const result = pick(run, node, 'take_chest');
+      expect(result.ok, result.reason).toBe(true);
+      expect(result.next).toBeNull();
+      const results = eventState(run, node.id).results || result.results || [];
+      expect(run.gold - gold).toBe(purse);
+      const items = results.filter((r) => r.kind === 'item').map((r) => r.name);
+      expect(items).toEqual(extra ? [extra] : []);
+    }
   });
 
   it('feeling your way out is an even coin: out with nothing, or an ambush that pays a purse by act', () => {
-    const counts = tally('sunken_mine', 'blind', { seeds: 200, act: 1 });
+    const counts = {};
+    let checkedAmbush = false;
+    for (let seed = 1; seed <= 200; seed++) {
+      const { run, node } = stand({ seed });
+      descend(run, node, 1);
+      burnOut(run, node);
+      const result = pick(run, node, 'blind');
+      expect(result.ok, result.reason).toBe(true);
+      counts[result.outcomeId] = (counts[result.outcomeId] || 0) + 1;
+      if (result.outcomeId === 'ambush' && !checkedAmbush) {
+        checkedAmbush = true;
+        expect(result.battle).toBe(true);
+        // The ambush: a fight whose spoils are 250 G in Act II (the data's byAct), by hand.
+        const settled = winFight(run, node);
+        expect(settled.results.find((r) => r.kind === 'gold').value).toBe(250);
+      }
+    }
     expect(counts.found / 200).toBeGreaterThan(0.4);
     expect(counts.found / 200).toBeLessThan(0.6);
     expect(counts.found + counts.ambush).toBe(200);
-    // The ambush: a fight whose spoils are 250 G in Act II (the data's byAct), by hand.
-    for (let seed = 1; seed <= 100; seed++) {
-      const { run, node } = stand({ seed });
-      const result = pick(run, node, 'blind');
-      if (result.outcomeId !== 'ambush') continue;
-      expect(result.battle).toBe(true);
-      const before = run.gold;
-      const settled = winFight(run, node);
-      const spoil = settled.results.find((r) => r.kind === 'gold');
-      expect(spoil.value).toBe(250);
-      expect(run.gold - before).toBeGreaterThanOrEqual(200);
-      return;
-    }
-    throw new Error('no ambush in 100 seeds');
+    expect(checkedAmbush).toBe(true);
   });
 
   describe('the tell: "There\'s a way out"', () => {
+    const inTheDark = (run) => {
+      const node = at(run, 'sunken_mine');
+      descend(run, node, 1);
+      burnOut(run, node);
+      return node;
+    };
     const lineFor = (run, node) =>
       eventView(run, node.id).choices.find((c) => c.id === 'blind').tells;
 
@@ -465,7 +526,7 @@ describe('The Sunken Mine', () => {
       let quiet = 0;
       for (let seed = 1; seed <= 120; seed++) {
         const run = army({ seed, act: 1 });
-        const node = at(run, 'sunken_mine');
+        const node = inTheDark(run);
         const tells = lineFor(run, node);
         const result = pick(run, node, 'blind');
         if (tells.length) {
@@ -486,50 +547,76 @@ describe('The Sunken Mine', () => {
       for (let seed = 1; seed <= 40; seed++) {
         const run = army({ seed, act: 1 });
         run.roster = run.roster.filter((u) => u.className !== 'Thief');
-        const node = at(run, 'sunken_mine');
+        const node = inTheDark(run);
         expect(lineFor(run, node)).toEqual([]);
       }
     });
-
-    it('a unit with Pathfinder speaks too (the skill, not the class)', () => {
-      for (let seed = 1; seed <= 60; seed++) {
-        const run = army({ seed, act: 1 });
-        run.roster = run.roster.filter((u) => u.className !== 'Thief');
-        const hale = run.roster.find((u) => u.name === 'Hale');
-        hale.skills = [...(hale.skills || []), 'pathfinder'];
-        expect(knowsSkill(hale, 'pathfinder')).toBe(true);
-        const node = at(run, 'sunken_mine');
-        const tells = lineFor(run, node);
-        if (!tells.length) continue;
-        expect(tells[0].line).toBe('Hale: The air moves left. Left is up.');
-        expect(pick(run, node, 'blind').outcomeId).toBe('found');
-        return;
-      }
-      throw new Error('no clear road in 60 seeds');
-    });
   });
 
-  it("level three: the guardian is a fight whose relic is one accessory from the next act's table", () => {
-    const ACT3 = ['Seraph Robe', 'Magic Ring', 'Boots', 'Delphi Shield', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Blood Gem', 'Recoil Guard', 'Phoenix Brooch', "Duelist's Glove", 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band']; // prettier-ignore
+  it("by torchlight the guardian is the Iron Guardian's lit hall; its relic an accessory from the next act's table", () => {
+    const ACT3 = ['Seraph Robe', 'Magic Ring', 'Boots', 'Delphi Shield', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Blood Gem', 'Recoil Guard', 'Phoenix Brooch', "Duelist's Glove", 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Gemini Ring', "Warden's Buckler", 'Briar Cloak', 'Anchor Stone', 'Grudge Locket']; // prettier-ignore
     const { run, node } = stand(); // act2: one tier up is act3's table
-    expect(pick(run, node, 'deeper').ok).toBe(true);
-    expect(pick(run, node, 'deeper').ok).toBe(true);
+    descend(run, node, 2);
     expect(eventView(run, node.id).page).toBe('level_three');
+    expect(eventChoiceBlock(run, node.id, 'guardian_dark')).toBe('You still have a torch.');
     const fight = pick(run, node, 'guardian');
     expect(fight.battle).toBe(true);
     expect(node.type).toBe('event');
+    expect(node.battleParams.setPiece).toBe('guardian_hall');
+    expect(node.fogEnabled).toBeUndefined(); // lit: never fog
     expect(run.accessories).toHaveLength(0); // not before the fight is won
     const settled = winFight(run, node);
-    const relic = settled.results.find((r) => r.kind === 'item');
-    expect(relic).toMatchObject({ itemType: 'Accessory', pooled: true });
-    expect(ACT3).toContain(relic.name);
-    expect(run.accessories.map((a) => a.name)).toEqual([relic.name]);
+    const items = settled.results.filter((r) => r.kind === 'item');
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ itemType: 'Accessory', pooled: true });
+    expect(ACT3).toContain(items[0].name);
+    expect(settled.results.some((r) => r.kind === 'gold')).toBe(false);
+  });
+
+  it('in the dark the guardian is the unlit hall, and it pays its hoard of coin too', () => {
+    const { run, node } = stand({ act: 2 });
+    descend(run, node, 2);
+    burnOut(run, node);
+    expect(eventChoiceBlock(run, node.id, 'guardian')).toBe('No torch left to fight by.');
+    expect(eventChoiceBlock(run, node.id, 'climb')).toBe('No light left to climb by.');
+    const fight = pick(run, node, 'guardian_dark');
+    expect(fight.battle).toBe(true);
+    expect(node.battleParams.setPiece).toBe('guardian_hall_dark');
+    expect(node.fogEnabled).toBe(true); // the dark hall forces fog
+    const settled = winFight(run, node);
+    expect(settled.results.find((r) => r.kind === 'gold').value).toBe(500);
+    expect(settled.results.filter((r) => r.kind === 'item')).toHaveLength(1);
+  });
+
+  it("in Act IV the guardian keeps an epic weapon from the act's list, one the run does not own", () => {
+    const { run, node } = stand({ act: 3 });
+    run.legendaryGrants = ['Haulhook'];
+    descend(run, node, 2);
+    pick(run, node, 'guardian');
+    const settled = winFight(run, node);
+    const items = settled.results.filter((r) => r.kind === 'item');
+    expect(items).toHaveLength(1);
+    expect(items[0].tier).toBe('Epic');
+    expect(ACT4_EPICS).toContain(items[0].name);
+    expect(items[0].name).not.toBe('Haulhook');
+    // One of a kind: the run's ledger now holds it.
+    expect(run.legendaryGrants).toContain(items[0].name);
+  });
+
+  it('in Act IV with every epic already owned, the hoard holds an accessory a tier up instead', () => {
+    const { run, node } = stand({ act: 3 });
+    run.legendaryGrants = [...ACT4_EPICS];
+    descend(run, node, 2);
+    pick(run, node, 'guardian');
+    const settled = winFight(run, node);
+    const items = settled.results.filter((r) => r.kind === 'item');
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ itemType: 'Accessory', pooled: true });
   });
 
   it('level three with a torch can also be left standing, with nothing taken', () => {
     const { run, node } = stand();
-    pick(run, node, 'deeper');
-    pick(run, node, 'deeper');
+    descend(run, node, 2);
     const gold = run.gold;
     const result = pick(run, node, 'climb');
     expect(result).toMatchObject({ ok: true, next: null });

@@ -1,9 +1,9 @@
 import { safeBattlePresentation } from './safeBattlePresentation.js';
 import { MenuSurface, element, button } from './MenuSurface.js';
 import { hasDOMHost } from '../utils/domUI.js';
-import { TILE_SIZE, FACTION_COLORS, ENTITY_FOOTPRINT } from '../utils/constants.js';
+import { TILE_SIZE, FACTION_COLORS } from '../utils/constants.js';
 import { UI_HEX } from '../utils/uiStyles.js';
-import { isEntity, getEntityCenter } from '../engine/EntitySystem.js';
+import { bodyCenter, footprintSize, isLargeUnit } from '../engine/EntitySystem.js';
 import { canInspectUnit } from '../engine/BattleInformation.js';
 
 // A unit that joins mid-battle (a reinforcement, a raised Skeleton, a risen Zombie, a Vigil's
@@ -76,12 +76,12 @@ function discard(unit, created) {
   for (const part of PARTS) unit[part] = part === 'affixPips' ? [] : null;
 }
 
-/** The stand-in: a faction-coloured square on the unit's tile (an Entity's whole body) and its HP bar. */
+/** The stand-in: a faction-coloured square on the unit's tile (a big body's whole body) and its HP bar. */
 function drawUnitMarker(scene, unit) {
-  const entity = isEntity(unit);
-  const at = entity ? getEntityCenter(unit) : unit;
+  const entity = isLargeUnit(unit);
+  const at = bodyCenter(unit);
   const pos = scene.grid.gridToPixel(at.col, at.row);
-  const span = entity ? TILE_SIZE * ENTITY_FOOTPRINT.width : TILE_SIZE;
+  const span = TILE_SIZE * footprintSize(unit).width;
   const color = FACTION_COLORS[unit.faction] ?? UI_HEX.dangerLine;
   const barWidth = span - (entity ? 8 : 6);
   const barY = pos.y + span / 2 - 4;

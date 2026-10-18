@@ -9,6 +9,8 @@
 //   ctx.terrain      { name, defBonus, avoidBonus } the unit just arrived on (notes)
 //   ctx.consumable   the consumable the note talks about ({ name, effect, value })
 
+import { isWeaponUsesEnabled } from '../engine/WeaponUses.js';
+
 const tap = (ctx) => (ctx?.touch ? 'Tap' : 'Click');
 const lordOf = (ctx) => ctx?.lord || 'Edric';
 const danger = (ctx) => (ctx?.touch ? 'Danger' : 'Danger [D]');
@@ -91,8 +93,12 @@ export const PROLOGUE_NOTES = Object.freeze({
       `The terrain preview shows the bonuses of any tile you ${how}. Fight from cover to take less damage and dodge more.`
     );
   },
+  // The uses line rides along while weapon durability is on (data/weaponUses.json).
   battle_forecast: () =>
     'Reading a forecast: damage per hit, the Hit chance, and whether the enemy strikes back.\n' +
+    (isWeaponUsesEnabled()
+      ? "It also counts the weapon's uses: each fight spends one, and they refill after the battle.\n"
+      : '') +
     'Confirm commits the attack. Cancel goes back to planning, and looking costs nothing.',
   p1_wait_or_end_turn: (ctx) =>
     `Wait ends ${lordOf(ctx)}'s move. Once every unit has acted, the turn passes and each red unit gets its move.\n` +

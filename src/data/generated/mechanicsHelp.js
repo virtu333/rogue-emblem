@@ -52,7 +52,7 @@ export const GENERATED_HELP_TABS = [
             "color": "#66ddff"
           },
           {
-            "text": "Mast: 23 weapons (22 legendary)",
+            "text": "Mast: 24 weapons (23 legendary)",
             "color": "#66ddff"
           },
           {
@@ -142,14 +142,21 @@ export const GENERATED_MECHANICS_REFERENCE = {
       },
       {
         "rank": "Mast",
-        "totalWeapons": 23,
-        "legendaryWeapons": 22
+        "totalWeapons": 24,
+        "legendaryWeapons": 23
       }
     ],
     "legendaryRequires": "Mast",
-    "legendaryCount": 22
+    "legendaryCount": 23
   },
   "legendaryWeapons": [
+    {
+      "name": "Ironfall Maul",
+      "type": "Axe",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": ""
+    },
     {
       "name": "Oathaxe",
       "type": "Axe",

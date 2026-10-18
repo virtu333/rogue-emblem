@@ -83,6 +83,7 @@
   "enemy_hunter__b": { "eye": 0.395, "cx": 0.52 },
   "enemy_hunter__c": { "eye": 0.36, "cx": 0.52 },
   "enemy_hunter__d": { "eye": 0.36, "cx": 0.52 },
+  "enemy_iron_guardian": { "eye": 0.36, "cx": 0.52 },
   "enemy_knight": { "eye": 0.36, "cx": 0.52 },
   "enemy_knight__b": { "eye": 0.42, "cx": 0.52 },
   "enemy_knight__c": { "eye": 0.36, "cx": 0.52 },

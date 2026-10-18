@@ -33,6 +33,9 @@ import { normalizeBattleRecruits } from '../engine/BattleRecruits.js';
 import { growthCeremonies } from './GrowthCeremonyController.js';
 import { hasDOMHost } from '../utils/domUI.js';
 import { battleFeats } from './AchievementBattleController.js';
+// BattleScene takes the achievements' battle hooks from here, beside the deeds they mirror.
+export { battleFeats } from './AchievementBattleController.js';
+export { emptyBattleFeats } from '../engine/BattleFeats.js';
 
 const warn = (where, error) => console.warn(`[DeedController] ${where} skipped:`, error);
 
@@ -88,7 +91,7 @@ export class DeedController {
    * record of what it did and carried this battle (`scene._fallenBattleRecords`,
    * world state that rewinds and resumes with the battle), used at victory.
    */
-  onUnitRemoved(unit, killer = null) {
+  onUnitRemoved(unit, killer = null, removal = null) {
     const s = this.scene;
     // The death record carries what the unit held as it fell (its fallen record
     // and the convoy depend on it), so it is taken in any run battle, deeds or not.
@@ -101,6 +104,7 @@ export class DeedController {
       }
     }
     battleFeats.kill(s, unit, killer);
+    if (removal?.ballistaOwner === 'player') battleFeats.ballistaKill(s, unit); // removeUnit's options
     if (!this.active()) return;
     try {
       recordKill(unit, killer, { terrain: killer ? this._terrainName(killer) : null });

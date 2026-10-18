@@ -42,6 +42,7 @@ import {
   grantMercenaryClassSkills,
 } from '../engine/ColosseumEngine.js';
 import { getCombatForecast } from '../engine/Combat.js';
+import { readyWard } from '../engine/AccessoryWard.js';
 import { getSkillCombatMods } from '../engine/SkillSystem.js';
 import {
   arenaMaxRounds,
@@ -351,6 +352,7 @@ export class ColosseumOverlay {
     }
     // No battle start runs before an arena bout: settle a stale accessory debt here.
     settleAccessoryHpOwed(unit);
+    readyWard(unit); // each bout starts with a Warden's Buckler ready (AccessoryWard.js)
     this._fightResolved = true;
     // Fight with the planned weapon: equip it (a healer holding a staff draws its tome).
     const weapon = getArenaWeapon(unit);

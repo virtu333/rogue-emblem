@@ -1,3 +1,5 @@
+import { settleGeminiStat } from '../engine/GeminiRing.js';
+
 let _counter = 0;
 
 /**
@@ -16,6 +18,9 @@ export function generateItemUid(rng = Math.random) {
 export function ensureItemUid(item) {
   if (item && typeof item === 'object' && typeof item.uid !== 'string') {
     item.uid = generateItemUid();
+    // A Gemini Ring's stat comes from its uid: settle it now, so every save holds the ring's
+    // own bonus in its ordinary `effects` (engine/GeminiRing.js).
+    settleGeminiStat(item);
   }
   return item;
 }
@@ -28,6 +33,7 @@ export function ensureItemUid(item) {
 export function ensureItemUidWith(item, rng) {
   if (item && typeof item === 'object' && typeof item.uid !== 'string') {
     item.uid = generateItemUid(rng);
+    settleGeminiStat(item);
   }
   return item;
 }

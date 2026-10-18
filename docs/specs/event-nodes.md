@@ -294,6 +294,21 @@ of an event met in Act IV to at least 1.7x its Act II amount. A contract's rewar
 `{ base, perAct }` (200 + 250 per act) because it is saved in `run.contract`, and an older
 client reads only that shape. Costs are unchanged.
 
+**Act-fit events (2026-10-15).** An effect may name the acts it applies in (`acts:
+["act3", "act4"]`, `EventEffects.effectsForAct`: the others are dropped before planning, the
+preview and a fight's saved spoils alike), so one choice pays a different prize in each act.
+A page's choice may require a counter's ceiling (`requires.counterAtMost: { key, n }`), and two
+choices whose only requirements split one counter (at least n, at most n - 1) count together
+as the page's always-available choice. An item pool `{ kind: "epic" }` (a fight's spoils
+only) draws one of the act's loot-table epic weapons the run does not own and someone can
+wield (`epicPoolFor`; recorded in the run's Legend ledger), else an accessory a tier up.
+
+The Sunken Mine uses all three: the ore forges and sells (100 / 250 / 450 G); the chest pays
+500 G, then 550 G and a Master Seal, then 850 G and a Speedwing; level three is the Iron
+Guardian's lit hall while a torch is left, its dark hall (and a purse of 300 / 500 / 700 G)
+when none is; its relic is an accessory a tier up in Acts II-III and an epic weapon in Act IV
+(docs/specs/large-units.md). "Feel your way out" is the way up only once the torches are gone.
+
 ## 6. Story flags
 
 `storyFlags` is written by events and read by event `requires` (Phase 2 also by battles and

@@ -70,16 +70,19 @@ describe('More Info: Par & Turn Ratings', () => {
       ['three_roads_keep', 1],
     ]);
     const pieces = load('setPieces.json').setPieces;
-    // Only the set pieces that add par turns (the Descent's add none).
+    // Only the set pieces that add par turns (of the Descent's, the Vigil: its circles take turns).
     expect(pieces.filter((p) => p.parBonus).map((p) => [p.id, p.parBonus])).toEqual([
       ['toll_house', 2],
       ['toll_crossing', 2],
+      ['the_vigil', 2],
+      ['guardian_hall', 2],
+      ['guardian_hall_dark', 2],
     ]);
     const text = lines.join(' ').replace(/\s+/g, ' ');
     expect(text).toContain(
-      'Castles, Mire Crossing, Three Roads, Three Roads Keep, the Long Road, the',
+      'Castles, Mire Crossing, Three Roads, its Keep, the Long Road, the Toll-House,',
     );
-    expect(text).toContain('Toll-House and Toll Crossing add 1-3.');
+    expect(text).toContain("Toll Crossing, the Guardian's hall and the Vigil add 1-3.");
   });
 });
 

@@ -2188,6 +2188,20 @@
     "price": 0
   },
   {
+    "name": "Ironfall Maul",
+    "lore": "A pillar with a grip worn into it. Nobody living has lifted it.",
+    "type": "Axe",
+    "tier": "Legend",
+    "rankRequired": "Mast",
+    "might": 10,
+    "hit": 80,
+    "crit": 0,
+    "weight": 0,
+    "range": "1",
+    "special": "",
+    "price": 0
+  },
+  {
     "name": "Courtbreaker Scroll",
     "lore": "Written for palace duels, where every guard hides behind a pillar. It does not help.",
     "type": "Scroll",
@@ -3468,7 +3482,7 @@
     "crit": 5,
     "weight": 9,
     "range": "1",
-    "special": "+3 Atk for each kill this battle (up to +9); once taken up, it can't be put down in battle",
+    "special": "+3 Atk for each kill this battle (up to +9); once taken up, it can't be put down in battle until spent",
     "price": 2400,
     "trophyOf": "Berserker King",
     "rules": [

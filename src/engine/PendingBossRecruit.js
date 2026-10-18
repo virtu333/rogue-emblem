@@ -3,6 +3,7 @@ import { everFallenUnits } from './LaidToRest.js';
 import { generateBossRecruitCandidates } from './BossRecruitSystem.js';
 import { migrateUnitTraits } from './TraitSystem.js';
 import { normalizeUnitDeeds } from './DeedSystem.js';
+import { applyPendingNgPlusLordKits } from './NgPlusRun.js';
 
 // The boss recruit draft is rolled once, at the victory save, and lives on the
 // run beside the pending battle reward until the player picks or skips.
@@ -53,6 +54,7 @@ export function resolveBossRecruit(run, unit) {
   run.assignUnitUid?.(unit);
   run.roster.push(unit);
   bumpRunFeat(run, 'bossRecruits'); // Spoils of War (engine/RunFeats.js)
+  applyPendingNgPlusLordKits(run); // NG+: a Barracks lord drafted here takes their kit back
 }
 
 /**

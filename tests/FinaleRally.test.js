@@ -432,3 +432,50 @@ describe('the Descent in the rally: the glass broken at the gate, the Rite’s t
     expect(rallied[1]).not.toContain('rite');
   });
 });
+
+// A floating line (speakOver: the Vigil's Voices, the rally's fallback) stays on the board with
+// its name tab: a short line under a long name, spoken at the board's edge, must not push the tab
+// off it (the upright Vigil's Voice of the Feeding stands on the board's side edge).
+describe('a floating line keeps its name tab on the board', () => {
+  const textObj = (str, style) => {
+    const charW = style.fontSize === '8px' ? 8 : 8.4;
+    return {
+      text: str,
+      width: str.length * charW + 2 * (style.padding?.x || 0),
+      height: style.fontSize === '8px' ? 14 : 28,
+      x: 0,
+      y: 0,
+      setOrigin() {
+        return this;
+      },
+      setDepth() {
+        return this;
+      },
+      setAlpha() {
+        return this;
+      },
+    };
+  };
+  const scene = (unit) => ({
+    add: { text: (x, y, str, style) => Object.assign(textObj(str, style), { x, y }) },
+    grid: { gridToPixel: (c, r) => ({ x: c * 32 + 16, y: r * 32 + 16 }) },
+    cameras: { main: { width: 390, height: 560 } },
+    tweens: { add: () => {} },
+    unit,
+  });
+
+  it('at the left or right edge, the tab (wider than the line) is held inside', () => {
+    for (const col of [0, 11]) {
+      const unit = { name: 'Voice of the Feeding', col, row: 8 };
+      const sc = scene(unit);
+      const beats = new BattleBeatsController(sc, () => 0);
+      beats.speakOver(unit, 'Feed.', { foe: true });
+      const live = [...beats._live];
+      const tab = live.find((o) => o.text === unit.name);
+      expect(tab.width).toBeGreaterThan(live.find((o) => o.text === 'Feed.').width);
+      expect(tab.x - tab.width / 2, `col ${col}`).toBeGreaterThanOrEqual(0);
+      expect(tab.x + tab.width / 2, `col ${col}`).toBeLessThanOrEqual(390);
+      beats.destroy();
+    }
+  });
+});

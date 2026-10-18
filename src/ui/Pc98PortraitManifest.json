@@ -429,10 +429,15 @@
       "faction": "blood",
       "variant": true
     },
+    "enemy_iron_guardian": {
+      "source": "legacy",
+      "faction": "blood",
+      "frame": 33
+    },
     "enemy_knight": {
       "source": "generated",
       "faction": "blood",
-      "frame": 33
+      "frame": 34
     },
     "enemy_knight__b": {
       "source": "generated",
@@ -452,7 +457,7 @@
     "enemy_mage": {
       "source": "generated",
       "faction": "blood",
-      "frame": 34
+      "frame": 35
     },
     "enemy_mage__b": {
       "source": "generated",
@@ -472,7 +477,7 @@
     "enemy_mercenary": {
       "source": "generated",
       "faction": "blood",
-      "frame": 35
+      "frame": 36
     },
     "enemy_mercenary__b": {
       "source": "generated",
@@ -492,7 +497,7 @@
     "enemy_myrmidon": {
       "source": "generated",
       "faction": "blood",
-      "frame": 36
+      "frame": 37
     },
     "enemy_myrmidon__b": {
       "source": "generated",
@@ -512,12 +517,12 @@
     "enemy_necromancer": {
       "source": "legacy",
       "faction": "unlight",
-      "frame": 37
+      "frame": 38
     },
     "enemy_paladin": {
       "source": "generated",
       "faction": "blood",
-      "frame": 38
+      "frame": 39
     },
     "enemy_paladin__b": {
       "source": "generated",
@@ -537,7 +542,7 @@
     "enemy_pegasus_knight": {
       "source": "generated",
       "faction": "blood",
-      "frame": 39
+      "frame": 40
     },
     "enemy_pegasus_knight__b": {
       "source": "generated",
@@ -557,12 +562,12 @@
     "enemy_revenant": {
       "source": "legacy",
       "faction": "unlight",
-      "frame": 40
+      "frame": 41
     },
     "enemy_sage": {
       "source": "generated",
       "faction": "blood",
-      "frame": 41
+      "frame": 42
     },
     "enemy_sage__b": {
       "source": "generated",
@@ -582,12 +587,12 @@
     "enemy_skeleton": {
       "source": "legacy",
       "faction": "unlight",
-      "frame": 42
+      "frame": 43
     },
     "enemy_sniper": {
       "source": "generated",
       "faction": "blood",
-      "frame": 43
+      "frame": 44
     },
     "enemy_sniper__b": {
       "source": "generated",
@@ -607,7 +612,7 @@
     "enemy_soldier": {
       "source": "generated",
       "faction": "blood",
-      "frame": 44
+      "frame": 45
     },
     "enemy_soldier__b": {
       "source": "generated",
@@ -627,7 +632,7 @@
     "enemy_swordmaster": {
       "source": "generated",
       "faction": "blood",
-      "frame": 45
+      "frame": 46
     },
     "enemy_swordmaster__b": {
       "source": "generated",
@@ -647,7 +652,7 @@
     "enemy_thief": {
       "source": "generated",
       "faction": "blood",
-      "frame": 46
+      "frame": 47
     },
     "enemy_thief__b": {
       "source": "generated",
@@ -667,7 +672,7 @@
     "enemy_trickster": {
       "source": "generated",
       "faction": "blood",
-      "frame": 47
+      "frame": 48
     },
     "enemy_trickster__b": {
       "source": "generated",
@@ -687,7 +692,7 @@
     "enemy_warlock": {
       "source": "generated",
       "faction": "blood",
-      "frame": 48
+      "frame": 49
     },
     "enemy_warlock__b": {
       "source": "generated",
@@ -707,7 +712,7 @@
     "enemy_warrior": {
       "source": "generated",
       "faction": "blood",
-      "frame": 49
+      "frame": 50
     },
     "enemy_warrior__b": {
       "source": "generated",
@@ -727,7 +732,7 @@
     "enemy_wyvern_lord": {
       "source": "generated",
       "faction": "blood",
-      "frame": 50
+      "frame": 51
     },
     "enemy_wyvern_lord__b": {
       "source": "generated",
@@ -747,7 +752,7 @@
     "enemy_wyvern_rider": {
       "source": "generated",
       "faction": "blood",
-      "frame": 51
+      "frame": 52
     },
     "enemy_wyvern_rider__b": {
       "source": "generated",
@@ -767,12 +772,12 @@
     "enemy_zombie": {
       "source": "legacy",
       "faction": "unlight",
-      "frame": 52
+      "frame": 53
     },
     "generic_archer": {
       "source": "generated",
       "faction": "steel",
-      "frame": 53
+      "frame": 54
     },
     "generic_archer__archer_b": {
       "source": "generated",
@@ -797,7 +802,7 @@
     "generic_assassin": {
       "source": "generated",
       "faction": "steel",
-      "frame": 54
+      "frame": 55
     },
     "generic_assassin__thief_b": {
       "source": "generated",
@@ -847,7 +852,7 @@
     "generic_battle_monk": {
       "source": "rebuilt",
       "faction": "steel",
-      "frame": 55
+      "frame": 56
     },
     "generic_battle_monk__cleric_a": {
       "source": "generated",
@@ -872,7 +877,7 @@
     "generic_berserker": {
       "source": "generated",
       "faction": "steel",
-      "frame": 56
+      "frame": 57
     },
     "generic_berserker__fighter_a": {
       "source": "generated",
@@ -897,7 +902,7 @@
     "generic_bishop": {
       "source": "generated",
       "faction": "steel",
-      "frame": 57
+      "frame": 58
     },
     "generic_bishop__cleric_a": {
       "source": "generated",
@@ -922,7 +927,7 @@
     "generic_bow_knight": {
       "source": "generated",
       "faction": "steel",
-      "frame": 58
+      "frame": 59
     },
     "generic_bow_knight__archer_b": {
       "source": "generated",
@@ -947,7 +952,7 @@
     "generic_cavalier": {
       "source": "generated",
       "faction": "steel",
-      "frame": 59
+      "frame": 60
     },
     "generic_cavalier__cavalier_b": {
       "source": "generated",
@@ -972,7 +977,7 @@
     "generic_cleric": {
       "source": "generated",
       "faction": "steel",
-      "frame": 60
+      "frame": 61
     },
     "generic_cleric__cleric_b": {
       "source": "generated",
@@ -997,7 +1002,7 @@
     "generic_dancer": {
       "source": "generated",
       "faction": "steel",
-      "frame": 61
+      "frame": 62
     },
     "generic_dancer__dancer_b": {
       "source": "generated",
@@ -1022,7 +1027,7 @@
     "generic_dark_knight": {
       "source": "generated",
       "faction": "steel",
-      "frame": 62
+      "frame": 63
     },
     "generic_dark_knight__cavalier_b": {
       "source": "generated",
@@ -1047,7 +1052,7 @@
     "generic_duelist": {
       "source": "generated",
       "faction": "steel",
-      "frame": 63
+      "frame": 64
     },
     "generic_duelist__myrmidon_b": {
       "source": "generated",
@@ -1097,7 +1102,7 @@
     "generic_falcon_knight": {
       "source": "generated",
       "faction": "steel",
-      "frame": 64
+      "frame": 65
     },
     "generic_falcon_knight__pegasus_b": {
       "source": "generated",
@@ -1147,7 +1152,7 @@
     "generic_fighter": {
       "source": "rebuilt",
       "faction": "steel",
-      "frame": 65
+      "frame": 66
     },
     "generic_fighter__fighter_b": {
       "source": "generated",
@@ -1172,7 +1177,7 @@
     "generic_general": {
       "source": "generated",
       "faction": "steel",
-      "frame": 66
+      "frame": 67
     },
     "generic_general__knight_a": {
       "source": "generated",
@@ -1197,7 +1202,7 @@
     "generic_great_knight": {
       "source": "generated",
       "faction": "steel",
-      "frame": 67
+      "frame": 68
     },
     "generic_great_knight__knight_b": {
       "source": "generated",
@@ -1222,7 +1227,7 @@
     "generic_hero": {
       "source": "generated",
       "faction": "steel",
-      "frame": 68
+      "frame": 69
     },
     "generic_hero__mercenary_a": {
       "source": "generated",
@@ -1247,7 +1252,7 @@
     "generic_hunter": {
       "source": "generated",
       "faction": "steel",
-      "frame": 69
+      "frame": 70
     },
     "generic_hunter__mercenary_b": {
       "source": "generated",
@@ -1272,7 +1277,7 @@
     "generic_knight": {
       "source": "generated",
       "faction": "steel",
-      "frame": 70
+      "frame": 71
     },
     "generic_knight__knight_b": {
       "source": "generated",
@@ -1297,7 +1302,7 @@
     "generic_mage": {
       "source": "generated",
       "faction": "steel",
-      "frame": 71
+      "frame": 72
     },
     "generic_mage__mage_b": {
       "source": "generated",
@@ -1322,7 +1327,7 @@
     "generic_mercenary": {
       "source": "generated",
       "faction": "steel",
-      "frame": 72
+      "frame": 73
     },
     "generic_mercenary__mercenary_b": {
       "source": "generated",
@@ -1347,12 +1352,12 @@
     "generic_merchant": {
       "source": "legacy",
       "faction": "verdigris",
-      "frame": 73
+      "frame": 74
     },
     "generic_myrmidon": {
       "source": "generated",
       "faction": "steel",
-      "frame": 74
+      "frame": 75
     },
     "generic_myrmidon__myrmidon_b": {
       "source": "generated",
@@ -1377,7 +1382,7 @@
     "generic_paladin": {
       "source": "generated",
       "faction": "steel",
-      "frame": 75
+      "frame": 76
     },
     "generic_paladin__cavalier_a": {
       "source": "generated",
@@ -1427,7 +1432,7 @@
     "generic_pegasus_knight": {
       "source": "generated",
       "faction": "steel",
-      "frame": 76
+      "frame": 77
     },
     "generic_pegasus_knight__pegasus_b": {
       "source": "generated",
@@ -1452,7 +1457,7 @@
     "generic_sage": {
       "source": "generated",
       "faction": "steel",
-      "frame": 77
+      "frame": 78
     },
     "generic_sage__mage_a": {
       "source": "generated",
@@ -1477,7 +1482,7 @@
     "generic_sniper": {
       "source": "rebuilt",
       "faction": "steel",
-      "frame": 78
+      "frame": 79
     },
     "generic_sniper__archer_a": {
       "source": "generated",
@@ -1502,7 +1507,7 @@
     "generic_soldier": {
       "source": "generated",
       "faction": "steel",
-      "frame": 79
+      "frame": 80
     },
     "generic_soldier__soldier_b": {
       "source": "generated",
@@ -1527,7 +1532,7 @@
     "generic_swordmaster": {
       "source": "generated",
       "faction": "steel",
-      "frame": 80
+      "frame": 81
     },
     "generic_swordmaster__myrmidon_a": {
       "source": "generated",
@@ -1552,7 +1557,7 @@
     "generic_thief": {
       "source": "generated",
       "faction": "steel",
-      "frame": 81
+      "frame": 82
     },
     "generic_thief__thief_b": {
       "source": "generated",
@@ -1577,7 +1582,7 @@
     "generic_trickster": {
       "source": "generated",
       "faction": "steel",
-      "frame": 82
+      "frame": 83
     },
     "generic_trickster__thief_b": {
       "source": "generated",
@@ -1602,7 +1607,7 @@
     "generic_warlock": {
       "source": "rebuilt",
       "faction": "steel",
-      "frame": 83
+      "frame": 84
     },
     "generic_warlock__mage_a": {
       "source": "generated",
@@ -1627,7 +1632,7 @@
     "generic_warrior": {
       "source": "generated",
       "faction": "steel",
-      "frame": 84
+      "frame": 85
     },
     "generic_warrior__fighter_a": {
       "source": "generated",
@@ -1652,7 +1657,7 @@
     "generic_wyvern_lord": {
       "source": "generated",
       "faction": "steel",
-      "frame": 85
+      "frame": 86
     },
     "generic_wyvern_lord__pegasus_a": {
       "source": "generated",
@@ -1702,7 +1707,7 @@
     "generic_wyvern_rider": {
       "source": "generated",
       "faction": "steel",
-      "frame": 86
+      "frame": 87
     },
     "generic_wyvern_rider__wyvern_a": {
       "source": "generated",
@@ -1727,72 +1732,72 @@
     "lord_astrid": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 87
+      "frame": 88
     },
     "lord_astrid_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 88
+      "frame": 89
     },
     "lord_cael": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 89
+      "frame": 90
     },
     "lord_cael_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 90
+      "frame": 91
     },
     "lord_edric": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 91
+      "frame": 92
     },
     "lord_edric_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 92
+      "frame": 93
     },
     "lord_kira": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 93
+      "frame": 94
     },
     "lord_kira_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 94
+      "frame": 95
     },
     "lord_rowan": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 95
+      "frame": 96
     },
     "lord_rowan_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 96
+      "frame": 97
     },
     "lord_sera": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 97
+      "frame": 98
     },
     "lord_sera_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 98
+      "frame": 99
     },
     "lord_voss": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 99
+      "frame": 100
     },
     "lord_voss_promoted": {
       "source": "rebuilt",
       "faction": "ember",
-      "frame": 100
+      "frame": 101
     },
     "special_old_knight": {
       "source": "rebuilt",

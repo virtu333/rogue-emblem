@@ -1,6 +1,7 @@
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { persistBattleDefeat } from './BattleFatalDecision.js';
 import { fallenBattleRecruits } from '../engine/BattleRecruits.js';
+import { buildTerminalSummary } from '../engine/RunLedger.js';
 import { bannerHeldUidOf } from '../engine/BattleBlessings.js';
 import { unitIdentityKey, unitUidOf } from '../engine/UnitIdentity.js';
 import { captureBattleState } from './BattleCheckpointAdapter.js';
@@ -201,6 +202,8 @@ export class PostCombatController {
         {
           turnCount: scene.turnManager?.turnNumber,
           turnPar: scene.turnPar,
+          // The force that fought and still stands, escaped units included (the bench is not in it).
+          deployedSurvivors: liveSurvivors.length,
           completionGoldOverride: completionGoldAward,
           caravanSurvived,
           // Recruits who joined this battle and then fell have no roster
@@ -1029,6 +1032,36 @@ export class PostCombatController {
     scene.showLootStatus('Loot error. Check console log.', UI_PALETTE.bad);
   }
 
+  /** How the army stood when the run was lost (RunLedger.buildTerminalSummary); null on any failure. */
+  terminalSummary() {
+    const scene = this.scene;
+    try {
+      const rm = scene.runManager;
+      return buildTerminalSummary({
+        roster: rm.roster,
+        survivors: [...(scene.playerUnits || []), ...(scene.escapedUnits || [])].filter(
+          (u) => Number(u.currentHP) > 0,
+        ),
+        benched: scene.nonDeployedUnits || [],
+        fallenRecruits: fallenBattleRecruits(
+          scene._battleRecruits,
+          [
+            ...(scene.playerUnits || []),
+            ...(scene.escapedUnits || []),
+            ...(scene.nonDeployedUnits || []),
+          ],
+          rm.roster,
+        ),
+        fallenBattleRecords: scene._fallenBattleRecords,
+        turnCount: scene.turnManager?.turnNumber,
+        isValidUnit: (unit) => rm._isValidSerializedUnit(unit),
+      });
+    } catch (error) {
+      console.warn('[PostCombat] terminal summary unavailable:', error);
+      return null;
+    }
+  }
+
   onDefeat() {
     const scene = this.scene;
     const session = battleSession(scene);
@@ -1058,6 +1091,8 @@ export class PostCombatController {
     const defeatContext = {
       defeatedBy: defeatBossName || scene._commanderKillerName || null,
       wasBoss: Boolean(defeatBossName),
+      // The final board, taken before failRun clears the checkpoint (the credits read it).
+      terminal: this.terminalSummary(),
     };
     if (scene.runManager?.battleInProgress || scene._defeatDecision) {
       const result = persistBattleDefeat(scene, defeatContext);

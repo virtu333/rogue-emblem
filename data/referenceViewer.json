@@ -21,14 +21,21 @@
       },
       {
         "rank": "Mast",
-        "totalWeapons": 23,
-        "legendaryWeapons": 22
+        "totalWeapons": 24,
+        "legendaryWeapons": 23
       }
     ],
     "legendaryRequires": "Mast",
-    "legendaryCount": 22
+    "legendaryCount": 23
   },
   "legendaryWeapons": [
+    {
+      "name": "Ironfall Maul",
+      "type": "Axe",
+      "rankRequired": "Mast",
+      "range": "1",
+      "special": ""
+    },
     {
       "name": "Oathaxe",
       "type": "Axe",

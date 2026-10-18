@@ -28,7 +28,13 @@
 //                           foes that reach a tile carry one.
 
 import { canInspectUnit, statusStaffThreat } from './BattleInformation.js';
-import { entityDistanceTo, getFootprint, isEntity, livingEntityLimbs } from './EntitySystem.js';
+import {
+  entityDistanceTo,
+  getFootprint,
+  isEntity,
+  isLargeUnit,
+  livingEntityLimbs,
+} from './EntitySystem.js';
 import { willRemainRootedNextPhase } from './StatusConditionSystem.js';
 import { getBallistaDangerTiles } from './BallistaEngine.js';
 import { ENTITY_LIMB_REACH, ENTITY_PRIMARY_ATTACK_RANGE } from '../utils/constants.js';
@@ -44,6 +50,7 @@ import { artilleryWeapon, holdsPost } from './SiegeArtillery.js';
 import { movementOptionsFor } from './PassMovement.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
 import { getAttackRange, getAttackWeapons } from './AttackOptions.js';
+import { slamDamage } from './IronGuardian.js';
 
 const tileKey = (col, row) => `${col},${row}`;
 
@@ -97,6 +104,17 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
       if (!damage.has(key)) counter.add(key);
     return { damage, status, counter };
   }
+  // Any other big body never steps (AIController._decideBodyAction): its weapon's reach from
+  // its nearest body tile, as combat measures it; the body itself is never a target tile.
+  if (isLargeUnit(enemy)) {
+    const weapon = strikingWeapon(enemy);
+    for (const key of bodyReachTiles(grid, enemy, weapon)) damage.add(key);
+    // The Iron Guardian's Hammerfall lands on the tiles it marked (IronGuardian.js) as the
+    // enemy phase starts, before anyone moves: they are its reach too.
+    if (enemy.hammerfall && ctx.hammerfallMarks)
+      for (const key of ctx.hammerfallMarks) damage.add(key);
+    return { damage, status, counter };
+  }
   // No movement while it stays rooted (willRemainRootedNextPhase, not isRooted: a root
   // expiring at the enemy's next phase start must not understate its threat range), nor
   // while it holds its post (siege artillery and status-staff casters, SiegeArtillery.js).
@@ -131,6 +149,24 @@ export function enemyThreatTiles(ctx, enemy, positions = ctx.positions()) {
 }
 
 /**
+ * The tiles a big body's weapon reaches without a step: a tile is in reach when the combat
+ * distance (entityDistanceTo, the nearest body tile) is in the weapon's range, as combat
+ * measures it. The body itself is never a target tile. Keys "col,row".
+ */
+function bodyReachTiles(grid, unit, weapon) {
+  const keys = new Set();
+  if (!weapon) return keys;
+  const { min, max } = parseRange(weapon.range);
+  for (const tile of getFootprint(unit)) {
+    for (const t of grid.getAttackRange(tile.col, tile.row, weapon)) {
+      const d = entityDistanceTo(unit, t.col, t.row);
+      if (d >= min && d <= max) keys.add(tileKey(t.col, t.row));
+    }
+  }
+  return keys;
+}
+
+/**
  * Where a unit can stop with `mov` movement, and the tiles its weapon reaches
  * beyond them (the attack fringe the move preview draws in red; none for a staff).
  * @returns {{ moveRange: Map, attackTiles: Array<{col,row}> }}
@@ -153,17 +189,9 @@ export function unitReach(
   );
   const attack = new Set();
   const weapon = strikingWeapon(unit);
-  if (weapon && isEntity(unit)) {
-    // The Entity never steps and fights from its whole body: a tile is in its reach when the
-    // combat distance (entityDistanceTo, the nearest body tile) is in its weapon's range, as
-    // combat measures it. The body itself is never a target tile.
-    const { min, max } = parseRange(weapon.range);
-    for (const tile of getFootprint(unit)) {
-      for (const t of grid.getAttackRange(tile.col, tile.row, weapon)) {
-        const d = entityDistanceTo(unit, t.col, t.row);
-        if (d >= min && d <= max) attack.add(tileKey(t.col, t.row));
-      }
-    }
+  if (weapon && isLargeUnit(unit)) {
+    // A big body (the Entity, a 2x2) never steps and fights from its whole body.
+    for (const key of bodyReachTiles(grid, unit, weapon)) attack.add(key);
   } else if (unit.faction === 'player') {
     // A player unit's fringe is what Attack would let it initiate: the union over every
     // weapon it can attack with (silence, per-battle uses, proficiency), each at the range
@@ -226,7 +254,7 @@ export function computeDangerTiles(ctx, { onlyEnemy = null, counter = false } = 
   let positions = null;
   for (const enemy of onlyEnemy ? [onlyEnemy] : ctx.enemyUnits || []) {
     if (!isThreatSourceVisible(ctx.grid, enemy)) continue;
-    if (!isEntity(enemy)) positions ||= ctx.positions();
+    if (!isLargeUnit(enemy)) positions ||= ctx.positions();
     const { damage, status, counter: counterOnly } = enemyThreatTiles(ctx, enemy, positions);
     addDamageSource(damage);
     for (const key of status) statusThreatened.add(key);
@@ -332,9 +360,12 @@ export function moverReachSignature(mover) {
  * phase will actually see.
  *
  * @returns {{ damage: object[], status: object[], counter: object[], ballistas: object[],
- *   area: object[], count: number, fogged: boolean }}  `counter` = Entities that cannot strike
- *   the tile but would answer a blow from it (a note, never part of `count`); `count` = damage
- *   enemies + ballistas; `area` =
+ *   hazards: object[], area: object[], count: number, fogged: boolean }}  `counter` = Entities
+ *   that cannot strike the tile but would answer a blow from it (a note, never part of `count`);
+ *   `hazards` = automatic blows that land on the tile whoever stands there, chosen by no target
+ *   (the Iron Guardian's Hammerfall on a tile it marked: `{ kind: 'hammerfall', source, damage }`,
+ *   `damage` to the mover, null without one); its Guardian is in `damage` only when its weapon
+ *   reaches the tile too; `count` = damage enemies + ballistas + hazards; `area` =
  *   the damage enemies carrying an area art; `fogged` = fog is on, so unseen enemies
  *   may add to it.
  */
@@ -343,16 +374,29 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
   const damage = [];
   const status = [];
   const counter = [];
+  const hazards = [];
   let positions = null;
   const slides = gridHasIce(ctx.grid);
   for (const enemy of ctx.enemyUnits || []) {
     if (!isThreatSourceVisible(ctx.grid, enemy)) continue;
     // Cheap exact prune: every step costs at least 1, so without ice slides an
     // enemy farther than movement + reach cannot strike the tile.
-    if (!slides && !isEntity(enemy) && !withinBareReach(enemy, col, row)) continue;
-    if (!isEntity(enemy)) positions ||= positionsWithMoverAt(ctx.positions(), mover, col, row);
+    if (!slides && !isLargeUnit(enemy) && !withinBareReach(enemy, col, row)) continue;
+    if (!isLargeUnit(enemy)) positions ||= positionsWithMoverAt(ctx.positions(), mover, col, row);
     const tiles = enemyThreatTiles(ctx, enemy, positions);
-    if (tiles.damage.has(key)) damage.push(enemy);
+    // Hammerfall falls on its marks as the enemy phase starts, on whoever stands there: a hazard
+    // of its own, never a target the AI picks (EnemyIntent asks only the weapon's blow).
+    const hammered = Boolean(enemy.hammerfall && ctx.hammerfallMarks?.has(key));
+    if (hammered)
+      hazards.push({
+        kind: 'hammerfall',
+        source: enemy,
+        damage: mover ? slamDamage(enemy, mover) : null,
+      });
+    const struck = hammered
+      ? bodyReachTiles(ctx.grid, enemy, strikingWeapon(enemy)).has(key)
+      : tiles.damage.has(key);
+    if (struck) damage.push(enemy);
     else if (tiles.status.has(key)) status.push(enemy);
     // The Entity answers a blow from here, though it could not strike this tile: only worth
     // saying to a mover with a weapon that reaches it from here.
@@ -368,8 +412,9 @@ export function threatsOnTile(ctx, col, row, { mover = null } = {}) {
     status,
     counter,
     ballistas,
+    hazards,
     area: damage.filter((enemy) => Boolean(ctx.areaArtOf?.(enemy))),
-    count: damage.length + ballistas.length,
+    count: damage.length + ballistas.length + hazards.length,
     fogged: Boolean(ctx.grid?.fogEnabled),
   };
 }
@@ -408,10 +453,18 @@ export function threatWorldSignature(ctx, units = []) {
     const visible = !grid?.fogEnabled || grid.isVisible(b.col, b.row);
     parts.push(`B${b.col},${b.row}:${b.owner}:${visible ? 1 : 0}`);
   }
+  // Hammerfall's marks move each enemy phase while the Guardian stands still.
+  if (ctx.hammerfallMarks?.size) parts.push(`H${[...ctx.hammerfallMarks].sort().join(';')}`);
   return parts.join('|');
 }
 
 const staves = (n) => `${n} ${n === 1 ? 'staff' : 'staves'}`;
+
+/** One automatic hazard's clause: "Hammerfall hits this tile next enemy phase: 16 damage". */
+function hazardClause(hazard) {
+  const damage = Number.isFinite(hazard?.damage) ? `: ${hazard.damage} damage` : '';
+  return `Hammerfall hits this tile next enemy phase${damage}`;
+}
 
 /**
  * How a move preview should read: 'reached' when a foe (or ballista) can strike
@@ -435,10 +488,14 @@ export function threatSummaryTone(result) {
  * tiles around (or behind) this one too. When the Entity cannot strike the tile but would
  * counter a blow from it, " · The Entity counters from here" follows. `status` lists enemies
  * that reach the tile with a status staff only (those that can also strike are in `count`).
+ * A hazard (`hazards`: Hammerfall on a marked tile) is said on its own, never as a foe that
+ * "targets you": "Hammerfall hits this tile next enemy phase: 16 damage", after the foes'
+ * clauses when a foe also reaches the tile.
  */
 export function threatSummaryText(result) {
   if (!result) return '';
-  const hits = result.count || 0;
+  const hazardText = (result.hazards || []).map(hazardClause);
+  const hits = (result.count || 0) - hazardText.length;
   const staffOnly = result.status?.length || 0;
   const area = result.area?.length || 0;
   let text;
@@ -455,8 +512,9 @@ export function threatSummaryText(result) {
   } else if (staffOnly) {
     text = `Only ${staves(staffOnly)} can reach${aimedText}`;
   } else {
-    text = 'No foe can reach';
+    text = hazardText.length ? '' : 'No foe can reach';
   }
+  if (hazardText.length) text = [text, ...hazardText].filter(Boolean).join(' · ');
   const counters = result.counter || [];
   if (counters.length === 1) text += ` · ${counters[0].name || 'A foe'} counters from here`;
   else if (counters.length) text += ` · ${counters.length} foes counter from here`;

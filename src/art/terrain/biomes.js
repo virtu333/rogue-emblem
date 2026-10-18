@@ -19,11 +19,14 @@ export const G = Object.freeze({
   ABOG: 11,
   FLOOR: 12,
   WALL: 13,
+  ABYSS: 14,
 });
-export const MATERIAL_COUNT = 14;
+export const MATERIAL_COUNT = 15;
 export const HARD = new Uint8Array(MATERIAL_COUNT);
 HARD[G.FLOOR] = 1;
 HARD[G.WALL] = 1;
+// The Abyss keeps exact cell squares: a one-tile bridge between two drops must read one tile wide.
+HARD[G.ABYSS] = 1;
 
 /** Terrain name -> ground material for a biome's default ground. */
 export function groundOf(name, defaultGround) {
@@ -44,6 +47,8 @@ export function groundOf(name, defaultGround) {
       return G.FLOOR;
     case 'Wall':
       return G.WALL;
+    case 'Abyss':
+      return G.ABYSS;
     case 'Water':
     case 'River':
     case 'Bridge':
@@ -89,6 +94,7 @@ export const PAINTED_TERRAIN = Object.freeze([
   'Bog',
   'Acidic Swamp',
   'Acidic Bog',
+  'Abyss',
 ]);
 
 const f = (i) => R('foliage', i);

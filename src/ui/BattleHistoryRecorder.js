@@ -1,6 +1,10 @@
 import { battleTimelinePreview } from '../engine/BattleTimelineFacts.js';
 import { historyFrameAt } from '../engine/BattleHistoryPresentation.js';
 import { isUnitSeenAt } from '../engine/BattleInformation.js';
+import { footprintSize } from '../engine/EntitySystem.js';
+
+/** A body's drawn span in px when its graphic is gone: 30 for one tile, 4 short of its tiles else. */
+const bodyPixels = (tiles) => (tiles > 1 ? tiles * 32 - 4 : 30);
 
 const copy = (v) => structuredClone(v);
 
@@ -34,9 +38,11 @@ export function observeHistoryAction(
       type,
       actorId: a ? actor.battleEntityId : null,
       targetId: t ? target.battleEntityId : null,
-      actorPosition: a ? { col: actor.col, row: actor.row, size: actor.isEntity ? 3 : 1 } : null,
+      actorPosition: a
+        ? { col: actor.col, row: actor.row, size: footprintSize(actor).width }
+        : null,
       targetPosition: t
-        ? { col: target.col, row: target.row, size: target.isEntity ? 3 : 1 }
+        ? { col: target.col, row: target.row, size: footprintSize(target).width }
         : null,
       label,
       ...(outcome ? { outcome: copy(outcome) } : {}),
@@ -145,9 +151,9 @@ export function captureHistoryFrame(scene, state, archive) {
       name: String(u.name || 'Unit').slice(0, 256),
       className: data?.className || '',
       spriteKey,
-      size: data?.isEntity ? 3 : 1,
-      width: current?.graphic?.displayWidth || (data?.isEntity ? 92 : 30),
-      height: current?.graphic?.displayHeight || (data?.isEntity ? 92 : 30),
+      size: footprintSize(data).width,
+      width: current?.graphic?.displayWidth || bodyPixels(footprintSize(data).width),
+      height: current?.graphic?.displayHeight || bodyPixels(footprintSize(data).height),
       conditions: u.conditions.slice(0, 64),
       buffs: [
         ...(data?._battleTimedWeaponArtBuffs || []).flatMap((b) => Object.entries(b.stats || {})),

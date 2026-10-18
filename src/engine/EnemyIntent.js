@@ -29,7 +29,7 @@
 import { selectBallistaTarget } from './BallistaEngine.js';
 import { gridDistance, hasPerBattleUsesLeft, isInRange } from './Combat.js';
 import { planEnemyCanto } from './EnemyCanto.js';
-import { isEntity } from './EntitySystem.js';
+import { isEntity, isLargeUnit } from './EntitySystem.js';
 import { wakeHolders } from './HoldActivation.js';
 import { settleArtilleryStances } from './SiegeArtillery.js';
 import { isThreatSourceVisible, positionsWithMoverAt } from './ThreatForecast.js';
@@ -113,9 +113,8 @@ export function predictEnemyIntents({
 }) {
   const intents = new Map();
   if (!ai || !ctx?.grid) return intents;
-  const view = Object.create(ai);
-  if (aggressiveMode !== undefined) view.aggressiveMode = Boolean(aggressiveMode);
-  if (bossEnraged !== undefined) view.bossEnraged = Boolean(bossEnraged);
+  // The coming phase's inputs, never the ones left from the phase the AI last played.
+  const view = ai.phaseView({ turnNumber: turn, aggressiveMode, bossEnraged });
 
   // The real unit behind each copy, so an answer names the battle's own units.
   const realOf = new Map();
@@ -154,10 +153,13 @@ export function predictEnemyIntents({
       intents.set(real, { kind: 'none', target: null, reason: 'asleep' });
       continue;
     }
-    if (isEntity(enemy)) {
+    if (isLargeUnit(enemy)) {
       // The foes the player sees, so a visible Grasping Limb lends its reach and a hidden
       // one never shows (EntitySystem.canEntityStrike; the live phase passes every foe).
-      const decision = view._decideEntityAction(enemy, players, npcs, visible);
+      // Any other big body never steps either (AIController._decideBodyAction).
+      const decision = isEntity(enemy)
+        ? view._decideEntityAction(enemy, players, npcs, visible)
+        : view._decideBodyAction(enemy, players, npcs);
       intents.set(real, {
         kind: decision?.target ? 'attack' : 'none',
         target: realTarget(decision?.target),

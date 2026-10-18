@@ -6,6 +6,7 @@ import { GENERATED_HELP_TABS } from './generated/mechanicsHelp.js';
 import { GAME_TITLE } from '../utils/gameIdentity.js';
 import { isDescentEnabled, isDescentOnly } from '../engine/DescentSwitch.js';
 import { CHURCH_PROMOTE_COST_LORD, CHURCH_PROMOTE_COST_RECRUIT } from '../utils/constants.js';
+import { isWeaponUsesEnabled, weaponUsesConfig } from '../engine/WeaponUses.js';
 
 const GOLD = '#ffdd44';
 const CYAN = '#66ddff';
@@ -24,6 +25,35 @@ export const STAT_DESCRIPTIONS = {
   LCK: 'Luck. Affects hit, avoid, and crit.',
   MOV: 'Movement. Tiles moved per turn.',
 };
+
+/** Arms › Weapon Uses (engine/WeaponUses.js), its numbers read from data; none while off. */
+function weaponUsesPages() {
+  const config = weaponUsesConfig();
+  if (!isWeaponUsesEnabled(config)) return [];
+  const uses = (tier) => config.byTier?.[tier];
+  return [
+    {
+      title: 'Weapon Uses',
+      lines: [
+        { text: 'Your weapons have uses each battle.', color: GOLD },
+        { text: `  Iron ${uses('Iron')}  Steel ${uses('Steel')}  Silver ${uses('Silver')}` },
+        { text: `  Legend ${uses('Legend')}  Epic ${uses('Epic')}` },
+        { text: '' },
+        { text: 'One use per fight it strikes in:', color: CYAN },
+        { text: '  attacking or countering, hit or miss.' },
+        { text: '  A double attack is still one use.' },
+        { text: '' },
+        { text: 'All uses refill after each battle.', color: GREEN },
+        { text: 'Equip and the forecast show uses left.', color: GRAY },
+        { text: '' },
+        { text: 'A spent weapon cannot attack or counter.', color: CYAN },
+        { text: 'The unit switches to its next usable', color: GRAY },
+        { text: 'weapon, so carry a spare.', color: GRAY },
+        { text: 'Enemy weapons never run out.', color: GRAY },
+      ],
+    },
+  ];
+}
 
 const STATIC_HELP_TABS = [
   {
@@ -251,6 +281,7 @@ const STATIC_HELP_TABS = [
           { text: 'Tiers: Iron < Steel < Silver < Legend', color: GRAY },
         ],
       },
+      ...weaponUsesPages(),
       {
         title: 'Weapon Arts',
         lines: [
@@ -670,14 +701,14 @@ const STATIC_HELP_TABS = [
           { text: '  raise it. Seize, Escape and Defeat start' },
           { text: '  higher; harder rungs set it tighter.' },
           { text: '  Castles, Mire Crossing, Three Roads,' },
-          { text: '  Three Roads Keep, the Long Road, the' },
-          { text: '  Toll-House and Toll Crossing add 1-3.' },
+          { text: '  its Keep, the Long Road, the Toll-House,' },
+          { text: "  Toll Crossing, the Guardian's hall and" },
+          { text: '  the Vigil add 1-3.' },
           { text: 'Rating (turns taken vs par):', color: GOLD },
           { text: '  S  3+ turns under par · EXP x1.25' },
           { text: '  A  par or under · EXP x1.10' },
           { text: '  B  1-3 turns over · EXP x1.00' },
           { text: '  C  4+ turns over · EXP x0.90' },
-          { text: '' },
           { text: 'EXP is rated on the turn it is earned:', color: GRAY },
           { text: 'fast early kills keep the S boost.', color: GRAY },
         ],
@@ -752,6 +783,26 @@ const STATIC_HELP_TABS = [
           { text: 'The Hollowed are soldiers it emptied:', color: CYAN },
           { text: '  slow and dull, with no skills at all.' },
           { text: '  Neither ever carries an item.', color: GRAY },
+        ],
+      },
+      {
+        title: 'The Vigil',
+        descentOnly: true,
+        tags: ['vigil', 'voice', 'ward', 'circle', 'waking', 'abyss', 'act v'],
+        lines: [
+          { text: 'Four Voices speak the rite on four', color: GOLD },
+          { text: '  stones. Fell them all to win.' },
+          { text: '' },
+          { text: 'Each Voice is warded: no blow hurts', color: CYAN },
+          { text: '  it while its circle stands. End a' },
+          { text: '  turn on the circle: it breaks for' },
+          { text: '  good and calls no more Hollowed.' },
+          { text: '' },
+          { text: 'The Waking cannot fall while any', color: CYAN },
+          { text: '  other Voice still speaks.' },
+          { text: '' },
+          { text: 'The drop between the stones is the', color: GRAY },
+          { text: '  Abyss: only fliers cross it.', color: GRAY },
         ],
       },
       {

@@ -21,6 +21,7 @@ export const WEATHERED_TERRAINS = new Set([
   'Ballista',
   'Throne',
   'Pillar',
+  'Abyss',
 ]);
 export async function loadWeatheredArt(base) {
   const entries = await Promise.all(
@@ -196,6 +197,10 @@ export function drawWeatheredTile(ctx, art, at, x, y, options = {}) {
     }
     return true;
   }
+  if (name === 'Abyss') {
+    drawAbyss(box, at, x, y);
+    return true;
+  }
   if (name === 'Fort') {
     meadow(0);
     ctx.drawImage(art['fort-compact'], 0, 0, size, size);
@@ -209,4 +214,48 @@ export function drawWeatheredTile(ctx, art, at, x, y, options = {}) {
       { Sand: 0, Village: 2, Ballista: 3, Floor: 4, Throne: 11, Pillar: 15 }[name],
     );
   return true;
+}
+
+// The Abyss (the Vigil's drop between platforms), drawn in code: no sheet holds it. A sheer
+// masonry face falls from any ground to its north, lit at the lip and sinking into the dark;
+// dark rims meet ground to either side and a thin lit edge meets ground below; the depth is a
+// near-black violet with a few faint motes, placed from the tile's coordinates (no randomness).
+const ABYSS_DEPTH = ['#0e0c14', '#120e1c', '#170c24'];
+const ABYSS_FACE = ['#5a5b63', '#40414a', '#2b2c33', '#1a1a20'];
+const ABYSS_FACE_H = 22;
+function drawAbyss(box, at, x, y) {
+  const ground = (n) => Boolean(n) && n !== 'Abyss';
+  const north = ground(at(x, y - 1));
+  const south = ground(at(x, y + 1));
+  const west = ground(at(x - 1, y));
+  const east = ground(at(x + 1, y));
+  for (let b = 0; b < 48; b += 4) {
+    for (let a = 0; a < 48; a += 4) {
+      const h = ((x * 48 + a) * 73856093) ^ ((y * 48 + b) * 19349663);
+      box(ABYSS_DEPTH[Math.abs(h) % 7 === 0 ? 2 : Math.abs(h) % 3 === 0 ? 1 : 0], a, b, 4, 4);
+    }
+  }
+  // Motes of unlight: at most two a tile.
+  const seed = Math.abs((x * 92821) ^ (y * 68917));
+  if (seed % 3 !== 0) box('#4a2270', 6 + (seed % 31), 26 + (seed % 17), 2, 2);
+  if (seed % 5 === 0) box('#763aa0', 30 - (seed % 19), 34 + (seed % 9), 1, 1);
+  if (north) {
+    for (let b = 0; b < ABYSS_FACE_H; b++) {
+      const band = Math.min(ABYSS_FACE.length - 1, Math.floor((b / ABYSS_FACE_H) * 4));
+      box(ABYSS_FACE[band], 0, b, 48, 1);
+    }
+    // Courses and joints in the face, fading with it.
+    for (let b = 5; b < ABYSS_FACE_H; b += 6) box('#1a1a20', 0, b, 48, 1);
+    for (let b = 0; b < ABYSS_FACE_H; b += 6)
+      for (let a = (b / 6) % 2 ? 0 : 8; a < 48; a += 16) box('#1a1a20', a, b, 1, 5);
+    box('#a09e9f', 0, 0, 48, 2); // the lit lip
+    // Shadow pooling under the face.
+    box('#07060b', 0, ABYSS_FACE_H, 48, 3);
+  }
+  if (west) box('#07060b', 0, 0, 3, 48);
+  if (east) box('#07060b', 45, 0, 3, 48);
+  if (south) {
+    box('#2b2c33', 0, 45, 48, 2);
+    box('#5a5b63', 0, 47, 48, 1);
+  }
 }

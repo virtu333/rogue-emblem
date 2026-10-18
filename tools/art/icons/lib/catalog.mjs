@@ -73,6 +73,11 @@ function consumableRim(c) {
   return 'plain';
 }
 
+/** An accessory's rim: Legend for the legendaries, fine from 3000 gold, else plain. */
+function accessoryRim(a) {
+  return LEGENDARY_ACCESSORIES.has(a.name) ? 'Legend' : a.price >= 3000 ? 'fine' : 'plain';
+}
+
 /** A blessing's pennant rim: its tier numeral; an earned blessing (no tier) wears the Legend rim. */
 function blessingRim(b) {
   if (b.earned === true) return 'Legend';
@@ -130,7 +135,7 @@ export function iconEntries(data) {
       spec: G.consumableSpec(c),
       source: c,
     });
-  for (const a of data.accessories)
+  for (const a of data.accessories.filter((a) => !G.ACCESSORY_ICON_REUSE[a.name]))
     add({
       id: slug(a.name),
       group: 'Accessories',
@@ -138,7 +143,7 @@ export function iconEntries(data) {
       kind: 'accessory',
       type: 'Accessory',
       socket: 'accessory',
-      rim: LEGENDARY_ACCESSORIES.has(a.name) ? 'Legend' : a.price >= 3000 ? 'fine' : 'plain',
+      rim: accessoryRim(a),
       spec: G.accessorySpec(a),
       source: a,
     });
@@ -227,8 +232,8 @@ export function iconEntries(data) {
 
 /**
  * Icons that share another icon's atlas cell (itemGrammar WEAPON_ICON_REUSE,
- * UPGRADE_ICON_REUSE and BLESSING_ICON_REUSE): each keeps its own id, socket and rim in the
- * manifest and points at the cell of `of`. Weapons first, then upgrades, then blessings, each
+ * UPGRADE_ICON_REUSE, BLESSING_ICON_REUSE and ACCESSORY_ICON_REUSE): each keeps its own id, socket and rim in the
+ * manifest and points at the cell of `of`. Weapons first, then upgrades, blessings and accessories, each
  * in data order.
  */
 export function iconAliases(data) {
@@ -261,6 +266,14 @@ export function iconAliases(data) {
         of: G.BLESSING_ICON_REUSE[b.id],
         socket: 'blessing',
         rim: blessingRim(b),
+      })),
+    ...data.accessories
+      .filter((a) => G.ACCESSORY_ICON_REUSE[a.name])
+      .map((a) => ({
+        id: slug(a.name),
+        of: G.ACCESSORY_ICON_REUSE[a.name],
+        socket: 'accessory',
+        rim: accessoryRim(a),
       })),
   ];
 }

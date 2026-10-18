@@ -5,9 +5,9 @@ import { epicVictoryTerms, settleEpicVictory } from './EpicWeapons.js';
 import { migrateSavedItemNames } from './ItemNameMigration.js';
 import { serializeRun } from './RunSerialization.js';
 import {
-  applyNgPlusThirdLord,
+  applyPendingNgPlusLordKits,
   ngPlusRunEnd,
-  sanitizeNgPlusRun,
+  restoreNgPlusRun,
   startNgPlusRun,
 } from './NgPlusRun.js';
 import { migrateSavedGamblerCoins } from './AccessoryCatalogMigration.js';
@@ -15,6 +15,7 @@ import {
   migrateSavedPerBattleWeapons,
   migrateSavedStaffUseRules,
 } from './WeaponCatalogMigration.js';
+import { refillBattleUses } from './WeaponUses.js';
 import { migrateSavedLegendaryRelics } from './LegendaryRelicMigration.js';
 import {
   hydrateBattleTimeline,
@@ -23,6 +24,7 @@ import {
 } from './BattleTimeline.js';
 import { compactNarrativeSeen, pickFresh } from '../utils/pickFresh.js';
 import { applyRevivalCatchUp } from './RevivalCatchUp.js';
+import { sanitizeReviveDiscountAct } from './RevivePricing.js';
 import { migrateUnitTraits, rollAndApplyLordTrait } from './TraitSystem.js';
 import {
   applyFallenBattleRecord,
@@ -51,9 +53,6 @@ import {
   CONVOY_CONSUMABLE_CAPACITY,
   CONVOY_WEAPON_TYPES,
   RECRUIT_SKILL_POOL,
-  REVIVE_BASE_COST,
-  REVIVE_COST_PER_LEVEL,
-  REVIVE_PROMOTION_MULTIPLIER,
   RUINS_PATHS,
   INVENTORY_MAX,
   XP_SPECIAL_ENEMY_MULTIPLIER,
@@ -287,6 +286,8 @@ import {
   shrineBoonsOf,
 } from './ShrineBoons.js';
 import { createSpecialCharacter } from './SpecialCharacters.js';
+import { settleGeminiRingsIn } from './GeminiRing.js';
+import * as Ledger from './RunLedger.js';
 import {
   chooseStartGift as takeStartGift,
   findGift,
@@ -673,13 +674,7 @@ export function legendaryLordChanceFor(legendaryLordChanceBonus = 0) {
   return Math.min(0.15, 0.05 + Math.max(0, Number(legendaryLordChanceBonus) || 0));
 }
 
-/** Calculate level-scaled revive cost for a fallen unit. */
-export function getReviveCost(unit) {
-  const raw = Number(unit?.level);
-  const level = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : 1;
-  const base = REVIVE_BASE_COST + level * REVIVE_COST_PER_LEVEL;
-  return Math.round(unit?.tier === 'promoted' ? base * REVIVE_PROMOTION_MULTIPLIER : base);
-}
+export { getReviveCost } from './RevivePricing.js';
 
 /**
  * The key a unit carries in `recruitBlessingGrants` once an act-scoped stat card's delta (tracker
@@ -766,6 +761,7 @@ export class RunManager {
     this.narrativeSeen = {};
     this.runRecordId = null;
     this.totalTurns = 0;
+    this.runLedger = Ledger.createRunLedger(Date.now(), this.gold);
     this.rngSeed = null;
     this.visionChargesRemaining = 1;
     this.visionCount = 0;
@@ -778,6 +774,7 @@ export class RunManager {
     this.ruinsRevivedByNodeId = {};
     // How many of the fallen each church revived (node id -> count); see ChurchCommands.js.
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
     // Lord recruit odds v2 (engine/LordRecruitChance.js): `{ v: 2, lordsAtActStart }`, or null
     // for a run started before them (it keeps the flat chance it began with).
     this.lordRecruitOdds = null;
@@ -1010,6 +1007,7 @@ export class RunManager {
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     this._resetEventState();
@@ -1105,6 +1103,7 @@ export class RunManager {
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     this._resetEventState(); // the prologue has no events: it starts empty and stays empty
@@ -2673,8 +2672,8 @@ export class RunManager {
       );
       this.grantRecruitBlessingConsumables(unit);
       this.assignUnitUid(unit);
-      applyNgPlusThirdLord(this, unit); // an NG+ run: a Barracks lord's kit comes back
       this.roster.push(unit);
+      applyPendingNgPlusLordKits(this); // an NG+ run: a Barracks lord's kit comes back
     }
   }
 
@@ -3996,6 +3995,7 @@ export class RunManager {
 
   addGold(amount) {
     this.gold += amount;
+    this.runLedger = Ledger.tallyGold(this.runLedger, amount);
   }
 
   awardGold(amount) {
@@ -4220,7 +4220,7 @@ export class RunManager {
 
   spendGold(amount) {
     if (amount > this.gold) return false;
-    this.gold -= amount;
+    this.addGold(-amount);
     return true;
   }
 
@@ -4393,18 +4393,15 @@ export class RunManager {
    * @returns {boolean} true when completion was applied; false for invalid/duplicate node
    */
   completeBattle(survivingUnits, nodeId, goldEarned = 0, options = {}) {
-    // Battle is over either way — never leave a stale suspend flag that
-    // would offer to resume a finished fight on the next load. A Watcher's Grace charge the
-    // battle did not spend fades with it (before the act boss's own +1 below).
+    // Battle is over either way: no stale suspend flag offering to resume a finished fight. A
+    // Watcher's Grace charge the battle did not spend fades with it (before the act boss's +1).
     this._settleBossBattleVision(this.battleInProgress);
     this.battleInProgress = null;
     const node = this.openBattleNode(nodeId);
     if (!node) return false;
     if (this.totalTurns !== null)
       this.totalTurns += Math.max(0, Math.trunc(options.turnCount) || 0);
-    // The battle's gold is known before anything is committed, so burdens settle in one
-    // place (Burdens.burdenEffectsOnVictory: pure; assigned below, at the victory commit
-    // and nowhere else, so a reverted or suspended battle never touches them).
+    // Burdens settle in one place, at the victory commit only (Burdens.burdenEffectsOnVictory).
     const completionGold = Number.isFinite(options?.completionGoldOverride)
       ? Math.max(0, Math.floor(options.completionGoldOverride))
       : undefined;
@@ -4515,17 +4512,13 @@ export class RunManager {
       return data;
     });
     this.ensureUnitUids();
-    // Refill at the completed-battle boundary so rewards and the node-map
-    // roster show ready staves. Never do this during serialization/resume.
-    // Include stored and casualty-retained equipment, not consumables.
+    applyPendingNgPlusLordKits(this); // NG+: a lord recruited in this battle takes their kit
+    // Refill at the battle boundary so rewards and the route map show ready weapons (bags, the
+    // fallen's kept equipment and the convoy; never consumables, never on resume).
     for (const unit of [...this.roster, ...this.fallenUnits]) {
-      for (const item of [...(unit.inventory || []), unit.weapon]) {
-        if (item?.perBattleUses) item._usesSpent = 0;
-      }
+      for (const item of [...(unit.inventory || []), unit.weapon]) refillBattleUses(item);
     }
-    for (const item of this.convoy.weapons || []) {
-      if (item?.perBattleUses) item._usesSpent = 0;
-    }
+    for (const item of this.convoy.weapons || []) refillBattleUses(item);
     this._suppressPersonalSkillsForCurrentRosterIfNeeded();
     this.metaBattlePoints += battleMetaReward(this.currentAct, this.completedBattles === 0);
     recordVictoryFeats(this, { ...options, fallen: newlyFallen.length }); // the achievements
@@ -4561,6 +4554,7 @@ export class RunManager {
       losses: newlyFallen.length,
     });
 
+    this.runLedger = Ledger.settleLedger(this, options, survivingUnits, newlyFallen);
     const isRewardBossNode = isActBossVictory(this, node);
     const isRewardAct =
       this.nodeMap?.actId === 'act1' ||
@@ -5022,6 +5016,7 @@ export class RunManager {
     this.ruinsChoiceByNodeId = {};
     this.ruinsRevivedByNodeId = {};
     this.churchRevivesByNodeId = {};
+    this.reviveDiscountAct = null;
     this.churchVowByNodeId = {};
     this.churchTitheByNodeId = {};
     // Each act's events are its own (the log, flags and burdens run on).
@@ -5257,10 +5252,8 @@ export class RunManager {
   }
 
   /**
-   * Mark the run as a defeat.
-   * @param {{defeatedBy?: string|null, wasBoss?: boolean}|null} context - who
-   *   ended the run (for narrative memory). Abandon/retreat callers pass
-   *   nothing: retreating is not "slain by".
+   * Mark the run as a defeat. `context`: who ended it (`defeatedBy`, `wasBoss`: narrative memory;
+   * retreat callers pass nothing, retreating is not "slain by") and the final board (`terminal`).
    */
   failRun(context = null) {
     // The prologue never settles a defeat (§8): its falls restart the chapter. A
@@ -5270,6 +5263,7 @@ export class RunManager {
       return false;
     }
     this.status = 'defeat';
+    this.runLedger = Ledger.withTerminalSummary(this.runLedger, context?.terminal);
     this.winStreak = 0;
     this.battleInProgress = null;
     this.defeatContext =
@@ -5335,6 +5329,7 @@ export class RunManager {
                 actsCleared: this.actIndex + 1,
                 totalTurns: this.totalTurns,
                 shadow: this.isEclipseActive() ? this.eclipse.shadow : null,
+                ...Ledger.gradeRecordField(this, summary.result),
                 roster: this.roster.map(survivorRecord),
                 fallen: fallenForRecord(everFallenUnits(this)).map(fallenRecord),
               }
@@ -5687,6 +5682,8 @@ export class RunManager {
     migrateSavedStaffUseRules(saved, gameData);
     // Legendaries saved before the rework take its changes (Oathblade, Hermit's Bow).
     migrateSavedLegendaryRelics(saved);
+    // A Gemini Ring saved before its own bonus lived in `effects` gets it there (same places).
+    settleGeminiRingsIn(saved);
     for (const [holder, key, expanded] of expandedTimelines)
       collapseTimelinePatches(holder[key], expanded);
     const rm = new RunManager(gameData, saved.metaEffects || null);
@@ -5992,6 +5989,7 @@ export class RunManager {
         : {};
     rm.runRecordId =
       typeof saved.runRecordId === 'string' ? saved.runRecordId : `legacy-${saved.runSeed}`;
+    rm.runLedger = Ledger.sanitizeRunLedger(saved.runLedger);
     rm.totalTurns = Number.isFinite(saved.totalTurns)
       ? Math.max(0, Math.trunc(saved.totalTurns))
       : null;
@@ -6026,6 +6024,7 @@ export class RunManager {
     rm.ruinsRevivedByNodeId = sanitizeRuinsRevivals(saved.ruinsRevivedByNodeId);
     // Saves from before the church limit carry none: no church has revived anyone yet.
     rm.churchRevivesByNodeId = sanitizeChurchRevives(saved.churchRevivesByNodeId);
+    rm.reviveDiscountAct = sanitizeReviveDiscountAct(saved.reviveDiscountAct);
     // Saves from before lord odds v2 carry none: the run keeps the flat chance it began with.
     rm.lordRecruitOdds = sanitizeLordRecruitOdds(saved.lordRecruitOdds);
     rm.churchVowByNodeId = sanitizeChurchVows(saved.churchVowByNodeId);
@@ -6126,7 +6125,7 @@ export class RunManager {
     rm.rewardRerollsSpent = Math.max(0, Math.trunc(Number(saved.rewardRerollsSpent) || 0));
     // Saves from before the ledger have none (what the army holds still counts).
     rm.legendaryGrants = sanitizeLegendaryGrants(saved.legendaryGrants);
-    rm.ngPlus = sanitizeNgPlusRun(saved.ngPlus);
+    rm.ngPlus = restoreNgPlusRun(rm, saved);
     adoptHeldLegendaries(rm);
     rm.pendingBossRecruit = restorePendingBossRecruit(saved.pendingBossRecruit, {
       actId: rm.currentAct,

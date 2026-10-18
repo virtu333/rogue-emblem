@@ -25,6 +25,8 @@ export const COMBAT_SFX = [
   'sfx_shatter',
   'sfx_steal',
   'sfx_turn',
+  'sfx_ward_break',
+  'sfx_hammerfall',
 ];
 
 /**
@@ -50,7 +52,9 @@ export const ALL_SFX = Object.freeze([...ESSENTIAL_SFX, ...COMBAT_SFX, ...UI_SFX
 export const SFX_FALLBACKS = Object.freeze({
   sfx_nodamage: 'sfx_hit',
   sfx_shatter: 'sfx_heal',
+  sfx_ward_break: 'sfx_crit',
   sfx_steal: 'sfx_confirm',
+  sfx_hammerfall: 'sfx_crit',
   sfx_purchase: 'sfx_gold',
   sfx_equip: 'sfx_confirm',
   sfx_chime: 'sfx_heal',

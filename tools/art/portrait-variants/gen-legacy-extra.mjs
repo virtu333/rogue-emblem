@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Portraits for units that are not a recruit class: the caravan Merchant (an NPC the engine
-// builds outside the unit factories) and the enemy-only Necromancer, Skeleton, Circle Adept and Hollowed. Like
+// builds outside the unit factories) and the enemy-only Necromancer, Skeleton, Circle Adept, Hollowed and Iron Guardian. Like
 // gen-legacy-base.mjs these are 128 px legacy-style portraits (assets/portraits/<id>.png)
 // that the PC-98 build (tools/art/pc98) treats as the unit's default id. They are single
 // portraits (no variants, like the Zombie and Revenant): there is one Merchant design, a
@@ -101,6 +101,25 @@ export const EXTRA = {
       'assets/portraits/enemy_soldier.png',
       'assets/portraits/enemy_zombie.png',
       `${SHEETS}/hollowed.png`,
+    ],
+  },
+  // The Iron Guardian: a boss-tier keeper with a 2x2 body. A single portrait like the Adept.
+  enemy_iron_guardian: {
+    prompt:
+      `${STYLE} The character: an enemy Iron Guardian, a colossal animated keeper of BLACK IRON that has guarded ` +
+      'a buried hall under an old imperial mine for centuries: not a man in armour, there is no one inside. A ' +
+      'small featureless great helm of pitted blue-black iron sunk low between huge rounded riveted pauldrons, a ' +
+      'narrow visor slit with only a faint dull ember glow deep inside, a little tarnished gold trim on the helm. ' +
+      'Thick layered iron plates like scales across the chest, a few hanging loose and cracked, a frayed old ' +
+      'crimson imperial sash across one shoulder, and the top of the iron haft of a huge war maul rising beside ' +
+      'it with both massive gauntlets resting on it. Heavy, patient, utterly still. The iron must not sink into ' +
+      'the dark: clearly lighter cold grey highlights on every plate edge and rivet. No face, no skull, no ' +
+      'runes, no particles. The third reference image is the class map sprite: follow it. Palette: blue-black ' +
+      'iron, cold grey, crimson, a touch of tarnished gold.',
+    refs: [
+      'assets/portraits/enemy_general.png',
+      'assets/portraits/enemy_revenant.png',
+      `${SHEETS}/iron-guardian.png`,
     ],
   },
 };

@@ -2,6 +2,7 @@ import { isCurrentBattleSession } from './BattleSession.js';
 import { commitHistoryPath, observeHistoryAction } from './BattleHistoryRecorder.js';
 import { settleAccessoryHpOwed } from '../engine/UnitHealth.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
+import { consumeGaleforce } from '../engine/GaleforceCharm.js';
 /**
  * Fog of war shows what settled units see. A move reveals nothing on its own: the
  * fog lifts from a unit's new tile only once its action there is committed (Wait,
@@ -33,6 +34,9 @@ export function completeBattleAction(scene, unit, { skipDim = false, session } =
   scene._historyActor = unit.battleEntityId;
   unit.hasActed = true;
   scene._villageController?.handleUnitActionEnd(unit);
+  // A Galeforce Charm that procced on this action's kill readies the unit again
+  // (engine/GaleforceCharm.js): before the save, so a resume finds it ready.
+  const again = consumeGaleforce(unit);
   scene.selectedUnit = null;
   scene.preMoveLoc = null;
   scene._preFogSnapshot = null;
@@ -46,6 +50,10 @@ export function completeBattleAction(scene, unit, { skipDim = false, session } =
   // change; this also covers state loaded from before it did).
   for (const ally of scene.playerUnits || []) settleAccessoryHpOwed(ally);
   const saved = scene._captureSuspendCheckpoint?.({ session });
+  if (again) {
+    safeBattlePresentation('galeforce', () => scene.undimUnit?.(unit), { scene });
+    return scene.runManager?.battleInProgress ? saved === true : true;
+  }
   if (!skipDim) safeBattlePresentation('action dim', () => scene.dimUnit(unit), { scene });
   if (scene.playerUnits.includes(unit)) scene.turnManager.unitActed(unit);
   else scene.turnManager.checkPlayerPhaseComplete();

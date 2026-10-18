@@ -1,9 +1,17 @@
 import { resolveGamblerConfig } from '../engine/SkillSystem.js';
 import { accessorySkillText } from '../engine/AccessorySkillNames.js';
+import {
+  accessoryStatEffects,
+  geminiBonus,
+  geminiPartnerStats,
+  geminiStatOf,
+  isGeminiRing,
+} from '../engine/GeminiRing.js';
 
 const ACCESSORY_STAT_ORDER = ['HP', 'STR', 'MAG', 'SKL', 'SPD', 'LCK', 'DEF', 'RES', 'MOV'];
 
 export const HANDLED_ACCESSORY_COMBAT_EFFECT_KEYS = Object.freeze([
+  'anchored',
   'atkBonus',
   'avoidBonus',
   'bloodGem',
@@ -14,10 +22,16 @@ export const HANDLED_ACCESSORY_COMBAT_EFFECT_KEYS = Object.freeze([
   'critBonus',
   'defBonus',
   'doubleThresholdReduction',
+  'firstHitWard',
+  'galeforce',
   'gambler',
   'gamblerCoin',
+  'gemini',
   'goldPerKill',
+  'grudgeAtk',
   'hitBonus',
+  'meleeCounterRange',
+  'meleeReflect',
   'moontide',
   'moveTypeOverride',
   'negateEffectiveness',
@@ -117,11 +131,36 @@ function formatTurnStartEffect(accessory) {
   return `At turn start, restore ${healParts.join(' + ')}`;
 }
 
+/**
+ * A Gemini Ring wearer's set as it stands on the field: "Set active: +2 STR, +2 SPD" (the
+ * partner stats it draws now, engine/GeminiRing.js geminiPartnerStats) or "Set: no partner on
+ * the field". '' for a unit without a ring, or when `allies` is not a field (outside battle).
+ */
+export function geminiSetText(unit, allies) {
+  if (!isGeminiRing(unit?.accessory) || !Array.isArray(allies)) return '';
+  const partners = geminiPartnerStats(unit, allies);
+  if (partners.length === 0) return 'Set: no partner on the field';
+  return `Set active: ${partners.map(({ stat, bonus }) => `+${bonus} ${stat}`).join(', ')}`;
+}
+
 export function formatAccessoryEffects(accessory, options = {}) {
   const separator = options.separator ?? ' ';
-  const entries = buildOrderedStatEntries(accessory?.effects);
+  // A Gemini Ring's own stat is the instance's (engine/GeminiRing.js); a catalog row has none.
+  const entries = buildOrderedStatEntries(accessoryStatEffects(accessory));
   const parts = entries.map(([stat, value]) => formatSignedStat(value, stat)).filter(Boolean);
+  if (isGeminiRing(accessory) && !geminiStatOf(accessory))
+    parts.unshift(`+${geminiBonus(accessory)} to one stat`);
   return parts.join(separator);
+}
+
+/** The Galeforce Charm's line (engine/GaleforceCharm.js): its proc stat and its limit. */
+function galeforceText(raw) {
+  if (!raw) return '';
+  const cfg = typeof raw === 'object' ? raw : {};
+  const stat = typeof cfg.activation === 'string' ? cfg.activation : 'SKL';
+  const per = Math.trunc(Number(cfg.perBattle)) > 0 ? Math.trunc(Number(cfg.perBattle)) : 2;
+  const times = per === 1 ? 'once' : per === 2 ? 'twice' : `${per} times`;
+  return `Kill a foe you attacked: ${stat}% chance to act again (${times} a map)`;
 }
 
 export function formatAccessoryCombatEffect(accessory) {
@@ -160,6 +199,28 @@ export function formatAccessoryCombatEffect(accessory) {
   if (combatEffects?.negateEffectiveness) parts.push('Negates weapon effectiveness');
   if (combatEffects?.negateFlierWeakness) parts.push('Negates flier weakness to bows');
   if (combatEffects?.statusImmunity) parts.push('Immune to status conditions');
+  if (combatEffects?.firstHitWard)
+    parts.push('Once per map, the first hit on you that would deal more than 1 damage deals 1');
+  const meleeReflect = firstNumericValue(combatEffects?.meleeReflect);
+  if (meleeReflect !== null && meleeReflect > 0)
+    parts.push(
+      `A foe that hits you from beside you takes ${meleeReflect} damage (never its last HP)`,
+    );
+  const grudgeAtk = firstNumericValue(combatEffects?.grudgeAtk);
+  if (grudgeAtk !== null && grudgeAtk > 0)
+    parts.push(`+${grudgeAtk} Atk for each ally lost this run`);
+  if (combatEffects?.anchored) parts.push("Can't be shoved, pulled, swapped or pushed");
+  const galeforce = galeforceText(combatEffects?.galeforce);
+  if (galeforce) parts.push(galeforce);
+  // Longarm Bracer (engine/AccessoryReactions.js meleeCounterRangeOf).
+  const counterRange = Math.trunc(Number(combatEffects?.meleeCounterRange));
+  if (counterRange > 1)
+    parts.push(`Swords, lances and axes with range 1 counter from up to ${counterRange} tiles`);
+  if (isGeminiRing(accessory)) {
+    parts.push(
+      `Set: +${geminiBonus(accessory)} to the stat of each other Gemini Ring worn on the field`,
+    );
+  }
 
   const xpShare = firstNumericValue(combatEffects?.xpShare);
   if (xpShare !== null && xpShare > 0) {

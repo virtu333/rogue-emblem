@@ -34,6 +34,7 @@ import {
   reapplyTraitGrowthMods,
 } from './TraitSystem.js';
 import { rollMark } from './MarkSystem.js';
+import { accessoryStatEffects, settleGeminiStat } from './GeminiRing.js';
 import { slotsFullFor } from './SkillSlots.js';
 import { isFemaleOnlyClass, noteReclassFace, unitGender } from './PortraitVariants.js';
 
@@ -498,6 +499,36 @@ function assignEnemySkills(unit, classData, level, skillsData, act, difficultyCo
   }
 }
 
+const BOSS_STATS_ACT_ORDER = ['act1', 'act2', 'act3', 'act4', 'finalBoss'];
+
+/**
+ * A boss-tier class's stats for `act` (classes.json `statsByAct`): the act's own block, else
+ * the nearest earlier act listed, else `baseStats`. Null for a class with no table (the Entity
+ * and its limb keep their one block, levelled nowhere), so nothing about them changes.
+ */
+export function bossStatsForAct(classData, act) {
+  const table = classData?.tier === 'boss' ? classData.statsByAct : null;
+  if (!table || typeof table !== 'object') return null;
+  const at = BOSS_STATS_ACT_ORDER.indexOf(act);
+  for (let i = at; i >= 0; i--) {
+    const block = table[BOSS_STATS_ACT_ORDER[i]];
+    if (block && typeof block === 'object') return block;
+  }
+  return classData.baseStats;
+}
+
+/**
+ * A class's body traits on a new unit: a big body (`footprint`, EntitySystem.footprintSize),
+ * Iron Plates and Hammerfall (IronGuardian.js). Copies, so a unit never shares the catalog's.
+ */
+function applyBodyTraits(unit, classData) {
+  const fp = classData?.footprint;
+  if (fp && Number.isInteger(fp.width) && Number.isInteger(fp.height))
+    unit.footprint = { width: fp.width, height: fp.height };
+  if (classData?.plates) unit.plates = { ...classData.plates };
+  if (classData?.hammerfall) unit.hammerfall = { ...classData.hammerfall };
+}
+
 /** Enemy weapon tier from level with the difficulty equip shift (act2+ only). */
 function pickEnemyWeaponTier(level, act, difficultyConfig) {
   const { enemyEquipTierShift } = parseEnemyDifficultyConfig(difficultyConfig);
@@ -520,6 +551,8 @@ export function createEnemyUnit(
     classData.tier || 'base',
   );
   const growths = classData.growthRanges ? rollGrowthRates(classData.growthRanges) : {};
+  // A boss-tier class may list later acts' stats (the Iron Guardian): final, never levelled.
+  const stats = bossStatsForAct(classData, act) || classData.baseStats;
 
   // Pick weapon tier by level, with optional difficulty-driven tier shift (act2+ only)
   const weaponTier = pickEnemyWeaponTier(enemyLevel, act, difficultyConfig);
@@ -541,10 +574,10 @@ export function createEnemyUnit(
     skills: [],
     col: 0,
     row: 0,
-    mov: classData.baseStats.MOV,
+    mov: stats.MOV,
     moveType: classData.moveType,
-    stats: { ...classData.baseStats },
-    currentHP: classData.baseStats.HP,
+    stats: { ...stats },
+    currentHP: stats.HP,
     faction: 'enemy',
     weapon: weaponClone,
     inventory: weaponClone ? [weaponClone] : [],
@@ -565,6 +598,13 @@ export function createEnemyUnit(
       const gains = levelUp(unit);
       if (gains) applyLevelUpGains(unit, gains);
     }
+  }
+
+  applyBodyTraits(unit, classData);
+  if (bossStatsForAct(classData, act)) {
+    // Its level is the spawn's, so XP and the card read it; its stats stay the table's.
+    unit.level = enemyLevel;
+    equipClassEnemyWeapon(unit, classData, allWeapons);
   }
 
   applyEnemyDifficultyModifiers(unit, difficultyConfig);
@@ -1951,9 +1991,12 @@ export function getCombatWeapons(unit) {
 
 /** Apply accessory stat bonuses (sign=1 to add, sign=-1 to remove). */
 function applyAccessoryStats(unit, accessory, sign) {
-  if (!accessory?.effects) return;
+  if (!accessory) return;
+  // The catalog `effects` plus a Gemini Ring's own stat (engine/GeminiRing.js).
+  const effects = accessoryStatEffects(accessory);
+  if (Object.keys(effects).length === 0) return;
   if (sign > 0) settleAccessoryHpOwed(unit); // judged against the max HP before this bonus
-  for (const [stat, value] of Object.entries(accessory.effects)) {
+  for (const [stat, value] of Object.entries(effects)) {
     if (stat === 'MOV') {
       unit.mov = (unit.mov || unit.stats.MOV) + value * sign;
       unit.stats.MOV = (unit.stats.MOV || unit.mov) + value * sign;
@@ -1965,7 +2008,7 @@ function applyAccessoryStats(unit, accessory, sign) {
   // never kills: the floor at 1 is HP the unit did not pay for, so it is owed
   // (`_accessoryHpOwed`) and the next HP bonus pays it back before raising HP. So no
   // equip/unequip loop heals: 10/20 → 15/25 → 10/20, and 1/25 → 1/20 → 1/25.
-  const hp = accessory.effects.HP;
+  const hp = effects.HP;
   if (hp) {
     if (sign > 0) {
       const owed = hp > 0 ? Math.min(hp, accessoryHpOwed(unit)) : 0;
@@ -2010,6 +2053,8 @@ function removeAccessoryMoveTypeOverride(unit, accessory) {
 /** Equip an accessory. Returns the old accessory (or null). */
 export function equipAccessory(unit, accessory) {
   const old = unequipAccessory(unit);
+  // A Gemini Ring's stat is fixed on the instance once worn, so unequip takes back the same.
+  settleGeminiStat(accessory);
   unit.accessory = accessory;
   applyAccessoryStats(unit, accessory, 1);
   applyAccessoryMoveTypeOverride(unit);

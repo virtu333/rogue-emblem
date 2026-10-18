@@ -23,10 +23,11 @@ import { settleMoves } from './ActionMovement.js';
 import { damageUnit, healUnit } from './UnitHealth.js';
 import { allyBuff } from './PostCombatEffects.js';
 import { applyCondition, isSilenced, isWounded } from './StatusConditionSystem.js';
-import { combatDistance, getFootprintKeys, isEntity } from './EntitySystem.js';
+import { combatDistance, getFootprintKeys } from './EntitySystem.js';
 import { displacementBlockReason, traceForcedMove } from './ForcedMovement.js';
 import { effectiveSkills, hasEffectiveSkill } from './EffectiveSkills.js';
 import { canAttackWithWeapon, getAttackRange } from './AttackOptions.js';
+import { refreshUnitAction } from './ActionRefresh.js';
 import {
   STEAL_ABILITY_KIND,
   STEAL_REASONS,
@@ -239,15 +240,13 @@ export function settleRally(step, unit, world) {
 
 const liveUnit = (unit) => Boolean(unit) && unit.currentHP > 0 && !unit._removing;
 
-/** The live unit of `units` whose footprint covers the tile (an Entity covers nine). */
+/** The live unit of `units` whose footprint covers the tile (an Entity covers nine, a 2x2 four). */
 function unitCovering(units, col, row) {
   const key = `${col},${row}`;
   return (
     (units || []).find((unit) => {
       if (!liveUnit(unit)) return false;
-      return isEntity(unit)
-        ? getFootprintKeys(unit).includes(key)
-        : unit.col === col && unit.row === row;
+      return getFootprintKeys(unit).includes(key);
     }) || null
   );
 }
@@ -482,13 +481,12 @@ export function findDanceRefreshTargets(unit, units) {
 
 /**
  * Refresh one ally who has acted: it may move and act again. The same refresh Dance gives
- * (MovementActionController.executeDance): `hasMoved`, `_movementCommitted` and `hasActed`
- * are reset. `_movementSpent` is not (Dance never reset it; the Gambit and Galeforce do).
+ * (MovementActionController.executeDance), through the shared transition
+ * (engine/ActionRefresh.js). `_movementSpent` is kept (Dance never reset it; the Gambit and
+ * Galeforce do).
  */
 export function refreshActedAlly(ally) {
-  ally.hasMoved = false;
-  ally._movementCommitted = false;
-  ally.hasActed = false;
+  refreshUnitAction(ally, { keepMovementSpent: true });
 }
 
 /**

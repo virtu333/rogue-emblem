@@ -43,11 +43,17 @@ export function ensureRingTexture(scene, styleKey, options = {}) {
  * Create a unit's ring at (x, ringY). Falls back to the legacy stroked ellipse when
  * textures are unavailable (headless tests, exotic renderers).
  */
-export function createFactionRing(scene, unit, x, y, { color, entityWidthTiles } = {}) {
+export function createFactionRing(
+  scene,
+  unit,
+  x,
+  y,
+  { color, entityWidthTiles, bodyWidthTiles } = {},
+) {
   const styleKey = selectRingStyle(unit);
   let key;
   try {
-    key = ensureRingTexture(scene, styleKey, { entityWidthTiles });
+    key = ensureRingTexture(scene, styleKey, { entityWidthTiles, bodyWidthTiles });
   } catch {
     key = null; // headless mocks: fall back to the stroked ellipse
   }
@@ -56,7 +62,7 @@ export function createFactionRing(scene, unit, x, y, { color, entityWidthTiles }
     ring.ringStyle = styleKey;
     return ring;
   }
-  const g = ringGeometry(styleKey, { entityWidthTiles });
+  const g = ringGeometry(styleKey, { entityWidthTiles, bodyWidthTiles });
   return scene.add
     .ellipse(x, y, g.rx * 2, g.ry * 2, 0x000000, 0)
     .setStrokeStyle(2, color ?? 0xffffff, 0.7)

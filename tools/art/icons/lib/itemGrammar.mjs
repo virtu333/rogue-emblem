@@ -667,6 +667,9 @@ export const WEAPON_ICON_REUSE = Object.freeze({
   Greycord: 'gravesong',
   // the Entity's Grasping Limbs (EntityKit.js) wield a coil of the Entity's own grasp
   'Grasping Coil': 'eldritch-grasp',
+  // the Iron Guardian's maul (docs/specs/large-units.md), carried by no one the player meets
+  // except as a foe
+  'Ironfall Maul': 'hammer',
   "Hunter's Focus Scroll": 'encloser-scroll',
   'Toppling Blow Scroll': 'lunge-scroll',
   // Epic weapons (docs/specs/epic-weapons.md) and the relic Daybreak: borrowed pictures until
@@ -695,6 +698,22 @@ export const WEAPON_ICON_REUSE = Object.freeze({
   Hollowsong: 'wildfire',
   Wakelight: 'crownlight',
   Daybreak: 'thunderbrand',
+});
+
+/**
+ * Accessories drawn with another icon's cell: accessory name -> the icon id whose picture it
+ * shares. Like the others the accessory keeps its own id, the accessory socket and its rim;
+ * only the art is reused, because the atlas is full (360 cells). The Gemini Ring wears the
+ * Phalanx Band (both are issued in pairs), the Warden's Buckler the Delphi Shield.
+ */
+export const ACCESSORY_ICON_REUSE = Object.freeze({
+  'Gemini Ring': 'phalanx-band',
+  "Warden's Buckler": 'delphi-shield',
+  'Briar Cloak': 'hunters-cloak',
+  'Anchor Stone': 'soothing-stone',
+  'Grudge Locket': 'diamond-medallion',
+  'Galeforce Charm': 'speedwing',
+  'Longarm Bracer': 'duelists-glove',
 });
 
 /**

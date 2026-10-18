@@ -30,6 +30,7 @@ import {
 } from '../src/engine/BattleSnapshotState.js';
 import { validateBattleState } from '../src/engine/BattleStateSnapshot.js';
 import { captureBattleState } from '../src/ui/BattleCheckpointAdapter.js';
+import { DeedController } from '../src/ui/DeedController.js';
 import {
   achievementsActive,
   battleFeats,
@@ -204,6 +205,21 @@ describe("the won battle's facts", () => {
 });
 
 // A scene with just what the seam and the world snapshot read.
+describe('the death funnel', () => {
+  // BattleScene's ballista hands its owner through removeUnit's options to the deeds' funnel.
+  it("counts the army's ballista felling a boss, never a foe's, and takes no options at all", () => {
+    const scene = sceneFor();
+    const deeds = new DeedController(scene);
+    deeds.onUnitRemoved(foe({ isBoss: true }), null, { killer: null, ballistaOwner: 'enemy' });
+    expect(scene._battleFeats.ballistaBossKills).toBe(0);
+    deeds.onUnitRemoved(foe({ isBoss: true }), null, { killer: null, ballistaOwner: 'player' });
+    expect(scene._battleFeats.ballistaBossKills).toBe(1);
+    // removeUnit(unit, null) and a bare call stay safe.
+    expect(() => deeds.onUnitRemoved(foe(), null, null)).not.toThrow();
+    expect(() => deeds.onUnitRemoved(foe())).not.toThrow();
+  });
+});
+
 function sceneFor({ prologue = false, scripted = false } = {}) {
   return {
     runManager: {

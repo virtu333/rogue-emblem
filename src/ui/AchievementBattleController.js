@@ -79,9 +79,14 @@ export const battleFeats = Object.freeze({
   /** A forced move sent `mover` `tiles` tiles (its slide included). */
   push: guarded('push', (scene, mover, tiles) => featsRecordPush(feats(scene), mover, tiles)),
   steal: guarded('steal', (scene) => featsRecordSteal(feats(scene))),
-  /** The level-ups a gain just applied (`levelUp` records, as UnitManager.levelUp returns). */
+  /** The level-ups a gain just applied: `levelUp` records (UnitManager.levelUp), or entries
+   *  carrying one (`{ levelUp }`, as awardScaledXP holds them). */
   levelUps: guarded('level-up', (scene, unit, levelUps) =>
-    featsRecordLevelUps(feats(scene), unit, levelUps),
+    featsRecordLevelUps(
+      feats(scene),
+      unit,
+      (Array.isArray(levelUps) ? levelUps : []).map((entry) => entry?.levelUp ?? entry),
+    ),
   ),
 });
 

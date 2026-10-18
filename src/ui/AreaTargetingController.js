@@ -568,8 +568,8 @@ export class AreaTargetingController {
       if (unit.weapon !== weapon) equipWeapon(unit, weapon);
       const artCost = applyWeaponArtCost(unit, art, this._costOptions());
       if (artCost.waived) scene.showMarkProc?.(unit, `${artCost.mark.name}: no cost`);
-      // The cast is the weapon's strike: one Breachbolt shot, whatever the blast hits.
-      spendAreaStrikeShot(weapon);
+      // The cast is the weapon's strike: one use (a Breachbolt shot), whatever the blast hits.
+      spendAreaStrikeShot(weapon, unit);
       recordWeaponArtUse(unit, art, { turnNumber: scene.turnManager?.turnNumber });
       scene._applyRecoilGuardAfterArtUse?.(unit, art);
       safeBattlePresentation('area caster HP', () => scene.updateHPBar(unit), { scene });

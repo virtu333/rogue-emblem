@@ -10,7 +10,7 @@ const EDGE_SET = new Set(REINFORCEMENT_EDGES);
 // another rule (FormationPlacement keeps the same list for spare tiles). Authored
 // (scripted) placements are trusted.
 export const REINFORCEMENT_EXCLUDED_TERRAIN = Object.freeze(
-  new Set(['Lava Crack', 'Acidic Swamp', 'Acidic Bog', 'Throne', 'Ballista', 'Village']),
+  new Set(['Lava Crack', 'Acidic Swamp', 'Acidic Bog', 'Throne', 'Ballista', 'Village', 'Abyss']),
 );
 
 // The rout reinforcement ladder (docs/specs/dusk-pressure.md, engine/RoutLadder.js).

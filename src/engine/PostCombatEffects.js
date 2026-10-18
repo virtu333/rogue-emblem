@@ -53,6 +53,7 @@ import { planAreaBlows } from './AreaDamage.js';
 import { planAreaPush } from './AreaPush.js';
 import { combatDistance, getFootprint } from './EntitySystem.js';
 import { recordEpicCombat } from './EpicWeapons.js';
+import { GALEFORCE_NAME, rollGaleforce } from './GaleforceCharm.js';
 import { entityKitAfterCombat } from './EntityKit.js';
 import { applyCondition, isSilenced } from './StatusConditionSystem.js';
 import { damageUnit, damageUnitDetailed, healUnit, setUnitHP } from './UnitHealth.js';
@@ -243,6 +244,13 @@ function* postCombatStep(
       break;
     case 'skill_on_kill':
       yield* skillOnKill(step, sourceUnit, targetUnit, result, world);
+      break;
+    case 'galeforce':
+      // The Galeforce Charm: a kill on its wearer's own attack may ready it to act again.
+      if (!sourceUnit || sourceUnit.currentHP <= 0) break;
+      if (!killedInCombat(sourceUnit, targetUnit, result)) break;
+      if (rollGaleforce(sourceUnit))
+        yield { kind: 'hint', unit: sourceUnit, text: `${GALEFORCE_NAME}!`, tone: 'buff' };
       break;
     case 'epic_combat_record':
       // An Epic weapon's count of its combats and kills (EpicWeapons.recordEpicCombat).
@@ -611,6 +619,8 @@ function* allyHeal(step, sourceUnit, world) {
 function* setHp(step, sourceUnit, targetUnit) {
   if (!sourceUnit || sourceUnit.currentHP <= 0) return;
   if (!targetUnit || targetUnit.currentHP <= 0) return;
+  // A warded Voice (engine/Vigil.js) keeps its HP: an art's "HP -> N" is turned aside too.
+  if (targetUnit.warded === true) return;
   const value = Math.max(1, Math.trunc(Number(step?.value) || 0));
   if (value <= 0) return;
   const maxHp = Math.max(1, Math.trunc(Number(targetUnit.stats?.HP) || 1));

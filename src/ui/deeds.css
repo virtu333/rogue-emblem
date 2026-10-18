@@ -742,3 +742,71 @@
     ); /* prettier-ignore */
   }
 }
+
+/* ─────────────────────────────────────────────── Run grade and credits */
+.re-credits {
+  margin: 10px 0;
+}
+.re-credits-grade {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: 13px / 1.35 var(--re-body);
+  color: var(--re-muted);
+}
+.re-credits-letter {
+  font: 32px / 1 var(--re-pixel);
+  color: var(--re-accent);
+}
+.re-credits-letter.is-S {
+  color: var(--re-accent-text);
+}
+.re-credits-letter.is-D {
+  color: var(--re-bad);
+}
+.re-credits-bars {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.re-credits-bars li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  font: 13px / 1.35 var(--re-body);
+  color: var(--re-text);
+}
+.re-credits-bars small {
+  color: var(--re-muted);
+  font-size: 11px;
+}
+.re-credits-bars i {
+  grid-column: 1 / -1;
+  height: 4px;
+  background: color-mix(in srgb, var(--re-muted) 30%, transparent);
+  position: relative;
+}
+.re-credits-bars i::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--re-fill, 0%);
+  background: var(--re-accent);
+}
+.re-credits-details {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  font: 13px / 1.35 var(--re-body);
+}
+.re-credits-details dt {
+  color: var(--re-muted);
+}
+.re-credits-details dd {
+  margin: 0;
+  color: var(--re-text);
+  overflow-wrap: anywhere;
+}

@@ -1485,8 +1485,8 @@
       "choices": [
         {
           "id": "take_ore",
-          "label": "Take the ore and climb out",
-          "hint": "A seam of bright metal, and the rope is right there.",
+          "label": "Work the seam and climb out",
+          "hint": "Bright metal in the first gallery, and the rope is right there.",
           "requires": {
             "counterAtLeast": {
               "key": "torches",
@@ -1506,11 +1506,21 @@
             {
               "id": "ore",
               "weight": 100,
-              "text": "The seam is clean. They work it into the edge by torchlight and climb out with a sharper blade.",
+              "text": "The seam is clean. They work it into the edge by torchlight, and the rest of it comes up in a sack.",
               "effects": [
                 {
                   "type": "forge",
                   "stat": "random"
+                },
+                {
+                  "type": "gold",
+                  "value": {
+                    "byAct": {
+                      "act2": 100,
+                      "act3": 250,
+                      "act4": 450
+                    }
+                  }
                 }
               ]
             }
@@ -1518,8 +1528,8 @@
         },
         {
           "id": "deeper",
-          "label": "Go deeper",
-          "hint": "Every descent burns a torch. Drafts burn more.",
+          "label": "Climb down",
+          "hint": "A rope ladder into the dark. It burns a torch to go down; a draft can take two.",
           "requires": {
             "counterAtLeast": {
               "key": "torches",
@@ -1527,6 +1537,15 @@
             },
             "reason": "The last torch is gone."
           },
+          "tells": [
+            {
+              "when": {
+                "skill": "pathfinder"
+              },
+              "line": "{name}: The air's still down there. No draft tonight.",
+              "reveals": "steady"
+            }
+          ],
           "effects": [
             {
               "type": "counter",
@@ -1538,16 +1557,19 @@
             {
               "id": "steady",
               "weight": 75,
-              "text": "The ladder ends in a gallery of old timbers. The torchlight steadies.",
-              "effects": [],
               "weightByRung": {
                 "lunatic": 60
               },
+              "text": "The ladder ends in a gallery of old timbers. The torchlight steadies.",
+              "effects": [],
               "next": "level_two"
             },
             {
               "id": "draft",
               "weight": 25,
+              "weightByRung": {
+                "lunatic": 40
+              },
               "text": "A draft slides down the shaft and takes a second torch with it.",
               "effects": [
                 {
@@ -1556,79 +1578,32 @@
                   "delta": -1
                 }
               ],
-              "weightByRung": {
-                "lunatic": 40
-              },
               "next": "level_two"
             }
           ]
         },
         {
-          "id": "blind",
-          "label": "Feel your way out",
-          "hint": "No light, no map, and something down here that knows the dark better than you.",
-          "tells": [
-            {
-              "when": {
-                "classes": [
-                  "Thief",
-                  "Assassin"
-                ]
-              },
-              "line": "{name}: This tunnel breathes. There's a way out.",
-              "reveals": "found"
-            },
-            {
-              "when": {
-                "skill": "pathfinder"
-              },
-              "line": "{name}: The air moves left. Left is up.",
-              "reveals": "found"
-            }
-          ],
+          "id": "leave",
+          "label": "Leave the shaft",
+          "hint": "Somebody left those torches for a reason.",
           "outcomes": [
             {
-              "id": "found",
-              "weight": 50,
-              "text": "Your hand finds the rope on the third try. Nobody speaks until daylight.",
+              "id": "left",
+              "weight": 100,
+              "text": "You leave the torches where they hang. Whoever comes back for them is welcome to it.",
               "effects": []
-            },
-            {
-              "id": "ambush",
-              "weight": 50,
-              "text": "The rope is not where you left it. Something that lives down here has found you first.",
-              "effects": [
-                {
-                  "type": "battle",
-                  "enemyLevelBonus": 0,
-                  "victoryText": "It was guarding a purse, and the way up. You take both.",
-                  "afterVictory": [
-                    {
-                      "type": "gold",
-                      "value": {
-                        "byAct": {
-                          "act1": 150,
-                          "act2": 250,
-                          "act3": 400,
-                          "act4": 550
-                        }
-                      }
-                    }
-                  ]
-                }
-              ]
             }
           ]
         }
       ],
       "pages": {
         "level_two": {
-          "text": "The gallery runs on under a low roof. A pay chest sits where its carriers dropped it, strapped shut, the lid furred with rust. The next ladder goes down.",
+          "text": "The gallery runs on under a low roof. A pay chest sits where its carriers dropped it, strapped shut, the lid furred with rust. Further in, a second ladder goes down, and the cold comes up it.",
           "choices": [
             {
               "id": "take_chest",
               "label": "Take the chest and climb out",
-              "hint": "Heavy enough that nobody will fight you for the climb. Probably.",
+              "hint": "Imperial pay, by the seal. The deeper the war went, the more they carried.",
               "requires": {
                 "counterAtLeast": {
                   "key": "torches",
@@ -1640,17 +1615,31 @@
                 {
                   "id": "chest",
                   "weight": 100,
-                  "text": "The straps give on the second try. Old imperial coin, more of it than anyone should have left down here.",
+                  "text": "The straps give on the second try. Old imperial coin, and under it what the paymaster kept for himself.",
                   "effects": [
                     {
                       "type": "gold",
                       "value": {
                         "byAct": {
                           "act2": 500,
-                          "act3": 800,
-                          "act4": 1100
+                          "act3": 550,
+                          "act4": 850
                         }
                       }
+                    },
+                    {
+                      "type": "item",
+                      "name": "Master Seal",
+                      "acts": [
+                        "act3"
+                      ]
+                    },
+                    {
+                      "type": "item",
+                      "name": "Speedwing",
+                      "acts": [
+                        "act4"
+                      ]
                     }
                   ]
                 }
@@ -1659,7 +1648,7 @@
             {
               "id": "deeper",
               "label": "Go deeper",
-              "hint": "Every descent burns a torch. Drafts burn more.",
+              "hint": "Every ladder down burns a torch. A draft can take two.",
               "requires": {
                 "counterAtLeast": {
                   "key": "torches",
@@ -1667,6 +1656,15 @@
                 },
                 "reason": "The last torch is gone."
               },
+              "tells": [
+                {
+                  "when": {
+                    "skill": "pathfinder"
+                  },
+                  "line": "{name}: The air's still down there. No draft tonight.",
+                  "reveals": "steady"
+                }
+              ],
               "effects": [
                 {
                   "type": "counter",
@@ -1678,16 +1676,19 @@
                 {
                   "id": "steady",
                   "weight": 75,
-                  "text": "The ladder ends in a gallery of old timbers. The torchlight steadies.",
-                  "effects": [],
                   "weightByRung": {
                     "lunatic": 60
                   },
+                  "text": "The ladder ends in a gallery of old timbers. The torchlight steadies.",
+                  "effects": [],
                   "next": "level_three"
                 },
                 {
                   "id": "draft",
                   "weight": 25,
+                  "weightByRung": {
+                    "lunatic": 40
+                  },
                   "text": "A draft slides down the shaft and takes a second torch with it.",
                   "effects": [
                     {
@@ -1696,9 +1697,6 @@
                       "delta": -1
                     }
                   ],
-                  "weightByRung": {
-                    "lunatic": 40
-                  },
                   "next": "level_three"
                 }
               ]
@@ -1707,6 +1705,13 @@
               "id": "blind",
               "label": "Feel your way out",
               "hint": "No light, no map, and something down here that knows the dark better than you.",
+              "requires": {
+                "counterAtMost": {
+                  "key": "torches",
+                  "n": 0
+                },
+                "reason": "You still have light to climb by."
+              },
               "tells": [
                 {
                   "when": {
@@ -1747,7 +1752,6 @@
                           "type": "gold",
                           "value": {
                             "byAct": {
-                              "act1": 150,
                               "act2": 250,
                               "act3": 400,
                               "act4": 550
@@ -1763,28 +1767,108 @@
           ]
         },
         "level_three": {
-          "text": "The roof opens into a hall nobody dug. A figure of black iron stands in the middle of it, one hand on a pillar, perfectly still. The air is very cold. It has been waiting for the torches.",
+          "text": "The roof opens into a hall nobody dug. A figure of black iron fills one end of it, twice the height of a man, both hands on the haft of a hammer. It has not moved in a long time. It has been waiting for the light.",
           "choices": [
             {
               "id": "guardian",
-              "label": "Face the guardian",
-              "hint": "It guards something. It does not look interested in conversation.",
+              "label": "Face it by torchlight",
+              "hint": "A big, slow thing in a lit hall. Watch where the hammer means to land.",
+              "requires": {
+                "counterAtLeast": {
+                  "key": "torches",
+                  "n": 1
+                },
+                "reason": "No torch left to fight by."
+              },
               "outcomes": [
                 {
                   "id": "woken",
                   "weight": 100,
-                  "text": "It turns its head slowly, like a door.",
+                  "text": "The torchlight finds its eyes. It lifts the hammer, slowly, like a drawbridge.",
                   "effects": [
                     {
                       "type": "battle",
-                      "enemyLevelBonus": 1,
-                      "victoryText": "It comes apart in plates. Behind it, on a bier of old bones, lies something that was a relic and is again.",
+                      "setPiece": "guardian_hall",
+                      "enemyLevelBonus": 0,
+                      "victoryText": "It comes apart in plates. Behind it, on a bier of old bones, lies what it was set to keep.",
                       "afterVictory": [
                         {
                           "type": "item",
                           "pool": {
                             "kind": "accessory",
                             "tierOffset": 1
+                          },
+                          "acts": [
+                            "act2",
+                            "act3"
+                          ]
+                        },
+                        {
+                          "type": "item",
+                          "pool": {
+                            "kind": "epic"
+                          },
+                          "acts": [
+                            "act4"
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "guardian_dark",
+              "label": "Face it in the dark",
+              "hint": "No light, and it has had a long time to learn this hall. Whatever it keeps is all the richer for that.",
+              "requires": {
+                "counterAtMost": {
+                  "key": "torches",
+                  "n": 0
+                },
+                "reason": "You still have a torch."
+              },
+              "outcomes": [
+                {
+                  "id": "woken",
+                  "weight": 100,
+                  "text": "You hear the hammer lift before you see anything at all.",
+                  "effects": [
+                    {
+                      "type": "battle",
+                      "setPiece": "guardian_hall_dark",
+                      "enemyLevelBonus": 0,
+                      "victoryText": "It comes apart in plates. Feeling along the bier, your hands find what it kept, and the pay of everyone who came down before you.",
+                      "afterVictory": [
+                        {
+                          "type": "item",
+                          "pool": {
+                            "kind": "accessory",
+                            "tierOffset": 1
+                          },
+                          "acts": [
+                            "act2",
+                            "act3"
+                          ]
+                        },
+                        {
+                          "type": "item",
+                          "pool": {
+                            "kind": "epic"
+                          },
+                          "acts": [
+                            "act4"
+                          ]
+                        },
+                        {
+                          "type": "gold",
+                          "value": {
+                            "byAct": {
+                              "act2": 300,
+                              "act3": 500,
+                              "act4": 700
+                            }
                           }
                         }
                       ]
@@ -1796,7 +1880,7 @@
             {
               "id": "climb",
               "label": "Leave it standing",
-              "hint": "Whatever it protects has kept for this long.",
+              "hint": "Whatever it keeps has kept for this long.",
               "requires": {
                 "counterAtLeast": {
                   "key": "torches",
@@ -1817,6 +1901,13 @@
               "id": "blind",
               "label": "Feel your way out",
               "hint": "No light, no map, and something down here that knows the dark better than you.",
+              "requires": {
+                "counterAtMost": {
+                  "key": "torches",
+                  "n": 0
+                },
+                "reason": "You still have light to climb by."
+              },
               "tells": [
                 {
                   "when": {
@@ -1857,7 +1948,6 @@
                           "type": "gold",
                           "value": {
                             "byAct": {
-                              "act1": 150,
                               "act2": 250,
                               "act3": 400,
                               "act4": 550
