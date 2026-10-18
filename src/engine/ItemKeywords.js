@@ -17,6 +17,7 @@ import {
 } from './Combat.js';
 import { WEAPON_TRIANGLE } from '../utils/constants.js';
 import { EPIC_TIER, epicKeywordTags } from './EpicWeapons.js';
+import { isOnePerRunWeapon } from './LegendaryOwnership.js';
 
 const TIER_WORDS = new Set(['Iron', 'Steel', 'Silver']);
 
@@ -55,6 +56,8 @@ export const KEYWORDS = {
   // An Epic weapon's own rule (engine/EpicWeapons.js: the chip is the rule's tag).
   epic: { tone: 'magic', label: 'Epic' },
   perBattle: { tone: 'plain', label: 'Per battle' },
+  // A Legend or Epic weapon (engine/LegendaryOwnership.js): no second copy turns up that run.
+  onePerRun: { tone: 'plain', label: 'One per run' },
 };
 
 function specialOf(item) {
@@ -167,6 +170,12 @@ export function itemKeywords(item) {
     const uses = getPerBattleMaxUses(item, { faction: 'player' });
     add('perBattle', `${uses} a battle`, `${uses} uses each battle; refilled for the next.`);
   }
+  if (isOnePerRunWeapon(item))
+    add(
+      'onePerRun',
+      'One per run',
+      'One of a kind: once the army has one, loot, shops and rewards offer no other copy this run. A new run can find it again.',
+    );
   return tags;
 }
 

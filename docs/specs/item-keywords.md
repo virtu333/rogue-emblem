@@ -19,6 +19,9 @@ A weapon card says two things beside the name:
 Names carry flavour; tags carry rules. This is the Diablo and Slay the Spire split.
 Legend weapons get their proper names (the lore keeps proper nouns scarce, so a name marks
 something rare), and the base line says `Legend` instead of a tag.
+A Legend weapon (staves aside) and every Epic weapon also carry a `One per run` tag: the
+run holds one copy at most, so once the army has it no loot, shop or reward offers another
+(`engine/LegendaryOwnership.js`; the tag reads the same rule, `isOnePerRunWeapon`).
 
 ## Where it lives
 

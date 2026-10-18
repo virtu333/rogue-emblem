@@ -12,6 +12,7 @@ import {
   reaverBeats,
 } from '../src/engine/ItemKeywords.js';
 import { getEffectivenessMultiplier, getWeaponTriangleBonus } from '../src/engine/Combat.js';
+import { isDuplicateLegendary } from '../src/engine/LegendaryOwnership.js';
 
 const { weapons, consumables, accessories } = loadGameData();
 const weapon = (name) => weapons.find((w) => w.name === name);
@@ -88,19 +89,40 @@ describe('effectiveness tags match the combat multiplier', () => {
   });
 });
 
+describe('One per run', () => {
+  // The chip promises the loot rule: once the army holds one, no copy is offered again that
+  // run (engine/LegendaryOwnership.js). Read from the rule itself, so a tier the ledger
+  // starts or stops excluding can't leave the chip saying the wrong thing.
+  const heldBy = (item) => ({
+    legendaryGrants: [],
+    roster: [{ inventory: [structuredClone(item)] }],
+    gameData: { weapons },
+  });
+  it('is shown exactly on the weapons a run holds only once', () => {
+    const mismatched = weapons.filter(
+      (w) =>
+        texts(w).includes('One per run') !== isDuplicateLegendary(heldBy(w), structuredClone(w)),
+    );
+    expect(mismatched.map((w) => `${w.name} (${w.tier})`)).toEqual([]);
+    expect(texts(weapon('Breachbolt'))).toContain('One per run');
+    expect(texts(weapon('Warp Staff'))).not.toContain('One per run');
+    expect(texts(weapon('Silver Sword'))).not.toContain('One per run');
+  });
+});
+
 describe('tags', () => {
   it('reads the rules players need from each family', () => {
     expect(texts(weapon('Keen Sword'))).toEqual(['Crit 30']);
-    expect(texts(weapon('Oathlance'))).toEqual(['Strikes twice']);
+    expect(texts(weapon('Oathlance'))).toEqual(['Strikes twice', 'One per run']);
     expect(texts(weapon('Adder Blade'))).toEqual(['Poison 5']);
-    expect(texts(weapon('Namethief'))).toEqual(['Drains HP']);
+    expect(texts(weapon('Namethief'))).toEqual(['Drains HP', 'One per run']);
     expect(texts(weapon('Javelin'))).toEqual(['Thrown']);
     expect(texts(weapon('Gust Blade'))).toEqual(['Wind gust']);
     expect(texts(weapon('Thunderbrand'))).toEqual(['Uses MAG']);
     expect(texts(weapon('Sunder Axe'))).toEqual(['Halves DEF']);
-    expect(texts(weapon('Tidebreaker'))).toEqual(['+5 DEF', '+5 RES']);
-    expect(texts(weapon('Gae Bolg'))).toEqual(['+5 STR on counter']);
-    expect(texts(weapon("Hermit's Bow"))).toEqual(['Alone: +4 STR, +4 SPD']);
+    expect(texts(weapon('Tidebreaker'))).toEqual(['+5 DEF', '+5 RES', 'One per run']);
+    expect(texts(weapon('Gae Bolg'))).toEqual(['+5 STR on counter', 'One per run']);
+    expect(texts(weapon("Hermit's Bow"))).toEqual(['Alone: +4 STR, +4 SPD', 'One per run']);
     expect(texts(weapon('Longbow'))).toEqual(['Range 2-3']);
   });
 
