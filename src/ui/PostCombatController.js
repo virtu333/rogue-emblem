@@ -20,6 +20,7 @@ import {
 } from '../engine/RunManager.js';
 import { recordBattleParticipation, isMastered, getMasteryPerk } from '../engine/MasterySystem.js';
 import { deedsFor } from './DeedController.js';
+import { recordVictory, victoryFacts } from './AchievementBattleController.js';
 import { GrowthCeremonyController, growthCeremonies } from './GrowthCeremonyController.js';
 import {
   buildNarrativeContext,
@@ -147,6 +148,8 @@ export class PostCombatController {
       const classesData = scene.gameData?.classes || null;
       const traitsData = scene.gameData?.traits || null;
       const liveSurvivors = [...scene.playerUnits, ...(scene.escapedUnits || [])];
+      // The achievements read the battle before the deeds commit clears its scratch.
+      const achievementFacts = victoryFacts(scene, liveSurvivors);
       // Deeds commit with the win, before the units are serialized and the
       // run is saved; their rite plays after the save (presentVictory).
       deedsFor(scene).commitVictory(liveSurvivors);
@@ -257,7 +260,10 @@ export class PostCombatController {
         if (!scene.runManager.pendingBossRecruit && scene.runManager.shouldTriggerThirdLord())
           prepareThirdLord(scene.runManager, scene.gameData);
       }
-      scene._persistBattleRunState?.(null, { session: session });
+      const victorySave = scene._persistBattleRunState?.(null, { session: session });
+      // Achievements only once the win is on disk: a refused save (Keep playing) or a crash
+      // before it would replay this battle with them already earned.
+      if (completionApplied && victorySave?.ok) recordVictory(scene, achievementFacts);
       afterVictoryBand(async () => {
         if (!isCurrentBattleSession(scene, session) || !scene.scene?.isActive?.()) return;
         if (!completionApplied) {

@@ -117,7 +117,8 @@ describe('the grant is paid once', () => {
     expect(result).toEqual({ ok: true, paid: true });
     expect(meta.totalValor).toBe(60);
     expect(meta.totalSupply).toBe(40);
-    expect(localStorageMock.setItem).toHaveBeenCalledTimes(1);
+    // One write of the slot's meta (the device's achievements copy is its own key).
+    expect(localStorageMock.setItem.mock.calls.filter(([key]) => key === KEY)).toHaveLength(1);
     expect(saved()).toMatchObject({
       totalValor: 60,
       totalSupply: 40,

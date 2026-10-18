@@ -1,0 +1,310 @@
+/* Achievements (docs/specs/achievements.md): the Records screen's tab strip and Achievements
+   tab (src/ui/AchievementsTab.js), the tier medals, the Home Base chip and the unlock card
+   (src/ui/AchievementToast.js). Kit tokens only; the four tier colours are uiPalette.json's
+   tierBronze / tierSilver / tierGold / tierBlackSun. */
+
+/* ───────── Records tabs */
+.rr-tabs {
+  display: flex;
+  flex: none;
+  gap: var(--re-s1);
+  padding: var(--re-s2) var(--re-s3) 0;
+  border-bottom: 1px solid var(--re-line-soft);
+}
+.rr-tab {
+  min-height: 34px;
+  padding: 6px 12px 5px;
+  border-bottom-width: 0;
+  border-radius: var(--re-radius) var(--re-radius) 0 0;
+  background: var(--re-sunken);
+  color: var(--re-muted);
+  font: var(--re-t-label);
+}
+.rr-tab.is-selected {
+  background: var(--re-raised);
+  color: var(--re-accent-text);
+  box-shadow: inset 0 2px 0 var(--re-accent);
+}
+
+/* ───────── Medals: a disc in the tier's metal, the Black Sun's dark with a burning rim */
+.ach-medal {
+  --ach-tier: var(--re-tier-bronze);
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--ach-tier);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    var(--re-parchment) 0 8%,
+    var(--ach-tier) 30%,
+    var(--re-sunken) 100%
+  );
+  box-shadow: 0 0 0 1px var(--re-void);
+}
+.ach-medal[data-tier='silver'] {
+  --ach-tier: var(--re-tier-silver);
+}
+.ach-medal[data-tier='gold'] {
+  --ach-tier: var(--re-tier-gold);
+}
+.ach-medal[data-tier='blacksun'] {
+  --ach-tier: var(--re-tier-black-sun);
+  background: radial-gradient(
+    circle,
+    var(--re-void) 0 42%,
+    var(--ach-tier) 60%,
+    var(--re-void) 74%
+  );
+}
+.ach-medal-face {
+  color: var(--re-text);
+  font: var(--re-pf-8, 8px) / 1 var(--re-pixel);
+}
+.ach-medal.is-locked {
+  border-color: var(--re-line-dim);
+  background: var(--re-sunken);
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+/* ───────── The tab */
+.ach-summary {
+  display: grid;
+  gap: var(--re-s2);
+  padding: var(--re-s3);
+  border: 1px solid var(--re-line);
+  background: var(--re-panel);
+}
+.ach-summary-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--re-s2);
+}
+.ach-total {
+  color: var(--re-accent-text);
+  font: var(--re-t-title);
+}
+.ach-percent,
+.ach-note {
+  color: var(--re-muted);
+  font: var(--re-t-small);
+}
+.ach-note {
+  margin: 0;
+}
+.ach-summary-bar,
+.ach-bar {
+  position: relative;
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border: 1px solid var(--re-line-soft);
+  background: var(--re-sunken);
+}
+.ach-summary-bar-fill,
+.ach-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--re-accent);
+}
+.ach-tiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--re-s2) var(--re-s3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ach-tier-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--re-text);
+  font: var(--re-t-small);
+}
+.ach-tier-count .ach-medal {
+  width: 18px;
+  height: 18px;
+}
+.ach-list {
+  display: grid;
+  gap: var(--re-s1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ach-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--re-s2);
+  padding: var(--re-s2);
+  border: 1px solid var(--re-line-soft);
+  background: var(--re-sunken);
+}
+.ach-row.is-earned {
+  border-color: var(--re-line);
+  background: var(--re-raised);
+}
+.ach-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 3px;
+}
+.ach-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px var(--re-s2);
+}
+.ach-name {
+  color: var(--re-text);
+  font: var(--re-t-label);
+  overflow-wrap: anywhere;
+}
+.ach-row:not(.is-earned) .ach-name {
+  color: var(--re-muted);
+}
+.ach-row.is-hidden .ach-name,
+.ach-row.is-hidden .ach-rule {
+  font-style: italic;
+}
+.ach-tier {
+  flex: none;
+  color: var(--re-muted-dim);
+  font: var(--re-pf-8, 8px) / 1.4 var(--re-pixel);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ach-row.is-earned .ach-tier {
+  color: var(--re-accent-text);
+}
+.ach-rule,
+.ach-when {
+  margin: 0;
+  color: var(--re-muted);
+  font: var(--re-t-small);
+}
+.ach-when {
+  color: var(--re-good);
+}
+.ach-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--re-s2);
+}
+.ach-progress .ach-bar {
+  flex: 1;
+  max-width: 180px;
+}
+.ach-count {
+  color: var(--re-muted);
+  font: var(--re-t-small);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ───────── Home Base chip */
+.ach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ach-chip .ach-medal {
+  width: 16px;
+  height: 16px;
+}
+/* A narrow screen (an upright phone) keeps the medal and the count: the header must still fit
+   Upgrades and Title. The button's name stays whole in its aria-label. */
+@media (max-width: 480px) {
+  .ach-chip .ach-chip-label {
+    display: none;
+  }
+}
+
+/* ───────── The unlock card: a small notice in the top corner; click-through (a tap meant
+   for the HUD under it reaches the HUD), never pauses play. */
+.ach-toasts {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  z-index: var(--re-depth-toast);
+  display: grid;
+  gap: 6px;
+  width: min(280px, calc(100% - 16px));
+  pointer-events: none;
+}
+.ach-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--re-s2);
+  padding: var(--re-s2) var(--re-s3);
+  border: 1px solid var(--re-line-strong);
+  border-left: 3px solid var(--ach-toast-tier, var(--re-accent));
+  background: var(--re-panel);
+  box-shadow: 0 4px 14px var(--re-void);
+  color: var(--re-text);
+  animation: ach-toast-in 220ms ease-out both;
+}
+.ach-toast[data-tier='bronze'] {
+  --ach-toast-tier: var(--re-tier-bronze);
+}
+.ach-toast[data-tier='silver'] {
+  --ach-toast-tier: var(--re-tier-silver);
+}
+.ach-toast[data-tier='gold'] {
+  --ach-toast-tier: var(--re-tier-gold);
+}
+.ach-toast[data-tier='blacksun'] {
+  --ach-toast-tier: var(--re-tier-black-sun);
+}
+.ach-toast.is-leaving {
+  animation: ach-toast-out 260ms ease-in both;
+}
+.ach-toast-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 2px;
+}
+.ach-toast-heading {
+  color: var(--re-accent-text);
+  font: var(--re-pf-8, 8px) / 1.4 var(--re-pixel);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ach-toast-name {
+  font: var(--re-t-label);
+  overflow-wrap: anywhere;
+}
+.ach-toast-rule {
+  color: var(--re-muted);
+  font: var(--re-t-small);
+}
+@keyframes ach-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+@keyframes ach-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+.ach-toasts.is-still .ach-toast,
+.ach-toasts.is-still .ach-toast.is-leaving {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ach-toast,
+  .ach-toast.is-leaving {
+    animation: none;
+  }
+}

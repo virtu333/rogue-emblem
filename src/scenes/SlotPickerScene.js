@@ -1,3 +1,4 @@
+import { reconcileSlotAchievements } from '../engine/AchievementFacts.js';
 import { applyCompletedTutorialHints } from '../ui/prologueLessons.js';
 import {
   getCloudSaveConflict,
@@ -710,6 +711,7 @@ export class SlotPickerScene extends Phaser.Scene {
       new HintManager(slot, () => this.registry.get('settings')?.getHints?.() !== false, meta),
     );
     applyCompletedTutorialHints(this.registry.get('hints'));
+    reconcileSlotAchievements(meta, this.gameData); // what older records already earned
     return rollback;
   }
 

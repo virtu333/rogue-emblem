@@ -965,9 +965,12 @@ export function chooseTitle(unit, deedId) {
  * Swear the Oath on a player promotion (battle seal, church, roster seal).
  * Call right after promoteUnit so class innates count as known. Silent
  * engine promotions (recruit spawns, colosseum, boss recruits) never call it.
+ * It also marks the unit as promoted by the player (`promotedByPlayer`, read by the
+ * achievements: engine/AchievementFacts.js), Oath or not.
  * @returns {null | {..., learned: boolean}}
  */
 export function applyPromotionOath(unit, gameData = {}) {
+  if (unit && typeof unit === 'object') unit.promotedByPlayer = true;
   const oath = promotionOath(unit, gameData.deeds, gameData.skills);
   if (!oath) return null;
   if (!Array.isArray(unit.skills)) unit.skills = [];

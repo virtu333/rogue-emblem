@@ -388,7 +388,7 @@ import { fallenLine, voiceContext } from '../engine/UnitVoice.js';
 import { armyAndNpcAllies, hasRecruitNpc, isRecruitNpc } from '../engine/RecruitNpc.js';
 import { isSameUnit } from '../engine/UnitIdentity.js';
 import { BattleBeatsController } from '../ui/BattleBeatsController.js';
-import { deedsFor } from '../ui/DeedController.js';
+import { battleFeats, deedsFor, emptyBattleFeats } from '../ui/DeedController.js';
 import { unitEpithet } from '../engine/DeedTitles.js';
 import { DEBUG_MODE, debugState } from '../utils/debugMode.js';
 import { DebugOverlay } from '../ui/DebugOverlay.js';
@@ -677,9 +677,8 @@ export class BattleScene extends Phaser.Scene {
     this.lastHybridOverrideResult = null;
     // A prologue chapter's teaching (PrologueController), created with the HUD.
     this._prologue = null;
-    // This battle's deploy screen confirmation (create), read once by PrologueController.
-    // Phaser reuses the scene object: a later battle with no deploy screen (auto-deploy,
-    // a resume, a replay) must not inherit an earlier one's.
+    // This battle's deploy screen confirmation (create), read once by PrologueController. Phaser
+    // reuses the scene: a later battle with no deploy screen must not inherit an earlier one's.
     this._deployConfirmation = null;
     this._storyDialogueActive = false;
     this._ceremonies = null;
@@ -1754,10 +1753,10 @@ export class BattleScene extends Phaser.Scene {
       this.npcUnits = [];
       this.ballistas = (this.battleConfig?.ballistas || []).map((b) => ({ ...b }));
       this._zombieTombstones = [];
-      // The Vigil's words and calls (engine/Vigil.js): fresh here, a resume's checkpoint puts
-      // its own back (restoreBattleWorldState). PR 9's victory commit reads `.words`.
+      // The Vigil's words and calls (Vigil.js): fresh here; a resume's checkpoint puts its own back.
       this._vigilState = bc.vigil ? createVigilState() : null;
       this._entityKitState = initialEntityKitState(bc); // EntityKit.js: the limbs, as the Vigil
+      this._battleFeats = emptyBattleFeats(); // the achievements' counts (BattleFeats.js)
       this._hammerfallState = initialHammerfallState(bc); // IronGuardian.js: its marks
 
       // Input lockout to prevent menu clicks bleeding through to map
@@ -9368,6 +9367,7 @@ export class BattleScene extends Phaser.Scene {
       ? xpGaugeRecord(playerUnit, { before, after, levelUps: result?.levelUps })
       : null;
     if (gauge) (this._pendingXpGauges ||= []).push(gauge);
+    battleFeats.levelUps(this, playerUnit, levelUps); // the achievements' perfect levels
     const cards = levelUpDisplayResults(
       statsAfterGain,
       levelUps.map((entry) => entry.levelUp),
@@ -9522,7 +9522,7 @@ export class BattleScene extends Phaser.Scene {
       this._timelineFacts = [...(this._timelineFacts || []), `${unit.name} fell.`];
     if (killer) observeHistoryAction(this, 'defeated', killer, unit);
     else observeHistoryAction(this, 'fell', unit);
-    deedsFor(this).onUnitRemoved(unit, killer);
+    deedsFor(this).onUnitRemoved(unit, killer, options);
     unit._removing = true;
     const deathCol = unit.col;
     const deathRow = unit.row;
@@ -10340,7 +10340,7 @@ export class BattleScene extends Phaser.Scene {
         );
         if (!isCurrent()) return;
         if (target.currentHP <= 0) {
-          await this.removeUnit(target, { killer: null });
+          await this.removeUnit(target, { killer: null, ballistaOwner: owner });
           if (!isCurrentBattleSession(this, session)) return;
           if (!isCurrent()) return;
           await this._sweepFallenUnits();

@@ -1,3 +1,4 @@
+import { bumpRunFeat } from './RunFeats.js';
 import { rosterAccessoryAction } from './RosterInventory.js';
 import { TRADE_WARNINGS } from './ItemTrade.js';
 import {
@@ -121,6 +122,7 @@ export function purchaseShopItem(run, stock, entry, recipient) {
   }
   stock.splice(stock.indexOf(entry), 1);
   recordLegendaryGrant(run, entry.item);
+  bumpRunFeat(run, 'shopBuys'); // Self-Reliant reads it (engine/RunFeats.js)
   return {
     ok: true,
     message: `${itemDisplayName(entry.item, run.gameData?.skills)} → ${pool === 'accessories' && recipient != null && recipient !== 'pool' ? `${recipient.name} (equipped)` : pool ? (pool === 'scrolls' ? 'Scroll pool' : 'Accessory pool') : convoy ? 'Convoy' : recipient.name}.`,

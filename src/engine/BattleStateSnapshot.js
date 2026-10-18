@@ -203,6 +203,17 @@ function validRestoreFields(state, width, height) {
     )
   )
     return false;
+  // The achievements' battle counters (engine/BattleFeats.js): whole numbers.
+  if (
+    !optional(
+      state,
+      'battleFeats',
+      (feats) =>
+        record(feats) &&
+        Object.entries(feats).every(([key, value]) => key.length <= 32 && integer(value)),
+    )
+  )
+    return false;
   // The Entity's limbs (engine/EntityKit.js): counts, and the tiles struck from.
   if (
     !optional(

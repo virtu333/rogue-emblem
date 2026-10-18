@@ -11,6 +11,7 @@ import { sanitizeRite } from './Rite.js';
 import { ITEM_NAMES_REVISION } from './ItemNameMigration.js';
 import { sanitizeNgPlusRun } from './NgPlusRun.js';
 import { sanitizeOmensRecord } from './Omens.js';
+import { sanitizeRunFeats } from './RunFeats.js';
 
 /**
  * @param {object} rm - the RunManager
@@ -94,6 +95,7 @@ export function serializeRun(rm, blessings) {
     pendingThirdLord: rm.pendingThirdLord || null,
     reachedFirstActBoss: rm.reachedFirstActBoss === true,
     metaBattlePoints: Math.max(0, Number(rm.metaBattlePoints) || 0),
+    feats: sanitizeRunFeats(rm.feats),
     activeCaravanShop: rm.activeCaravanShop || null,
     endRunRewards: rm.endRunRewards || null,
     metaUnlockedWeaponArts: rm.metaUnlockedWeaponArts || [],

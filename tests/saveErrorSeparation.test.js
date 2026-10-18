@@ -254,6 +254,15 @@ describe('H2+H3 — Save error separation', () => {
       );
     });
 
+    it("clearAllSlotData removes the device's achievements, so the next account never takes them in", () => {
+      store.emblem_rogue_achievements = JSON.stringify({
+        v: 1,
+        earned: { first_blood: { at: 1 } },
+      });
+      clearAllSlotData();
+      expect(store.emblem_rogue_achievements).toBeUndefined();
+    });
+
     it('clearAllSlotData removes run clock floor metadata for all slots', () => {
       store[getRunClockFloorKey(1)] = '100';
       store[getRunClockFloorKey(2)] = '200';

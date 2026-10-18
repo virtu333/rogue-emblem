@@ -11,6 +11,7 @@ import {
 import { isPrologueRun } from './ScriptedBattle.js';
 import { withoutBalanceRevisionMarker } from './BalanceRevisionMarker.js';
 import { runFormatBlock } from './RunFormat.js';
+import { DEVICE_ACHIEVEMENTS_KEY } from './AchievementStore.js';
 
 export const MAX_SLOTS = 3;
 // MetaProgressionManager.PROLOGUE_STATES, read raw here (the summary never loads a manager).
@@ -564,7 +565,11 @@ export function isSlotKeptAtLogout(slot) {
   );
 }
 
-/** Clear all slot data + active slot key. Used by logout. */
+/**
+ * Clear all slot data + active slot key. Used by logout. The device's copy of the
+ * achievements goes too: it is the signed-out account's (its slots' metas carried it to the
+ * cloud), and the next account to load a slot here would otherwise take it in as its own.
+ */
 export function clearAllSlotData() {
   let preserved = false;
   for (let i = 1; i <= MAX_SLOTS; i++) {
@@ -576,6 +581,7 @@ export function clearAllSlotData() {
   }
   try {
     localStorage.removeItem(ACTIVE_SLOT_KEY);
+    localStorage.removeItem(DEVICE_ACHIEVEMENTS_KEY);
   } catch (err) {
     console.warn('[SlotManager] clearAllSlotData failed:', err?.message || err);
   }

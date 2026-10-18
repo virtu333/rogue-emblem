@@ -19,6 +19,7 @@
 // Kept in its own file because settling needs the event effect planner (EventEffects), which
 // itself reads the contract record (Contracts.js): the record stays free of the planner.
 
+import { bumpRunFeat } from './RunFeats.js';
 import { applyPlan, planEffects, restoreRunState, snapshotRunState } from './EventEffects.js';
 import { eventCatalogOf, runSeedOf } from './EventSystem.js';
 import { withEclipseSeed } from './EclipseSystem.js';
@@ -145,6 +146,7 @@ export function deliverContractSettlement(run) {
     run.contractOwed = null;
     const settlement = presentation(owed, { results: attempt.results });
     run.lastContractSettlement = settlement;
+    if (owed.kept) bumpRunFeat(run, 'contractsPaid'); // Paid in Full (engine/RunFeats.js)
     return { ok: true, settlement };
   }
   run.contractOwed = { ...owed, blocked: attempt.blocked || null, failed: attempt.failed || null };

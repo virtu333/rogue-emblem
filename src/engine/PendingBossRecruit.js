@@ -1,3 +1,4 @@
+import { bumpRunFeat } from './RunFeats.js';
 import { everFallenUnits } from './LaidToRest.js';
 import { generateBossRecruitCandidates } from './BossRecruitSystem.js';
 import { migrateUnitTraits } from './TraitSystem.js';
@@ -52,6 +53,7 @@ export function resolveBossRecruit(run, unit) {
   run.grantRecruitBlessingConsumables?.(unit);
   run.assignUnitUid?.(unit);
   run.roster.push(unit);
+  bumpRunFeat(run, 'bossRecruits'); // Spoils of War (engine/RunFeats.js)
   applyPendingNgPlusLordKits(run); // NG+: a Barracks lord drafted here takes their kit back
 }
 

@@ -311,6 +311,7 @@ import {
   runFormatMarker,
   sanitizeCapabilityIds,
 } from './RunFormat.js';
+import { recordVictoryFeats, sanitizeRunFeats, startRunFeats } from './RunFeats.js';
 
 export { serializeUnit };
 
@@ -954,8 +955,7 @@ export class RunManager {
       applyBlessingsAtStart = true,
       difficultyId = this.difficultyId || 'normal',
       eclipseEnabled = true,
-      // How many runs this save has started (meta), for the shrine's gift (StartGifts.js): the
-      // sims and dev routes pass none, so they are never offered one.
+      // Runs this save has started (meta), for the shrine's gift (StartGifts.js; sims pass none).
       runsStarted = 0,
       // The barks and flavour bags the save carried out of earlier runs
       // (MetaProgressionManager.getNarrativeSeen), so pools keep walking across runs.
@@ -974,6 +974,7 @@ export class RunManager {
     this.eclipse = createEclipseState({ enabled: eclipseEnabled !== false });
     this.lastEclipseCommit = null;
     this.rite = null;
+    this.feats = startRunFeats(); // the achievements' counters, kept from the start (RunFeats.js)
     this.usedRecruitNames = {};
     this.lastDeployment = [];
     this.legendaryLordChance = legendaryLordChanceFor(this.metaEffects?.legendaryLordChanceBonus);
@@ -4500,18 +4501,15 @@ export class RunManager {
     });
     this.ensureUnitUids();
     applyPendingNgPlusLordKits(this); // NG+: a lord recruited in this battle takes their kit
-    // Refill at the completed-battle boundary so rewards and the node-map roster show ready
-    // staves (stored and casualty-retained equipment, never consumables; never on resume).
+    // Refill at the battle boundary so rewards and the route map show ready weapons (bags, the
+    // fallen's kept equipment and the convoy; never consumables, never on resume).
     for (const unit of [...this.roster, ...this.fallenUnits]) {
-      for (const item of [...(unit.inventory || []), unit.weapon]) {
-        refillBattleUses(item);
-      }
+      for (const item of [...(unit.inventory || []), unit.weapon]) refillBattleUses(item);
     }
-    for (const item of this.convoy.weapons || []) {
-      refillBattleUses(item);
-    }
+    for (const item of this.convoy.weapons || []) refillBattleUses(item);
     this._suppressPersonalSkillsForCurrentRosterIfNeeded();
     this.metaBattlePoints += battleMetaReward(this.currentAct, this.completedBattles === 0);
+    recordVictoryFeats(this, { ...options, fallen: newlyFallen.length }); // the achievements
     this.completedBattles++;
     this.winStreak++;
     if (this.winStreak > this.maxWinStreak) this.maxWinStreak = this.winStreak;
@@ -5304,11 +5302,11 @@ export class RunManager {
       if (summary.result === 'victory' && this.actIndex >= 3) m.recordMilestone('beatGame');
       const ladderMilestone = difficultyVictoryMilestone(this.difficultyId);
       if (summary.result === 'victory' && ladderMilestone) m.recordMilestone(ladderMilestone);
-      // Narrative memory flush — exactly-once under this guard, like currencies.
-      // NG+: who left the Barracks, the items its members kept, a ride to pick (NgPlusRun.js).
+      // Exactly-once under this guard: NG+'s run end (NgPlusRun.js), achievements, narrative.
       m.recordNgPlusRunEnd?.(ngPlusRunEnd(this, summary));
       const heatMark = heatVictoryMilestone(this, summary); // a won run's Heat (Omens.js)
       if (heatMark) m.recordMilestone(heatMark);
+      m.recordRunEndAchievements?.(this, summary);
       m.recordRunEnd?.({
         result: summary.result,
         victoryRecord:
@@ -5757,6 +5755,7 @@ export class RunManager {
     rm.currentNodeId = saved.currentNodeId;
     rm.completedBattles = saved.completedBattles;
     rm.metaBattlePoints = savedMetaBattlePoints(saved);
+    rm.feats = sanitizeRunFeats(saved.feats); // the achievements' counters (RunFeats.js; lazy)
     const ws = saved.winStreak;
     rm.winStreak = Number.isFinite(ws) && ws >= 0 ? Math.trunc(ws) : 0;
     const mws = saved.maxWinStreak;

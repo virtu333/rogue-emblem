@@ -251,7 +251,8 @@
         "roster-desktop.spec.js",
         "ui-completion.spec.js",
         "ux-ceremony-framing.spec.js",
-        "ux-rail-and-info.spec.js"
+        "ux-rail-and-info.spec.js",
+        "achievements.spec.js"
       ]
     },
     {
