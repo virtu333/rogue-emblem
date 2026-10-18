@@ -2,6 +2,7 @@ import { staffRunOptions } from '../engine/StaffBlessings.js';
 import { getStaticCombatStats, getStaffMaxUses } from '../engine/Combat.js';
 import { itemKeywords } from '../engine/ItemKeywords.js';
 import { getImbueDisplayInfo } from '../engine/ImbueSystem.js';
+import { element } from './MenuSurface.js';
 import { resolveWeaponArtIds } from './WeaponArtVisibility.js';
 
 // Keyword tags a row already says: the Crit row covers "Crit 30", the Range row
@@ -84,11 +85,45 @@ export function weaponComparisonParts(unit, item, before = unit?.weapon, options
   );
 }
 
-export function equipmentComparison(unit, item, before = unit?.weapon, options = {}) {
-  if (!unit || !item) return '';
+/**
+ * The line `equipmentComparison` says, in pieces `{ text, better }` (`better` true is a gain,
+ * false a loss, null neither) so a screen can colour each change. Joined, they are the string.
+ */
+export function equipmentComparisonSegments(unit, item, before = unit?.weapon, options = {}) {
+  if (!unit || !item) return [];
   // A staff's uses for this unit, with the run's blessing uses (`options.run`: Saint's Reserve).
   if (item.type === 'Staff')
-    return `${getStaffMaxUses(item, unit, staffRunOptions(options.run, unit))} uses per map for ${unit.name} · Uses refresh each battle`;
-  if (item.might == null) return '';
-  return `If equipped: ${weaponComparisonParts(unit, item, before, options).join(' · ')}`;
+    return [
+      {
+        text: `${getStaffMaxUses(item, unit, staffRunOptions(options.run, unit))} uses per map for ${unit.name} · Uses refresh each battle`,
+        better: null,
+      },
+    ];
+  if (item.might == null) return [];
+  const rows = weaponComparisonRows(unit, item, before, options);
+  const segments = [{ text: 'If equipped: ', better: null }];
+  rows.forEach((row, i) => {
+    if (i) segments.push({ text: ' · ', better: null });
+    segments.push({ text: change(row.label, row.from, row.to), better: row.better });
+  });
+  return segments;
+}
+
+export function equipmentComparison(unit, item, before = unit?.weapon, options = {}) {
+  return equipmentComparisonSegments(unit, item, before, { ...options, run: options.run })
+    .map((segment) => segment.text)
+    .join('');
+}
+
+/**
+ * Segments as DOM (one inline span): a gain is `cmp-up` (green), a loss `cmp-down` (red). The arrows and signs
+ * stay in the text, so colour is never the only cue.
+ */
+export function comparisonFragment(segments) {
+  const line = element('span');
+  for (const { text, better } of segments) {
+    if (better == null) line.append(text);
+    else line.append(element('span', text, better ? 'cmp-up' : 'cmp-down'));
+  }
+  return line;
 }

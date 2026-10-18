@@ -63,6 +63,7 @@ const RUN_ARG_INDEX = {
   battleItemSummary: 2, // (item, unit, { run })
   tradeItemBrief: 2, // (item, unit, { run })
   equipmentComparison: 3, // (unit, item, before, { ..., run })
+  equipmentComparisonSegments: 3, // the same, as pieces for colouring
 };
 
 // Files that may count uses without the run's options, each with the reason. A file listed here

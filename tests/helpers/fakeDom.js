@@ -123,6 +123,7 @@ export class FakeElement extends FakeEventTarget {
   constructor(tagName, doc) {
     super();
     this.tagName = String(tagName).toUpperCase();
+    this.nodeType = 1;
     this.ownerDocument = doc;
     this.children = [];
     this.parentNode = null;

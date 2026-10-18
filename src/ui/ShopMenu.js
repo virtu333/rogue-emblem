@@ -1,5 +1,5 @@
 import { forgeImpactSuffix, repairImpactSuffix } from './itemDecisionText.js';
-import { equipmentComparison } from './equipmentComparison.js';
+import { comparisonFragment, equipmentComparisonSegments } from './equipmentComparison.js';
 import { appendItemDetail } from './itemDetailView.js';
 import { ContextHelp } from './ContextHelp.js';
 import { equippedBadgeElement } from './equippedBadge.js';
@@ -530,7 +530,12 @@ export class ShopMenu {
         if (unit === 'convoy') return `${entry.price} gold · Store for later.`;
         const count = supply ? (unit.consumables || []).length : (unit.inventory || []).length;
         const max = supply ? CONSUMABLE_MAX : INVENTORY_MAX;
-        return `${supply ? 'Supplies' : 'Items'} ${count}/${max} · ${count >= max ? 'Full: sent to convoy · trade it in from Roster' : supply ? 'Can carry' : canEquip(unit, entry.item) ? 'Can equip' : 'Cannot equip; can carry'} · ${entry.price} gold${!supply && canEquip(unit, entry.item) ? ` · ${equipmentComparison(unit, entry.item, unit.weapon, this.compareOptions())}` : ''}`;
+        const head = `${supply ? 'Supplies' : 'Items'} ${count}/${max} · ${count >= max ? 'Full: sent to convoy · trade it in from Roster' : supply ? 'Can carry' : canEquip(unit, entry.item) ? 'Can equip' : 'Cannot equip; can carry'} · ${entry.price} gold`;
+        if (supply || !canEquip(unit, entry.item)) return head;
+        return comparisonFragment([
+          { text: `${head} · `, better: null },
+          ...equipmentComparisonSegments(unit, entry.item, unit.weapon, this.compareOptions()),
+        ]);
       },
       blocked: (unit) => {
         const reason = shopBuyBlock(this.run, this.scene.shopBuyItems, entry);

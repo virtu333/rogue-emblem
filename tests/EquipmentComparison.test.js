@@ -211,3 +211,26 @@ describe('roster equipment comparison', () => {
     );
   });
 });
+
+describe('comparison colouring', () => {
+  it('marks gains cmp-up and losses cmp-down, keeping the signs and arrows in the text', async () => {
+    const { equipmentComparisonSegments, comparisonFragment, equipmentComparison } =
+      await import('../src/ui/equipmentComparison.js');
+    const unit = {
+      name: 'Gaspar',
+      stats: { HP: 20, STR: 10, MAG: 0, SKL: 10, SPD: 10, LCK: 0, DEF: 5, RES: 0, MOV: 5 },
+      proficiencies: [{ type: 'Lance', rank: 'Prof' }],
+      className: 'Knight',
+    };
+    const base = { type: 'Lance', might: 9, hit: 80, crit: 0, weight: 8, range: '1', rankRequired: 'Prof', tier: 'Iron' }; // prettier-ignore
+    const lighter = { ...base, name: 'Light', might: 6, weight: 2, hit: 90 };
+    const segments = equipmentComparisonSegments(unit, lighter, { ...base, name: 'Heavy' });
+    const flags = Object.fromEntries(segments.filter((s) => s.better != null).map((s) => [s.text.replace(/\s+\d+\s*→.*$/u, ''), s.better])); // prettier-ignore
+    expect(flags).toEqual({ Attack: false, 'Attack speed': true, Hit: true });
+    installFakeDom(vi);
+    const host = comparisonFragment(segments);
+    expect(host.querySelectorAll('.cmp-down')).toHaveLength(1);
+    expect(host.querySelectorAll('.cmp-up')).toHaveLength(2);
+    expect(host.textContent).toBe(equipmentComparison(unit, lighter, { ...base, name: 'Heavy' }));
+  });
+});

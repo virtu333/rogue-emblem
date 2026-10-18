@@ -1,5 +1,5 @@
 import { forgeImpactLine } from './itemDecisionText.js';
-import { equipmentComparison } from './equipmentComparison.js';
+import { comparisonFragment, equipmentComparisonSegments } from './equipmentComparison.js';
 import { inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { formatPerkMods, MASTERY_HELP } from './rosterDisplay.js';
@@ -49,7 +49,8 @@ import { lotteryCardLine } from '../engine/LotteryLoot.js';
 const node = (tag, text, cls = '') => {
   const el = document.createElement(tag);
   el.className = cls;
-  if (text != null) el.textContent = text;
+  if (text?.nodeType) el.append(text);
+  else if (text != null) el.textContent = text;
   return el;
 };
 // "Legend · Weapon" as two parts, so a narrow card can keep the tier alone in
@@ -301,7 +302,15 @@ export class MobileRewards {
       if (whom) {
         const forWhom = node('span', null, `ch-forwhom is-${whom.tone || 'muted'}`);
         forWhom.append(node('b', whom.who));
-        if (whom.detail) forWhom.append(node('span', whom.detail));
+        if (whom.parts) {
+          const line = node('span');
+          whom.parts.forEach((part, i) => {
+            if (i) line.append(' · ');
+            const cls = part.better == null ? null : part.better ? 'cmp-up' : 'cmp-down';
+            line.append(node('span', part.text, cls));
+          });
+          forWhom.append(line);
+        } else if (whom.detail) forWhom.append(node('span', whom.detail));
         plate.append(forWhom);
       }
       b.append(plate);
@@ -830,7 +839,11 @@ export class MobileRewards {
               ? `${item.stat}: ${unit.stats[item.stat] || 0} → ${(unit.stats[item.stat] || 0) + item.value}`
               : item.type === 'Consumable'
                 ? `${unit.consumables?.length || 0}/3 consumables${choice.quantity > 1 ? ` · ${choice.quantity} items; overflow goes to convoy` : ''}`
-                : `Can equip · ${equipmentComparison(unit, item, unit.weapon, compareOptions)} · ${unit.inventory?.length || 0}/5 items`,
+                : comparisonFragment([
+                    { text: 'Can equip · ', better: null },
+                    ...equipmentComparisonSegments(unit, item, unit.weapon, compareOptions),
+                    { text: ` · ${unit.inventory?.length || 0}/5 items`, better: null },
+                  ]),
         final: true,
         apply: (unit) => applyRewardBundle(run, item, unit, choice.quantity || 1),
       });
