@@ -63,6 +63,11 @@ export function validateCrossReferences(datasets = null) {
   );
   const weaponNames = toSetByName(weapons);
   const accessoryNames = toSetByName(accessories);
+  const retiredAccessoryNames = new Set(
+    (Array.isArray(accessories) ? accessories : [])
+      .filter((a) => a?.retired === true)
+      .map((a) => a.name),
+  );
   const consumableNames = toSetByName(consumables);
   const weaponArtIds = new Set(
     (Array.isArray(weaponArtsData?.arts) ? weaponArtsData.arts : [])
@@ -163,6 +168,11 @@ export function validateCrossReferences(datasets = null) {
         errors.push(
           `lootTables.json:${actId}.accessories references unknown accessory "${itemName}"`,
         );
+      }
+      // A retired accessory (accessories.json `retired`) is kept only for the copies already
+      // owned: every drop, shop, event and gift draws from these lists, so it is never in one.
+      if (retiredAccessoryNames.has(itemName)) {
+        errors.push(`lootTables.json:${actId}.accessories lists retired accessory "${itemName}"`);
       }
     }
   }

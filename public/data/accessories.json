@@ -429,6 +429,7 @@
     "name": "Longarm Bracer",
     "type": "Accessory",
     "legendary": true,
+    "retired": true,
     "effects": {},
     "combatEffects": {
       "meleeCounterRange": 2

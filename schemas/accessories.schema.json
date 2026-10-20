@@ -21,6 +21,10 @@
         "type": "boolean",
         "description": "A legendary accessory: it never rolls a bound skill."
       },
+      "retired": {
+        "type": "boolean",
+        "description": "Taken out of the game: in no loot table (so never dropped, sold or granted), kept in the catalog so copies already owned keep working; the Compendium lists it only once a save has found one."
+      },
       "lore": { "type": "string", "minLength": 1 }
     },
     "required": ["name", "type", "effects", "price"],

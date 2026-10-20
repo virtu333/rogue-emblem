@@ -338,7 +338,10 @@ export class CompendiumOverlay {
       case 'items':
         return [
           ...(gd.consumables || []),
-          ...(gd.accessories || []),
+          // A retired accessory (the Longarm Bracer) only once this save has found one.
+          ...(gd.accessories || []).filter(
+            (a) => a?.retired !== true || this._discoveryView().isItemSeen(a),
+          ),
           ...(gd.whetstones || []),
           ...getImbueStoneItems(gd.imbues),
         ];

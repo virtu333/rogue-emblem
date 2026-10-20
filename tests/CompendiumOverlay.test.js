@@ -196,9 +196,10 @@ describe('CompendiumOverlay', () => {
 
   it('Items tab returns consumables + accessories + whetstones + imbuing stones', () => {
     const overlay = new CompendiumOverlay(makeScene(), gameData, vi.fn());
+    // A retired accessory (the Longarm Bracer) waits for a save that found one: none here.
     const expected =
       gameData.consumables.length +
-      gameData.accessories.length +
+      gameData.accessories.filter((a) => a.retired !== true).length +
       gameData.whetstones.length +
       getImbueStoneItems(gameData.imbues).length;
     expect(overlay._getItemsForTab(4).length).toBe(expected);
