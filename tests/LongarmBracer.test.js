@@ -85,13 +85,14 @@ const counters = (result) =>
   result.events.filter((e) => e.type === 'strike' && e.attackerSide === 'defender');
 
 describe('the data', () => {
-  it('is a legendary that drops in Acts III and IV and never binds a skill', () => {
+  it('is a retired legendary: in no loot table, never binds a skill, its rule still described', () => {
     const item = bracer();
     expect(item.legendary).toBe(true);
-    const acts = ['act1', 'act2', 'act3', 'act4'].filter((act) =>
-      gameData.lootTables[act].accessories.includes('Longarm Bracer'),
-    );
-    expect(acts).toEqual(['act3', 'act4']);
+    expect(item.retired).toBe(true);
+    const listing = Object.entries(gameData.lootTables)
+      .filter(([, table]) => (table?.accessories || []).includes('Longarm Bracer'))
+      .map(([act]) => act);
+    expect(listing).toEqual([]);
     expect(canRollAccessorySkill(item)).toBe(false);
     expect(formatAccessoryDetail(item)).toContain(
       'Swords, lances and axes with range 1 counter from up to 2 tiles',
