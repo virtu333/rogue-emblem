@@ -4,7 +4,13 @@
 // (engine/Necromancy.js, engine/Vigil.js, engine/EntityKit.js), so the two cannot drift.
 
 import { isNecromancer, raiseFor, raisers } from '../../src/engine/Necromancy.js';
-import { applyVigilWards, isVoiceOf, vigilPhaseStep } from '../../src/engine/Vigil.js';
+import {
+  applyVigilWards,
+  isVoiceOf,
+  unweavableCircleAt,
+  unweaveCircle,
+  vigilPhaseStep,
+} from '../../src/engine/Vigil.js';
 import { limbPhaseStep, severLimb, witherLimbs } from '../../src/engine/EntityKit.js';
 import { entityKitOf } from '../../src/engine/EntityKitConfig.js';
 import { isEntity, isEntityLimb } from '../../src/engine/EntitySystem.js';
@@ -72,7 +78,7 @@ export function processVigil(b) {
     registerBattleEntity(b, unit);
     b.enemyUnits.push(unit);
   }
-  // A circle broken this phase may drop its Voice's ward (as VigilController.processPhase).
+  // Re-stamp the wards from the state kept (as VigilController.processPhase).
   applyVigilWards(vigil, b._vigilState, b.enemyUnits);
 }
 
@@ -81,6 +87,30 @@ export function settleVigilWards(b, fallen = null) {
   const vigil = b.battleConfig?.vigil;
   if (!vigil || (fallen && !isVoiceOf(vigil, fallen))) return;
   applyVigilWards(vigil, b._vigilState, b.enemyUnits);
+}
+
+/** Mirrors VigilController.canUnweave: a living Voice's unbroken circle under this unit. */
+export function canUnweave(b, unit) {
+  const vigil = b.battleConfig?.vigil;
+  if (!vigil || !b.playerUnits.includes(unit) || unit.hasActed) return false;
+  return Boolean(unweavableCircleAt(vigil, b._vigilState, b.enemyUnits, unit));
+}
+
+/** Mirrors VigilController.unweave: the circle breaks now, the wards re-stamped, then the
+ *  caller ends the unit's action (no Canto, as the scene's). Returns what broke. */
+export function unweaveVigilCircle(b, unit) {
+  if (!canUnweave(b, unit)) throw new Error('Nothing to unweave here');
+  const vigil = b.battleConfig.vigil;
+  const result = unweaveCircle({
+    vigil,
+    state: b._vigilState,
+    enemyUnits: b.enemyUnits,
+    unit,
+    turn: b.turnManager?.turnNumber ?? 1,
+  });
+  b._vigilState = result.state;
+  applyVigilWards(vigil, b._vigilState, b.enemyUnits);
+  return result.broke;
 }
 
 /** Mirrors EntityLimbController.processPhase: a limb rises where the army struck from. */

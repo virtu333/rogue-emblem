@@ -143,14 +143,23 @@ the far two have hold packs).
 
 - **Wards** (`vigil.wards: true`). A Voice is **warded** while a circle naming it still stands: it
   takes no damage from anything (`unit.warded`, read by `Combat` strikes and forecasts,
-  `UnitHealth.damageUnitDetailed`, an art's set-HP, a weapon's after-combat poison). A player or NPC unit standing on a circle at
-  the enemy phase's start **breaks** it for good, before the words and the summons: the Voice's
-  ward falls and the circle calls no more. `vigilState.broken` = `{ circleId: turn }`, saved only
-  once a circle breaks.
+  `UnitHealth.damageUnitDetailed`, an art's set-HP, a weapon's after-combat poison). A player unit standing on a circle whose Voice
+  lives can spend its action on **Unweave** (playtest, Oct 21: standing there and ending the turn
+  broke it only at the enemy phase, which read as a delay, and let a unit strike from the circle
+  and break it for free): the circle **breaks** at once and for good, the Voice's ward falls (so
+  the army can strike that Voice the same turn) and the circle calls no more. The action ends the
+  unit's turn with no Canto (`Vigil.unweaveCircle` / `unweavableCircleAt`;
+  `VigilController.unweave` through `settleAndPresent`, so the checkpoint holds the break before
+  it is drawn; the harness's `Unweave` action). A unit standing on a circle without unweaving only
+  stops its summons. `vigilState.broken` = `{ circleId: turn }`, saved only once a circle breaks.
+- **Pairs.** A Voice's sigil and each of its circles wear the same number of pips in the tile's
+  corners (`vigilPairMarks`: the sigil's place in the list, from 1; a count, so a turned portrait
+  board reads the same), and the ward line names them ("Unweave its circle (2 pips)",
+  `unit.wardMark`).
 - **The choir** (`vigil.choir: true`). The Waking is warded while any other Voice lives, whatever
   its circle.
 - **Stamps.** `applyVigilWards(vigil, state, enemyUnits)` is the one writer of `warded` /
-  `wardReason` (`circle` | `choir` | `both`): at battle start, after each phase step, after a
+  `wardReason` (`circle` | `choir` | `both`) / `wardMark`: at battle start, after each phase step, after an Unweave, after a
   Voice leaves the roster, after a restore (scene and harness). The unit card, forecast note and a
   "Warded" float say it; a break plays "A circle breaks." with `sfx_ward_break` where the player
   sees it.

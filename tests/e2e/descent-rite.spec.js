@@ -143,7 +143,9 @@ test('the Column and the Vigil say what the Rite owes before the fight', async (
     `Win at or under par: the Rite loses ${loss} word${loss === 1 ? '' : 's'}.`,
   );
   await selectNode(page, 'vigil');
-  await expect(note).toHaveText('Stand on a circle to stop its summons. Its Voice still speaks.');
+  await expect(note).toHaveText(
+    "Unweave a circle to break its Voice's ward. Standing on it stops its summons.",
+  );
   await selectNode(page, 'stair');
   await expect(note).toHaveCount(0);
 });

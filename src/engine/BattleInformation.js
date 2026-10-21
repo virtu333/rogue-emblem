@@ -178,13 +178,16 @@ export function carriedItemInfo(unit) {
  */
 export function wardInfo(unit) {
   if (unit?.warded !== true || !(unit.currentHP > 0)) return null;
+  // Its circle is named by the pips it shares with the Voice's sigil (Vigil.vigilPairMarks).
+  const mark = Number.isInteger(unit.wardMark) && unit.wardMark > 0 ? unit.wardMark : 0;
+  const circle = mark ? `its circle (${mark} ${mark === 1 ? 'pip' : 'pips'})` : 'its circle';
   return {
     text:
       unit.wardReason === 'choir'
         ? 'Warded: no damage while another Voice lives'
         : unit.wardReason === 'both'
-          ? 'Warded: no damage while another Voice lives or its circle holds'
-          : 'Warded: no damage. Stand on its circle to break it',
+          ? `Warded: no damage while another Voice lives or ${circle} holds`
+          : `Warded: no damage. Unweave ${circle} to break it`,
   };
 }
 

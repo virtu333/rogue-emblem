@@ -1,10 +1,11 @@
 // The Vigil's shields (engine/Vigil.js; docs/specs/act-v-descent.md §3.1.1): a Voice is warded
 // while a circle naming it stands, the Waking while any other Voice lives, and a warded unit
 // takes no damage from anything. Ways this breaks, a test each:
-//   - a circle breaks with wards off, under an enemy, for a fallen Voice, twice, or a broken one
+//   - standing on a circle breaks it at the phase start (only Unweave does); Unweave breaks one
+//     with wards off, off a circle, for a fallen Voice, twice, or writes its input; a broken one
 //     calls again once the army steps off it
-//   - the breaks happen after the summons (a covered circle that breaks still calls), or a
-//     second run of the same turn breaks again
+//   - a Voice's pair mark is wrong, missing while warded, or left once the ward is gone; the card
+//     does not name the pips
 //   - a Voice stays warded once its circles are broken, or loses its ward with one still up;
 //     the choir holds with every other Voice fallen, or drops while one lives
 //   - the stamps reach a non-Voice, linger when the shields are off, or the reason is wrong
@@ -22,7 +23,10 @@ import {
   createVigilState,
   openWardCircles,
   sanitizeVigilState,
+  unweavableCircleAt,
+  unweaveCircle,
   vigilBoardView,
+  vigilPairMarks,
   vigilPhaseStep,
   wardOf,
 } from '../src/engine/Vigil.js';
@@ -114,60 +118,105 @@ function step({
 }
 const circlesCalled = (summons) => summons.map((s) => s.circleId);
 
-describe('the circles break', () => {
-  it('a player or NPC on a circle at the phase start breaks it, before the summons', () => {
-    const { breaks, state, summons } = step({
+describe('the circles break only by Unweave', () => {
+  const unweave = (unit, { state = createVigilState(), enemyUnits = voices(), vigil = VIGIL, turn = 1 } = {}) =>
+    unweaveCircle({ vigil, state, enemyUnits, unit, turn }); // prettier-ignore
+
+  it('a player or NPC on a circle at the phase start breaks nothing: it only stops the call', () => {
+    const units = voices();
+    const { state, summons } = step({
+      enemyUnits: units,
       playerUnits: [hero(4, 0)],
       npcUnits: [hero(8, 4, 'npc')],
     });
-    expect(breaks).toEqual([
-      { circleId: 'c_n', voiceId: 'v_n', col: 4, row: 0 },
-      { circleId: 'c_e', voiceId: 'v_e', col: 8, row: 4 },
-    ]);
-    expect(state.broken).toEqual({ c_n: 1, c_e: 1 });
+    expect(state).not.toHaveProperty('broken');
     expect(circlesCalled(summons)).toEqual(['c_s', 'c_w']);
+    applyVigilWards(VIGIL, state, units);
+    expect(units.map((u) => u.wardReason)).toEqual(['circle', 'circle', 'circle', 'both']);
+  });
+
+  it('Unweave breaks the circle under the unit at once, on the turn it is done', () => {
+    const before = createVigilState();
+    const frozen = structuredClone(before);
+    const result = unweave(hero(4, 0), { state: before, turn: 3 });
+    expect(result.broke).toEqual({ circleId: 'c_n', voiceId: 'v_n', col: 4, row: 0 });
+    expect(result.state.broken).toEqual({ c_n: 3 });
+    expect(before).toEqual(frozen);
+    const units = voices();
+    applyVigilWards(VIGIL, before, units);
+    expect(applyVigilWards(VIGIL, result.state, units).dropped.map((u) => u.authoredId)).toEqual([
+      'v_n',
+    ]);
   });
 
   it('a broken circle calls no more once the army steps off it', () => {
-    const first = step({ playerUnits: [hero(4, 0)] });
-    const later = step({ state: first.state, turn: 2 });
-    expect(later.breaks).toEqual([]);
+    const { state } = unweave(hero(4, 0));
+    const later = step({ state, turn: 2 });
     expect(circlesCalled(later.summons)).toEqual(['c_e', 'c_s', 'c_w']);
     expect(later.state.broken).toEqual({ c_n: 1 });
   });
 
+  it('nothing to unweave: wards off, off a circle, a fallen Voice, a broken circle, a fallen unit', () => {
+    const units = voices();
+    expect(unweavableCircleAt(VIGIL, null, units, hero(4, 0))?.id).toBe('c_n');
+    expect(unweavableCircleAt(PLAIN, null, units, hero(4, 0))).toBeNull();
+    expect(unweavableCircleAt(VIGIL, null, units, hero(4, 1))).toBeNull();
+    const noNorth = units.filter((v) => v.authoredId !== 'v_n');
+    expect(unweavableCircleAt(VIGIL, null, noNorth, hero(4, 0))).toBeNull();
+    expect(unweavableCircleAt(VIGIL, { broken: { c_n: 1 } }, units, hero(4, 0))).toBeNull();
+    expect(unweavableCircleAt(VIGIL, null, units, { ...hero(4, 0), currentHP: 0 })).toBeNull();
+    expect(unweave(hero(4, 0), { vigil: PLAIN })).toBeNull();
+    expect(unweave(hero(4, 0), { enemyUnits: noNorth })).toBeNull();
+  });
+
   it('wards off: standing on a circle only blocks it, as before; nothing is saved as broken', () => {
     const covered = step({ vigil: PLAIN, playerUnits: [hero(4, 0)] });
-    expect(covered.breaks).toEqual([]);
     expect(covered.state).not.toHaveProperty('broken');
     const after = step({ vigil: PLAIN, state: covered.state, turn: 2 });
     expect(circlesCalled(after.summons)).toEqual(['c_n', 'c_e', 'c_s', 'c_w']);
   });
 
-  it('an enemy on a circle breaks nothing; a fallen Voice’s circle does not break', () => {
-    const guard = { ...voice('guard', 4, 0), authoredId: undefined };
-    expect(step({ enemyUnits: [...voices(), guard] }).breaks).toEqual([]);
-    const noNorth = voices().filter((v) => v.authoredId !== 'v_n');
-    expect(step({ enemyUnits: noNorth, playerUnits: [hero(4, 0)] }).breaks).toEqual([]);
-  });
-
-  it('a turn already processed breaks nothing again; the step writes none of its inputs', () => {
-    const state = step({ playerUnits: [hero(4, 0)] }).state;
+  it('a turn already processed changes nothing again; the step writes none of its inputs', () => {
+    const state = step({ state: unweave(hero(4, 0)).state }).state;
     const frozen = structuredClone(state);
     const again = step({ state, playerUnits: [hero(8, 4)], turn: 1 });
-    expect(again.breaks).toEqual([]);
+    expect(again.skipped).toBe(true);
     expect(again.state).toEqual(frozen);
     expect(state).toEqual(frozen);
   });
 
   it('the board view marks a broken circle and each sigil’s ward', () => {
-    const { state } = step({ playerUnits: [hero(4, 0)] });
+    const { state } = unweave(hero(4, 0));
     const view = vigilBoardView(VIGIL, { enemyUnits: voices(), state });
     expect(view.circles.find((c) => c.id === 'c_n').broken).toBe(true);
     expect(view.circles.find((c) => c.id === 'c_e').broken).toBe(false);
     expect(view.sigils.find((x) => x.id === 's_n').ward).toMatchObject({ circle: false });
     expect(view.sigils.find((x) => x.id === 's_e').ward).toMatchObject({ circle: true });
     expect(view.sigils.find((x) => x.id === 's_w').ward).toMatchObject({ choir: true });
+  });
+});
+
+describe('which circle is whose', () => {
+  it('each Voice’s mark is its sigil’s place, from 1', () => {
+    expect(vigilPairMarks(VIGIL)).toEqual({ v_n: 1, v_e: 2, v_s: 3, v_w: 4 });
+    expect(vigilPairMarks(null)).toEqual({});
+  });
+
+  it('a warded Voice wears its mark; it is taken away with the ward', () => {
+    const units = voices();
+    applyVigilWards(VIGIL, createVigilState(), units);
+    expect(units.map((u) => u.wardMark)).toEqual([1, 2, 3, 4]);
+    applyVigilWards(VIGIL, { ...createVigilState(), broken: { c_e: 1 } }, units);
+    expect(units[1]).not.toHaveProperty('wardMark');
+    applyVigilWards(PLAIN, createVigilState(), units);
+    expect(units.some((u) => 'wardMark' in u)).toBe(false);
+  });
+
+  it('the unit card names the circle by its pips and says to Unweave it', () => {
+    const text = (unit) => wardInfo({ warded: true, currentHP: 5, ...unit }).text;
+    expect(text({ wardReason: 'circle', wardMark: 1 })).toMatch(/Unweave its circle \(1 pip\)/);
+    expect(text({ wardReason: 'both', wardMark: 3 })).toMatch(/circle \(3 pips\)/);
+    expect(text({ wardReason: 'circle' })).toMatch(/Unweave its circle to/);
   });
 });
 

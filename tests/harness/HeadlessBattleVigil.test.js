@@ -346,3 +346,61 @@ describe('a Voice moved off its sigil walks back', () => {
     expect(b._vigilState.byVoice.voice_feeding).toBeUndefined();
   });
 });
+
+// Unweave (engine/Vigil.js unweaveCircle; the scene's action menu, VigilController.unweave):
+//   - offered with no shields, off a circle, or on a broken one; not offered on a standing one
+//   - the circle waits for the enemy phase to break, or the unit can act again after it
+//   - the scripted agent standing on its circle attacks or waits instead of Unweaving
+describe('Unweave in the harness', () => {
+  const shielded = () => {
+    const out = vigilBattle();
+    Object.assign(out.b.battleConfig.vigil, { wards: true, choir: true });
+    return out;
+  };
+  const circleOf = (b, id) => b.battleConfig.vigil.circles.find((c) => c.id === id);
+  const labels = (driver) =>
+    driver
+      .listLegalActions()
+      .filter((a) => a.type === 'choose_action')
+      .map((a) => a.payload.label);
+  const onTo = async (driver, unit, tile) => {
+    unit.col = tile.col;
+    unit.row = tile.row;
+    await driver.step({ type: 'select_unit', payload: { unitName: unit.name } });
+    await driver.step({ type: 'move_to', payload: { col: tile.col, row: tile.row } });
+  };
+
+  it('breaks the circle under the unit at once and ends its action', async () => {
+    const { driver, b, edric } = shielded();
+    await onTo(driver, edric, circleOf(b, 'circle_calling'));
+    expect(labels(driver)).toContain('Unweave');
+    await driver.step({ type: 'choose_action', payload: { label: 'Unweave' } });
+    expect(b._vigilState.broken).toEqual({ circle_calling: 1 });
+    expect(edric.hasActed).toBe(true);
+    expect(voiceOf(b, 'voice_calling').warded).toBeUndefined();
+    expect(voiceOf(b, 'voice_binding')).toMatchObject({ warded: true, wardMark: 2 });
+  });
+
+  it('is not offered with the shields off, off a circle, or on a broken circle', async () => {
+    const plain = vigilBattle();
+    await onTo(plain.driver, plain.edric, circleOf(plain.b, 'circle_calling'));
+    expect(labels(plain.driver)).not.toContain('Unweave');
+
+    const { driver, b, edric } = shielded();
+    await onTo(driver, edric, { col: edric.col, row: edric.row });
+    expect(labels(driver)).not.toContain('Unweave');
+    await driver.step({ type: 'choose_action', payload: { label: 'Wait' } });
+    b._vigilState = { ...b._vigilState, broken: { circle_binding: 1 } };
+    const other = b.playerUnits.find((u) => u !== edric);
+    await onTo(driver, other, circleOf(b, 'circle_binding'));
+    expect(labels(driver)).not.toContain('Unweave');
+  });
+
+  it('the scripted agent on its circle Unweaves it', async () => {
+    const { ScriptedAgent } = await import('../agents/ScriptedAgent.js');
+    const { driver, b, edric } = shielded();
+    await onTo(driver, edric, circleOf(b, 'circle_calling'));
+    const pick = new ScriptedAgent(driver).chooseAction(driver.listLegalActions());
+    expect(pick.payload.label).toBe('Unweave');
+  });
+});

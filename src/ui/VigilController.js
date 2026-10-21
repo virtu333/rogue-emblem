@@ -8,13 +8,17 @@
 //                  `voice_silenced` cue (ui/ceremonyMusic.js, in the key of the Vigil's theme) and
 //                  the Voice's last line (the first to fall in the dialogue box, each later one
 //                  floating over its tile)
+//   unweave       the action menu's Unweave (BattleScene.showActionMenu): a player unit standing on
+//                  a circle whose Voice lives spends its action to break that circle at once
+//                  (engine/Vigil.js unweaveCircle), settled and checkpointed before it is drawn
 //   sync          every frame (BattleScene.update): the sigil and circle markers and the
 //                  Voices' wards re-derived from the board, redrawn only when what they show
 //                  changes
 //
-// The shields (engine/Vigil.js: wards and the choir): the phase step breaks a circle a unit
-// stands on, then `applyVigilWards` re-stamps every Voice before anything is drawn (and again at
-// a Voice's fall, which may lift the Waking's choir ward). A broken circle seen plays "A circle
+// The shields (engine/Vigil.js: wards and the choir): a circle breaks only when a unit standing on
+// it Unweaves it (standing there only stops its summons), then `applyVigilWards` re-stamps every
+// Voice before anything is drawn (and again at a Voice's fall, which may lift the Waking's choir
+// ward). A broken circle seen plays "A circle
 // breaks." with the shatter sound; a Voice seen losing its ward floats "Ward broken". A warded
 // Voice wears a pale hexagon (a second, inner ring while the choir alone holds it).
 //
@@ -44,7 +48,10 @@
 // reads the same board): a sigil is a diamond, a circle is a round seal; a lit sigil is filled
 // and wears corner brackets, an empty one is a hollow socket; an open circle is a solid ring with
 // spokes, a blocked one a dashed ring, a closed one a thin ring struck through; a Waking sigil
-// has a second, inner diamond. Every stroke is laid over a dark one, so it reads on pale stone
+// has a second, inner diamond. Which circle belongs to which Voice is told by pips: a Voice's sigil
+// and each of its circles wear the same number of dots in the tile's corners (vigilPairMarks: the
+// sigil's place in the list, from 1), a count that reads the same on a turned board, drawn over
+// the units (UI_DEPTHS.WARD) so the Voice on its sigil never hides them. Every stroke is laid over a dark one, so it reads on pale stone
 // and in a dark hall alike. The corners and tips stay visible around a unit standing on the tile.
 // They sit with the objective tiles (UI_DEPTHS.OBJECTIVE_TILE, as the escape EXIT: below the
 // units), and are placed with grid.gridToPixel, so they turn with a portrait board (every shape
@@ -52,6 +59,7 @@
 // BattleScene owns one instance on a Vigil map (destroyed with the scene).
 
 import { battleSession, isCurrentBattleSession } from './BattleSession.js';
+import { settleAndPresent } from './BattleActionSettlement.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 import { CombatFxController } from './CombatFxController.js';
 import { safeBattlePresentation } from './safeBattlePresentation.js';
@@ -60,7 +68,10 @@ import { playCue } from './ceremonyMusic.js';
 import {
   applyVigilWards,
   sanitizeVigilState,
+  unweavableCircleAt,
+  unweaveCircle,
   vigilBoardView,
+  vigilPairMarks,
   vigilPhaseStep,
   voiceUnit,
   voicesFallen,
@@ -80,6 +91,18 @@ const GROUND = Object.freeze({ faction: 'enemy' });
 const MARKER_INSET = 2;
 const WAKING_GAP = 5;
 const CIRCLE_DASHES = 10;
+/** A pair pip: its radius and how far from the tile's centre it sits along each axis: outside a
+ *  circle's ring, and on a sigil inside its corner brackets (in the corner the diamond leaves). */
+const PIP_RADIUS = 3;
+const PIP_OFFSET = TILE_SIZE / 2 - 4;
+const SIGIL_PIP_OFFSET = TILE_SIZE / 2 - 6;
+/** The tile corners the pips fill, in order (a quarter turn keeps the count). */
+const PIP_CORNERS = Object.freeze([
+  [-1, -1],
+  [1, -1],
+  [1, 1],
+  [-1, 1],
+]);
 
 /**
  * Stroke a shape twice: a dark line a little wider beneath, the tone over it, so a marker reads
@@ -185,12 +208,14 @@ export class VigilController {
       npcUnits: scene.npcUnits,
       state: scene._vigilState,
     });
+    const marks = vigilPairMarks(vigil);
     return {
       sigils: view.sigils.map((s) => ({
         id: s.id,
         col: s.col,
         row: s.row,
         waking: s.waking,
+        mark: marks[s.voiceId] || 0,
         seen: this.seesTile(s.col, s.row, s.voice),
         state: !s.voice ? 'silent' : s.onSigil && this.seesUnit(s.voice) ? 'lit' : 'dim',
       })),
@@ -198,6 +223,7 @@ export class VigilController {
         id: c.id,
         col: c.col,
         row: c.row,
+        mark: marks[c.voiceId] || 0,
         seen: this.seesTile(c.col, c.row, c.voice),
         state: c.broken ? 'broken' : !c.voice ? 'closed' : c.covered ? 'covered' : 'open',
       })),
@@ -233,7 +259,7 @@ export class VigilController {
           wards: all.wards.filter((m) => m.seen),
         };
         const key = [...states.sigils, ...states.circles, ...states.wards]
-          .map((m) => `${m.id}:${m.col},${m.row}:${m.state}${m.choir ? '+' : ''}`)
+          .map((m) => `${m.id}:${m.col},${m.row}:${m.state}${m.choir ? '+' : ''}:${m.mark || 0}`)
           .join(';');
         if (key === this._key) return;
         this._key = null; // set only once drawn, so a failed draw is retried
@@ -289,7 +315,8 @@ export class VigilController {
     for (const { unit, voiceId } of step.summons)
       observeHistoryAction(scene, 'called', voiceUnit(voiceId, scene.enemyUnits), unit);
     if (step.summons.length > 0) scene.dangerZoneStale = true;
-    // The Voices' wards from the state just kept: a circle broken this phase may drop one.
+    // The Voices' wards from the state just kept (a ward never drops here: circles break only
+    // by Unweave, but a restored or older state is re-stamped all the same).
     const wards = applyVigilWards(vigil, scene._vigilState, scene.enemyUnits);
 
     // Then the presentation, each piece in its own boundary.
@@ -303,9 +330,8 @@ export class VigilController {
     }
     this.sync();
 
-    // A circle seen breaking, then any Voice seen losing its ward: before the words, as it
-    // happened first.
-    await this._presentBreaks(step.breaks || [], wards.dropped);
+    // Any Voice seen losing its ward: before the words, as it happened first.
+    await this._presentBreaks([], wards.dropped);
     if (!isCurrentBattleSession(scene, session)) return;
 
     const heardWords = step.words.filter((word) =>
@@ -357,6 +383,67 @@ export class VigilController {
       );
     }
     safeBattlePresentation('vigil objective', () => scene.updateObjectiveText?.(), { scene });
+  }
+
+  /** Can `unit` Unweave where it stands? (The action menu's one test.) */
+  canUnweave(unit) {
+    const scene = this.scene;
+    if (!scene || !this.vigil || !(scene.playerUnits || []).includes(unit)) return false;
+    if (unit.hasActed) return false;
+    return Boolean(unweavableCircleAt(this.vigil, scene._vigilState, scene.enemyUnits, unit));
+  }
+
+  /**
+   * Unweave: `unit` spends its action to break the circle it stands on. The break, the wards
+   * and the history are settled and checkpointed before anything is drawn (settleAndPresent);
+   * the action then ends with no Canto (the unit gave its turn to the circle).
+   */
+  unweave(unit) {
+    const scene = this.scene;
+    if (!scene || !unit) return false;
+    const session = battleSession(scene);
+    scene.hideActionMenu?.();
+    let broke = null;
+    let dropped = [];
+    return settleAndPresent(scene, {
+      session,
+      unit,
+      label: 'unweave',
+      state: 'COMBAT_RESOLVING',
+      continuation: {
+        kind: 'finish',
+        unitName: unit.name,
+        ...(unit.battleEntityId ? { unitId: unit.battleEntityId } : {}),
+        skipCanto: true,
+      },
+      validate: () => this.canUnweave(unit),
+      settle: () => {
+        const result = unweaveCircle({
+          vigil: this.vigil,
+          state: scene._vigilState,
+          enemyUnits: scene.enemyUnits,
+          unit,
+          turn: scene.turnManager?.turnNumber ?? 1,
+        });
+        if (!result) throw new Error('Unweave found no circle to break');
+        scene._vigilState = result.state;
+        broke = result.broke;
+        dropped = applyVigilWards(this.vigil, scene._vigilState, scene.enemyUnits).dropped;
+        observeHistoryAction(
+          scene,
+          'unwove the circle of',
+          unit,
+          voiceUnit(broke.voiceId, scene.enemyUnits),
+        );
+        scene.dangerZoneStale = true;
+        return { broke };
+      },
+      present: async () => {
+        this.sync();
+        await this._presentBreaks([broke], dropped);
+        safeBattlePresentation('vigil objective', () => scene.updateObjectiveText?.(), { scene });
+      },
+    });
   }
 
   /** A Voice fell at `tile` (already off the roster): its circle is closed for good. */
@@ -573,6 +660,7 @@ export class VigilController {
           g.lineBetween?.(x + half / 2, y - half / 2, x - half / 2, y + half / 2);
         });
       this.objects.push(g);
+      if (!silent) this._drawPips(x, y, sigil.mark, SIGIL_PIP_OFFSET);
       if (lit) this._pulse([g], 0.6);
     } catch {
       /* cosmetic only */
@@ -649,8 +737,34 @@ export class VigilController {
         });
       }
       this.objects.push(g);
+      // Its Voice's pips, while it still matters which Voice it holds.
+      if (circle.state === 'open' || circle.state === 'covered') this._drawPips(x, y, circle.mark);
     } catch {
       /* cosmetic only */
+    }
+  }
+
+  /**
+   * The pair pips: `count` (1-4) gold dots over dark ones in the tile's corners, so a sigil
+   * and its circles read as one Voice's at a glance and on a turned board alike. Drawn with the
+   * wards, over the units: a Voice stands on its sigil, and would hide them.
+   */
+  _drawPips(x, y, count, offset = PIP_OFFSET) {
+    const n = Math.min(PIP_CORNERS.length, Math.max(0, Math.trunc(Number(count) || 0)));
+    if (n === 0 || !this.scene?.add?.graphics) return;
+    const g = this.scene.add.graphics();
+    g.setDepth?.(UI_DEPTHS.WARD);
+    g.name = `vigil-pips-${n}`;
+    this.objects.push(g);
+    for (let i = 0; i < n; i++) {
+      const [sx, sy] = PIP_CORNERS[i];
+      const px = x + sx * offset;
+      const py = y + sy * offset;
+      g.fillStyle?.(UI_HEX.void, 0.9);
+      g.fillCircle?.(px, py, PIP_RADIUS + 1.25);
+      // Gold, apart from the sigil's parchment brackets.
+      g.fillStyle?.(UI_HEX.accent, 1);
+      g.fillCircle?.(px, py, PIP_RADIUS);
     }
   }
 
