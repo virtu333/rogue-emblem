@@ -55,6 +55,22 @@ const NON_COMBAT_ALTERNATIVES = Object.freeze({
   [NODE_TYPES.COLOSSEUM]: [NODE_TYPES.SHOP, NODE_TYPES.CHURCH],
 });
 
+/**
+ * The generator's options for a run's act maps (RunManager._buildActNodeMap) and a redrawn road
+ * (RouteRedraw.redrawRoute), read from the run: one list, so a redrawn road is drawn as the act's.
+ */
+export function nodeMapOptionsForRun(run) {
+  return {
+    fogChanceBonus: run.getDifficultyModifier('fogChanceBonus', 0),
+    halfFogChance: run.difficultyId === 'normal',
+    villageAmbushChance: run.getDifficultyModifier('villageAmbushChance', 0),
+    // an object — read directly (getDifficultyModifier coerces objects)
+    villageMinRow: run.difficultyModifiers?.villageMinRow ?? null,
+    colosseumConfig: run.gameData.colosseum?.nodeGeneration ?? null,
+    caravanChanceBonus: run.metaEffects?.caravanChanceBonus || 0,
+  };
+}
+
 export function generateNodeMap(actId, actConfig, mapTemplates, options = {}) {
   const fogChanceBonus = Number.isFinite(options.fogChanceBonus) ? options.fogChanceBonus : 0;
   const halfFogChance = options.halfFogChance === true;
@@ -731,7 +747,7 @@ export function pickTemplateForNode(
  * one point, so crossings are structurally impossible — column constraint is relaxed.
  * Guarantees: every node has >=1 outgoing edge, every next-row node has >=1 incoming edge.
  */
-function connectRows(currentRow, nextRow) {
+export function connectRows(currentRow, nextRow) {
   // Edges to/from a single node converge/diverge — can never cross
   const skipConstraints = rowsAreUnconstrained(currentRow, nextRow);
 

@@ -90,6 +90,7 @@ export function serializeRun(rm, blessings) {
     pendingCaravanShop: rm.pendingCaravanShop || null,
     pendingBattleReward: rm.pendingBattleReward || null,
     rewardRerollsSpent: Math.max(0, Math.trunc(Number(rm.rewardRerollsSpent) || 0)),
+    routeRedraws: Math.max(0, Math.trunc(Number(rm.routeRedraws) || 0)),
     legendaryGrants: sanitizeLegendaryGrants(rm.legendaryGrants),
     pendingBossRecruit: rm.pendingBossRecruit || null,
     pendingThirdLord: rm.pendingThirdLord || null,
