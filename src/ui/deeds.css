@@ -774,9 +774,56 @@
 .re-credits-bars li {
   display: grid;
   grid-template-columns: 1fr auto;
+  align-items: center;
   gap: 2px 8px;
   font: 13px / 1.35 var(--re-body);
   color: var(--re-text);
+}
+.re-credits-why {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  cursor: pointer;
+}
+.re-credits-why:focus-visible {
+  outline: 2px solid var(--re-accent);
+  outline-offset: 2px;
+}
+.re-credits-why-mark {
+  all: unset;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--re-muted);
+  border-radius: 50%;
+  color: var(--re-muted);
+  font: 11px / 1 var(--re-body);
+}
+.re-credits-why[aria-expanded='true'] .re-credits-why-mark {
+  color: var(--re-accent);
+  border-color: var(--re-accent);
+}
+.re-credits-tip {
+  grid-column: 1 / -1;
+  margin: 2px 0 0;
+  padding: 6px 8px;
+  font: 12px / 1.4 var(--re-body);
+  color: var(--re-muted);
+  background: color-mix(in srgb, var(--re-muted) 12%, transparent);
+  border-left: 2px solid var(--re-accent);
+}
+.re-credits-tip[hidden] {
+  display: none;
+}
+.re-credits-tip b {
+  display: block;
+  margin-top: 4px;
+  color: var(--re-text);
+  font-weight: normal;
 }
 .re-credits-bars small {
   color: var(--re-muted);

@@ -192,8 +192,6 @@ export function gradeRunOf(rm, result = rm?.status) {
     result,
     ledger: rm?.runLedger,
     gold: rm?.gold,
-    noMetaMode: rm?.noMetaMode === true,
-    burdens: rm?.burdens,
   });
 }
 
