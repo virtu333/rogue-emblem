@@ -67,6 +67,7 @@ export function devNgPlusRide(gameData) {
         items: kit([
           ['Silver Sword', 'itm_dev_ng_1'],
           ['Elixir', 'itm_dev_ng_2'],
+          ['Ragnarok', 'itm_dev_ng_8'],
         ]),
         skills: ['sol', 'vantage'],
         skillKinds: { sol: 'skill', vantage: 'skill' },

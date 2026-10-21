@@ -14,6 +14,9 @@ import { stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
 const isLegend = (item) =>
   (item?.tier === 'Legend' && item.type !== 'Staff') || item?.tier === 'Epic';
 
+/** True for a weapon the run holds at most once (its item card says "One per run"). */
+export const isOnePerRunWeapon = (item) => Boolean(item) && isLegend(item);
+
 /**
  * The catalog name of a Legend item: no forge/wear suffix, no imbue adjective. With the weapon
  * catalog the name is read off it (a forged, imbued copy keeps the adjective in `_baseName`).

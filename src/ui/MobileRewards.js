@@ -44,8 +44,12 @@ import { playRewardReveal, rewardRevealPending } from './rewardReveal.js';
 import { rewardRerollButtonState } from './rewardRerollButton.js';
 import { itemIcon, itemHero } from './itemIcons.js';
 import { itemKeywordRow } from './itemKeywordChips.js';
+import { isOnePerRunWeapon } from '../engine/LegendaryOwnership.js';
+
 import { itemKeywords, itemBaseLineFor } from '../engine/ItemKeywords.js';
 import { lotteryCardLine } from '../engine/LotteryLoot.js';
+
+const ONE_PER_RUN_NOTE = 'One per run: once you hold it, no other copy turns up this run.';
 const node = (tag, text, cls = '') => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -341,6 +345,9 @@ export class MobileRewards {
     notes.setAttribute('aria-label', 'Notes');
     // The chosen item's story, as the shop and roster tell it.
     if (c?.item?.lore) notes.append(node('p', c.item.lore, 'ch-reward-lore'));
+    // A phone's card can clip its tag row: the one-per-run rule is said here in full.
+    if (c?.type === 'weapon' && isOnePerRunWeapon(c.item))
+      notes.append(node('p', ONE_PER_RUN_NOTE, 'ch-reward-rule'));
     appendItemArtDetails(notes, c?.item, scene.gameData.weaponArts?.arts || [], {
       openHelp: (title, blocks) => {
         if (this.child || this.busy) return;

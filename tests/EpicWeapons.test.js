@@ -246,9 +246,13 @@ describe('card words', () => {
     expect(itemBaseLine(weapon('Treatybreaker'))).toBe('Epic Axe');
     expect(itemBaseLine(weapon('Mirrorglass'))).toBe('Epic Tome');
     const texts = (name) => itemKeywords(weapon(name)).map((t) => t.text);
-    expect(texts('Treatybreaker')).toEqual(['Fresh foe: +5 Atk', 'Attacked: -15 Hit']);
-    expect(texts('Daybreak')).toEqual(['x3 vs Dragons, Undead', 'x2 vs the Entity']);
-    expect(texts('The Middle Pages')).toEqual(['6 a battle']);
+    expect(texts('Treatybreaker')).toEqual([
+      'Fresh foe: +5 Atk',
+      'Attacked: -15 Hit',
+      'One per run',
+    ]);
+    expect(texts('Daybreak')).toEqual(['x3 vs Dragons, Undead', 'x2 vs the Entity', 'One per run']);
+    expect(texts('The Middle Pages')).toEqual(['6 a battle', 'One per run']);
     for (const w of epics) expect(texts(w.name).length, w.name).toBeGreaterThan(0);
   });
 });
@@ -463,7 +467,7 @@ describe('battle-long rules', () => {
     expect(blade.might - base.might).toBe(tally.might);
     expect(blade.crit - base.crit).toBe(tally.crit);
     expect(blade.hit - base.hit).toBe(tally.hit);
-    expect(itemKeywords(blade).map((t) => t.text)).toEqual(['Tally 400 kills']);
+    expect(itemKeywords(blade).map((t) => t.text)).toEqual(['Tally 400 kills', 'One per run']);
   });
 
   it("Gorgemaw takes 15% of max HP at its wielder's turn start unless it fed last turn", () => {

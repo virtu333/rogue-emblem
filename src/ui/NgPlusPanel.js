@@ -240,6 +240,7 @@ export class NgPlusPanel {
           { pressed: i.chosen, focus: `keep-item-${i.uid}` },
         ),
       );
+    if (view.itemNote) copy.append(node('p', 'mu-requirements', view.itemNote));
     if (view.itemReplace) {
       copy.append(node('p', 'mu-requirements', 'Kept items of that kind are full. Replace:'));
       for (const i of view.itemReplace)
@@ -269,7 +270,26 @@ export class NgPlusPanel {
     if (!r) return;
     copy.append(node('h2', '', r.name), node('p', 'mu-help', r.line));
     copy.append(node('p', '', `Skills: ${r.skills.join(', ') || 'none yet'}`));
-    copy.append(node('p', '', `Items: ${r.items.join(', ') || 'none yet'}`));
+    if (!r.kit.length) copy.append(node('p', '', 'Items: none yet'));
+    else {
+      // Each kept item rides along unless it is left home (the record keeps it either way).
+      copy.append(node('h3', 'ng-heading', 'Kept items'));
+      for (const i of r.kit)
+        copy.append(
+          this.button(
+            i.home ? `${i.label} · Left home` : `${i.label} · Rides along`,
+            () => {
+              const result = this.meta.setNgPlusItemHome(r.id, i.uid, !i.home);
+              this.rerender(`home-${i.uid}`, result.ok ? null : ngPlusBlockText(result.reason));
+            },
+            { pressed: !i.home, focus: `home-${i.uid}` },
+          ),
+        );
+      copy.append(
+        node('p', 'mu-help', 'Tap an item to leave it home: it stays kept, out of the runs.'),
+      );
+      if (r.legendNote) copy.append(node('p', 'mu-requirements', r.legendNote));
+    }
     if (r.kind === 'recruit') {
       copy.append(
         this.button(

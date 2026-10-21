@@ -335,6 +335,8 @@ const STATIC_HELP_TABS = [
           'drain',
           'thrown',
           'relic',
+          'unique',
+          'one per run',
         ],
         lines: [
           { text: "Tags under a weapon's name state its rule.", color: GRAY },
@@ -350,8 +352,8 @@ const STATIC_HELP_TABS = [
           { text: 'Thrown, Wind gust, Range: its reach.' },
           { text: 'Uses MAG: a magic sword (MAG vs RES).', color: CYAN },
           { text: '+5 DEF (etc.): bonus while equipped.' },
-          { text: 'The line above says what it is: Silver', color: GRAY },
-          { text: 'Lance, Legend Sword (one of a kind).', color: GRAY },
+          { text: 'One per run: once you hold it, no copy turns up again that run.', color: GOLD },
+          { text: 'The line above says what it is: Silver Lance, Legend Sword.', color: GRAY },
         ],
       },
       {

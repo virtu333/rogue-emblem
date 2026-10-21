@@ -16,6 +16,7 @@ import {
   releaseRecord,
   runStartOf,
   setBring,
+  setKeptItemHome,
   NG_PLUS_UPGRADES,
   bringLimitFor,
   ngPlusUpgradeNextCost,
@@ -1234,6 +1235,11 @@ export class MetaProgressionManager {
 
   setNgPlusBring(ids) {
     return this._commitNgPlus((state) => setBring(state, ids, this.ngPlusBringLimit()));
+  }
+
+  /** Leave a veteran's kept item home, or bring it again (NgPlusState.setKeptItemHome). */
+  setNgPlusItemHome(id, uid, home) {
+    return this._commitNgPlus((state) => setKeptItemHome(state, id, uid, home));
   }
 
   /** A run's end (NgPlusRun.ngPlusRunEnd), applied inside the run's payout write. */

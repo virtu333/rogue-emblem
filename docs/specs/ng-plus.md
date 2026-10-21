@@ -327,3 +327,14 @@ picked, and an NG+ run already under way on Nightfall plays and settles its Barr
 Nightfall and Black Sun. `sim/ngplus.js` still harvests veterans from Nightfall runs: the
 scripted player wins those far more often, and a harvest only reads the survivors
 (`rideCandidates`), so it stays a fair stand-in for Black Sun veterans.
+
+## 15. Kept legends and leaving an item home (2026-10-18)
+
+A kept Legend or Epic weapon is the run's one copy (`LegendaryOwnership`): while it rides, loot, shops and rewards offer no other. So that a Barracks member is never stuck with that, each kept item can be **left home** (the Barracks record view's toggle per item, `NgPlusState.setKeptItemHome`, saved on the record as `homeUids`, absent when empty). The record keeps a left-home item untouched: a run never places it, never writes it into the ledger (the run can find the weapon fresh) and never reads it at the run's end.
+
+- **One copy a run.** Two records may each keep the same legend (one found while the other's copy was home). A run places the first copy it meets (the starting lords, then the brought veterans, then a lord who joins later) and leaves any later copy home for that run, as it does a kept copy of a legend the run already found before that lord joined (`NgPlusRun.applyKit`, `isDuplicateLegendary`).
+- **The run's end** reads again only the kept items that rode (`members[].keptUids`, passed in each `refresh` entry as `keptUids`); a refresh written without that list (a run started before this) still replaces the record's items whole, as before.
+- **Words.** The difficulty screen's NG+ line names each kept legend that rides and its keeper ("Kept legends ride along, so you won't find another copy this run: Ragnarok (Edric)."); the Barracks record warns under a riding legend; "Who rides again?" explains a legend picked to keep; a reward's notes under the cards say the one-per-run rule in full (a phone's card can clip its tag row).
+- An older build drops `homeUids` when it rewrites the record, so the item simply rides again.
+
+Tests: `tests/NgPlusOnePerRun.test.js`. Review: `?devScene=homebase&preset=ngplus` (Edric's kit holds Ragnarok).
