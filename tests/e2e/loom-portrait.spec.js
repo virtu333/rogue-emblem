@@ -669,18 +669,19 @@ test.describe('upright 390x844: keyboard order and lords', () => {
     const travel = route.getByRole('button', { name: 'Travel', exact: true });
     await expect(travel).toBeEnabled();
 
-    // 5. Upright: the card, Travel, then Menu, Roster and the lords.
+    // 5. Upright: the card, Travel, then Menu, Roster, Redraw road and the lords.
+    const upright = ['Travel', 'Menu', 'Roster', 'Redraw road', 'Edric', 'Sera'];
     let order = await sheetTabOrder(page);
-    expect(order.labels.slice(-5)).toEqual(['Travel', 'Menu', 'Roster', 'Edric', 'Sera']);
+    expect(order.labels.slice(-upright.length)).toEqual(upright);
     expect(order.visited).toEqual(order.reading);
 
-    // Sideways (the shell drops portrait-ui on the turn): Menu and Roster lead again.
+    // Sideways (the shell drops portrait-ui on the turn): Menu, Roster and Redraw lead again.
     await travel.focus();
     await page.setViewportSize({ width: 844, height: 390 });
     await expectPortraitUi(page, false);
     await expect(travel).toBeFocused();
     order = await sheetTabOrder(page);
-    expect(order.labels.slice(0, 2)).toEqual(['Menu', 'Roster']);
+    expect(order.labels.slice(0, 3)).toEqual(['Menu', 'Roster', 'Redraw road']);
     expect(order.labels.slice(-3)).toEqual(['Travel', 'Edric', 'Sera']);
     expect(order.visited).toEqual(order.reading);
 
@@ -691,7 +692,7 @@ test.describe('upright 390x844: keyboard order and lords', () => {
     await expectPortraitUi(page);
     await expect(menu).toBeFocused();
     order = await sheetTabOrder(page);
-    expect(order.labels.slice(-5)).toEqual(['Travel', 'Menu', 'Roster', 'Edric', 'Sera']);
+    expect(order.labels.slice(-upright.length)).toEqual(upright);
     expect(errors).toEqual([]);
   });
 

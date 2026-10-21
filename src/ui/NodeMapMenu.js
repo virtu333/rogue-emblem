@@ -240,6 +240,7 @@ export class NodeMapMenu {
     );
     const redraw = this._redrawButton();
     if (redraw) actions.append(redraw);
+    actions.classList.toggle('has-redraw', Boolean(redraw));
     this._syncRosterFlag();
     this.detail = element('section', null, 're-scroll re-node-detail re-loom-card');
     this.detail.setAttribute('aria-live', 'polite');
@@ -660,10 +661,12 @@ export class NodeMapMenu {
       },
       're-btn re-loom-redraw',
     );
-    el.append(element('span', view.label), element('small', view.line));
+    el.append(element('span', 'Redraw'));
+    el.setAttribute('aria-label', view.label);
+    el.setAttribute('aria-description', view.reason || view.line);
     el.setAttribute('aria-disabled', String(view.disabled));
     el.classList.toggle('is-disabled', view.disabled);
-    el.title = view.reason || `Redraw the road ahead: ${view.line}`;
+    el.title = view.reason ? `${view.label}: ${view.reason}` : `${view.label}: ${view.line}`;
     el.dataset.focus = 'route-redraw';
     return el;
   }
