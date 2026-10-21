@@ -38,7 +38,7 @@ import {
   REWARD_FORGE_STATS,
 } from '../engine/LootRewardCommands.js';
 import { isImbueStone, getImbueList } from '../engine/ImbueSystem.js';
-import { forgeStatBlock, forgeStatusLine } from '../engine/ForgeSystem.js';
+import { forgePullsForward, forgeStatBlock, forgeStatusLine } from '../engine/ForgeSystem.js';
 import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -888,7 +888,7 @@ export class MobileRewards {
           describe: (entry) =>
             imbue
               ? entry.description
-              : forgeImpactLine(unit, weapon, entry.key) || 'Permanent weapon upgrade.',
+              : `${forgePullsForward(weapon, entry.key) ? 'Wakes a sleeping forge early. ' : ''}${forgeImpactLine(unit, weapon, entry.key) || 'Permanent weapon upgrade.'}`,
           blocked: (entry) => (imbue ? '' : forgeStatBlock(weapon, entry.key)),
           final: true,
           apply: (entry) => apply(weapon, imbue ? entry.id : entry.key),

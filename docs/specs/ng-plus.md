@@ -352,3 +352,14 @@ count sleeping forges, so every forge view now counts them too: "Fully forged 15
 in the roster and item details, "Might is at its forge limit (5/5 · 2 asleep)." when a stone or
 shop forge is refused, and the reward picker lists a full weapon with that reason instead of
 hiding it (`LootRewardCommands.rewardWeaponBlock` / `rewardWeaponCandidates`).
+
+### 15.1 Pull forward (2026-10-21)
+
+The forge cap stays 15 with sleeping forges counted, but a forge with no room left no longer
+fails on a kept weapon: a forge of a stat whose cap is reached (in total or for that stat) wakes
+the earliest sleeping forge **of that stat** (`ForgeSystem.forgePullsForward`, inside
+`applyForge`, so a shop forge, a whetstone, an event's forge and a blessing's all do it). It costs
+what forging that stat costs the weapon as it stands awake (the shop wake's price), leaves the
+weapon's price as it was (the sleeping forge was always counted in it) and stays a kept forge:
+the act start then wakes one fewer, and the ride's carry of four new forges is untouched. A stat
+with nothing asleep and no room is still refused. The shop's Wake button (§13.1) stays.

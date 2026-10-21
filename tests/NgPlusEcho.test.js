@@ -4,7 +4,12 @@
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from './testData.js';
 import { RunManager } from '../src/engine/RunManager.js';
-import { applyForge, canForge, forgeStatBlock, getForgeCost } from '../src/engine/ForgeSystem.js';
+import {
+  applyForge,
+  canForge,
+  forgePullsForward,
+  forgeStatBlock,
+} from '../src/engine/ForgeSystem.js';
 import {
   dormantForgeCount,
   keptForgeAwakeLimit,
@@ -161,18 +166,30 @@ describe('kept forges sleep and wake', () => {
     lullForges(sword, 2); // awake might, hit; asleep crit, might, hit, crit, might
     expect(applyForge(sword, 'might', 0, { free: true }).success).toBe(true);
     expect(applyForge(sword, 'might', 0, { free: true }).success).toBe(true);
-    expect(forgeStatBlock(sword, 'might')).toBe('Might is at its forge limit (5/5 · 2 asleep).');
-    expect(getForgeCost(sword, 'might')).toBe(-1);
+    // Might is full counting its sleepers: a third Might forge pulls a sleeping one forward.
+    expect(forgePullsForward(sword, 'might')).toBe(true);
+    expect(applyForge(sword, 'might', 0, { free: true })).toMatchObject({
+      success: true,
+      pulledForward: true,
+    });
+    expect(sword._forgeLevel + dormantForgeCount(sword)).toBe(9);
+    expect(dormantForgeCount(sword)).toBe(4);
     wakeForges(sword, Infinity);
     expect(sword._forgeLevel).toBe(9);
     expect(sword.might).toBe(catalog('Silver Sword').might + 5 * FORGE_BONUSES.might);
-    // The total cap: a weapon near +15 counting its sleeping forges takes no more.
+    // The total cap: a weapon at +15 counting its sleeping forges takes no new forge; a forge
+    // of a stat that sleeps wakes it, one of a stat that doesn't is refused.
     const full = forgedSword('itm_full');
     for (const stat of ['weight', 'weight', 'hit', 'hit', 'crit', 'crit', 'crit'])
       applyForge(full, stat, 0, { free: true });
     lullForges(full, 2);
     applyForge(full, 'might', 0, { free: true });
     expect(full._forgeLevel + dormantForgeCount(full)).toBe(15);
+    expect(canForge(full)).toBe(true);
+    expect(applyForge(full, 'weight', 0, { free: true }).pulledForward).toBe(true);
+    expect(full._forgeLevel + dormantForgeCount(full)).toBe(15);
+    wakeForges(full, Infinity);
+    expect(full._forgeLevel).toBe(15);
     expect(canForge(full)).toBe(false);
   });
 

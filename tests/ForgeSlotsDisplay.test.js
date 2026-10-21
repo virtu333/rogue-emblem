@@ -7,6 +7,7 @@ import {
   applyForge,
   forgeFullText,
   forgeProgressText,
+  forgePullsForward,
   forgeSlots,
   forgeStatBlock,
   forgeStatProgressText,
@@ -61,30 +62,40 @@ describe('forge slots count sleeping forges', () => {
     expect(forgeStatusLine(catalog('Heal'))).toBe('');
   });
 
-  it('a stat full with sleeping forges names the stat and its sleepers', () => {
+  it('a stat full of awake forges names the stat; one with sleepers pulls them forward', () => {
     // Failure: a Might whetstone is refused on a "+2" weapon with no reason the player can see.
-    const sword = keptSword(['might', 'hit', 'might', 'might', 'might', 'might'], 2);
-    expect(forgeStatProgressText(sword, 'might')).toBe('5/5 · 4 asleep');
-    expect(forgeStatBlock(sword, 'might')).toBe('Might is at its forge limit (5/5 · 4 asleep).');
-    expect(forgeStatBlock(sword, 'hit')).toBe('');
+    const awake = { ...catalog('Silver Sword'), uid: 'itm_awake' };
+    for (let i = 0; i < 5; i++) applyForge(awake, 'might', 0, { free: true });
+    expect(forgeStatProgressText(awake, 'might')).toBe('5/5');
+    expect(forgeStatBlock(awake, 'might')).toBe('Might is at its forge limit (5/5).');
+    const kept = keptSword(['might', 'hit', 'might', 'might', 'might', 'might'], 2);
+    expect(forgeStatProgressText(kept, 'might')).toBe('5/5 · 4 asleep');
+    expect(forgeStatBlock(kept, 'might')).toBe('');
+    expect(forgePullsForward(kept, 'might')).toBe(true);
+    expect(forgePullsForward(kept, 'hit')).toBe(false);
   });
 });
 
 describe('a whetstone reward shows full weapons with the reason', () => {
   it('lists every forgeable weapon, full ones blocked with why', () => {
     // Failure: a full weapon vanishes from the list, so the stone looks broken.
-    const full = keptSword(FULL, 2);
-    const mightCapped = keptSword(['might', 'might', 'might', 'might', 'might'], 2);
+    const full = { ...catalog('Silver Sword'), uid: 'itm_full' };
+    for (const stat of FULL) applyForge(full, stat, 0, { free: true });
+    const mightCapped = { ...catalog('Silver Sword'), uid: 'itm_capped' };
+    for (let i = 0; i < 5; i++) applyForge(mightCapped, 'might', 0, { free: true });
+    const kept = keptSword(FULL, 2);
     const staff = catalog('Heal');
-    const weapons = [full, mightCapped, staff];
-    expect(rewardWeaponCandidates(whetstone('might'), weapons)).toEqual([full, mightCapped]);
+    const weapons = [full, mightCapped, kept, staff];
+    expect(rewardWeaponCandidates(whetstone('might'), weapons)).toEqual([full, mightCapped, kept]);
 
     expect(rewardWeaponEligible(whetstone('choice'), full)).toBe(false);
-    expect(rewardWeaponBlock(whetstone('choice'), full)).toBe('Fully forged (15/15 · 13 asleep).');
+    expect(rewardWeaponBlock(whetstone('choice'), full)).toBe('Fully forged (15/15).');
     expect(rewardWeaponBlock(whetstone('might'), mightCapped)).toBe(
-      'Might is at its forge limit (5/5 · 3 asleep).',
+      'Might is at its forge limit (5/5).',
     );
     expect(rewardWeaponBlock(whetstone('hit'), mightCapped)).toBe('');
-    expect(rewardWeaponBlock(whetstone('choice'), mightCapped)).toBe('');
+    // A fully forged kept weapon still takes a stone: it wakes a sleeping forge early.
+    expect(rewardWeaponBlock(whetstone('choice'), kept)).toBe('');
+    expect(rewardWeaponBlock(whetstone('hit'), kept)).toBe('');
   });
 });
