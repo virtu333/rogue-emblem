@@ -345,18 +345,19 @@ export class TacticianAgent {
     const bossField = boss ? this._field(boss, u.moveType) : null;
     // A defeat map's remaining targets, on the same footing as the boss (path cost, not tiles).
     const marks = boss ? [] : this._marks();
-    // A Vigil's ward circle this unit is claimed for: every plan is pulled to it, and standing
-    // on it (where the enemy phase breaks it) is worth far more than anything it could strike.
+    // A Vigil's ward circle this unit is claimed for: every plan is pulled to it, and Unweaving
+    // it (the action that breaks it: standing there alone only stops its calls) is worth far
+    // more than anything it could strike.
     const circle = this._claims?.get(u) || null;
     const circleField = circle ? this._field(circle, u.moveType) : null;
+    const onCircle = (tile) =>
+      Boolean(circle) && tile.col === circle.col && tile.row === circle.row;
     const circlePull = (tile) =>
-      !circle
+      !circle || onCircle(tile)
         ? 0
-        : tile.col === circle.col && tile.row === circle.row
-          ? 40
-          : -3 *
-            (circleField.get(key(tile.col, tile.row)) ??
-              20 + gridDistance(tile.col, tile.row, circle.col, circle.row));
+        : -3 *
+          (circleField.get(key(tile.col, tile.row)) ??
+            20 + gridDistance(tile.col, tile.row, circle.col, circle.row));
     const markFields = marks.map((m) => this._field(m, u.moveType));
     const nearestEnemyDist = (tile) =>
       boss
@@ -465,6 +466,8 @@ export class TacticianAgent {
       if (npc) score -= 2.5 * (npcField.get(key(tile.col, tile.row)) ?? 30);
       score += pull;
       consider({ unit: u, tile, action: 'Wait', target: null, score: score - 4 });
+      if (onCircle(tile))
+        consider({ unit: u, tile, action: 'Unweave', target: null, score: score + 40 });
     }
     return best;
   }

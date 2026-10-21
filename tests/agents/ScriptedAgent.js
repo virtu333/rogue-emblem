@@ -53,6 +53,11 @@ export class ScriptedAgent {
       (a) => a.type === 'choose_action' && a.payload.label === 'Escape',
     );
     if (escape) return escape;
+    // A Vigil circle under the unit: Unweave it (it breaks now; standing alone only stops calls).
+    const unweave = legalActions.find(
+      (a) => a.type === 'choose_action' && a.payload.label === 'Unweave',
+    );
+    if (unweave) return unweave;
 
     // Priority 1b: a defeat map's targets are the win condition (boss-like priority): strike one
     // before anything else in reach, the weakest first. The guards need not fall.
@@ -129,7 +134,7 @@ export class ScriptedAgent {
     if (moves.length > 0) {
       const b = this.driver.battle;
       const unit = b.selectedUnit;
-      // A Vigil's ward: the unit claimed for a standing circle walks to it (and holds it).
+      // A Vigil's ward: the unit claimed for a standing circle walks to it (then Unweaves it).
       const circle = unit ? this._claimedCircle(unit) : null;
       if (circle) {
         const cost = (action) => this._pathCost(unit, action.payload, circle);

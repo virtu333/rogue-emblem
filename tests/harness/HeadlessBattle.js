@@ -118,6 +118,7 @@ import { crumbleFor, isNecromancer } from '../../src/engine/Necromancy.js';
 import { entityKitWorld, initialEntityKitState } from '../../src/engine/EntityKit.js';
 import { initialHammerfallState, markedTileKeys } from '../../src/engine/IronGuardian.js';
 import {
+  canUnweave,
   entityLimbsOnFall,
   hammerfallOnFall,
   processEntityLimbs,
@@ -125,6 +126,7 @@ import {
   processNecromancy,
   processVigil,
   settleVigilWards,
+  unweaveVigilCircle,
 } from './headlessConjuring.js';
 import { createPlayerKnowledge, unitPositionEntry } from '../../src/engine/PlayerKnowledge.js';
 import {
@@ -647,6 +649,9 @@ export class HeadlessBattle {
       actions.push({ label: 'Escape', supported: true });
     }
 
+    // Unweave: on a living Voice's unbroken Vigil circle (VigilController.canUnweave)
+    if (canUnweave(this, unit)) actions.push({ label: 'Unweave', supported: true });
+
     // Smash: known remains in weapon reach (mirrors BattleScene / ZombieRemainsController)
     if (this._findRemainsTargets(unit).length > 0)
       actions.push({ label: 'Smash', supported: true });
@@ -725,6 +730,10 @@ export class HeadlessBattle {
         break;
       case 'Escape':
         this._executeEscape(this.selectedUnit);
+        break;
+      case 'Unweave':
+        unweaveVigilCircle(this, this.selectedUnit);
+        this._finishUnitAction(this.selectedUnit);
         break;
       case 'Talk': {
         const target = this._findTalkTarget(this.selectedUnit);

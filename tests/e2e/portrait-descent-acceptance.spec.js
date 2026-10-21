@@ -165,7 +165,7 @@ for (const vp of PORTRAIT_PHONES.slice(0, 2)) {
       await selectNode(page, 'vigil');
       const vigilNote = route.locator('.re-loom-card .re-loom-rite-note-line');
       await expect(vigilNote).toHaveText(
-        'Stand on a circle to stop its summons. Its Voice still speaks.',
+        "Unweave a circle to break its Voice's ward. Standing on it stops its summons.",
       );
       await vigilNote.scrollIntoViewIfNeeded();
       await expectWholeInViewport(vigilNote);

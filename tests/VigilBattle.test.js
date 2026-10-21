@@ -43,6 +43,13 @@ import { GameDriver } from './harness/GameDriver.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 import { loadGameData } from './testData.js';
 import { liveRenderer } from './harness/LiveRenderer.js';
+import { UI_DEPTHS } from '../src/utils/uiDepths.js';
+
+/** A stand-in for a Phaser Graphics: records its depth and accepts any draw call. */
+function fakeGraphics() {
+  const g = { depth: 0, destroy() {}, setDepth: (d) => ((g.depth = d), g) };
+  return new Proxy(g, { get: (t, k) => (k in t ? t[k] : () => g) });
+}
 
 const data = withDevSetPiece(loadGameData(), 'dev_vigil');
 const VOICES = ['voice_calling', 'voice_binding', 'voice_feeding', 'voice_waking'];
@@ -329,9 +336,11 @@ describe('the markers', () => {
     const { scene } = sceneOf();
     const made = drawing(scene);
     const ctrl = new VigilController(scene).create();
-    expect(made).toHaveLength(8);
+    // Eight markers and, over the units, each one's pair pips.
+    expect(made).toHaveLength(16);
     expect(made.map((g) => g.name).sort()).toEqual([
       ...Array(4).fill('vigil-circle-open'),
+      ...['1', '1', '2', '2', '3', '3', '4', '4'].map((n) => `vigil-pips-${n}`),
       ...Array(4).fill('vigil-sigil-lit'),
     ]);
     const waking = ctrl.shown.sigils.find((s) => s.id === 'sigil_waking');
@@ -343,11 +352,11 @@ describe('the markers', () => {
     expect(scene.tweens.add).toHaveBeenCalledTimes(8);
     ctrl.sync();
     ctrl.sync();
-    expect(made).toHaveLength(8); // nothing changed: nothing redrawn
+    expect(made).toHaveLength(16); // nothing changed: nothing redrawn
     voiceOf(scene.enemyUnits, 'voice_binding').col += 1;
     ctrl.sync();
-    expect(made).toHaveLength(16);
-    expect(made.slice(0, 8).every((g) => g.destroyed)).toBe(true);
+    expect(made).toHaveLength(32);
+    expect(made.slice(0, 16).every((g) => g.destroyed)).toBe(true);
     ctrl.destroy();
     expect(made.every((g) => g.destroyed)).toBe(true);
 
@@ -386,7 +395,12 @@ describe('the markers and the fog', () => {
     scene._reduceMotion = () => true;
     return made;
   }
-  const tiles = (made) => made.map((g) => g.name).sort();
+  // The markers drawn (their pair pips left out: they follow the marker they belong to).
+  const tiles = (made) =>
+    made
+      .map((g) => g.name)
+      .filter((n) => !n?.startsWith('vigil-pips-'))
+      .sort();
 
   it('a marker is drawn only on a tile the fog shows: a sigil in the dark names no hidden Voice', () => {
     // Failure: every sigil is drawn from turn 1, and a Voice stands on its sigil, so the board
@@ -413,8 +427,7 @@ describe('the markers and the fog', () => {
     dark.grid.isVisible = (c, r) => c === sigil.col && r === sigil.row;
     const ctrl2 = new VigilController(dark);
     ctrl2.sync();
-    expect(none).toHaveLength(1);
-    expect(none[0].name).toBe('vigil-sigil-lit');
+    expect(tiles(none)).toEqual(['vigil-sigil-lit']);
   });
 
   it("under Seer's Eye the fogged foes show, so every marker does; the same board without it shows none", () => {
@@ -425,7 +438,7 @@ describe('the markers and the fog', () => {
     markFoesShown(scene.grid, { foesShown: true });
     const withEye = recording(scene);
     new VigilController(scene).create();
-    expect(withEye).toHaveLength(8);
+    expect(tiles(withEye)).toHaveLength(8);
   });
 
   it('a fallen Voice’s sigil and closed circle stay out of the dark too', () => {
@@ -942,9 +955,10 @@ describe('a Hollowed whose sprite fails to draw', () => {
 
 // The Vigil's shields in the scene (engine/Vigil.js wards and choir; the shipped Vigil turns
 // them on, the review fixture is shielded here). Ways this breaks:
-//   - the scene breaks a circle the harness would not, keeps calling from it, or keeps the
-//     Voice's ward up after its circle broke
-//   - a break in the fog plays its banner or sound
+//   - standing on a circle breaks it (only Unweave does); Unweave breaks one the harness would
+//     not, is offered off a circle or to a unit that acted, saves its checkpoint after drawing,
+//     leaves Canto open, keeps calling from the circle, or keeps the Voice's ward up after
+//   - an Unweave in the fog plays its banner or sound
 //   - a checkpoint drops the broken circles, a malformed one passes validation, or a resume
 //     leaves the restored Voices unstamped (they could be hurt while warded, or not at all)
 //   - the Waking keeps its choir after the last other Voice falls
@@ -965,17 +979,57 @@ describe('the shields in the scene', () => {
     Object.assign(scene.playerUnits[0], { col: circle.col, row: circle.row });
   };
 
-  it('a unit on a circle breaks it: the Voice’s ward drops, the circle calls no more', async () => {
+  /** The scene in a player phase, `unit` on the circle `id` with its action menu open. */
+  const atPlayerTurn = (scene, turn = 2) => {
+    Object.assign(scene, {
+      battleState: 'UNIT_ACTION_MENU',
+      turnManager: { currentPhase: 'player', turnNumber: turn },
+      hideActionMenu: vi.fn(),
+      showActionMenu: vi.fn(),
+      finishUnitAction: vi.fn(async () => {}),
+      _recoverUnitActionError: vi.fn(async () => {}),
+    });
+    return scene;
+  };
+
+  it('standing on a circle at the phase start breaks nothing: the ward holds, its calls stop', async () => {
     const { scene, b, audio } = shieldedScene();
     for (const id of VOICES) expect(voiceOf(scene.enemyUnits, id).warded, id).toBe(true);
     standOnCircle(scene, b, 'circle_calling');
     await scene.processVigil();
-    expect(scene._vigilState.broken).toEqual({ circle_calling: 1 });
-    expect(banners(scene)[0]).toBe(VIGIL_BANNERS.broken);
+    expect(scene._vigilState).not.toHaveProperty('broken');
+    expect(voiceOf(scene.enemyUnits, 'voice_calling')).toMatchObject({ warded: true, wardMark: 1 });
+    expect(banners(scene)).not.toContain(VIGIL_BANNERS.broken);
+    expect(audio.playSFX).not.toHaveBeenCalledWith(WARD_BREAK_SFX);
+    const fromIt = called(scene.enemyUnits).filter((u) => u._summonedBy === 'circle:circle_calling'); // prettier-ignore
+    expect(fromIt).toEqual([]);
+    expect(called(scene.enemyUnits)).toHaveLength(3);
+  });
+
+  it('Unweave breaks the circle at once and ends the action: the ward drops, it calls no more', async () => {
+    const { scene, b, audio } = shieldedScene();
+    atPlayerTurn(scene, 2);
+    const unit = scene.playerUnits[0];
+    const vigil = new VigilController(scene);
+    expect(vigil.canUnweave(unit)).toBe(false); // not on a circle
+    standOnCircle(scene, b, 'circle_calling');
+    expect(vigil.canUnweave(unit)).toBe(true);
+    // The checkpoint is written before anything is drawn, and already holds the break.
+    let saved = null;
+    scene._captureSuspendCheckpoint = vi.fn(() => {
+      saved = { broken: { ...scene._vigilState.broken }, banners: banners(scene).length };
+      return true;
+    });
+    expect(await vigil.unweave(unit)).toBe(true);
+    expect(saved).toEqual({ broken: { circle_calling: 2 }, banners: 0 });
+    expect(scene._pendingActionCompletion).toBeNull();
+    expect(scene.finishUnitAction).toHaveBeenCalledWith(unit, expect.objectContaining({ skipCanto: true })); // prettier-ignore
+    expect(scene._vigilState.broken).toEqual({ circle_calling: 2 });
+    expect(banners(scene)).toContain(VIGIL_BANNERS.broken);
     expect(audio.playSFX).toHaveBeenCalledWith(WARD_BREAK_SFX);
     const calling = voiceOf(scene.enemyUnits, 'voice_calling');
     expect(calling).not.toHaveProperty('warded');
-    // "Ward broken" over the Voice whose ward fell.
+    expect(calling).not.toHaveProperty('wardMark');
     expect(scene.showMinorHintAt).toHaveBeenCalledWith(
       calling.col * 32 + 16,
       calling.row * 32 + 16 - 24,
@@ -984,15 +1038,62 @@ describe('the shields in the scene', () => {
     );
     expect(voiceOf(scene.enemyUnits, 'voice_binding').warded).toBe(true);
     expect(voiceOf(scene.enemyUnits, 'voice_waking').wardReason).toBe('both');
+    // Broken, it is nothing to Unweave again, and its circle calls no more once stepped off.
+    expect(vigil.canUnweave(unit)).toBe(false);
+    Object.assign(unit, { col: 0, row: 0 });
+    Object.assign(scene, { turnManager: { currentPhase: 'enemy', turnNumber: 2 } });
+    await scene.processVigil();
     const fromIt = called(scene.enemyUnits).filter((u) => u._summonedBy === 'circle:circle_calling'); // prettier-ignore
     expect(fromIt).toEqual([]);
     expect(called(scene.enemyUnits)).toHaveLength(3);
   });
 
-  it('a break in the fog: the same break and ward, no banner and no sound', async () => {
-    const { scene, b, audio } = shieldedScene({ visible: ['0,10', '1,9'] });
+  it('each sigil and its circle wear the same pips, over the units', () => {
+    const { scene } = shieldedScene();
+    scene.add = { graphics: () => fakeGraphics() };
+    const vigil = new VigilController(scene);
+    vigil.sync();
+    const marks = (list) => Object.fromEntries(list.map((m) => [m.id, m.mark]));
+    expect(marks(vigil.shown.sigils)).toEqual({
+      sigil_calling: 1,
+      sigil_binding: 2,
+      sigil_feeding: 3,
+      sigil_waking: 4,
+    });
+    expect(marks(vigil.shown.circles)).toEqual({
+      circle_calling: 1,
+      circle_binding: 2,
+      circle_feeding: 3,
+      circle_waking: 4,
+    });
+    const pips = vigil.objects.filter((g) => g.name?.startsWith('vigil-pips-'));
+    expect(pips.map((g) => g.name).sort()).toEqual(
+      ['1', '1', '2', '2', '3', '3', '4', '4'].map((n) => `vigil-pips-${n}`),
+    );
+    for (const g of pips) expect(g.depth).toBe(UI_DEPTHS.WARD);
+  });
+
+  it('Unweave is offered only to a ready player unit on a living Voice’s unbroken circle', () => {
+    const { scene, b } = shieldedScene();
+    atPlayerTurn(scene);
+    const vigil = new VigilController(scene);
+    const unit = scene.playerUnits[0];
     standOnCircle(scene, b, 'circle_calling');
-    await scene.processVigil();
+    expect(vigil.canUnweave(unit)).toBe(true);
+    unit.hasActed = true;
+    expect(vigil.canUnweave(unit)).toBe(false);
+    unit.hasActed = false;
+    const foe = { ...voiceOf(scene.enemyUnits, 'voice_binding'), col: unit.col, row: unit.row };
+    expect(vigil.canUnweave(foe)).toBe(false);
+    scene.enemyUnits = scene.enemyUnits.filter((u) => u.authoredId !== 'voice_calling');
+    expect(vigil.canUnweave(unit)).toBe(false);
+  });
+
+  it('an Unweave in the fog: the same break and ward, no banner and no sound', async () => {
+    const { scene, b, audio } = shieldedScene({ visible: ['0,10', '1,9'] });
+    atPlayerTurn(scene, 1);
+    standOnCircle(scene, b, 'circle_calling');
+    expect(await new VigilController(scene).unweave(scene.playerUnits[0])).toBe(true);
     expect(scene._vigilState.broken).toEqual({ circle_calling: 1 });
     expect(voiceOf(scene.enemyUnits, 'voice_calling')).not.toHaveProperty('warded');
     expect(banners(scene)).not.toContain(VIGIL_BANNERS.broken);
@@ -1003,8 +1104,9 @@ describe('the shields in the scene', () => {
   it('a checkpoint keeps the broken circles; a resume stamps the wards again', async () => {
     const { scene, b } = shieldedScene();
     scene.runManager = { convoy: { weapons: [], consumables: [] }, accessories: [], gold: 0 };
+    atPlayerTurn(scene, 1);
     standOnCircle(scene, b, 'circle_binding');
-    await scene.processVigil();
+    await new VigilController(scene).unweave(scene.playerUnits[0]);
     const state = JSON.parse(JSON.stringify(captureBattleState(scene, { rngSeed: 7 })));
     expect(state.vigilState.broken).toEqual({ circle_binding: 1 });
     expect(validateBattleState(state)).toBe(true);
