@@ -18,6 +18,7 @@
 import {
   addToConsumables,
   addToInventory,
+  canEquip,
   createRecruitUnit,
   equipAccessory,
   equipIfUnarmed,
@@ -27,8 +28,14 @@ import {
 import { applyTraitCreationMods, reapplyTraitGrowthMods } from './TraitSystem.js';
 import { applyRecruitJoinBonus } from './RecruitScaling.js';
 import { unitBaseClassName } from './ClassLineage.js';
-import { lockedSkillIds } from './SkillLoadout.js';
-import { slotKindOf, swornOathSkillId } from './SkillSlots.js';
+import { benchSkillBlock, equipSkill, lockedSkillIds } from './SkillLoadout.js';
+import {
+  equippedOfKind,
+  slotKindFor,
+  slotKindOf,
+  slotsFullFor,
+  swornOathSkillId,
+} from './SkillSlots.js';
 import { everFallenUnits } from './LaidToRest.js';
 import { recordLegendaryGrant } from './LegendaryOwnership.js';
 import { isSignatureWeapon } from './SignatureWeapons.js';
@@ -42,6 +49,7 @@ import {
   isNgPlusRung,
   keptItemKind,
   lordRecordId,
+  packOf,
   sanitizeRecord,
 } from './NgPlusState.js';
 
@@ -88,15 +96,20 @@ function makeRoomForSignature(unit, kept) {
   if (wasEquipped) unit.weapon = null;
 }
 
-/** Put one kept item on the unit (bag, belt, worn) or, with no room, in the army's stores. */
-function placeKeptItem(run, unit, item) {
+/**
+ * Put one kept item on the unit (bag, belt, worn) or, with no room, in the army's stores. A
+ * kept accessory is worn: one the unit started with goes to the accessory pool. `toConvoy`
+ * (the record's Pack) starts a bag item in the convoy instead, the bag when the convoy is full.
+ */
+function placeKeptItem(run, unit, item, { toConvoy = false } = {}) {
   const copy = structuredClone(item);
   const kind = keptItemKind(copy);
   if (kind === 'accessory') {
-    if (!unit.accessory) equipAccessory(unit, copy);
-    else run.accessories.push(copy);
+    const started = equipAccessory(unit, copy);
+    if (started) run.accessories.push(started);
   } else if (kind === 'consumable') {
-    if (!addToConsumables(unit, copy)) run._keepMigratedItem(copy);
+    if (!(toConvoy && run.addToConvoy(copy)) && !addToConsumables(unit, copy))
+      run._keepMigratedItem(copy);
   } else if (kind === 'weapon') {
     // Its forges above the act's limit sleep until a later act (engine/KeptForges.js).
     lullForges(
@@ -104,7 +117,9 @@ function placeKeptItem(run, unit, item) {
       keptForgeAwakeLimit(run.currentAct || 'act1', keptForgeAwakeTable(run.gameData)),
     );
     makeRoomForSignature(unit, copy);
-    if (addToInventory(unit, copy)) {
+    if (toConvoy && run.addToConvoy(copy)) {
+      // Stored, not lost: a convoy copy is still the kept uid, read at the run's end.
+    } else if (addToInventory(unit, copy)) {
       const placed = unit.inventory.at(-1);
       if (isSignatureWeapon(placed) && !unit.weapon) equipWeapon(unit, placed);
       else equipIfUnarmed(unit, placed);
@@ -113,14 +128,46 @@ function placeKeptItem(run, unit, item) {
   recordLegendaryGrant(run, copy);
 }
 
-/** A record's kept skills and items put on the unit (never a second copy of an item held). */
+/**
+ * The Pack's skills take their slots: each one benched goes in, in the Pack's order, benching
+ * an equipped skill of its kind the Pack does not name (the latest first) when the slots are
+ * full. A locked skill (lord, class, Oath) never moves; with nothing to bench it stays benched.
+ */
+function equipPackSkills(run, unit, equip) {
+  const gameData = run.gameData || {};
+  const want = new Set(equip);
+  for (const skillId of equip) {
+    if (!(unit.benchedSkills || []).includes(skillId)) continue;
+    if (!slotsFullFor(unit, skillId, gameData.skills)) {
+      equipSkill(unit, skillId, null, gameData);
+      continue;
+    }
+    const kind = slotKindFor(unit, skillId, gameData.skills);
+    const out = equippedOfKind(unit, kind, gameData.skills)
+      .filter((id) => !want.has(id) && !benchSkillBlock(unit, id, gameData))
+      .at(-1);
+    if (out) equipSkill(unit, skillId, out, gameData);
+  }
+  unit.benchedUnseen = (unit.benchedUnseen || []).filter((id) => !want.has(id));
+}
+
+/**
+ * A record's kept skills and items put on the unit (never a second copy of an item held),
+ * set out as its Pack says (NgPlusState.packOf: the weapon held, the items in the convoy, the
+ * skills equipped).
+ */
 function applyKit(run, unit, record) {
   const skillsData = run.gameData?.skills;
+  const pack = packOf(record);
   for (const skillId of record.keptSkills || []) learnSkill(unit, skillId, { skillsData });
+  equipPackSkills(run, unit, pack.equip);
   if (!Array.isArray(run.accessories)) run.accessories = [];
   const held = heldItemsByUid(run);
   for (const item of record.keptItems || [])
-    if (!isId(item?.uid) || !held.has(item.uid)) placeKeptItem(run, unit, item);
+    if (!isId(item?.uid) || !held.has(item.uid))
+      placeKeptItem(run, unit, item, { toConvoy: pack.convoy.includes(item.uid) });
+  const wield = pack.wield && (unit.inventory || []).find((w) => w?.uid === pack.wield);
+  if (wield && canEquip(unit, wield)) equipWeapon(unit, wield);
 }
 
 /** What a unit's traits add to its growths (the growth half of their creation mods). */

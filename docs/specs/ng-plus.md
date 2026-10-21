@@ -327,3 +327,28 @@ picked, and an NG+ run already under way on Nightfall plays and settles its Barr
 Nightfall and Black Sun. `sim/ngplus.js` still harvests veterans from Nightfall runs: the
 scripted player wins those far more often, and a harvest only reads the survivors
 (`rideCandidates`), so it stays a fair stand-in for Black Sun veterans.
+
+## 15. The Pack, and forge slots shown whole (2026-10-21)
+
+Playtest feedback (Jeff, via Dave): every NG+ run he redid each veteran's gear by hand, and kept
+weapons looked unfinished when they were not.
+
+**The Pack** (`NgPlusState.packOf` / `setPack`, saved on the record as `pack`; the meta command
+`setNgPlusPack`; the Barracks' veteran page, `ui/ngPlusModel.packView`). Set once per veteran,
+used every NG+ run by `NgPlusRun.applyKit`:
+- `wield`: the kept weapon it starts holding (equipped when it can wield it).
+- `convoy`: kept bag items that start in the convoy (the bag if the convoy is full). They stay
+  kept: a convoy copy is the same uid, read at the run's end like any other.
+- `equip`: kept skills that start equipped (at most `MAX_SKILLS` skills and `MAX_ABILITIES`
+  abilities, `pack_full` past that). Each benched one goes in, benching an equipped skill of its
+  kind the Pack does not name (latest first); lord, class and Oath skills never move.
+- A kept accessory is always worn, Pack or not: the one the unit started with goes to the pool.
+Ids the record no longer keeps drop out on read. A build from before the Pack rebuilds records
+through its own whitelist and drops `pack`, so the veteran sets out as before there: nothing is
+lost but the preference.
+
+**Forge slots** (`ForgeSystem.forgeSlots`, `forgeProgressText`, `forgeStatusLine`): the forge caps
+count sleeping forges, so every forge view now counts them too: "Fully forged 15/15 · 13 asleep"
+in the roster and item details, "Might is at its forge limit (5/5 · 2 asleep)." when a stone or
+shop forge is refused, and the reward picker lists a full weapon with that reason instead of
+hiding it (`LootRewardCommands.rewardWeaponBlock` / `rewardWeaponCandidates`).

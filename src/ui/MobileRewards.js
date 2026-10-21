@@ -31,12 +31,14 @@ import {
   bundleTargetBlock,
   applyRewardBundle,
   applyAccessoryReward,
+  rewardWeaponBlock,
+  rewardWeaponCandidates,
   rewardWeaponEligible,
   applyRewardForge,
   REWARD_FORGE_STATS,
 } from '../engine/LootRewardCommands.js';
 import { isImbueStone, getImbueList } from '../engine/ImbueSystem.js';
-import { forgeStatBlock } from '../engine/ForgeSystem.js';
+import { forgeStatBlock, forgeStatusLine } from '../engine/ForgeSystem.js';
 import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -810,7 +812,11 @@ export class MobileRewards {
         choices: run.roster,
         label: (unit) => unit.name,
         blocked: (unit) =>
-          unit.inventory?.some((w) => rewardWeaponEligible(item, w)) ? '' : 'No eligible weapons',
+          unit.inventory?.some((w) => rewardWeaponEligible(item, w))
+            ? ''
+            : !isImbueStone(item) && rewardWeaponCandidates(item, unit.inventory).length
+              ? 'Weapons at their forge limit'
+              : 'No eligible weapons',
         describe: () => 'Choose the unit carrying the weapon.',
         next: (unit) => this.weaponStep(item, unit),
       });
@@ -855,15 +861,19 @@ export class MobileRewards {
     const needsChoice = item.forgeStat === 'choice' || item.imbueId === 'choice';
     this.pushStep({
       title: unit.name,
-      choices: inventoryDisplayOrder(unit).filter((w) => rewardWeaponEligible(item, w)),
+      // Every weapon the stone could touch, a full one too, so a weapon that looks unfinished
+      // (an NG+ weapon's sleeping forges take slots) says why it takes no more.
+      choices: rewardWeaponCandidates(item, inventoryDisplayOrder(unit)).sort(
+        (a, b) => Number(!!rewardWeaponBlock(item, a)) - Number(!!rewardWeaponBlock(item, b)),
+      ),
       label: (weapon) => `${weapon.name}${weapon === unit.weapon ? ' · Equipped' : ''}`,
       icon: (weapon) => weapon,
-      describe: (weapon) =>
-        `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}`,
+      describe: (weapon) => {
+        const forge = isImbueStone(item) ? '' : forgeStatusLine(weapon);
+        return `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}${forge ? ` · ${forge}` : ''}`;
+      },
       blocked: (weapon) =>
-        unit.inventory.includes(weapon) && rewardWeaponEligible(item, weapon)
-          ? ''
-          : 'Weapon unavailable',
+        unit.inventory.includes(weapon) ? rewardWeaponBlock(item, weapon) : 'Weapon unavailable',
       final: !needsChoice,
       apply: (weapon) => apply(weapon),
       next: (weapon) => {

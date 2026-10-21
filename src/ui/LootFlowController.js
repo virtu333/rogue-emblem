@@ -6,7 +6,9 @@ import {
   canForgeStat,
   applyForge,
   isForged,
-  getStatForgeCount,
+  forgeProgressText,
+  forgeStatBlock,
+  forgeStatProgressText,
 } from '../engine/ForgeSystem.js';
 import {
   canImbue,
@@ -19,7 +21,7 @@ import {
 import { isWorn, wearDisplay } from '../engine/WeaponWear.js';
 import { getDisplayLevel, inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { EQUIPPED_MARKER } from './equippedBadge.js';
-import { FORGE_MAX_LEVEL, FORGE_STAT_CAP, LORE_TEXT_COLOR } from '../utils/constants.js';
+import { LORE_TEXT_COLOR } from '../utils/constants.js';
 import { BoundingFocusController } from './BoundingFocusController.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -260,7 +262,6 @@ export class LootFlowController {
 
     for (let i = 0; i < forgeableWeapons.length; i++) {
       const wpn = forgeableWeapons[i];
-      const level = wpn._forgeLevel || 0;
       const by = topY + i * rowGap;
       const worn = isWorn(wpn);
       const wpnColor = isForged(wpn) ? UI_PALETTE.good : worn ? UI_PALETTE.bad : UI_PALETTE.text;
@@ -293,7 +294,7 @@ export class LootFlowController {
         scene.add.text(
           cam.centerX,
           by + Math.floor(btnH * 0.28),
-          `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${worn ? wearDisplay(wpn).text : `${level}/${FORGE_MAX_LEVEL}`}]`,
+          `Mt:${wpn.might} Ht:${wpn.hit} Cr:${wpn.crit} Wt:${wpn.weight}  [${worn ? wearDisplay(wpn).text : forgeProgressText(wpn)}]`,
           {
             fontFamily: 'Arial',
             fontSize: '9px',
@@ -440,11 +441,11 @@ export class LootFlowController {
 
     for (let i = 0; i < stats.length; i++) {
       const stat = stats[i];
-      const statCount = getStatForgeCount(weapon, stat.key);
-      const atStatCap = statCount >= FORGE_STAT_CAP;
+      // The caps count an NG+ weapon's sleeping forges (ForgeSystem.forgeStatBlock).
+      const atStatCap = Boolean(forgeStatBlock(weapon, stat.key));
       const by = startY + i * (btnH + 10);
       const color = atStatCap ? UI_PALETTE.muted : UI_PALETTE.text;
-      const countLabel = atStatCap ? 'MAX' : `(${statCount}/${FORGE_STAT_CAP})`;
+      const countLabel = `(${forgeStatProgressText(weapon, stat.key)})`;
 
       const btn = scene.add
         .rectangle(cam.centerX, by, 240, btnH, atStatCap ? 0x332222 : UI_HEX.selected, 1)

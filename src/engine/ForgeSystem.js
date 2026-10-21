@@ -62,8 +62,13 @@ function getLegacyDeforgeStat(weapon) {
  * @param {object} weapon
  * @returns {boolean}
  */
+/** True for an item a forge can ever touch (a weapon, not a staff, scroll or stone). */
+export function isForgeableType(weapon) {
+  return Boolean(weapon) && !EXCLUDED_TYPES.has(weapon.type);
+}
+
 export function canForge(weapon) {
-  if (!weapon || EXCLUDED_TYPES.has(weapon.type)) return false;
+  if (!isForgeableType(weapon)) return false;
   // A worn weapon is repaired before it is forged (docs/specs/worn-weapons.md).
   if (isWorn(weapon)) return false;
   return (weapon._forgeLevel || 0) + dormantSteps(weapon).length < FORGE_MAX_LEVEL;
@@ -102,13 +107,57 @@ export function getStatForgeCount(weapon, stat) {
 export function forgeStatBlock(weapon, stat) {
   if (!Object.hasOwn(FORGE_BONUSES, stat)) return 'Invalid forge choice.';
   if (isWorn(weapon)) return 'Repair this weapon before forging it.';
-  if (!canForge(weapon)) return 'This weapon cannot be forged further.';
+  if (!canForge(weapon)) return forgeFullText(weapon);
   const sleeping = dormantOf(weapon, stat);
   if (stat === 'weight' && !(weapon.weight + sleeping * FORGE_BONUSES.weight > 0))
     return 'Already at minimum weight.';
   if (getStatForgeCount(weapon, stat) + sleeping >= FORGE_STAT_CAP)
-    return 'This stat is at its forge limit.';
+    return `${FORGE_STAT_NAMES[stat]} is at its forge limit (${forgeStatProgressText(weapon, stat)}).`;
   return '';
+}
+
+const FORGE_STAT_NAMES = { might: 'Might', crit: 'Crit', hit: 'Hit', weight: 'Weight' };
+const asleepText = (n) => (n ? ` · ${n} asleep` : '');
+
+/**
+ * A weapon's forges as the caps count them: `awake` (on the weapon now), `asleep` (an NG+ kept
+ * weapon's sleeping forges, engine/KeptForges.js), their `total` against `max`, and `full`.
+ * Sleeping forges take a slot, so a weapon that reads "+2" can be fully forged.
+ */
+export function forgeSlots(weapon) {
+  const awake = weapon?._forgeLevel || 0;
+  const asleep = dormantSteps(weapon).length;
+  const total = awake + asleep;
+  return { awake, asleep, total, max: FORGE_MAX_LEVEL, full: total >= FORGE_MAX_LEVEL };
+}
+
+/** "13/15 · 11 asleep", or "4/15" for a weapon with none asleep. */
+export function forgeProgressText(weapon) {
+  const { asleep, total, max } = forgeSlots(weapon);
+  return `${total}/${max}${asleepText(asleep)}`;
+}
+
+/** One stat's forges against its cap, sleeping ones included: "5/5 · 2 asleep". */
+export function forgeStatProgressText(weapon, stat) {
+  const asleep = dormantOf(weapon, stat);
+  return `${getStatForgeCount(weapon, stat) + asleep}/${FORGE_STAT_CAP}${asleepText(asleep)}`;
+}
+
+/** Why a weapon at its forge limit takes no more: "Fully forged (15/15 · 13 asleep)." */
+export function forgeFullText(weapon) {
+  if (!isForgeableType(weapon)) return 'This item cannot be forged.';
+  return `Fully forged (${forgeProgressText(weapon)}).`;
+}
+
+/**
+ * The forge line an item view shows for a forged weapon, or '': "Forges 13/15 · 11 asleep",
+ * "Fully forged 15/15" once nothing more fits.
+ */
+export function forgeStatusLine(weapon) {
+  if (!isForgeableType(weapon)) return '';
+  const slots = forgeSlots(weapon);
+  if (!slots.total) return '';
+  return `${slots.full ? 'Fully forged' : 'Forges'} ${forgeProgressText(weapon)}`;
 }
 export function canForgeStat(weapon, stat) {
   return !forgeStatBlock(weapon, stat);

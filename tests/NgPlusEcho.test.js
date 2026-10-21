@@ -161,7 +161,7 @@ describe('kept forges sleep and wake', () => {
     lullForges(sword, 2); // awake might, hit; asleep crit, might, hit, crit, might
     expect(applyForge(sword, 'might', 0, { free: true }).success).toBe(true);
     expect(applyForge(sword, 'might', 0, { free: true }).success).toBe(true);
-    expect(forgeStatBlock(sword, 'might')).toBe('This stat is at its forge limit.');
+    expect(forgeStatBlock(sword, 'might')).toBe('Might is at its forge limit (5/5 · 2 asleep).');
     expect(getForgeCost(sword, 'might')).toBe(-1);
     wakeForges(sword, Infinity);
     expect(sword._forgeLevel).toBe(9);

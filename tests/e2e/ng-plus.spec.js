@@ -130,7 +130,14 @@ test('buy NG+, pick who rides again, bring a veteran, and start NG+ on Black Sun
   const vet = page.locator('[data-focus^="vet-vet:"]');
   await expect(vet).toContainText('Bjorn');
   await vet.tap();
-  await expect(page.locator('.mu-copy')).toContainText('Skills: Vantage');
+  // The Pack: Vantage starts equipped and the axe is held, every NG+ run, set once.
+  const packSkill = page.locator('[data-focus="pack-skill-vantage"]');
+  await expect(packSkill).toHaveText('Vantage · May wait on the bench');
+  await packSkill.tap();
+  await expect(packSkill).toHaveText('Vantage · Starts equipped');
+  await expect(packSkill).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('[data-focus="pack-item-itm_e2e_axe"]').tap();
+  await expect(page.locator('[data-focus="pack-item-itm_e2e_axe"]')).toHaveText('Steel Axe · Held');
   await page.locator('[data-focus^="bring-"]').tap();
   await expect(vet).toContainText('Bringing');
   expect(
@@ -142,6 +149,11 @@ test('buy NG+, pick who rides again, bring a veteran, and start NG+ on Black Sun
   await waitForScene(page, 'HomeBase');
   await page.locator('[data-focus="ngplus"]').tap();
   await expect(page.locator('[data-focus^="vet-vet:"]')).toContainText('Bringing');
+  await page.locator('[data-focus^="vet-vet:"]').tap();
+  await expect(page.locator('[data-focus="pack-skill-vantage"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
 
   // The difficulty screen offers NG+ on Black Sun only, never on Dusk or Nightfall.
   await page.getByRole('button', { name: 'Begin Run', exact: true }).tap();
