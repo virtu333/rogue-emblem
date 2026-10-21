@@ -7,7 +7,15 @@ import {
   applyStatBoost,
   equipIfUnarmed,
 } from './UnitManager.js';
-import { canForge, canForgeStat, forgeStatBlock, applyForge } from './ForgeSystem.js';
+import {
+  canForge,
+  canForgeStat,
+  forgeFullText,
+  forgeStatBlock,
+  isForgeableType,
+  applyForge,
+} from './ForgeSystem.js';
+import { isWorn } from './WeaponWear.js';
 import {
   canImbue,
   isImbueStone,
@@ -31,6 +39,22 @@ export function rewardWeaponEligible(item, weapon) {
     : item.forgeStat === 'choice'
       ? canForge(weapon)
       : canForgeStat(weapon, item.forgeStat);
+}
+/**
+ * Why a weapon can't take this whetstone or stone, or '' when it can. Forge caps count an NG+
+ * weapon's sleeping forges, so a weapon reading "+2" can be full: the reason says so.
+ */
+export function rewardWeaponBlock(item, weapon) {
+  if (rewardWeaponEligible(item, weapon)) return '';
+  if (isImbueStone(item)) return 'This weapon cannot take an imbue.';
+  if (item.forgeStat !== 'choice') return forgeStatBlock(weapon, item.forgeStat);
+  return isWorn(weapon) ? 'Repair this weapon before forging it.' : forgeFullText(weapon);
+}
+/** A unit's weapons a reward stone is shown against: every forgeable kind, full or not. */
+export function rewardWeaponCandidates(item, weapons) {
+  return (weapons || []).filter((w) =>
+    isImbueStone(item) ? rewardWeaponEligible(item, w) : isForgeableType(w),
+  );
 }
 export function rewardTargetBlock(run, item, target) {
   // A card rolled before this run took its first copy (or by an older build).

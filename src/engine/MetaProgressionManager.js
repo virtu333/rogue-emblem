@@ -16,6 +16,7 @@ import {
   releaseRecord,
   runStartOf,
   setBring,
+  setPack,
   NG_PLUS_UPGRADES,
   bringLimitFor,
   ngPlusUpgradeNextCost,
@@ -1234,6 +1235,11 @@ export class MetaProgressionManager {
 
   setNgPlusBring(ids) {
     return this._commitNgPlus((state) => setBring(state, ids, this.ngPlusBringLimit()));
+  }
+
+  /** A veteran's Pack (NgPlusState.setPack): how it sets out each NG+ run. */
+  setNgPlusPack(id, patch) {
+    return this._commitNgPlus((state) => setPack(state, id, patch));
   }
 
   /** A run's end (NgPlusRun.ngPlusRunEnd), applied inside the run's payout write. */

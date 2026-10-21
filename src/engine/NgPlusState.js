@@ -17,7 +17,8 @@
 //                   //   its growths as the unit ended a run, upgrades and blessings in them,
 //                   //   kept as they are because those cannot be taken back out). `rideLog`
 //                   //   is each ride's keeps, newest last, so a lost run can take back the
-//                   //   commander's latest ride (undoLastRide)
+//                   //   commander's latest ride (undoLastRide). `pack` (optional) is how the
+//                   //   veteran sets out each NG+ run: { wield, convoy, equip } (setPack)
 //     bring,        // up to bringLimitFor(Barracks Wing) recruit record ids for the next NG+ run
 //     pendingRide,  // the last eligible win's survivors, until picked or passed:
 //                   //   { runId, difficultyId, endedAt, candidates: [candidate], picked: [ref] }
@@ -33,7 +34,7 @@
 //
 // A candidate is what NgPlusRun.rideCandidates read off a surviving unit: { ref, kind, name,
 // className, level, tier, recordId, identity (a recruit's), items, skills, skillKinds }.
-import { CONSUMABLE_MAX, INVENTORY_MAX } from '../utils/constants.js';
+import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_ABILITIES, MAX_SKILLS } from '../utils/constants.js';
 import { settleGeminiStat } from './GeminiRing.js';
 
 export const NG_PLUS_STATE_VERSION = 1;
@@ -200,6 +201,65 @@ function sanitizeRideEntry(raw) {
 const sanitizeRideLog = (raw) =>
   (Array.isArray(raw) ? raw : []).map(sanitizeRideEntry).filter(Boolean).slice(-RIDE_LOG_LIMIT);
 
+/**
+ * A veteran's Pack: how it sets out each NG+ run, so its gear needs no redoing (playtest
+ * 2026-10-21). `wield`: the kept weapon it starts holding; `convoy`: kept items that start in
+ * the convoy instead of its bag (never lost: they stay kept); `equip`: kept skills that start
+ * equipped, ahead of any other skill that would hold the slot. Only ids the record still keeps
+ * count; an empty Pack is no Pack. Null when there is nothing to save.
+ */
+function sanitizePack(raw, record) {
+  if (!isRecord(raw)) return null;
+  const kept = (kind) =>
+    new Set(record.keptItems.filter((i) => kind(keptItemKind(i))).map((i) => i.uid));
+  const weapons = kept((k) => k === 'weapon');
+  const bagged = kept((k) => k !== 'accessory');
+  const convoy = [...new Set(Array.isArray(raw.convoy) ? raw.convoy : [])].filter(
+    (uid) => isId(uid) && bagged.has(uid),
+  );
+  const wield =
+    isId(raw.wield) && weapons.has(raw.wield) && !convoy.includes(raw.wield) ? raw.wield : null;
+  const used = { skill: 0, ability: 0 };
+  const equip = packEquipIds(raw.equip, record).filter(
+    (id) => ++used[packSlotKind(record, id)] <= PACK_EQUIP_CAPS[packSlotKind(record, id)],
+  );
+  if (!wield && !convoy.length && !equip.length) return null;
+  return { wield, convoy, equip };
+}
+
+/** Kept skills a Pack can start equipped, by kind (a unit's slots: SkillSlots.js). */
+export const PACK_EQUIP_CAPS = Object.freeze({ skill: MAX_SKILLS, ability: MAX_ABILITIES });
+
+const packSlotKind = (record, id) => (record.skillKinds?.[id] === 'ability' ? 'ability' : 'skill');
+const packEquipIds = (raw, record) =>
+  sanitizeSkillIds(raw).filter((id) => record.keptSkills.includes(id));
+
+/** A record's Pack, always whole: `{ wield, convoy, equip }` (empty when it has none). */
+export function packOf(record) {
+  const pack = isRecord(record) ? sanitizePack(record.pack, record) : null;
+  return pack || { wield: null, convoy: [], equip: [] };
+}
+
+/**
+ * Change a veteran's Pack (`patch`: any of wield, convoy, equip). Ids the record no longer
+ * keeps are dropped; more skills or abilities to equip than a unit has slots for is refused
+ * (`pack_full`), never cut silently.
+ */
+export function setPack(state, id, patch) {
+  const record = findRecord(state, id);
+  if (!record) return { ok: false, reason: 'unknown' };
+  const next = { ...packOf(record), ...(isRecord(patch) ? patch : {}) };
+  const asked = packEquipIds(next.equip, record);
+  for (const kind of ['skill', 'ability'])
+    if (asked.filter((s) => packSlotKind(record, s) === kind).length > PACK_EQUIP_CAPS[kind])
+      return { ok: false, reason: 'pack_full' };
+  const pack = sanitizePack(next, record);
+  if (pack) record.pack = pack;
+  else delete record.pack;
+  bump(state);
+  return { ok: true };
+}
+
 /** One Barracks record as saved, or null. */
 export function sanitizeRecord(raw) {
   if (!isRecord(raw) || !isId(raw.id) || !isName(raw.name)) return null;
@@ -222,6 +282,8 @@ export function sanitizeRecord(raw) {
     if (!identity) return null;
     Object.assign(record, identity);
   }
+  const pack = sanitizePack(raw.pack, record);
+  if (pack) record.pack = pack;
   return record;
 }
 

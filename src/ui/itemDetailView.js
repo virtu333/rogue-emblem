@@ -15,7 +15,7 @@ import { itemBaseLine } from '../engine/ItemKeywords.js';
 import { canEquip } from '../engine/UnitManager.js';
 import { classChangeItemTag } from '../engine/TwistedBoons.js';
 import { whetstoneTag } from '../engine/SmithsExile.js';
-import { getForgeDisplayInfo } from '../engine/ForgeSystem.js';
+import { forgeStatusLine, getForgeDisplayInfo } from '../engine/ForgeSystem.js';
 import { isWorn, wearDisplay } from '../engine/WeaponWear.js';
 import {
   getImbueDisplayInfo,
@@ -192,6 +192,9 @@ export function appendItemDetail(
           .join(' · ')}`,
       ),
     );
+  // How many forge slots are spent, an NG+ weapon's sleeping forges included (they take a slot).
+  const forgeStatus = forgeStatusLine(item);
+  if (forgeStatus) copy.append(el('p', forgeStatus));
   if (isWorn(item)) copy.append(el('p', wearDisplayText(item), 'shop-wear'));
   const imbue = getImbueDisplayInfo(item, gameData?.imbues);
   if (imbue) copy.append(el('p', `${imbue.name}: ${imbue.description}`));

@@ -14,7 +14,9 @@ import {
   keptItemKind,
   keptItemsOfKind,
   keptOfKind,
+  PACK_EQUIP_CAPS,
   ngPlusUpgradeNextCost,
+  packOf,
   recordFor,
   ridePickBlock,
   rideSlotsLeft,
@@ -42,6 +44,8 @@ const PICK_BLOCK_TEXT = {
   locked: 'Unlock New Game+ first.',
   maxed: 'Fully upgraded.',
   too_many: 'Bringing as many as the Barracks allows.',
+  pack_full: 'Their slots are full: take one off first.',
+  unknown: 'That veteran is no longer in the Barracks.',
   save_failed: 'Could not save. Please try again.',
 };
 
@@ -237,6 +241,7 @@ export function barracksView(state, gameData = {}, bringLimit = BRING_LIMIT) {
       line: `${describeRecord(record)} · Rode ${plural(record.rides, 'time')} · Echo ${recordEcho(record)}`,
       skills: record.keptSkills.map((id) => skillName(id, skills)),
       items: record.keptItems.map((i) => itemDisplayName(i, skills)),
+      pack: packView(record, gameData),
       brought: bring.has(record.id),
       canBring: record.kind === 'recruit' && (bring.has(record.id) || bring.size < bringLimit),
     })),
@@ -349,4 +354,70 @@ export function upgradesView(meta) {
             : '',
     };
   });
+}
+
+const PLACE_LABEL = { held: 'Held', bag: 'In the bag', convoy: 'In the convoy' };
+
+/**
+ * A veteran's Pack (NgPlusState.packOf), as the Barracks shows it: each kept item's place at the
+ * start of a run (a weapon Held, in the bag or in the convoy; a consumable in the bag or the
+ * convoy), the kept accessory (always worn) and each kept skill, equipped or left to wait.
+ */
+export function packView(record, gameData = {}) {
+  const skills = gameData.skills || [];
+  const pack = packOf(record);
+  const items = (record?.keptItems || []).filter((i) => keptItemKind(i) !== 'accessory');
+  const accessory = (record?.keptItems || []).find((i) => keptItemKind(i) === 'accessory');
+  const placeOf = (item) =>
+    pack.convoy.includes(item.uid) ? 'convoy' : pack.wield === item.uid ? 'held' : 'bag';
+  const counts = { skill: 0, ability: 0 };
+  for (const id of pack.equip)
+    counts[record.skillKinds?.[id] === 'ability' ? 'ability' : 'skill']++;
+  return {
+    items: items.map((item) => {
+      const place = placeOf(item);
+      return {
+        uid: item.uid,
+        weapon: keptItemKind(item) === 'weapon',
+        place,
+        label: `${itemDisplayName(item, skills)} · ${PLACE_LABEL[place]}`,
+      };
+    }),
+    accessory: accessory ? `Worn: ${itemDisplayName(accessory, skills)}` : null,
+    skills: (record?.keptSkills || []).map((id) => {
+      const equip = pack.equip.includes(id);
+      return {
+        id,
+        equip,
+        label: `${skillName(id, skills)} · ${equip ? 'Starts equipped' : 'May wait on the bench'}`,
+      };
+    }),
+    equipLine: `Starts equipped: ${counts.skill}/${PACK_EQUIP_CAPS.skill} skills · ${counts.ability}/${PACK_EQUIP_CAPS.ability} abilities`,
+    lead: 'Set it once: every NG+ run they set out like this. Tap an item to move it, a skill to equip it at the start.',
+  };
+}
+
+/**
+ * The Pack change one tap on a kept item makes (NgPlusState.setPack's patch): a weapon goes
+ * from the bag to Held, then to the convoy, then back to the bag; a consumable between bag and
+ * convoy.
+ */
+export function packItemTap(record, uid) {
+  const pack = packOf(record);
+  const item = (record?.keptItems || []).find((i) => i.uid === uid);
+  if (!item) return null;
+  const inConvoy = pack.convoy.includes(uid);
+  const convoy = pack.convoy.filter((u) => u !== uid);
+  if (keptItemKind(item) !== 'weapon') return { convoy: inConvoy ? convoy : [...convoy, uid] };
+  if (inConvoy) return { convoy };
+  if (pack.wield === uid) return { wield: null, convoy: [...convoy, uid] };
+  return { wield: uid };
+}
+
+/** The Pack change one tap on a kept skill makes: equipped at the start, or not. */
+export function packSkillTap(record, skillId) {
+  const equip = packOf(record).equip;
+  return {
+    equip: equip.includes(skillId) ? equip.filter((id) => id !== skillId) : [...equip, skillId],
+  };
 }

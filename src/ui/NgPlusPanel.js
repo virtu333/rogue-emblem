@@ -8,6 +8,8 @@ import {
   echoLine,
   echoPreview,
   ngPlusBlockText,
+  packItemTap,
+  packSkillTap,
   rideView,
   unlockView,
   upgradesView,
@@ -268,8 +270,6 @@ export class NgPlusPanel {
     const r = barracks.records.find((entry) => entry.id === id);
     if (!r) return;
     copy.append(node('h2', '', r.name), node('p', 'mu-help', r.line));
-    copy.append(node('p', '', `Skills: ${r.skills.join(', ') || 'none yet'}`));
-    copy.append(node('p', '', `Items: ${r.items.join(', ') || 'none yet'}`));
     if (r.kind === 'recruit') {
       copy.append(
         this.button(
@@ -284,6 +284,7 @@ export class NgPlusPanel {
         ),
       );
     } else copy.append(node('p', 'mu-help', 'Rides with their kit whenever they are in the run.'));
+    this.renderPack(copy, r);
     const confirming = this.confirmRelease === r.id;
     copy.append(
       this.button(
@@ -304,6 +305,44 @@ export class NgPlusPanel {
         { focus: `release-${r.id}` },
       ),
     );
+  }
+
+  /** The veteran's Pack: tap an item to move it, a skill to equip it at the start. */
+  renderPack(copy, r) {
+    const { pack } = r;
+    const change = (patch, focus) => {
+      const result = patch ? this.meta.setNgPlusPack(r.id, patch) : { ok: false };
+      this.rerender(focus, result.ok ? null : ngPlusBlockText(result.reason));
+    };
+    const record = () => this.meta.getNgPlus().barracks.find((rec) => rec.id === r.id);
+    copy.append(node('h3', 'ng-heading', 'Pack'), node('p', 'mu-help', pack.lead));
+    if (pack.accessory) copy.append(node('p', '', pack.accessory));
+    if (!pack.items.length && !pack.accessory)
+      copy.append(node('p', 'mu-help', 'Items: none kept yet.'));
+    for (const item of pack.items)
+      copy.append(
+        this.button(
+          item.label,
+          () => change(packItemTap(record(), item.uid), `pack-item-${item.uid}`),
+          {
+            pressed: item.place !== 'bag',
+            focus: `pack-item-${item.uid}`,
+          },
+        ),
+      );
+    if (!pack.skills.length) copy.append(node('p', 'mu-help', 'Skills: none kept yet.'));
+    else copy.append(node('p', 'mu-help', pack.equipLine));
+    for (const skill of pack.skills)
+      copy.append(
+        this.button(
+          skill.label,
+          () => change(packSkillTap(record(), skill.id), `pack-skill-${skill.id}`),
+          {
+            pressed: skill.equip,
+            focus: `pack-skill-${skill.id}`,
+          },
+        ),
+      );
   }
 
   renderRideActions(copy, ride) {

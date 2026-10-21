@@ -32,7 +32,13 @@ import {
   repairShopWeapon,
 } from '../engine/ShopCommands.js';
 import { isWorn, wearCount, wearDisplay } from '../engine/WeaponWear.js';
-import { canForge, forgeStatBlock, getStatForgeCount } from '../engine/ForgeSystem.js';
+import {
+  canForge,
+  forgeFullText,
+  forgePullsForward,
+  forgeStatBlock,
+  forgeStatProgressText,
+} from '../engine/ForgeSystem.js';
 import { dormantForgeCount, hasDormantForges } from '../engine/KeptForges.js';
 import {
   nextDormantForge,
@@ -50,7 +56,6 @@ import {
   SHOP_REROLL_COST,
   SHOP_REROLL_ESCALATION,
   AMBUSH_SHOP_DISCOUNT,
-  FORGE_STAT_CAP,
   INVENTORY_MAX,
   CONSUMABLE_MAX,
   RUINS_SHOP_MARKUP,
@@ -424,7 +429,7 @@ export class ShopMenu {
         const b = button('Choose forge', () => this.forge(item), 're-btn re-btn--primary');
         b.disabled = options.forgesUsed >= options.forgeLimit || !canForge(item);
         if (options.forgesUsed >= options.forgeLimit) reason = 'No forges remain at this shop.';
-        else if (!canForge(item)) reason = 'This weapon cannot be forged further.';
+        else if (!canForge(item)) reason = forgeFullText(item);
         action.append(b);
       }
       if (hasDormantForges(item)) {
@@ -666,7 +671,8 @@ export class ShopMenu {
               shopForgeSaving(weapon, stat.key, terms),
               { short: true },
             );
-        return `${cost} · ${getStatForgeCount(weapon, stat.key)}/${FORGE_STAT_CAP} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`;
+        const early = forgePullsForward(weapon, stat.key) ? ' · Wakes a sleeping forge early' : '';
+        return `${cost} · ${forgeStatProgressText(weapon, stat.key)} upgrades${early}${forgeImpactSuffix(owner, weapon, stat.key)}`;
       },
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),

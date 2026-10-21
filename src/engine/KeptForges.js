@@ -15,7 +15,15 @@
 // run's (the earliest; the rest are taken off with their price): `carriedCopy`.
 //
 // Pure: mutates only the weapons it is handed. No Math.random.
-import { deforgeWeapon, reapplyForgeStep } from './ForgeSystem.js';
+import {
+  deforgeWeapon,
+  keptForgeBase,
+  liftRunForges,
+  reapplyForgeStep,
+  runForgeCount,
+} from './ForgeSystem.js';
+
+export { keptForgeBase, runForgeCount };
 
 /** The awake forge level per act for a kept weapon (difficulty.json `ngPlus.keptForgeAwake`). */
 export const DEFAULT_KEPT_FORGE_AWAKE = Object.freeze({ act1: 2, act2: 4, act3: 6, act4: 8 });
@@ -39,31 +47,6 @@ export function hasDormantForges(weapon) {
 export function keptForgeAwakeLimit(act, table = DEFAULT_KEPT_FORGE_AWAKE) {
   const limit = table?.[act];
   return Number.isFinite(limit) && limit >= 0 ? Math.floor(limit) : Infinity;
-}
-
-/** How many forges the weapon rode in with (asleep or awake); legacy: all it has, none run-made. */
-export function keptForgeBase(weapon) {
-  const base = weapon?._keptForgeBase;
-  if (Number.isInteger(base) && base >= 0) return base;
-  return (weapon?._forgeLevel || 0) + dormantForgeCount(weapon);
-}
-
-/** How many of the weapon's awake forges this run made (never below 0). */
-export function runForgeCount(weapon) {
-  if (!isWeaponLike(weapon)) return 0;
-  const keptAwake = keptForgeBase(weapon) - dormantForgeCount(weapon);
-  return Math.max(0, (weapon._forgeLevel || 0) - keptAwake);
-}
-
-/** Take the run's forges off the top (latest first), returning them in the order they were made. */
-function liftRunForges(weapon) {
-  const lifted = [];
-  for (let n = runForgeCount(weapon); n > 0; n--) {
-    const result = deforgeWeapon(weapon);
-    if (!result.success) break;
-    lifted.unshift({ stat: result.stat, cost: result.refundedCost || 0 });
-  }
-  return lifted;
 }
 
 /**
