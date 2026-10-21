@@ -104,8 +104,8 @@ describe('Economy is the share of received gold that is not left unspent', () =>
       Object.fromEntries(
         gradeRun({ result: 'victory', ledger: l, gold }).bars.map((b) => [b.key, b.points]),
       );
-    expect(by(0).economy).toBe(10);
-    expect(by(1000).economy).toBe(5); // half of the 2,000 received is still in the purse
+    expect(by(0).economy).toBe(15);
+    expect(by(1000).economy).toBe(8); // 15 x half, rounded: half of the 2,000 received is still in the purse
   });
 
   it('event income that nobody spends lowers Economy, income that is spent does not', () => {
@@ -115,8 +115,8 @@ describe('Economy is the share of received gold that is not left unspent', () =>
     const held = tallyGold(base, 1000); // a 1,000 event windfall left in the purse
     const spent = tallyGold(tallyGold(base, 1000), -1000);
     // Battle gold alone (1,000) would have scored this purse of 1,000 as 0; of 2,000 received it is half.
-    expect(economy(held, 1000)).toBe(5);
-    expect(economy(spent, 0)).toBe(10);
+    expect(economy(held, 1000)).toBe(8);
+    expect(economy(spent, 0)).toBe(15);
   });
 
   it('a null ledger stays null', () => {
@@ -174,15 +174,18 @@ describe('terminal summary (a lost run)', () => {
 
 describe('gradeRun', () => {
   const perfect = { ...createRunLedger(T0), parBattles: 10, underPar: 10, goldIn: 1000 };
-  it('a flawless no-meta run is an S with the bars summing to the score', () => {
+  it('a flawless run is an S with the bars summing to the score, upgrades and burdens or not', () => {
+    // No Meta is an achievement, not a bar: a run with Home Base upgrades and two burdens still
+    // reaches 100.
     const g = gradeRun({
       result: 'victory',
       ledger: perfect,
       gold: 0,
-      noMetaMode: true,
-      burdens: [],
+      noMetaMode: false,
+      burdens: [{}, {}],
     });
-    expect(g.score).toBe(30 + 25 + 20 + 10 + 15);
+    expect(g.score).toBe(35 + 30 + 20 + 15);
+    expect(g.bars.map((b) => b.max)).toEqual([35, 30, 20, 15]);
     expect(g.letter).toBe('S');
     expect(g.bars.reduce((n, b) => n + b.points, 0)).toBe(g.score);
     expect(g.bars.map((b) => b.key)).toEqual(GRADE_BARS.map((b) => b.key));
@@ -193,11 +196,9 @@ describe('gradeRun', () => {
       result: 'victory',
       ledger: { ...perfect, losses: 2 },
       gold: 500,
-      noMetaMode: false,
-      burdens: [{}],
     });
     const by = Object.fromEntries(g.bars.map((b) => [b.key, b.points]));
-    expect(by).toMatchObject({ survival: 15, economy: 5, restraint: 3 });
+    expect(by).toEqual({ pace: 35, survival: 20, resolve: 20, economy: 8 });
   });
 
   it('only a won, ledgered run gets a letter', () => {
@@ -221,7 +222,7 @@ describe('gradeRun', () => {
   });
 
   it('the victory record carries only the letter and score', () => {
-    const rm = { runLedger: perfect, gold: 0, noMetaMode: true, burdens: [] };
+    const rm = { runLedger: perfect, gold: 0, noMetaMode: false, burdens: [{}] };
     expect(gradeRecordField(rm, 'victory')).toEqual({ grade: { letter: 'S', score: 100 } });
     expect(gradeRecordField(rm, 'defeat')).toEqual({});
   });
