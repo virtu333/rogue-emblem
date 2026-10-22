@@ -70,3 +70,41 @@ export function openRouteRedraw(scene, onDone) {
     },
   });
 }
+
+/** The toast after a redraw: how many are left. */
+export function routeRedrawDoneText(result) {
+  const left = Math.max(0, Number(result?.left) || 0);
+  return left > 0
+    ? `The road ahead is redrawn. ${left} redraw${left === 1 ? '' : 's'} left.`
+    : 'The road ahead is redrawn. No redraws left this run.';
+}
+
+/**
+ * Redraw road as a pause menu entry on the route map, or null where the map offers none:
+ * { label, detail (the price and redraws left, or why it is greyed), disabled, onSelect }.
+ * onSelect opens the confirmation (the pause menu has closed by then); a redraw redraws the
+ * route map's rail and toasts what is left.
+ */
+export function routeRedrawPauseEntry(scene) {
+  const view = routeRedrawView(scene?.runManager, heldValor(scene));
+  if (!view) return null;
+  return {
+    label: view.label,
+    detail: view.reason || view.line,
+    disabled: view.disabled,
+    onSelect: () => {
+      if (scene._routeRedrawPicker || scene.isStoryInputLocked?.()) return;
+      const picker = openRouteRedraw(scene, (result) => {
+        scene.nodeView?.render?.();
+        scene.nodeView?.showToast?.(routeRedrawDoneText(result));
+      });
+      if (!picker) return;
+      scene._routeRedrawPicker = picker;
+      const close = picker.onClose;
+      picker.onClose = () => {
+        scene._routeRedrawPicker = null;
+        close?.();
+      };
+    },
+  };
+}

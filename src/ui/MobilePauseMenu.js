@@ -188,6 +188,17 @@ export class MobilePauseMenu {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = source.text;
+      // An action with a line under it (Redraw road: its price, or why it is greyed).
+      if (source.detail) {
+        const detail = document.createElement('span');
+        detail.className = 'mp-detail';
+        detail.textContent = source.detail;
+        button.append(detail);
+      }
+      if (source.disabled) {
+        button.setAttribute('aria-disabled', 'true');
+        button.classList.add('mp-disabled');
+      }
       if (source.text === 'Abandon Run') button.classList.add('mp-danger');
       if (source.text === 'Resume') button.classList.add('mp-primary');
       if (['Leave Prologue', 'Skip Prologue'].includes(source.text))

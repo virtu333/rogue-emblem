@@ -33,6 +33,7 @@ export class PauseOverlay {
       prologue,
       burdens,
       blessings,
+      routeRedraw,
     },
   ) {
     this.scene = scene;
@@ -52,6 +53,9 @@ export class PauseOverlay {
     // Prologue exits: { onLeave, title? } (standalone: nothing to save) or
     // { onSkipRest, title? } (the run: the ending, then Home Base with the grant).
     this.prologue = prologue?.onLeave || prologue?.onSkipRest ? prologue : null;
+    // The route map's Redraw road (RouteRedrawController.routeRedrawPauseEntry):
+    // { label, detail, disabled, onSelect }, or null where the map offers none.
+    this.routeRedraw = routeRedraw?.onSelect ? routeRedraw : null;
     this.objects = [];
     this.visible = false;
     this.settingsOverlay = null;
@@ -124,6 +128,7 @@ export class PauseOverlay {
     if (this.onSaveAndExit) buttonCount++;
     if (this.onAbandon) buttonCount++;
     if (this.prologue) buttonCount++;
+    if (this.routeRedraw) buttonCount++;
     const panelHeight = 100 + buttonCount * 40;
 
     // Dark background
@@ -219,6 +224,26 @@ export class PauseOverlay {
       this._addButton(cx, btnY, this.prologue.onSkipRest ? 'Skip Prologue' : 'Leave Prologue', () =>
         this.requestLeavePrologue(),
       );
+      btnY += 40;
+    }
+
+    // Redraw road: pause closes, then the redraw asks first. Greyed, its line says why.
+    if (this.routeRedraw) {
+      const redraw = this.routeRedraw;
+      this._addButton(
+        cx,
+        btnY,
+        redraw.label,
+        () => {
+          if (redraw.disabled) return;
+          this.hide();
+          redraw.onSelect();
+        },
+        redraw.disabled ? UI_PALETTE.muted : UI_PALETTE.text,
+      );
+      const btn = this._menuButtons[this._menuButtons.length - 1];
+      btn.detail = redraw.detail || '';
+      btn.disabled = Boolean(redraw.disabled);
       btnY += 40;
     }
 

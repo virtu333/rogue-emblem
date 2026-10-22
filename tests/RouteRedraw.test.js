@@ -43,7 +43,11 @@ import {
   routeRedrawPrice,
   sanitizeRouteRedraws,
 } from '../src/engine/RouteRedraw.js';
-import { commitRouteRedraw } from '../src/ui/RouteRedrawController.js';
+import {
+  commitRouteRedraw,
+  routeRedrawDoneText,
+  routeRedrawPauseEntry,
+} from '../src/ui/RouteRedrawController.js';
 import { routeRedrawView } from '../src/ui/routeRedrawModel.js';
 
 const data = loadGameData();
@@ -412,5 +416,30 @@ describe('paying for it', () => {
     expect(JSON.stringify(run.toJSON())).toBe(before);
     expect(m.getTotalValor()).toBe(1000);
     expect(JSON.parse(store[META_KEY]).totalValor).toBe(1000);
+  });
+
+  it('the pause menu entry says the price and what is left, or why it is greyed', () => {
+    const run = runAt(124, 1);
+    const held = (valor) => ({ getTotalValor: () => valor });
+    expect(routeRedrawPauseEntry(sceneFor(run, held(1000)))).toMatchObject({
+      label: 'Redraw road',
+      detail: '300 Valor · 5 left',
+      disabled: false,
+    });
+    expect(routeRedrawPauseEntry(sceneFor(run, held(120)))).toMatchObject({
+      detail: 'Need 300 Valor (you have 120).',
+      disabled: true,
+    });
+    run.routeRedraws = ROUTE_REDRAW_MAX;
+    expect(routeRedrawPauseEntry(sceneFor(run, held(5000)))).toMatchObject({
+      detail: 'No redraws left this run.',
+      disabled: true,
+    });
+    run.noMetaMode = true;
+    expect(routeRedrawPauseEntry(sceneFor(run, held(5000)))).toBeNull();
+    expect(routeRedrawDoneText({ left: 1 })).toBe('The road ahead is redrawn. 1 redraw left.');
+    expect(routeRedrawDoneText({ left: 0 })).toBe(
+      'The road ahead is redrawn. No redraws left this run.',
+    );
   });
 });

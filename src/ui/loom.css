@@ -696,20 +696,6 @@
   text-transform: uppercase;
   background: linear-gradient(var(--re-raised), var(--re-panel));
 }
-/* Redraw road (RouteRedrawController): a third button beside Menu and Roster, so the row keeps
-   its height and the card below keeps its room; the price and the redraws left are in its
-   confirmation and its label. Greyed (still focusable: a press says why) when it cannot. */
-.re-loom-screen .re-node-actions.has-redraw {
-  grid-template-columns: 1fr 1fr 1fr;
-}
-.re-loom-screen .re-node-actions.has-redraw .re-btn {
-  padding-inline: 2px;
-  letter-spacing: 0;
-  white-space: nowrap;
-}
-.re-loom-screen .re-node-actions .re-loom-redraw.is-disabled {
-  opacity: 0.55;
-}
 /* A choice waits in the roster (an Oath): a gold edge and pip on Roster. */
 .re-loom-screen .re-node-actions .re-btn.re-attention {
   position: relative;

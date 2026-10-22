@@ -34,8 +34,6 @@ import {
 import { contractChipModel, owedContractChipModel } from './eventMenuModel.js';
 import { riteChipModel } from './riteModel.js';
 import { riteNoteContent } from './RiteView.js';
-import { routeRedrawView } from './routeRedrawModel.js';
-import { heldValor, openRouteRedraw } from './RouteRedrawController.js';
 
 const ECLIPSE_TOAST_MS = 4200;
 // How long an event's change to the route (a new road, a redrawn place) stays ringed.
@@ -238,9 +236,6 @@ export class NodeMapMenu {
       button('Menu', () => s.requestCancel()),
       this.rosterButton,
     );
-    const redraw = this._redrawButton();
-    if (redraw) actions.append(redraw);
-    actions.classList.toggle('has-redraw', Boolean(redraw));
     this._syncRosterFlag();
     this.detail = element('section', null, 're-scroll re-node-detail re-loom-card');
     this.detail.setAttribute('aria-live', 'polite');
@@ -612,6 +607,11 @@ export class NodeMapMenu {
     }
   }
 
+  /** A short line over the map (Redraw road's result). */
+  showToast(text) {
+    this._showToast(text);
+  }
+
   _showToast(text) {
     if (!text) return;
     this._toast?.remove();
@@ -625,50 +625,6 @@ export class NodeMapMenu {
       toast.remove();
       if (this._toast === toast) this._toast = null;
     }, ECLIPSE_TOAST_MS);
-  }
-
-  /**
-   * Redraw road (engine/RouteRedraw.js): a Valor redraw of the road ahead, or null where the
-   * map offers none. Greyed with its reason when it cannot be made now.
-   */
-  _redrawButton() {
-    const s = this.scene;
-    const view = routeRedrawView(s.runManager, heldValor(s));
-    if (!view) return null;
-    const el = button(
-      null,
-      () => {
-        if (s.isStoryInputLocked?.() || this._redrawPicker) return;
-        if (view.disabled) {
-          this._showToast(view.reason);
-          return;
-        }
-        this._redrawPicker = openRouteRedraw(s, (result) => {
-          this.render();
-          this._showToast(
-            result.left > 0
-              ? `The road ahead is redrawn. ${result.left} redraw${result.left === 1 ? '' : 's'} left.`
-              : 'The road ahead is redrawn. No redraws left this run.',
-          );
-        });
-        const picker = this._redrawPicker;
-        const close = picker?.onClose;
-        if (picker)
-          picker.onClose = () => {
-            this._redrawPicker = null;
-            close?.();
-          };
-      },
-      're-btn re-loom-redraw',
-    );
-    el.append(element('span', 'Redraw'));
-    el.setAttribute('aria-label', view.label);
-    el.setAttribute('aria-description', view.reason || view.line);
-    el.setAttribute('aria-disabled', String(view.disabled));
-    el.classList.toggle('is-disabled', view.disabled);
-    el.title = view.reason ? `${view.label}: ${view.reason}` : `${view.label}: ${view.line}`;
-    el.dataset.focus = 'route-redraw';
-    return el;
   }
 
   /** Roster wears a gold mark while a unit has a new skill on its bench. */

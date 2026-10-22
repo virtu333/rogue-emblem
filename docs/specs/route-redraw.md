@@ -44,12 +44,12 @@ act and draw them again.
 
 ## UI
 
-A third button, "Redraw", beside Menu and Roster on the route map's rail (the row keeps its
-height, so the card below keeps its room on a small phone; `tests/e2e/loom-portrait.spec.js` pins
-it). Its label and tooltip carry the price and redraws left ("Redraw road: 300 Valor · 5 left").
-Greyed with the reason when it cannot be used ("Need 300 Valor (you have 120).", "No redraws left
-this run.", "Finish here before redrawing the road."); a tap on a greyed button shows the reason.
-A tap asks first ("Redraw the road ahead?", the price, Valor held and redraws left after), then a
-toast says how many are left.
+An entry in the route map's Menu (the pause menu), "Redraw road", above Save & Return to Title
+(`RouteRedrawController.routeRedrawPauseEntry`, PauseOverlay's `routeRedraw`): a line under it
+says the price and redraws left ("300 Valor · 5 left"), or, greyed, why it cannot be used ("Need
+300 Valor (you have 120).", "No redraws left this run.", "Finish here before redrawing the road.").
+The Menu/Roster row keeps its two buttons. Choosing it closes the menu and asks first ("Redraw the
+road ahead?", the price, Valor held and redraws left after); after a redraw a toast says how many
+are left. A greyed entry does nothing.
 
-Tests: `tests/RouteRedraw.test.js`.
+Tests: `tests/RouteRedraw.test.js`, `tests/e2e/route-redraw.spec.js` (the `menus` lane).

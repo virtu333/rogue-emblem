@@ -133,6 +133,17 @@
 .mp-actions .mp-exit {
   border-color: var(--re-gilt);
 }
+/* An action's line under its name (Redraw road's price and redraws left, or why not). */
+.mp-actions .mp-detail {
+  display: block;
+  margin-top: 2px;
+  color: var(--re-muted);
+  font: var(--re-t-small);
+}
+.mp-actions button.mp-disabled {
+  color: var(--re-muted);
+  cursor: default;
+}
 
 /* The run's burdens, under the pause note (PauseOverlay `burdens`). */
 .mp-burdens {
