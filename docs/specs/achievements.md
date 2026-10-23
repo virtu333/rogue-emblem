@@ -127,7 +127,7 @@ locked look), except the count.
 | Masterwork | Forge a weapon to its limit | Silver |
 | One of a Kind | Find an epic weapon | Silver |
 | Trophy Hunter | Claim a boss trophy weapon | Gold |
-| Every Road a Tale | See every Event (lifetime, 0/25) | Gold |
+| Every Road a Tale | See every Event but the fallback A Quiet Road (lifetime, 0/24) | Gold |
 | Armory of Legends | Own every epic weapon at least once (0/23) | Black Sun |
 
 ### The Challenge (very hard)

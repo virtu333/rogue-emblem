@@ -459,20 +459,26 @@ export function rideCandidates(run) {
   });
 }
 
-/** Every item the army holds, by uid: the roster's bags, belts and accessories, the stores. */
-function heldItemsByUid(run) {
+/**
+ * Every item the army holds, by uid: the roster's bags, belts and accessories, the stores, and
+ * with `fallen` last what a fallen unit still carries (a full convoy leaves its bag on it), so
+ * at a win a heirloom it held is not lost to its owner's record.
+ */
+function heldItemsByUid(run, { fallen = false } = {}) {
   const byUid = new Map();
   const add = (item) => {
     if (isRecord(item) && isId(item.uid) && !byUid.has(item.uid)) byUid.set(item.uid, item);
   };
-  for (const unit of run.roster || []) {
+  const addUnit = (unit) => {
     for (const item of unit?.inventory || []) add(item);
     for (const item of unit?.consumables || []) add(item);
     add(unit?.accessory);
-  }
+  };
+  for (const unit of run.roster || []) addUnit(unit);
   for (const item of run.convoy?.weapons || []) add(item);
   for (const item of run.convoy?.consumables || []) add(item);
   for (const item of run.accessories || []) add(item);
+  if (fallen) for (const unit of everFallenUnits(run)) addUnit(unit);
   return byUid;
 }
 
@@ -503,7 +509,7 @@ export function ngPlusRunEnd(run, summary) {
     .map((m) => m.id);
   const refresh = [];
   if (victory) {
-    const held = heldItemsByUid(run);
+    const held = heldItemsByUid(run, { fallen: true });
     const standing = new Set((run.roster || []).map((u) => u?.unitUid).filter(Boolean));
     for (const member of members) {
       if (fallenUids.has(member.uid) || !standing.has(member.uid)) continue;

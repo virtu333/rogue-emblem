@@ -60,6 +60,21 @@ describe('Starting a battle with fewer than everyone placed', () => {
     expect(units[3]).toMatchObject({ col: 2, row: 0 });
   });
 
+  it('the saved battle and the next deploy remember the smaller army', () => {
+    const { c, scene, place } = setup();
+    // The battle entry saved its params before the formation opened; a resume rebuilds from them.
+    scene.runManager = {
+      battleInProgress: { battleParams: { deployCount: 4 } },
+      lastDeployment: ['Edric', 'Sera', 'Gaspar', 'Rowan'],
+    };
+    place(0, 0);
+    place(1, 1);
+    place(3, 2); // Gaspar waits
+    expect(c.start()).toBe(true);
+    expect(scene.runManager.battleInProgress.battleParams.deployCount).toBe(3);
+    expect(scene.runManager.lastDeployment).toEqual(['Edric', 'Sera', 'Rowan']);
+  });
+
   it('stays blocked below the deploy minimum', () => {
     const { c, scene, place } = setup();
     place(0, 0);

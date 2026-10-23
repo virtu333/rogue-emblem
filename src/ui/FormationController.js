@@ -634,9 +634,16 @@ export class FormationController {
       unit.row = tile.row;
       field.push(unit);
     }
-    // The Last deed counts the army that fought.
-    if (field.length < this.units.length && s.battleParams)
-      s.battleParams.deployCount = field.length;
+    // The Last deed counts the army that fought. The battle entry saved its params before the
+    // formation opened (a resume rebuilds from them), and the next deploy screen preselects
+    // lastDeployment: both take the smaller army too.
+    if (field.length < this.units.length) {
+      if (s.battleParams) s.battleParams.deployCount = field.length;
+      const entryParams = s.runManager?.battleInProgress?.battleParams;
+      if (entryParams) entryParams.deployCount = field.length;
+      if (Array.isArray(s.runManager?.lastDeployment))
+        s.runManager.lastDeployment = field.map((unit) => unit.name);
+    }
     s.playerUnits.length = 0;
     s.playerUnits.push(...field);
     for (const unit of field) {

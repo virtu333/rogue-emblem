@@ -40,7 +40,12 @@ export function achievementTotals(gameData) {
   const deeds = isObject(gameData?.deeds) ? gameData.deeds.deeds : gameData?.deeds;
   return {
     bosses: bossNames(gameData?.enemies),
-    events: unique(list(events).map((e) => text(e?.id))),
+    // The fallback event is met only when a node has nothing else left to offer, never by weight.
+    events: unique(
+      list(events)
+        .filter((e) => e?.fallback !== true)
+        .map((e) => text(e?.id)),
+    ),
     marks: unique(list(gameData?.marks).map((m) => text(m?.id))),
     epics: unique(
       list(gameData?.weapons)
