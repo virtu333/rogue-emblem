@@ -48,7 +48,7 @@
   gap: 8px;
   overscroll-behavior: contain;
 }
-.mp-actions button {
+:is(.mp-actions, .mp-lead) button {
   flex-shrink: 0;
   min-height: 46px;
   padding: 10px 12px;
@@ -60,7 +60,7 @@
   cursor: pointer;
   touch-action: pan-y;
 }
-.mp-actions button:focus-visible {
+:is(.mp-actions, .mp-lead) button:focus-visible {
   border-color: var(--re-gold);
   color: var(--re-gold-hi);
   background: var(--re-selected);
@@ -68,7 +68,7 @@
   outline-offset: -2px;
 }
 @media (hover: hover) {
-  .mp-actions button:hover {
+  :is(.mp-actions, .mp-lead) button:hover {
     border-color: var(--re-gold);
     color: var(--re-gold-hi);
     background: var(--re-selected);
@@ -76,12 +76,12 @@
     outline-offset: -2px;
   }
 }
-.mp-actions .mp-primary {
+:is(.mp-actions, .mp-lead) .mp-primary {
   border-color: var(--re-accent-text);
   background: var(--re-action);
   color: var(--re-action-ink);
 }
-.mp-actions .mp-danger {
+:is(.mp-actions, .mp-lead) .mp-danger {
   color: var(--re-bad);
 }
 
@@ -101,11 +101,11 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
   }
-  .mp-actions button {
+  :is(.mp-actions, .mp-lead) button {
     min-height: 44px;
     padding: 8px 10px;
   }
-  .mp-actions .mp-primary {
+  :is(.mp-actions, .mp-lead) .mp-primary {
     grid-column: 1 / -1;
   }
   /* The burden and blessing lists give way first: they shrink and scroll, the actions keep
@@ -130,17 +130,17 @@
   color: var(--re-muted);
   font: var(--re-t-small);
 }
-.mp-actions .mp-exit {
+:is(.mp-actions, .mp-lead) .mp-exit {
   border-color: var(--re-gilt);
 }
 /* An action's line under its name (Redraw road's price and redraws left, or why not). */
-.mp-actions .mp-detail {
+:is(.mp-actions, .mp-lead) .mp-detail {
   display: block;
   margin-top: 2px;
   color: var(--re-muted);
   font: var(--re-t-small);
 }
-.mp-actions button.mp-disabled {
+:is(.mp-actions, .mp-lead) button.mp-disabled {
   color: var(--re-muted);
   cursor: default;
 }
@@ -250,5 +250,32 @@
   }
   .mp-actions {
     flex-shrink: 0;
+  }
+}
+
+/* A run action under the note (Redraw road), above the burdens and blessings: one
+   full-width row, apart from the menu's own actions below. */
+.mp-lead {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  margin: 0 0 10px;
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  .mp-lead {
+    margin-bottom: 8px;
+  }
+  /* With a lead row, the actions below take three columns, so the panel is no taller than
+     without it and the burdens and blessings keep their room. */
+  .mp-panel:has(.mp-lead) .mp-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* One line on a short screen, so the burdens and blessings keep their room. */
+  .mp-lead .mp-detail {
+    display: inline;
+    margin: 0 0 0 0.5em;
+  }
+  .mp-lead .mp-detail::before {
+    content: '\00b7  ';
   }
 }

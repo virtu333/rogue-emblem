@@ -44,6 +44,20 @@ test('Redraw road is a pause menu entry that pays, counts and says what is left'
       }),
     })),
   ).toEqual({ scrolls: false, allInView: true });
+  // It leads the panel, under the note, above the menu's own actions (Resume first).
+  expect(
+    await pause.evaluate((p) => {
+      const entry = [...p.querySelectorAll('button')].find((b) =>
+        b.textContent.startsWith('Redraw road'),
+      );
+      const resume = [...p.querySelectorAll('button')].find((b) => b.textContent === 'Resume');
+      return {
+        underNote: p.querySelector('.mp-note').nextElementSibling.contains(entry),
+        aboveResume: entry.getBoundingClientRect().bottom <= resume.getBoundingClientRect().top,
+        resumeFocused: document.activeElement === resume,
+      };
+    }),
+  ).toEqual({ underNote: true, aboveResume: true, resumeFocused: true });
   await page.screenshot({ path: 'test-results/route-redraw-pause.png' });
 
   const ahead = () =>

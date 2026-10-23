@@ -44,7 +44,9 @@ act and draw them again.
 
 ## UI
 
-An entry in the route map's Menu (the pause menu), "Redraw road", above Save & Return to Title
+An entry in the route map's Menu (the pause menu), "Redraw road", at the top: under the note,
+above the burdens, the blessings and Resume (a `lead` action, `.mp-lead`; on a short landscape
+phone it reads on one line and the actions below take three columns, so the panel is no taller)
 (`RouteRedrawController.routeRedrawPauseEntry`, PauseOverlay's `routeRedraw`): a line under it
 says the price and redraws left ("300 Valor · 5 left"), or, greyed, why it cannot be used ("Need
 300 Valor (you have 120).", "No redraws left this run.", "Finish here before redrawing the road.").

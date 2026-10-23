@@ -184,6 +184,10 @@ export class MobilePauseMenu {
     }
     const list = document.createElement('div');
     list.className = 'mp-actions';
+    // A run action (Redraw road) leads the panel, under the note, above the burdens and
+    // blessings: it is about the run, like them.
+    const lead = document.createElement('div');
+    lead.className = 'mp-lead';
     for (const source of buttons) {
       const button = document.createElement('button');
       button.type = 'button';
@@ -221,14 +225,15 @@ export class MobilePauseMenu {
         source.emit('pointerdown');
         this.sync();
       });
-      list.append(button);
+      (source.lead && !confirming ? lead : list).append(button);
     }
+    if (lead.childElementCount) panel.querySelector('.mp-note').after(lead);
     panel.append(list);
     this.root.append(panel);
     // Back out is the initially focused action for destructive confirmations.
     const initial = confirming
       ? [...list.children].find((b) => b.textContent === 'Cancel')
-      : list.firstChild;
+      : list.querySelector('.mp-primary') || list.firstChild;
     initial?.focus();
   }
   destroy() {

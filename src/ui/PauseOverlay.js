@@ -164,6 +164,28 @@ export class PauseOverlay {
     this._addButton(cx, btnY, 'Resume', () => this.hide());
     btnY += 40;
 
+    // Redraw road: pause closes, then the redraw asks first. Greyed, its line says why.
+    if (this.routeRedraw) {
+      const redraw = this.routeRedraw;
+      this._addButton(
+        cx,
+        btnY,
+        redraw.label,
+        () => {
+          if (redraw.disabled) return;
+          this.hide();
+          redraw.onSelect();
+        },
+        redraw.disabled ? UI_PALETTE.muted : UI_PALETTE.text,
+      );
+      const btn = this._menuButtons[this._menuButtons.length - 1];
+      btn.detail = redraw.detail || '';
+      btn.disabled = Boolean(redraw.disabled);
+      // The phone menu shows it at the top, beside the run's burdens and blessings.
+      btn.lead = true;
+      btnY += 40;
+    }
+
     // Settings
     this._addButton(cx, btnY, 'Settings', () => {
       if (this.settingsOverlay?.visible) return;
@@ -224,26 +246,6 @@ export class PauseOverlay {
       this._addButton(cx, btnY, this.prologue.onSkipRest ? 'Skip Prologue' : 'Leave Prologue', () =>
         this.requestLeavePrologue(),
       );
-      btnY += 40;
-    }
-
-    // Redraw road: pause closes, then the redraw asks first. Greyed, its line says why.
-    if (this.routeRedraw) {
-      const redraw = this.routeRedraw;
-      this._addButton(
-        cx,
-        btnY,
-        redraw.label,
-        () => {
-          if (redraw.disabled) return;
-          this.hide();
-          redraw.onSelect();
-        },
-        redraw.disabled ? UI_PALETTE.muted : UI_PALETTE.text,
-      );
-      const btn = this._menuButtons[this._menuButtons.length - 1];
-      btn.detail = redraw.detail || '';
-      btn.disabled = Boolean(redraw.disabled);
       btnY += 40;
     }
 
