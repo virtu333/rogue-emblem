@@ -107,6 +107,20 @@ describe('in a combat', () => {
     expect(wardReady(s)).toBe(false);
   });
 
+  it('Miracle is not spent on a blow the buckler already holds to 1', () => {
+    // Failure: Miracle fired on the first blow (it would have killed her at 10 HP), then the
+    // buckler cut the same blow to 1, so both were spent and the second blow felled her.
+    const s = unit('Sera', 'player', { DEF: 4, LCK: 30 }, { accessory: buckler() });
+    s.skills = ['miracle'];
+    s.currentHP = 10;
+    const r = fight(brigand(), s);
+    const onSera = strikes(r).filter((e) => e.target === 'Sera');
+    expect(onSera[0].buckler).toBe(true);
+    // 10 - 1 = 9, then the second 15-damage blow is Miracle's: she stands at 1.
+    expect(r.defenderHP).toBe(1);
+    expect(s._miracleUsed).toBe(true);
+  });
+
   it('without the buckler the same fight fells her', () => {
     const s = sera({ accessory: null });
     expect(fight(brigand(), s).defenderHP).toBe(0);

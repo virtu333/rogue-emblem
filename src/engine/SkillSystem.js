@@ -652,6 +652,7 @@ export function rollStrikeSkills(
  * locals), so Miracle's lethality check must use the live value when provided.
  * Mark of the Veil (3C, `marksData`) halves a magic strike on its bearer before the skills
  * below; Aegis then cannot halve it again (one halving), though its own roll is still taken.
+ * `wardHolds`: the defender's Warden's Buckler will hold this blow to 1 and leave it standing.
  * Returns { modifiedDamage, miracleTriggered, activated: [{id, name}] }
  */
 export function rollDefenseSkills(
@@ -663,6 +664,7 @@ export function rollDefenseSkills(
   marksData = null,
   procMultiplier = 1,
   procStatBonus = null,
+  wardHolds = false,
 ) {
   const result = {
     modifiedDamage: damage,
@@ -716,7 +718,9 @@ export function rollDefenseSkills(
       result.activated.push({ id: 'dragon_scale', name: 'Dragon Scale' });
     }
 
-    if (skill.id === 'miracle' && !defender._miracleUsed) {
+    // A ready Warden's Buckler on a defender above 1 HP already keeps this blow from killing
+    // (Combat.rollStrike wards it to 1 after these skills): Miracle is not spent on it.
+    if (skill.id === 'miracle' && !defender._miracleUsed && !wardHolds) {
       const hp = Number.isFinite(liveHP) ? liveHP : defender.currentHP;
       const wouldDie = hp > 0 && hp <= result.modifiedDamage;
       if (wouldDie) {
