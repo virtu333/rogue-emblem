@@ -607,6 +607,11 @@ export class NodeMapMenu {
     }
   }
 
+  /** A short line over the map (Redraw road's result). */
+  showToast(text) {
+    this._showToast(text);
+  }
+
   _showToast(text) {
     if (!text) return;
     this._toast?.remove();

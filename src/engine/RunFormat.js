@@ -265,6 +265,8 @@ export const RUN_FORMAT_FIELDS = Object.freeze({
     feats: 'inert',
     // The end-of-run grade's tally (engine/RunLedger.js): an older client ignores it.
     runLedger: 'inert',
+    // Redraw road's count this run (engine/RouteRedraw.js): an older client has no redraws.
+    routeRedraws: 'inert',
   }),
   // The route map's top level.
   nodeMap: Object.freeze({

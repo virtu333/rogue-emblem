@@ -66,7 +66,8 @@ import {
   savedMetaBattlePoints,
 } from './MetaProgressionManager.js';
 import { lordNamesInRun } from './LordsMet.js';
-import { generateNodeMap } from './NodeMapGenerator.js';
+import { generateNodeMap, nodeMapOptionsForRun } from './NodeMapGenerator.js';
+import { sanitizeRouteRedraws } from './RouteRedraw.js';
 import { buildDescentNodeMap, descentRouteIdFor, isDescentMap, isGateBossNode } from './Descent.js';
 import {
   RITE_MAX_WORDS_PER_COMMIT,
@@ -1000,6 +1001,7 @@ export class RunManager {
     this.pendingCaravanShop = null;
     this.pendingBattleReward = null;
     this.rewardRerollsSpent = 0;
+    this.routeRedraws = 0;
     this.legendaryGrants = [];
     this.pendingBossRecruit = null;
     this.pendingThirdLord = null;
@@ -4929,15 +4931,12 @@ export class RunManager {
       }
     }
     return this._withNodeMapSeed(() =>
-      generateNodeMap(this.currentAct, this.currentActConfig, this.gameData.mapTemplates, {
-        fogChanceBonus: this.getDifficultyModifier('fogChanceBonus', 0),
-        halfFogChance: this.difficultyId === 'normal',
-        villageAmbushChance: this.getDifficultyModifier('villageAmbushChance', 0),
-        // an object — read directly (getDifficultyModifier coerces objects)
-        villageMinRow: this.difficultyModifiers?.villageMinRow ?? null,
-        colosseumConfig: this.gameData.colosseum?.nodeGeneration ?? null,
-        caravanChanceBonus: this.metaEffects?.caravanChanceBonus || 0,
-      }),
+      generateNodeMap(
+        this.currentAct,
+        this.currentActConfig,
+        this.gameData.mapTemplates,
+        nodeMapOptionsForRun(this),
+      ),
     );
   }
 
@@ -6116,6 +6115,7 @@ export class RunManager {
         : null;
     // Saves from before Branching Threads have spent none.
     rm.rewardRerollsSpent = Math.max(0, Math.trunc(Number(saved.rewardRerollsSpent) || 0));
+    rm.routeRedraws = sanitizeRouteRedraws(saved.routeRedraws);
     // Saves from before the ledger have none (what the army holds still counts).
     rm.legendaryGrants = sanitizeLegendaryGrants(saved.legendaryGrants);
     rm.ngPlus = restoreNgPlusRun(rm, saved);

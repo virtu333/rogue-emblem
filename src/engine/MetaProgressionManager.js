@@ -915,6 +915,21 @@ export class MetaProgressionManager {
     });
   }
 
+  /**
+   * Spend Valor on a purchase that is not an upgrade (Redraw road): refused, with nothing
+   * written, when the save holds less than `amount` ('short') or the write fails.
+   */
+  spendValor(amount) {
+    const price = Math.floor(Number(amount));
+    if (!Number.isFinite(price) || price <= 0) return { ok: false, reason: 'invalid' };
+    return this._commit(() => {
+      const current = Number.isFinite(this.totalValor) ? this.totalValor : 0;
+      if (current < price) return { ok: false, reason: 'short' };
+      this.totalValor = current - price;
+      return { ok: true };
+    });
+  }
+
   addSupply(amount) {
     if (!Number.isFinite(amount)) return { ok: false };
     return this._commit(() => {
