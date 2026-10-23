@@ -431,7 +431,7 @@ describe('outcome selection', () => {
     expect(nightfall).toBeLessThan(0.51); // 45%
     expect(blackSun).toBe(nightfall); // same table, same seeds: identical
     expect(first).toBeGreaterThan(nightfall);
-  });
+  }, 30_000); // about 3-4 s alone, past 5 s under a full suite's load
 
   describe('checks', () => {
     const spar = baseData.events.events.find((e) => e.id === 'old_swordmaster').choices[1];

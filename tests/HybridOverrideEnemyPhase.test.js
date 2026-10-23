@@ -541,7 +541,7 @@ describe.each(['fixed-v1', 'legacy-v1'])(
         ).toEqual(liveCheckpoints.slice(index + 1));
         expect(endState(resumed.scene), label).toEqual(want);
       }
-    });
+    }, 30_000); // about 3-4 s alone, past 5 s under a full suite's load
 
     it.each([
       // From turn 4 back over the deferral (enemy phase 3 replays it).

@@ -487,5 +487,5 @@ describe('how often no node is eligible (seed sweep)', () => {
     expect(maps).toBeGreaterThan(2000);
     // Measured at 1500 seeds per rung, no ordinary map missed; allow a rare miss, never a trend.
     expect(misses.length / maps).toBeLessThan(0.002);
-  });
+  }, 30_000); // about 3-4 s alone, past 5 s under a full suite's load
 });
