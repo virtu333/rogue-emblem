@@ -170,7 +170,7 @@ describe('the offer', () => {
     });
     for (let seed = 1; seed <= 200; seed++)
       expect(startRun(seed, { gameData: muted }).getStartGiftOffer()?.id).not.toBe('fallen_hoard');
-  });
+  }, 30_000); // about 3-4 s alone, past 5 s under a full suite's load
 
   it("moves no other stream: the shrine's offer, the map, the roster, the battle seed", () => {
     // Failure: the offer draws on the blessing stream or Math.random, so a run offered a gift
@@ -486,7 +486,7 @@ describe('the six gifts', () => {
       }
     }
     expect(checked).toBe(12);
-  });
+  }, 30_000); // about 3-4 s alone, past 5 s under a full suite's load
 
   it("Pilgrim's Wager is never offered with the Eclipse off", () => {
     // Failure: with the Eclipse off its whole catch costs nothing.

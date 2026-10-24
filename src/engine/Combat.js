@@ -1995,6 +1995,9 @@ function rollStrike(
       strikeSkills.marksData,
       strikeSkills.targetProcMultiplier ?? 1,
       strikeSkills.targetProcStatBonus ?? null,
+      // The Buckler wards this blow below (a blow of 0 or 1 leaves it ready, and kills no one
+      // above 1 HP either): Miracle stays for a blow the Buckler cannot take.
+      wardReady(targetUnit) && targetHP > 1,
     );
     if (defResult.modifiedDamage !== finalDmg) {
       finalDmg = defResult.modifiedDamage;

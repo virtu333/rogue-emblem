@@ -1201,6 +1201,28 @@ describe('a kept item has exactly one owner across the Barracks', () => {
     expect(owners.map((r) => r.id)).toEqual([lordRecordId('Edric')]);
   });
 
+  it('a heirloom left in a fallen ally’s bag (the convoy full) stays its owner’s', () => {
+    // Failure: the victory only looked at the living and the stores, so the record dropped the
+    // axe for good although the run still held it on the fallen unit.
+    const { meta, vet } = metaWithBarracks();
+    const rm = startNgPlus(meta);
+    const vetUnit = rm.roster.find((u) => u.name === vet.name);
+    const axe = vetUnit.inventory.find((i) => i.uid === 'itm_kept_axe');
+    vetUnit.inventory = vetUnit.inventory.filter((i) => i !== axe);
+    if (vetUnit.weapon === axe) vetUnit.weapon = null;
+    const carrier = addRecruit(rm);
+    carrier.inventory.push(axe);
+    rm.roster = rm.roster.filter((u) => u !== carrier);
+    rm.fallenUnits.push(carrier);
+    winRun(rm, meta);
+    expect(meta.chooseNgPlusRide([]).ok).toBe(true);
+    const state = freshMeta().getNgPlus();
+    expect(state.barracks.find((r) => r.id === vet.id).keptItems.map((i) => i.uid)).toEqual([
+      'itm_kept_axe',
+    ]);
+    expect(instancesOf(startNgPlus(freshMeta(), 24), 'itm_kept_axe')).toBe(1);
+  });
+
   it('a heirloom left in the convoy stays its owner’s and comes back once', () => {
     const { meta, vet } = tradedHeirloom({ toConvoy: true });
     expect(meta.chooseNgPlusRide([]).ok).toBe(true);

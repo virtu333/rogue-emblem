@@ -310,4 +310,13 @@ describe('a run', () => {
     expect(totals.epics.length).toBeGreaterThan(5);
     expect(totals.deeds.length).toBeGreaterThan(5);
   });
+
+  it('Every Road a Tale never asks for the fallback event, which no road offers by weight', () => {
+    const totals = achievementTotals(data);
+    const events = data.events.events || data.events;
+    const fallbacks = events.filter((e) => e.fallback === true).map((e) => e.id);
+    expect(fallbacks).toContain('quiet_road');
+    for (const id of fallbacks) expect(totals.events).not.toContain(id);
+    expect(totals.events).toHaveLength(events.length - fallbacks.length);
+  });
 });
