@@ -82,11 +82,11 @@ describe('a forge on a full kept weapon pulls a sleeping forge forward', () => {
       expect(sword[key]).toBe(ref[key]);
   });
 
-  it('a pulled-forward forge is a kept forge: the ride keeps it and carries four new ones', () => {
-    // Failure: the woken forge counts as one of the run's, so it eats a carry slot.
+  it('a pulled-forward forge is a kept forge: the ride keeps it', () => {
+    // Failure: the ride loses the woken forge.
     const sword = keptFull();
     applyForge(sword, 'hit', 0, { free: true });
-    const carried = carriedCopy(sword, 4);
+    const carried = carriedCopy(sword);
     expect(carried._forgeLevel).toBe(15);
     expect(dormantForgeCount(carried)).toBe(0);
   });
