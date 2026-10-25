@@ -296,11 +296,9 @@ describe('kept forges sleep and wake', () => {
     expect(refreshed.keptItems[0]._keptForgeBase).toBeUndefined();
   });
 
-  it('a ride carries the kept forges plus the run’s first four, at their price', () => {
-    // Failure (the owner's ask): every forge of every run carries, so a kept weapon maxes out
-    // in a loop or two; or the cap trims the forges the weapon rode in with.
-    const carry = data.difficulty.ngPlus.keptForgeCarry;
-    expect(carry).toBe(4);
+  it('a ride carries every forge, the run’s own included, at their price', () => {
+    // Failure (the owner's ask, 2026-10-25): a cap trims the run's forges on the way into the
+    // Barracks, or drops the forges the weapon rode in with.
     const rm = ngPlusRun(lordState({ items: [forgedSword()] }));
     const sword = findKept(rm, 'itm_kept_sword');
     const price = sword.price;
@@ -310,7 +308,7 @@ describe('kept forges sleep and wake', () => {
       expect(result.success).toBe(true);
       paid.push(result.cost);
     }
-    // A weapon this run found and forged +6 rides with 4 of them.
+    // A weapon this run found and forged +6 rides with all 6.
     const edric = edricOf(rm);
     const found = { ...catalog('Iron Sword'), uid: 'itm_found_sword' };
     for (const stat of ['might', 'hit', 'crit', 'weight', 'might', 'hit'])
@@ -318,34 +316,23 @@ describe('kept forges sleep and wake', () => {
     edric.inventory.push(found);
     const candidate = rideCandidates(rm).find((c) => c.name === 'Edric');
     const kept = candidate.items.find((i) => i.uid === 'itm_kept_sword');
-    expect(kept._forgeLevel).toBe(7 + carry);
+    expect(kept._forgeLevel).toBe(12);
     expect(kept._forgeHistory.slice(7).map((s) => s.stat)).toEqual([
       'weight',
       'hit',
       'crit',
       'weight',
+      'hit',
     ]);
-    expect(kept.price).toBe(price + paid[0] + paid[1] + paid[2] + paid[3]);
+    expect(kept.price).toBe(price + paid.reduce((a, b) => a + b, 0));
     expect(kept._keptForgeBase).toBeUndefined();
-    expect(candidate.items.find((i) => i.uid === 'itm_found_sword')._forgeLevel).toBe(carry);
+    expect(candidate.items.find((i) => i.uid === 'itm_found_sword')._forgeLevel).toBe(6);
     rm.status = 'victory';
     const end = ngPlusRunEnd(rm, { result: 'victory' });
     const refreshed = end.refresh.find((r) => r.id === lordRecordId('Edric')).keptItems[0];
-    expect(refreshed._forgeLevel).toBe(7 + carry);
+    expect(refreshed._forgeLevel).toBe(12);
     // The run's own copy is untouched.
     expect(sword._forgeLevel + dormantForgeCount(sword)).toBe(12);
-  });
-
-  it('a kept weapon from a save before the cap keeps every forge (grandfathered)', () => {
-    // Failure: a live NG+ run's kept weapon, placed before the cap stamped what it rode in
-    // with, is read as a fresh find and trimmed to +2 at the run's end.
-    const rm = ngPlusRun(lordState({ items: [forgedSword()] }));
-    const sword = findKept(rm, 'itm_kept_sword');
-    wakeForges(sword, Infinity);
-    delete sword._keptForgeBase;
-    applyForge(sword, 'weight', 0, { free: true });
-    const candidate = rideCandidates(rm).find((c) => c.name === 'Edric');
-    expect(candidate.items.find((i) => i.uid === 'itm_kept_sword')._forgeLevel).toBe(8);
   });
 });
 
@@ -452,8 +439,6 @@ describe('Echo', () => {
     };
     expect(validateNgPlusConfig(bad).valid).toBe(false);
     expect(validateNgPlusConfig({ echo: [{ minEcho: 5, enemyHp: 3 }] }).valid).toBe(false);
-    expect(validateNgPlusConfig({ keptForgeCarry: -1 }).valid).toBe(false);
-    expect(validateNgPlusConfig({ keptForgeCarry: 1.5 }).valid).toBe(false);
   });
 
   it('the table climbs gently: each step raises one lever by one', () => {

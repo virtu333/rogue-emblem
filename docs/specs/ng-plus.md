@@ -282,12 +282,10 @@ Write-up: project file `reviews/ascension-true-ending.md`.
   limit counts kept forges only and a wake slips them in under the run's forges (history: kept
   first, then the run's); `canForge`, `forgeStatBlock` and `getForgeCost` count sleeping forges
   toward the +15 and per-stat caps and the per-stat price, so a wake never fails.
-- **Only some forges ride on** (the owner, 2026-10-17): the Barracks stores a weapon awake with
-  the forges it rode in with plus at most `ngPlus.keptForgeCarry` (4) of the run's own, the
-  earliest made (`KeptForges.carriedCopy`, read by `rideCandidates` and the run end's refresh);
-  each one dropped takes its price with it. A weapon kept for the first time rode in with none.
-  Grandfathered: a Barracks weapon placed before the stamp existed (a live run of an older
-  build) keeps every forge it has, and every Barracks record keeps what it already stores.
+- **Every forge rides on** (the owner, 2026-10-25, undoing the 2026-10-17 cap of four new forges
+  per run: it made NG+ tedious and added nothing the awake limits did not): the Barracks stores a
+  weapon awake with all its forges, the run's own included (`KeptForges.carriedCopy`, read by
+  `rideCandidates` and the run end's refresh). Records already stored keep what they hold.
   The roster card says "N kept forges still waking".
 - Tests: `tests/NgPlusEcho.test.js`.
 

@@ -11,8 +11,7 @@
 // forges or not: `_keptForgeBase` is how many forges the weapon rode in with, so the awake limit
 // counts kept forges only, and waking slips them in under the run's forges (the history stays
 // kept forges first, then the run's). ForgeSystem counts sleeping forges toward its caps, so a
-// wake never fails. A ride carries the kept forges plus at most `ngPlus.keptForgeCarry` of the
-// run's (the earliest; the rest are taken off with their price): `carriedCopy`.
+// wake never fails. A ride carries every forge, all awake: `carriedCopy`.
 //
 // Pure: mutates only the weapons it is handed. No Math.random.
 import {
@@ -92,28 +91,15 @@ export function lullForges(weapon, limit) {
   return sleeping.length;
 }
 
-/** How many of a run's forges a ride carries (difficulty.json `ngPlus.keptForgeCarry`). */
-export const DEFAULT_KEPT_FORGE_CARRY = 4;
-
 /**
- * What the Barracks stores of a weapon: every forge awake, the forges it rode in with, and at
- * most `carry` of the run's own (the earliest made; each one dropped takes its price with it).
- * A weapon kept for the first time rode in with none; `kept` marks a Barracks item placed before
- * the run stamped what it rode in with (a save from before the cap), which keeps every forge.
+ * What the Barracks stores of a weapon: every forge it has, awake (the forges it rode in with and
+ * all of the run's own). `_keptForgeBase` was only the awake limit's stamp, so it is dropped.
  */
-export function carriedCopy(item, carry = DEFAULT_KEPT_FORGE_CARRY, { kept = false } = {}) {
+export function carriedCopy(item) {
   const copy = structuredClone(item);
   if (!isWeaponLike(copy)) return copy;
-  const stamped = Number.isInteger(copy._keptForgeBase);
-  const base = stamped || kept ? keptForgeBase(copy) : 0;
   wakeForges(copy, Infinity);
   delete copy._keptForgeBase;
-  const keep = base + Math.max(0, Math.floor(Number(carry) || 0));
-  const history = Array.isArray(copy._forgeHistory) ? copy._forgeHistory.length : 0;
-  // A legacy weapon with no exact history keeps what it has: a step can't be told apart.
-  while ((copy._forgeLevel || 0) > keep && history >= (copy._forgeLevel || 0)) {
-    if (!deforgeWeapon(copy).success) break;
-  }
   return copy;
 }
 
