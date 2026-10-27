@@ -25,6 +25,15 @@ import {
 } from './NgPlusState.js';
 import { DEFAULT_MARK_CHANCE } from './MarkSystem.js';
 import {
+  hasWonWithLord,
+  LORD_OUTFIT_PRICE,
+  lordOutfit,
+  normalizeWornOutfits,
+  ownedOutfitIds,
+  ownedOutfitKey,
+  wonWithMilestonesFor,
+} from './LordOutfits.js';
+import {
   settledBalanceRevision,
   withBalanceRevisionMarker,
   withoutBalanceRevisionMarker,
@@ -561,6 +570,7 @@ export const META_SAVE_FIELDS = Object.freeze([
   'ngPlus',
   'achievements',
   'ngPlusInnateGrowths',
+  'lordOutfitsWorn',
   'savedAt',
 ]);
 const META_READ_ONLY_FIELDS = Object.freeze(['totalRenown']);
@@ -673,6 +683,9 @@ export class MetaProgressionManager {
     this.storyFlags = defaultStoryFlags(); // run-aware narrative memory
     this.prologue = defaultPrologueState();
     this.ngPlus = defaultNgPlusState(); // NG+: the Barracks and the ride (NgPlusState.js)
+    // What each lord wears ({ Edric: 'ashen_crown' }; engine/LordOutfits.js). Ownership is
+    // `purchasedUpgrades` keys; this is the choice.
+    this.lordOutfitsWorn = {};
     // The player's achievements (engine/Achievements.js): grow-only, the same on every slot.
     this.achievements = emptyAchievementState();
     // Earned in a write not yet landed; announced (the unlock card) once it has.
@@ -735,6 +748,10 @@ export class MetaProgressionManager {
         this.prologue = normalizePrologueState(saved.prologue);
         this.ngPlus = normalizeNgPlusState(saved.ngPlus);
         this.achievements = normalizeAchievementState(saved.achievements);
+        this.lordOutfitsWorn = normalizeWornOutfits(
+          saved.lordOutfitsWorn,
+          ownedOutfitIds(this.purchasedUpgrades),
+        );
         // The innate markers an older build's write dropped come back from the ledger it kept.
         this.ngPlus = restoreInnateGrowths(
           normalizeNgPlusState(saved.ngPlus),
@@ -1263,6 +1280,73 @@ export class MetaProgressionManager {
     return this._commitNgPlus((state) => ({ ok: true, ...applyRunEnd(state, end) }));
   }
 
+  // --- The Wardrobe (docs/specs/lord-outfits.md; the rules are LordOutfits.js) ---
+
+  /** `{ owned: [ids], worn: { <lord>: id } }` (copies). */
+  getLordOutfits() {
+    return { owned: ownedOutfitIds(this.purchasedUpgrades), worn: { ...this.lordOutfitsWorn } };
+  }
+
+  /** The outfit id a lord wears, or null (portraits and sprites read this). */
+  wornLordOutfit(lordName) {
+    return this.lordOutfitsWorn[lordName] || null;
+  }
+
+  ownsLordOutfit(id) {
+    return ownedOutfitIds(this.purchasedUpgrades).includes(id);
+  }
+
+  /** Has this save won a run with the lord alive (Edric: any win)? */
+  hasWonWithLord(lordName) {
+    return hasWonWithLord(lordName, { milestones: this.milestones, runRecords: this.runRecords });
+  }
+
+  /** Why an outfit cannot be bought ('unknown' | 'owned' | 'locked' | 'valor'), or null. */
+  lordOutfitBlock(id) {
+    const outfit = lordOutfit(id);
+    if (!outfit) return 'unknown';
+    if (this.ownsLordOutfit(id)) return 'owned';
+    if (!this.hasWonWithLord(outfit.lord)) return 'locked';
+    if (this.totalValor < LORD_OUTFIT_PRICE) return 'valor';
+    return null;
+  }
+
+  /**
+   * Buy an outfit: the Valor, the outfit and wearing it in one write, never refunded.
+   * Checked inside the commit after a newer copy on disk is adopted, so a stale copy never
+   * pays twice for an outfit the other copy already bought.
+   */
+  buyLordOutfit(id) {
+    return this._commit(() => {
+      const reason = this.lordOutfitBlock(id);
+      if (reason) return { ok: false, reason };
+      this.totalValor -= LORD_OUTFIT_PRICE;
+      this.purchasedUpgrades[ownedOutfitKey(id)] = 1;
+      this.lordOutfitsWorn = { ...this.lordOutfitsWorn, [lordOutfit(id).lord]: id };
+      return { ok: true };
+    });
+  }
+
+  /** Wear an owned outfit (`id`), or the lord's own look (`null`). */
+  setLordOutfit(lordName, id) {
+    return this._commit(() => {
+      const current = this.lordOutfitsWorn[lordName] || null;
+      if (id == null) {
+        if (!current) return { ok: true, unchanged: true };
+        const worn = { ...this.lordOutfitsWorn };
+        delete worn[lordName];
+        this.lordOutfitsWorn = worn;
+        return { ok: true };
+      }
+      const outfit = lordOutfit(id);
+      if (!outfit || outfit.lord !== lordName) return { ok: false, reason: 'unknown' };
+      if (!this.ownsLordOutfit(id)) return { ok: false, reason: 'not_owned' };
+      if (current === id) return { ok: true, unchanged: true };
+      this.lordOutfitsWorn = { ...this.lordOutfitsWorn, [lordName]: id };
+      return { ok: true };
+    });
+  }
+
   /** An NG+ change (`change` gets the NG+ state) as one transaction (`_commit`). */
   _commitNgPlus(change) {
     return this._commit(() => change(this.ngPlus));
@@ -1553,8 +1637,11 @@ export class MetaProgressionManager {
   } = {}) {
     if (result !== 'victory' && result !== 'defeat') return;
     return this._commit(() => {
-      if (result === 'victory' && victoryRecord)
+      if (result === 'victory' && victoryRecord) {
         this.runRecords = mergeRunRecords(this.runRecords, [victoryRecord]);
+        // The Wardrobe's unlocks (LordOutfits.js): kept apart from the records, which age out.
+        for (const m of wonWithMilestonesFor(victoryRecord)) this.milestones.add(m);
+      }
       const foe = typeof defeatedBy === 'string' && defeatedBy ? defeatedBy : null;
       this.storyFlags.lastRun = {
         result,
@@ -2249,6 +2336,7 @@ export class MetaProgressionManager {
     this.storyFlags = defaultStoryFlags();
     this.prologue = defaultPrologueState();
     this.ngPlus = defaultNgPlusState();
+    this.lordOutfitsWorn = {};
     this.runRecords = [];
     this.settledRunIds = [];
     this.seenDialogueKeys = [];
@@ -2310,6 +2398,7 @@ export class MetaProgressionManager {
     this.balanceRevision = Math.max(this.balanceRevision, fresh.balanceRevision);
     this.skillAssignments = fresh.skillAssignments;
     this.lordSelection = fresh.lordSelection;
+    this.lordOutfitsWorn = fresh.lordOutfitsWorn;
     this.settledRunIds = fresh.settledRunIds;
     // NG+: the newer write wins whole (NgPlusState.adoptNgPlusState).
     this.ngPlus = restoreInnateGrowths(
@@ -2451,6 +2540,7 @@ export class MetaProgressionManager {
       prologue: this.prologue,
       ngPlus: this.ngPlus,
       achievements: this.achievements,
+      lordOutfitsWorn: this.lordOutfitsWorn,
       savedAt: this.savedAt,
     });
   }
@@ -2501,6 +2591,7 @@ export class MetaProgressionManager {
       // A second copy of each veteran's innate marker, where an older build keeps it
       // (NgPlusState.innateGrowthsLedgerOf).
       ngPlusInnateGrowths: innateGrowthsLedgerOf(this.ngPlus),
+      lordOutfitsWorn: this.lordOutfitsWorn,
       savedAt: this.savedAt,
     };
     let localOk = false;

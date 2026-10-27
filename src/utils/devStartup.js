@@ -65,6 +65,8 @@ const DEV_PRESETS = new Set([
   'event',
   // NG+ review (docs/specs/ng-plus.md): a Black Sun win's survivors at Home Base.
   'ngplus',
+  // The Wardrobe review (docs/specs/lord-outfits.md): every lord met, Kira's outfit owned.
+  'wardrobe',
 ]);
 // Presets built on the combat_actions loadout (Edric, Sera and three utility units).
 const COMBAT_LOADOUT_PRESETS = new Set(['combat_actions', 'fog_ambush', 'zombie_remains']);
@@ -182,6 +184,15 @@ function addTeamWeaponArtScrolls(runManager, gameData, maxCount = 4) {
   runManager.scrolls.push(...scrolls);
 }
 
+/** Every lord met, wins with all but Cael alive, Kira's outfit owned and worn. */
+function applyWardrobeReviewMeta(meta, gameData) {
+  const names = (gameData?.lords || []).map((l) => l.name);
+  meta.lordsMet = [...names].sort();
+  for (const name of names) if (name !== 'Cael') meta.milestones.add(`wonWith:${name}`);
+  meta.purchasedUpgrades.lord_outfit_field_marshal = 1;
+  meta.lordOutfitsWorn = { Kira: 'field_marshal' };
+}
+
 function applyMetaPreset(meta, preset, gameData) {
   if (!meta) return;
   if (preset === 'fresh' || preset === 'event') return;
@@ -192,6 +203,7 @@ function applyMetaPreset(meta, preset, gameData) {
   // The ladder with Dusk won: Dusk and Nightfall open, Black Sun still says why not.
   if (preset === 'ladder') meta.milestones.add('beatDusk');
   if (preset === 'ngplus') applyNgPlusReviewMeta(meta, gameData);
+  if (preset === 'wardrobe') applyWardrobeReviewMeta(meta, gameData);
 
   if (
     preset === 'weapon_arts' ||

@@ -40,6 +40,7 @@ import { renderPlate, plateColours, FACTIONS } from './lib/plate.mjs';
 import { hashString } from './lib/raster.mjs';
 import { hex } from './lib/color.mjs';
 import { buildPlan } from '../portrait-variants/plan.mjs';
+import { outfitPortraitJobs } from '../lord-outfits/portraitJobs.mjs';
 import {
   SIZES,
   MASTER_SIZE,
@@ -84,7 +85,9 @@ const baseSet = new Set(baseIds);
 const plan = buildPlan(baseSet);
 /** A generated source exists for this id (a variant or a remastered default). */
 const generated = (id) => Boolean(variantSources[id]) && existsSync(join(VARIANT_DIR, `${id}.png`));
-const variantIds = plan.jobs.map((j) => j.id).filter((id) => !baseSet.has(id) && generated(id));
+const variantIds = [...plan.jobs, ...outfitPortraitJobs()]
+  .map((j) => j.id)
+  .filter((id) => !baseSet.has(id) && generated(id));
 const ids = [...baseIds, ...variantIds].sort();
 const isVariant = (id) => !baseSet.has(id) || rebuiltManifest[id]?.lazy === true;
 const todo = ONLY ? ids.filter((id) => ONLY.includes(id)) : ids;
