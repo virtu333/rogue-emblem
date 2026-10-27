@@ -3,7 +3,7 @@
 // take, labelled, for the owner to pick from.
 //
 //   node tools/art/lord-outfits/sheet.mjs [--promoted] [--out <dir>]
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import sharp from 'sharp';
@@ -29,11 +29,18 @@ const label = (text, w) =>
 
 const rawOf = (name) =>
   ['.png', '.jpg'].map((e) => join(RAW, name + e)).find((f) => existsSync(f)) || null;
+const PICKS = JSON.parse(
+  readFileSync(join(ROOT, 'tools/art/lord-outfits/picks.json'), 'utf8'),
+).picks;
 
 for (const outfit of LORD_OUTFITS) {
   const suffix = PROMOTED ? '_promoted' : '';
   const lordId = `lord_${outfit.lord.toLowerCase()}${suffix}`;
   const tiles = [[join(ROOT, 'assets/portraits/rebuilt', `${lordId}.png`), 'Now']];
+  // A promoted sheet shows the picked base outfit too: the takes make it grander.
+  const basePick =
+    PROMOTED && PICKS[outfit.id]?.base && rawOf(`${outfit.id}-t${PICKS[outfit.id].base}`);
+  if (basePick) tiles.push([basePick, 'Base outfit']);
   for (let t = 1; t <= 8; t++) {
     const f = rawOf(`${outfit.id}${suffix}-t${t}`);
     if (f) tiles.push([f, `${t}`]);
@@ -55,7 +62,10 @@ for (const outfit of LORD_OUTFITS) {
     left: 0,
     top: 0,
   });
-  parts.push({ input: label('Current portrait, then the four takes', width), left: 0, top: LABEL });
+  const lead = basePick
+    ? 'Current promoted portrait, the picked base outfit, then the four takes'
+    : 'Current portrait, then the four takes';
+  parts.push({ input: label(lead, width), left: 0, top: LABEL });
   const file = join(OUT, `${outfit.id}${suffix}.png`);
   await sharp({
     create: { width, height: LABEL * 3 + TILE, channels: 3, background: '#1c1a24' },

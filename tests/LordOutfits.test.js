@@ -250,6 +250,36 @@ describe('what the screens show', () => {
     expect(tracedKeyFor(kira(), { lord_kira: {} })).toBe('lord_kira');
   });
 
+  it('a promoted lord wears the promoted outfit figure once it exists, else the base one', () => {
+    setWornOutfitSource(() => 'field_marshal');
+    const all = {
+      lord_kira: {},
+      lord_kira_promoted: {},
+      lord_kira__field_marshal: {},
+      lord_kira_promoted__field_marshal: {},
+    };
+    expect(tracedKeyFor(kira('promoted'), all)).toBe('lord_kira_promoted__field_marshal');
+    expect(tracedKeyFor(kira(), all)).toBe('lord_kira__field_marshal');
+    const { lord_kira_promoted__field_marshal: _p, ...noPromoted } = all;
+    expect(tracedKeyFor(kira('promoted'), noPromoted)).toBe('lord_kira__field_marshal');
+  });
+
+  it('every outfit ships its portrait and its map sprite', () => {
+    const pc98 = JSON.parse(readFileSync('src/ui/Pc98PortraitManifest.json', 'utf8'));
+    const traced = JSON.parse(readFileSync('src/ui/TracedSpriteManifest.json', 'utf8')).sprites;
+    const pc98Ids = JSON.stringify(pc98);
+    for (const { id, lord } of LORD_OUTFIT_CATALOG.outfits) {
+      const portrait = outfitPortraitId(lord, id);
+      expect(pc98Ids.includes(`"${portrait}"`), portrait).toBe(true);
+      expect(traced[portrait], portrait).toBeTruthy();
+      // the real resolver lands on it, from the shipped atlas
+      setWornOutfitSource((name) => (name === lord ? id : null));
+      expect(tracedKeyFor({ name: lord, isLord: true, faction: 'player', className: 'Lord' })).toBe(
+        portrait,
+      );
+    }
+  });
+
   it('the Wardrobe lists met lords only, with what blocks each', () => {
     const meta = freshMeta(1000);
     const rows = wardrobeRows(meta, lords, LORD_OUTFIT_CATALOG);

@@ -1,12 +1,26 @@
 {
-  "note": "The take each outfit portrait ships (References/lord-outfits/raw/<outfit>[_promoted]-t<n>). Provisional until the owner picks.",
+  "note": "The take each outfit portrait ships (References/lord-outfits/raw/<outfit>[_promoted]-t<n>). Base takes picked by the owner 2026-10-27 (take 1 for every lord).",
   "picks": {
-    "ashen_crown": { "base": 4 },
-    "field_marshal": { "base": 3 },
-    "winter_ranger": { "base": 1 },
-    "hollow_sun_vestments": { "base": 3 },
-    "black_banner": { "base": 1 },
-    "storm_rider": { "base": 1 },
-    "old_guard": { "base": 3 }
+    "ashen_crown": {
+      "base": 1
+    },
+    "field_marshal": {
+      "base": 1
+    },
+    "winter_ranger": {
+      "base": 1
+    },
+    "hollow_sun_vestments": {
+      "base": 1
+    },
+    "black_banner": {
+      "base": 1
+    },
+    "storm_rider": {
+      "base": 1
+    },
+    "old_guard": {
+      "base": 1
+    }
   }
 }

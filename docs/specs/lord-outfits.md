@@ -49,7 +49,17 @@ Design notes: `/mnt/project-files/reviews/valor-sinks.md` §2.
 `tools/art/lord-outfits/`: `generate.mjs` (four takes per outfit, the house style sheet and
 the lord's rebuilt portrait as references), `sheet.mjs` (contact sheets), `picks.json` (the
 shipped take per outfit and tier), `portraitJobs.mjs` (feeds the picks to
-`tools/art/portrait-variants/prepare.mjs` and `tools/art/pc98/build.mjs`).
+`tools/art/portrait-variants/prepare.mjs` and `tools/art/pc98/build.mjs`). A promoted take is
+drawn with the picked base take as its costume reference.
+
+Map sprites: `sprites.mjs` draws map-size takes in the traced sprites' grammar (the style
+board, the lord's own shipped sprite as image 2 for pixel scale, pose, weapon and mount, the
+picked outfit portrait for the costume; a promoted take adds the chosen base outfit sprite)
+and `--choose` stores a take's recovered grid in `docs/art/sprite-candidates-2026-10-27/
+sources/<lord>[_promoted]__<outfit>.png`. `tools/art/sprite-trace/roster.mjs`
+(`LORD_OUTFIT_SPRITES`) bakes every chosen source as `lord_<lord>[_promoted]__<outfit>` with the
+lord's own recipe and attack pose. Pick takes whose grid recovers at about 60-100 art px tall
+(`cli.mjs recover`): a finer grid traces at a strong reduction and loses the face.
 
 Tests: `tests/LordOutfits.test.js`, `tests/e2e/wardrobe.spec.js` (the Home Base lane in
 `tests/e2e/lanes.json`).

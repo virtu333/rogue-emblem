@@ -344,7 +344,7 @@
   "generic_wyvern_rider__wyvern_d": { "eye": 0.36, "cx": 0.52 },
   "generic_wyvern_rider__wyvern_e": { "eye": 0.36, "cx": 0.52 },
   "lord_astrid": { "eye": 0.36, "cx": 0.55 },
-  "lord_astrid__storm_rider": { "eye": 0.465, "cx": 0.52 },
+  "lord_astrid__storm_rider": { "eye": 0.36, "cx": 0.485 },
   "lord_astrid_promoted": { "eye": 0.37, "cx": 0.55 },
   "lord_cael": { "eye": 0.38, "cx": 0.52 },
   "lord_cael__old_guard": { "eye": 0.36, "cx": 0.52 },
