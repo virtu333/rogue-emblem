@@ -1,6 +1,6 @@
 // Acceptance, scenario 1 (the Vigil's objective and its commit): on the shipped Vigil (data's
 // `the_vigil`, generated and locked for a real Descent run's node, not the review fixture), the
-// army breaks the circles that ward the Voices, the last Voice falling to a real attack wins the
+// army Unweaves the circles that ward the Voices, the last Voice falling to a real attack wins the
 // battle while its guards and the circles' Hollowed still stand; the Rite takes the battle's words
 // and the rewards are paid exactly once. Ways this breaks:
 //   - a Voice is hurt through its ward, or stays warded once its circle is broken, or the Waking
@@ -19,7 +19,7 @@ import {
   descentData,
   descentRun,
   endTurn,
-  standOn,
+  unweaveOn,
   nodeOf,
   playNode,
   strike,
@@ -68,20 +68,24 @@ describe('the last Voice falls: the Vigil is won with its guards standing', () =
     await strike(driver, attackers[4], calling);
     expect(calling.currentHP).toBe(hp);
 
-    // Turn 1: three of the army stand on the circles of the Calling, the Binding and the Feeding;
-    // the Waking's circle stays open.
+    // Turn 1: three of the army Unweave the circles of the Calling, the Binding and the Feeding;
+    // each breaks at once. The Waking's circle stays open.
     const circle = (id) => battleConfig.vigil.circles.find((c) => c.id === id);
-    for (const [i, id] of ['circle_calling', 'circle_binding', 'circle_feeding'].entries())
-      await standOn(driver, attackers[i], circle(id));
-
-    // One enemy phase: the three circles break, the Voices speak, the open circle calls.
-    await endTurn(driver);
-    expect(b.result).toBeNull();
+    for (const [i, id] of ['circle_calling', 'circle_binding', 'circle_feeding'].entries()) {
+      await unweaveOn(driver, attackers[i], circle(id));
+      expect(b._vigilState.broken, id).toHaveProperty(id);
+      expect(attackers[i].hasActed).toBe(true);
+    }
     expect(Object.keys(b._vigilState.broken).sort()).toEqual([
       'circle_binding',
       'circle_calling',
       'circle_feeding',
     ]);
+    for (const id of VOICES.slice(0, 3)) expect(voiceOf(b, id).warded, id).toBeUndefined();
+
+    // One enemy phase: the Voices speak, the open circle calls.
+    await endTurn(driver);
+    expect(b.result).toBeNull();
     const spoken = b._vigilState.words;
     expect(spoken).toBeGreaterThan(0);
     expect(called(b).length).toBeGreaterThan(0);
@@ -91,7 +95,7 @@ describe('the last Voice falls: the Vigil is won with its guards standing', () =
     expect(voiceOf(b, 'voice_waking')).toMatchObject({ warded: true, wardReason: 'both' });
 
     // Player turn 2: three Voices fall to real attacks; the battle goes on. One more of the army
-    // stands on the Waking's circle.
+    // Unweaves the Waking's circle.
     for (const [i, id] of VOICES.slice(0, 3).entries()) {
       const voice = voiceOf(b, id);
       for (let tries = 0; voiceOf(b, id) && tries < 3; tries++) {
@@ -103,11 +107,11 @@ describe('the last Voice falls: the Vigil is won with its guards standing', () =
     }
     // The choir is silent; the Waking's circle still wards it.
     expect(voiceOf(b, 'voice_waking')).toMatchObject({ warded: true, wardReason: 'circle' });
-    await standOn(driver, attackers[3], circle('circle_waking'));
-    await endTurn(driver);
-    expect(b.result).toBeNull();
+    await unweaveOn(driver, attackers[3], circle('circle_waking'));
     expect(b._vigilState.broken).toHaveProperty('circle_waking');
     expect(voiceOf(b, 'voice_waking').warded).toBeUndefined();
+    await endTurn(driver);
+    expect(b.result).toBeNull();
     const wordsBeforeKill = b._vigilState.words;
     expect(wordsBeforeKill).toBeGreaterThan(spoken);
 

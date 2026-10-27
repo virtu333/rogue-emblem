@@ -213,8 +213,9 @@ export function riteNodeModel(run, node) {
 
 // ── Notes under a route node's text ──────────────────────────────────────
 
-/** The Vigil's rule the player can act on before the fight: standing on a circle stops its summons, never its Voice's words. */
-export const VIGIL_CIRCLE_NOTE = 'Stand on a circle to stop its summons. Its Voice still speaks.';
+/** The Vigil's rule the player can act on before the fight: Unweave breaks a circle (and its Voice's ward); standing on one only stops its summons. */
+export const VIGIL_CIRCLE_NOTE =
+  "Unweave a circle to break its Voice's ward. Standing on it stops its summons.";
 
 /**
  * The lines the Rite's rules owe the player under a Descent route node's text, or []:

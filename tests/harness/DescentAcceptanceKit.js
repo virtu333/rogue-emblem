@@ -144,6 +144,15 @@ export async function standOn(driver, unit, tile) {
   return driver.step({ type: 'choose_action', payload: { label: 'Wait' } });
 }
 
+/** `unit` walks onto a Vigil circle (placed there first, as `standOn`) and Unweaves it. */
+export async function unweaveOn(driver, unit, circle) {
+  unit.col = circle.col;
+  unit.row = circle.row;
+  await driver.step({ type: 'select_unit', payload: { unitName: unit.name } });
+  await driver.step({ type: 'move_to', payload: { col: circle.col, row: circle.row } });
+  return driver.step({ type: 'choose_action', payload: { label: 'Unweave' } });
+}
+
 /** End the player phase (the enemy phase runs through the harness's pipeline). */
 export const endTurn = (driver) => driver.step({ type: 'end_turn', payload: {} });
 

@@ -6669,6 +6669,8 @@ export class BattleScene extends Phaser.Scene {
       );
       if (ballista) command('capture', 'Capture', () => this._captureBallista(unit));
     }
+    if (this.battleConfig?.vigil && vigilOf(this).canUnweave(unit))
+      command('unweave', 'Unweave', () => vigilOf(this).unweave(unit));
     command('wait', 'Wait', () =>
       this.finishUnitAction(unit, { skipCanto: true, session: session }),
     );
