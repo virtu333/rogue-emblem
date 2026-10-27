@@ -184,10 +184,25 @@ export class MobilePauseMenu {
     }
     const list = document.createElement('div');
     list.className = 'mp-actions';
+    // A run action (Redraw road) leads the panel, under the note, above the burdens and
+    // blessings: it is about the run, like them.
+    const lead = document.createElement('div');
+    lead.className = 'mp-lead';
     for (const source of buttons) {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = source.text;
+      // An action with a line under it (Redraw road: its price, or why it is greyed).
+      if (source.detail) {
+        const detail = document.createElement('span');
+        detail.className = 'mp-detail';
+        detail.textContent = source.detail;
+        button.append(detail);
+      }
+      if (source.disabled) {
+        button.setAttribute('aria-disabled', 'true');
+        button.classList.add('mp-disabled');
+      }
       if (source.text === 'Abandon Run') button.classList.add('mp-danger');
       if (source.text === 'Resume') button.classList.add('mp-primary');
       if (['Leave Prologue', 'Skip Prologue'].includes(source.text))
@@ -210,14 +225,15 @@ export class MobilePauseMenu {
         source.emit('pointerdown');
         this.sync();
       });
-      list.append(button);
+      (source.lead && !confirming ? lead : list).append(button);
     }
+    if (lead.childElementCount) panel.querySelector('.mp-note').after(lead);
     panel.append(list);
     this.root.append(panel);
     // Back out is the initially focused action for destructive confirmations.
     const initial = confirming
       ? [...list.children].find((b) => b.textContent === 'Cancel')
-      : list.firstChild;
+      : list.querySelector('.mp-primary') || list.firstChild;
     initial?.focus();
   }
   destroy() {

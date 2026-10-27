@@ -31,6 +31,7 @@ import {
 import { ACT_CONFIG, NODE_TYPES, SAFE_BOTTOM_Y } from '../utils/constants.js';
 import { getDisplayLevel } from '../engine/UnitManager.js';
 import { PauseOverlay } from '../ui/PauseOverlay.js';
+import { routeRedrawPauseEntry } from '../ui/RouteRedrawController.js';
 import { SettingsOverlay } from '../ui/SettingsOverlay.js';
 import { RosterOverlay } from '../ui/RosterOverlay.js';
 import { DialogueOverlay } from '../ui/DialogueOverlay.js';
@@ -1342,6 +1343,7 @@ export class NodeMapScene extends Phaser.Scene {
     this.pauseOverlay = new PauseOverlay(this, {
       burdens: pauseBurdenEntries(this.runManager, this.gameData?.events),
       blessings: heldBlessingEntries(this.runManager),
+      routeRedraw: routeRedrawPauseEntry(this),
       // The prologue run is skipped (its ending, then Home Base), never abandoned.
       prologue: prologueRun
         ? {

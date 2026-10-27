@@ -238,6 +238,7 @@
       "shards": 2,
       "specs": [
         "mobile-pause.spec.js",
+        "route-redraw.spec.js",
         "build-info.spec.js",
         "mobile-roster.spec.js",
         "mobile-upgrades.spec.js",
