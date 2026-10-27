@@ -444,6 +444,35 @@ html.mobile-preview .mu-screen {
 .mh-screen .mu-actions .ng-commit {
   min-height: 44px;
 }
+/* Wardrobe tab (ui/WardrobePanel.js): the lord's two looks side by side. */
+.wd-looks {
+  display: flex;
+  gap: 12px;
+  margin: 4px 0 8px;
+}
+.wd-look {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--re-muted);
+}
+.wd-look .mh-portrait {
+  width: 96px;
+  height: 96px;
+}
+@media (max-height: 500px) {
+  .wd-look .mh-portrait {
+    width: 64px;
+    height: 64px;
+  }
+}
+.wd-lead {
+  grid-column: 1 / -1;
+  margin: 0 0 8px;
+}
 /* NG+ tab (ui/NgPlusPanel.js): "Who rides again?" and the Barracks headings. */
 .ng-heading {
   font-size: 13px;

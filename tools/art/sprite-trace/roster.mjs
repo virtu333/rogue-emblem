@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { LINES } from '../portrait-variants/catalog.mjs';
 import { PERSON_FITS } from './person-fits.mjs';
 
@@ -743,6 +743,44 @@ export const LORDS = [
   ['cael', 'cael_g', 'cael_promoted_g', 'map-size redraws of the helmeted veteran'],
 ];
 
+// --- lord outfits (the Wardrobe, docs/specs/lord-outfits.md) ---------------------------------
+// `<lord>[_promoted]__<outfit>` = the lord's map sprite in an outfit, drawn at map size from
+// the lord's own sprite (tools/art/lord-outfits/sprites.mjs). The recipe is the lord's own
+// source's; the cloth family follows the outfit. A tier with no chosen source yet is not
+// baked, and the game falls back to the lord's own figure (ui/TracedSprites.tracedKeyFor).
+const O = (name) => `docs/art/sprite-candidates-2026-10-27/sources/${name}.png`;
+const OUTFIT_FITS = {
+  edric__ashen_crown: { main: 'red', muteTrim: false },
+  kira__field_marshal: { main: 'red' },
+  voss__winter_ranger: { main: null, hair: 'brown' },
+  sera__hollow_sun_vestments: { main: null },
+  rowan__black_banner: { main: null },
+  astrid__storm_rider: { main: 'blue' },
+  cael__old_guard: { main: 'green' },
+};
+export const LORD_OUTFIT_SPRITES = [];
+for (const [lord, base, promoted] of LORDS)
+  for (const [tier, source] of [
+    ['', base],
+    ['_promoted', promoted],
+  ])
+    for (const fitKey of Object.keys(OUTFIT_FITS).filter((k) => k.startsWith(`${lord}__`))) {
+      const outfit = fitKey.slice(lord.length + 2);
+      const id = `${lord}${tier}__${outfit}`;
+      if (!existsSync(O(id))) continue;
+      const { figure: _f, figures: _n, head: _h, rects, ...recipe } = ROSTER.sources[source];
+      const mounted = recipe.kind === 'mounted' || recipe.kind === 'flyer';
+      ROSTER.sources[id] = {
+        ...recipe,
+        ...(mounted && rects ? { rects } : {}),
+        ...OUTFIT_FITS[fitKey],
+        src: O(id),
+        // the lord's own weapon and attack pose (poseFor)
+        poseFrom: source,
+      };
+      LORD_OUTFIT_SPRITES.push({ key: `lord_${id}`, source: id });
+    }
+
 /** Named bosses (enemies.json bosses): runtime key boss_<name> -> source. */
 export const BOSSES = {
   boss_iron_captain: 'boss_iron_captain_g',
@@ -847,6 +885,8 @@ export function bakeEntries() {
     out.push({ key: `lord_${name}`, source: base, faction: 'player', keepMain: true });
     out.push({ key: `lord_${name}_promoted`, source: promoted, faction: 'player', keepMain: true });
   }
+  for (const { key, source } of LORD_OUTFIT_SPRITES)
+    out.push({ key, source, faction: 'player', keepMain: true });
   for (const [cls] of GENERIC_CLASSES) {
     // one sprite per portrait person of the class (promotion keeps the person and adds
     // the gold circlet)
@@ -993,6 +1033,7 @@ const POSE_BY_SOURCE = {
 export function poseFor(sourceId) {
   const e = ROSTER.sources[sourceId];
   if (e?.pose) return e.pose;
+  if (e?.poseFrom) return poseFor(e.poseFrom);
   if (POSE_BY_SOURCE[sourceId]) return POSE_BY_SOURCE[sourceId];
   // a map-size redraw holds the same weapon as the unit it redraws
   if (sourceId.endsWith('_g')) return poseFor(sourceId.slice(0, -2));

@@ -9,10 +9,12 @@ import {
   TRANSITION_RESULTS,
 } from '../utils/SceneRouter.js';
 import portraitManifest from './RebuiltPortraitManifest.json';
-import { hasPc98, pc98PortraitElement, usePc98 } from './portraitArt.js';
+import { hasPc98, pc98PortraitElement, portraitIdForUnit, usePc98 } from './portraitArt.js';
 import { metLords } from '../engine/LordsMet.js';
 import { BEGIN_RUN_CANCELLED } from '../engine/PrologueRouting.js';
 import { NgPlusPanel } from './NgPlusPanel.js';
+import { WardrobePanel } from './WardrobePanel.js';
+import { WARDROBE_TAB_LABEL } from './wardrobeModel.js';
 import { showRunRecords } from './RunRecordsMenu.js';
 import { achievementChipText } from './achievementsModel.js';
 import { achievementMedal } from './AchievementsTab.js';
@@ -32,6 +34,7 @@ export class MobileHomeBase {
     this.role = 'commander';
     this.tab = 'lords';
     this.ngPlus = new NgPlusPanel(this);
+    this.wardrobe = new WardrobePanel(this);
     const hints = scene.registry.get('hints');
     this.onboarding = [];
     if (hints?.shouldShow('homebase_intro'))
@@ -156,7 +159,9 @@ export class MobileHomeBase {
     }
   }
   portrait(lord, size = 48) {
-    const id = `lord_${lord.name.toLowerCase()}`;
+    // The lord as the army shows them: the outfit they wear (the Wardrobe) or their own look.
+    const own = `lord_${lord.name.toLowerCase()}`;
+    const id = portraitIdForUnit({ name: lord.name, isLord: true, faction: 'player' }) || own;
     if (usePc98() && hasPc98(id))
       return pc98PortraitElement({
         id,
@@ -167,7 +172,7 @@ export class MobileHomeBase {
       });
     const img = node('img', 'mh-portrait');
     img.alt = lord.name;
-    const file = portraitManifest[id]?.file;
+    const file = portraitManifest[own]?.file;
     if (file) img.src = `${import.meta.env.BASE_URL}assets/portraits/rebuilt/${file}`;
     return img;
   }
@@ -199,6 +204,7 @@ export class MobileHomeBase {
       ['lords', 'Starting lords'],
       ['skills', 'Starting skills'],
       ...(ngPlusTab ? [['ngplus', NG_PLUS_TAB_LABEL]] : []),
+      ['wardrobe', WARDROBE_TAB_LABEL],
     ]) {
       const b = this.button(
         label,
@@ -212,7 +218,7 @@ export class MobileHomeBase {
       b.dataset.focus = key;
       tabs.append(b);
     }
-    for (const [key, label] of this.tab === 'ngplus'
+    for (const [key, label] of ['ngplus', 'wardrobe'].includes(this.tab)
       ? []
       : [
           ['commander', 'Commander'],
@@ -233,7 +239,7 @@ export class MobileHomeBase {
     const list = node('div', 'mu-list');
     const detail = node('section', 'mu-detail');
     const copy = node('div', 'mu-copy');
-    if (lord && this.tab !== 'ngplus') {
+    if (lord && !['ngplus', 'wardrobe'].includes(this.tab)) {
       const identity = node('div', 'mh-identity');
       identity.append(this.portrait(lord, 64), node('h2', '', `${lord.name} · ${lord.class}`));
       copy.append(
@@ -244,6 +250,7 @@ export class MobileHomeBase {
     }
     let ngAction = null;
     if (this.tab === 'ngplus') ngAction = this.ngPlus.render(list, copy);
+    else if (this.tab === 'wardrobe') this.wardrobe.render(list, copy);
     else if (this.tab === 'lords') {
       const unlocked = tier >= (this.role === 'commander' ? 1 : 2);
       copy.append(

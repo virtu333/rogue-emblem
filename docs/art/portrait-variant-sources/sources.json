@@ -8584,5 +8584,187 @@
     },
     "background": 0.453,
     "pockets": 0
+  },
+  "lord_astrid__storm_rider": {
+    "raw": "References/lord-outfits/raw/storm_rider-t1.jpg",
+    "rawSha256": "60669106863052ea",
+    "options": "{\"framing\":{\"minScale\":1.12}}",
+    "side": "player",
+    "className": "Astrid",
+    "mode": "outfit",
+    "native": 92,
+    "detected": {
+      "eye": 0.417,
+      "cx": 0.431,
+      "faceH": 0.415,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.12,
+      "dx": 0,
+      "dy": -0.107
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.485
+    },
+    "background": 0.316,
+    "pockets": 6
+  },
+  "lord_cael__old_guard": {
+    "raw": "References/lord-outfits/raw/old_guard-t1.jpg",
+    "rawSha256": "37cc1f699e62cbd1",
+    "options": "{}",
+    "side": "player",
+    "className": "Cael",
+    "mode": "outfit",
+    "native": 99,
+    "detected": {
+      "eye": 0.388,
+      "cx": 0.574,
+      "faceH": 0.316,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.203,
+      "dx": -0.17,
+      "dy": -0.107
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.333,
+    "pockets": 0
+  },
+  "lord_edric__ashen_crown": {
+    "raw": "References/lord-outfits/raw/ashen_crown-t1.jpg",
+    "rawSha256": "bd202db2ef9f772d",
+    "options": "{}",
+    "side": "player",
+    "className": "Edric",
+    "mode": "outfit",
+    "native": 93,
+    "detected": {
+      "eye": 0.368,
+      "cx": 0.518,
+      "faceH": 0.285,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.3,
+      "dx": -0.153,
+      "dy": -0.119
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.402,
+    "pockets": 1
+  },
+  "lord_kira__field_marshal": {
+    "raw": "References/lord-outfits/raw/field_marshal-t1.jpg",
+    "rawSha256": "9c9961ac65a44564",
+    "options": "{}",
+    "side": "player",
+    "className": "Kira",
+    "mode": "outfit",
+    "native": 146,
+    "detected": {
+      "eye": 0.331,
+      "cx": 0.53,
+      "faceH": 0.346,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.098,
+      "dx": -0.062,
+      "dy": -0.004
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.464,
+    "pockets": 0
+  },
+  "lord_rowan__black_banner": {
+    "raw": "References/lord-outfits/raw/black_banner-t1.jpg",
+    "rawSha256": "1481634adb275f9d",
+    "options": "{}",
+    "side": "player",
+    "className": "Rowan",
+    "mode": "outfit",
+    "native": 157,
+    "detected": {
+      "eye": 0.322,
+      "cx": 0.518,
+      "faceH": 0.35,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.086,
+      "dx": -0.043,
+      "dy": 0.011
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.333,
+    "pockets": 1
+  },
+  "lord_sera__hollow_sun_vestments": {
+    "raw": "References/lord-outfits/raw/hollow_sun_vestments-t1.jpg",
+    "rawSha256": "6b04bce213daf8eb",
+    "options": "{}",
+    "side": "player",
+    "className": "Sera",
+    "mode": "outfit",
+    "native": 81,
+    "detected": {
+      "eye": 0.371,
+      "cx": 0.546,
+      "faceH": 0.321,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 1.184,
+      "dx": -0.127,
+      "dy": -0.079
+    },
+    "framing": {
+      "eye": 0.36,
+      "cx": 0.52
+    },
+    "background": 0.414,
+    "pockets": 0
+  },
+  "lord_voss__winter_ranger": {
+    "raw": "References/lord-outfits/raw/winter_ranger-t1.jpg",
+    "rawSha256": "6f798ee5a7e64914",
+    "options": "{}",
+    "side": "player",
+    "className": "Voss",
+    "mode": "outfit",
+    "native": 208,
+    "detected": {
+      "eye": 0.347,
+      "cx": 0.525,
+      "faceH": 0.395,
+      "eyes": 2
+    },
+    "transform": {
+      "scale": 0.962,
+      "dx": 0.014,
+      "dy": 0.038
+    },
+    "framing": {
+      "eye": 0.37,
+      "cx": 0.52
+    },
+    "background": 0.305,
+    "pockets": 3
   }
 }

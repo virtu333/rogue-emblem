@@ -1734,6 +1734,11 @@
       "faction": "ember",
       "frame": 88
     },
+    "lord_astrid__storm_rider": {
+      "source": "generated",
+      "faction": "ember",
+      "variant": true
+    },
     "lord_astrid_promoted": {
       "source": "rebuilt",
       "faction": "ember",
@@ -1743,6 +1748,11 @@
       "source": "rebuilt",
       "faction": "ember",
       "frame": 90
+    },
+    "lord_cael__old_guard": {
+      "source": "generated",
+      "faction": "ember",
+      "variant": true
     },
     "lord_cael_promoted": {
       "source": "rebuilt",
@@ -1754,6 +1764,11 @@
       "faction": "ember",
       "frame": 92
     },
+    "lord_edric__ashen_crown": {
+      "source": "generated",
+      "faction": "ember",
+      "variant": true
+    },
     "lord_edric_promoted": {
       "source": "rebuilt",
       "faction": "ember",
@@ -1763,6 +1778,11 @@
       "source": "rebuilt",
       "faction": "ember",
       "frame": 94
+    },
+    "lord_kira__field_marshal": {
+      "source": "generated",
+      "faction": "ember",
+      "variant": true
     },
     "lord_kira_promoted": {
       "source": "rebuilt",
@@ -1774,6 +1794,11 @@
       "faction": "ember",
       "frame": 96
     },
+    "lord_rowan__black_banner": {
+      "source": "generated",
+      "faction": "ember",
+      "variant": true
+    },
     "lord_rowan_promoted": {
       "source": "rebuilt",
       "faction": "ember",
@@ -1784,6 +1809,11 @@
       "faction": "ember",
       "frame": 98
     },
+    "lord_sera__hollow_sun_vestments": {
+      "source": "generated",
+      "faction": "ember",
+      "variant": true
+    },
     "lord_sera_promoted": {
       "source": "rebuilt",
       "faction": "ember",
@@ -1793,6 +1823,11 @@
       "source": "rebuilt",
       "faction": "ember",
       "frame": 100
+    },
+    "lord_voss__winter_ranger": {
+      "source": "generated",
+      "faction": "ember",
+      "variant": true
     },
     "lord_voss_promoted": {
       "source": "rebuilt",

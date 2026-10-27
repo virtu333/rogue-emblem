@@ -17,6 +17,7 @@
 import bakedManifest from './TracedSpriteManifest.json';
 import { battlefieldTracedSpritesEnabled } from './battlefieldArtFlags.js';
 import { displayedPerson, portraitPeopleForClass } from '../engine/PortraitVariants.js';
+import { wornOutfitFor } from './lordOutfitArt.js';
 
 /**
  * Sprites cut from another sprite's frames (no pixels of their own, so a rebake keeps them):
@@ -135,6 +136,13 @@ export function tracedKeyFor(
   if (special && has(special)) return special;
   if (unit.isLord) {
     const base = `lord_${classKey(unit.name)}`;
+    // The Wardrobe: the worn outfit's figure, promoted first once promoted.
+    const outfit = wornOutfitFor(unit);
+    if (outfit) {
+      if (unit.tier === 'promoted' && has(`${base}_promoted__${outfit}`))
+        return `${base}_promoted__${outfit}`;
+      if (has(`${base}__${outfit}`)) return `${base}__${outfit}`;
+    }
     if (unit.tier === 'promoted' && has(`${base}_promoted`)) return `${base}_promoted`;
     if (has(base)) return base;
   }

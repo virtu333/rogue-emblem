@@ -1,0 +1,121 @@
+{
+  "astrid__storm_rider": {
+    "take": "storm_rider-7",
+    "portrait": "lord_astrid__storm_rider",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Image 2 IS this same person, an approved map sprite of them: keep exactly its pixel scale, framing, face, hair, build, stance, weapon (and mount, if any), and change ONLY the clothes and armour to the new outfit shown in image 3 (a portrait of this person wearing it). Keep the outfit's colours and main shapes, simplified into a few large map-size shapes. MOUNTED: this is a mounted unit. Draw the whole rider seated on a white winged pegasus exactly as in image 2 (same mount, same size, facing right, all four legs visible), horse and rider together about 60 pixels tall; image 3 is only a bust of the rider for the outfit. Never draw the rider standing, and never crop the mount. Subject: Astrid in the \"Storm Rider\" outfit: slate-grey scaled armour with lightning-blue enamel trim and a storm-blue ribbon and scarf, a small jagged lightning motif on the pauldron, a dark grey riding cape; no glow.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "References/lord-outfits/sprites/exemplars/astrid_g.png",
+      "References/lord-outfits/raw/storm_rider-t1.jpg"
+    ],
+    "native": [
+      88,
+      87
+    ],
+    "pitch": 23.51,
+    "at": "2026-10-27T07:35:32.079Z"
+  },
+  "cael__old_guard": {
+    "take": "old_guard-3",
+    "portrait": "lord_cael__old_guard",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Image 2 IS this same person, an approved map sprite of them: keep exactly its pixel scale, framing, face, hair, build, stance, weapon (and mount, if any), and change ONLY the clothes and armour to the new outfit shown in image 3 (a portrait of this person wearing it). Keep the outfit's colours and main shapes, simplified into a few large map-size shapes. Subject: Cael in the \"Old Guard\" outfit: battered, dented bronze armour of an older age, a rounded open-faced bronze helm, a scratched bronze rim of a great tower shield at the edge of the frame by one shoulder, faded olive-green cloth; worn and proud.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "References/lord-outfits/sprites/exemplars/cael_g.png",
+      "References/lord-outfits/raw/old_guard-t1.jpg"
+    ],
+    "native": [
+      69,
+      96
+    ],
+    "pitch": 20.43,
+    "at": "2026-10-27T07:33:56.163Z"
+  },
+  "edric__ashen_crown": {
+    "take": "ashen_crown-6",
+    "portrait": "lord_edric__ashen_crown",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Image 2 IS this same person, an approved map sprite of them: keep exactly its pixel scale, framing, face, hair, build, stance, weapon (and mount, if any), and change ONLY the clothes and armour to the new outfit shown in image 3 (a portrait of this person wearing it). Keep the outfit's colours and main shapes, simplified into a few large map-size shapes. Subject: Edric in the \"Ashen Crown\" outfit: blackened, soot-dark steel plate on the shoulders and chest, scorched as if it walked out of a great fire, with thin ember-orange trim along the plate edges and a charcoal-grey cloak with a frayed, burnt hem in place of his teal scarf; a dull iron circlet sits in his hair. (Variation 6.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "References/lord-outfits/sprites/exemplars/edric.png",
+      "References/lord-outfits/raw/ashen_crown-t1.jpg"
+    ],
+    "native": [
+      72,
+      100
+    ],
+    "pitch": 20.44,
+    "at": "2026-10-27T07:38:00.289Z"
+  },
+  "kira__field_marshal": {
+    "take": "field_marshal-6",
+    "portrait": "lord_kira__field_marshal",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Image 2 IS this same person, an approved map sprite of them: keep exactly its pixel scale, framing, face, hair, build, stance, weapon (and mount, if any), and change ONLY the clothes and armour to the new outfit shown in image 3 (a portrait of this person wearing it). Keep the outfit's colours and main shapes, simplified into a few large map-size shapes. Subject: Kira in the \"Field Marshal\" outfit: a long, high-collared grey officer's greatcoat with a double row of brass buttons and a dark sash, a leather map case slung on a strap across the chest, a black cravat; no armour. (Variation 6.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "References/lord-outfits/sprites/exemplars/kira_g.png",
+      "References/lord-outfits/raw/field_marshal-t1.jpg"
+    ],
+    "native": [
+      42,
+      75
+    ],
+    "pitch": 25.67,
+    "at": "2026-10-27T07:38:23.970Z"
+  },
+  "rowan__black_banner": {
+    "take": "black_banner-6",
+    "portrait": "lord_rowan__black_banner",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Image 2 IS this same person, an approved map sprite of them: keep exactly its pixel scale, framing, face, hair, build, stance, weapon (and mount, if any), and change ONLY the clothes and armour to the new outfit shown in image 3 (a portrait of this person wearing it). Keep the outfit's colours and main shapes, simplified into a few large map-size shapes. MOUNTED: this is a mounted unit. Draw the whole rider seated on a brown horse exactly as in image 2 (same mount, same size, facing right, all four legs visible), horse and rider together about 60 pixels tall; image 3 is only a bust of the rider for the outfit. Never draw the rider standing, and never crop the mount. Subject: Rowan in the \"Black Banner\" outfit: dark gunmetal cavalry plate with black lacquered pauldrons, a black cloth tabard trimmed in dull silver, and the end of a black pennant on a lance shaft rising behind one shoulder. (Variation 6.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "References/lord-outfits/sprites/exemplars/rowan_s.png",
+      "References/lord-outfits/raw/black_banner-t1.jpg"
+    ],
+    "native": [
+      134,
+      152
+    ],
+    "pitch": 13.76,
+    "at": "2026-10-27T07:35:04.814Z"
+  },
+  "sera__hollow_sun_vestments": {
+    "take": "hollow_sun_vestments-2",
+    "portrait": "lord_sera__hollow_sun_vestments",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Image 2 IS this same person, an approved map sprite of them: keep exactly its pixel scale, framing, face, hair, build, stance, weapon (and mount, if any), and change ONLY the clothes and armour to the new outfit shown in image 3 (a portrait of this person wearing it). Keep the outfit's colours and main shapes, simplified into a few large map-size shapes. Subject: Sera in the \"Hollow Sun Vestments\" outfit: pale ivory and soft gold priestess vestments with a high collar, a sash embroidered with an eclipsed sun (a dark disc with a thin gold ring), and a thin gold circlet with a small dark eclipse disc on her brow; no glow, no halo of light. (Variation 2.)",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "References/lord-outfits/sprites/exemplars/sera.png",
+      "References/lord-outfits/raw/hollow_sun_vestments-t1.jpg"
+    ],
+    "native": [
+      56,
+      89
+    ],
+    "pitch": 20.41,
+    "at": "2026-10-27T07:32:42.659Z"
+  },
+  "voss__winter_ranger": {
+    "take": "winter_ranger-7",
+    "portrait": "lord_voss__winter_ranger",
+    "model": "gemini-3-pro-image",
+    "prompt": "Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style: copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and framing exactly (one figure, whole body and weapon visible, centred with a wide empty margin). The remaining images are the IDENTITY of this character (a large detailed sprite and a portrait): keep their face, hair, headgear, colours, costume and signature weapon, but redraw them at map size — simplify ornament into a few large identity-bearing shapes, never shrink the big drawing. Detailed late-16-bit pixel art, about 4 heads tall, the figure about 56 art pixels tall, every art pixel drawn as a crisp, equal, square block (a clean pixel grid, no anti-aliasing, no sub-pixel detail, no blur), readable face with a lit cheek and dark eyes, clearly grouped metal/cloth/skin colours, 1-pixel dark outline. Idle three-quarter stance facing slightly right, slight overhead map angle, feet planted. BACKGROUND: perfectly flat solid pure magenta (#FF00FF) filling the entire canvas — no floor, no shadow, no gradient, no glow, no text, no ring, no frame. Do not use magenta or pink anywhere on the figure. PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall, like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about 12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or their fine detail; redraw the same character with far fewer, larger pixels, as a small map sprite. Image 2 IS this same person, an approved map sprite of them: keep exactly its pixel scale, framing, face, hair, build, stance, weapon (and mount, if any), and change ONLY the clothes and armour to the new outfit shown in image 3 (a portrait of this person wearing it). Keep the outfit's colours and main shapes, simplified into a few large map-size shapes. Subject: Voss in the \"Winter Ranger\" outfit: a white-and-grey fur-lined hooded mantle with the hood down on his shoulders, pale quilted leather, a quiver of white-fletched arrows and the curve of a pale birch-wood bow over one shoulder.",
+    "refs": [
+      "docs/art/sprite-candidates-2026-09-22/reference.png",
+      "References/lord-outfits/sprites/exemplars/voss_g.png",
+      "References/lord-outfits/raw/winter_ranger-t1.jpg"
+    ],
+    "native": [
+      55,
+      91
+    ],
+    "pitch": 20.44,
+    "at": "2026-10-27T07:38:54.597Z"
+  }
+}
