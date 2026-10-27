@@ -363,8 +363,20 @@ export const GENERIC_CLASSES = [
 export const ENEMY_ONLY_CLASSES = [
   ['zombie', 'zombie', 'infantry', { main: 'red', hair: null, eyes: false }],
   ['revenant', 'revenant', 'infantry', { main: 'red', hair: null, armor: true, eyes: false }],
-  ['dragon', 'dragon', 'mounted', { main: 'red', hair: null, eyes: false, linen: false }],
-  ['dragon_lord', 'dragon-lord', 'mounted', { main: 'red', hair: null, eyes: false, linen: false }],
+  // dragons are beasts, not riders: big on purpose, so the mounted kind's mass budget
+  // (lib/place.mjs) leaves them at the height rule alone
+  [
+    'dragon',
+    'dragon',
+    'mounted',
+    { main: 'red', hair: null, eyes: false, linen: false, mass: false },
+  ],
+  [
+    'dragon_lord',
+    'dragon-lord',
+    'mounted',
+    { main: 'red', hair: null, eyes: false, linen: false, mass: false },
+  ],
   // Phase 3 (3I), enemy-only classes that ship later: sheets made by gen-class-sheet.mjs. The
   // Necromancer is a robed caster (the mage rig: tome raised): only the crimson lining and sash
   // are the faction area, the violet-black robe stays its own cloth (`sub`, ramp from its

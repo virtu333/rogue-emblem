@@ -133,7 +133,18 @@ export function traceNative(native, recipe = {}, { density = 1.5, mode = null, a
   // `aspect` = a native pixel's height / width in the reviewed sheet (1 unless the sheet
   // was resized anisotropically): the sprite keeps the proportions the owner reviewed
   const asp = Math.max(0.5, Math.min(2, recipe.aspect ?? aspect ?? 1));
-  let s = fitScale(body.height * asp, full.width, full.height * asp, kind, density);
+  let bodyArea = 0;
+  if (recipe.mass !== false)
+    for (let p = 0; p < w * h; p++) if (prep.fill[p] && !BODY_EXCLUDE.has(prep.fill[p])) bodyArea++;
+  let s = fitScale(
+    body.height * asp,
+    full.width,
+    full.height * asp,
+    kind,
+    density,
+    undefined,
+    bodyArea * asp,
+  );
   s *= recipe.scaleBias ?? 1;
   const sxy = Math.abs(asp - 1) < 0.02 ? s : { x: s, y: s * asp };
 
