@@ -1,6 +1,7 @@
 // ColosseumEngine.js — Pure module for Colosseum arena + mercenary board logic
 // No Phaser deps. All functions are deterministic given an rng function.
 
+import { spareRecruitName } from './SpareRecruitName.js';
 import {
   ACT_SEQUENCE,
   RECRUIT_SKILL_POOL,
@@ -468,7 +469,9 @@ export function generateMercenaryCandidates(
       const names = namePool[className] || [className];
       const freshNames = names.filter((name) => !usedNames.has(name));
       const pool = freshNames.length ? freshNames : names;
-      const baseName = pool[Math.floor(rng() * pool.length)];
+      const baseName = freshNames.length
+        ? pool[Math.floor(rng() * pool.length)]
+        : (spareRecruitName(namePool, usedNames, rng) ?? pool[Math.floor(rng() * pool.length)]);
       let name = baseName,
         suffix = 2;
       while (usedNames.has(name)) name = `${baseName} ${suffix++}`;
