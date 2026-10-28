@@ -61,6 +61,14 @@ describe('Zombie remains creation logic', () => {
     expect(leavesRemains(unit, { weapon: { type: 'Light' } })).toBe(false);
   });
 
+  it('zombie killed by Daybreak, even forged, leaves none', () => {
+    const unit = { className: 'Zombie', _revived: false, isBoss: false };
+    for (const name of ['Daybreak', 'Daybreak +2']) {
+      expect(leavesRemains(unit, { weapon: { type: 'Sword', name } })).toBe(false);
+    }
+    expect(leavesRemains(unit, { weapon: { type: 'Sword', name: 'Steel Sword' } })).toBe(true);
+  });
+
   it('already revived zombie leaves none', () => {
     const unit = { className: 'Zombie', _revived: true, isBoss: false };
     expect(leavesRemains(unit, sword)).toBe(false);

@@ -1,7 +1,7 @@
 // ZombieRemains — what a fallen Zombie or Revenant leaves behind (pure: no Phaser,
 // no RNG, no scene).
 //
-// A Zombie or Revenant felled by anything but Light (and not a boss, and not one that
+// A Zombie or Revenant felled by anything but Light or Daybreak (and not a boss, and not one that
 // already rose once) leaves remains on the tile where it fell: a record
 // `{ col, row, turnsRemaining, seen, snapshot }`. Remains are tile records, never a
 // unit: they block nothing, cannot be attacked, and do not count as an enemy.
@@ -27,10 +27,14 @@
 // kill the player made themselves).
 
 import { ZOMBIE_CLASSES } from '../utils/constants.js';
+import { stripItemNameSuffix } from '../utils/itemNames.js';
 import { getAttackRange, getAttackWeapons } from './AttackOptions.js';
 
 /** Enemy phases between the fall and the rise. */
 export const REMAINS_RISE_PHASES = 3;
+
+/** Non-Light weapons whose kill leaves no remains. */
+const LIGHT_BANE_WEAPONS = new Set(['Daybreak']);
 
 const tileKey = (col, row) => `${col},${row}`;
 
@@ -38,7 +42,10 @@ const tileKey = (col, row) => `${col},${row}`;
 export function leavesRemains(unit, killer = null) {
   if (!unit || !ZOMBIE_CLASSES.has(unit.className)) return false;
   if (unit._revived || unit.isBoss) return false;
-  return killer?.weapon?.type !== 'Light';
+  const weapon = killer?.weapon;
+  if (weapon?.type === 'Light') return false;
+  // Daybreak is a sword, but its light ends the undead for good like Light magic.
+  return !(weapon?.name && LIGHT_BANE_WEAPONS.has(stripItemNameSuffix(weapon.name)));
 }
 
 /** The record left on `tile` by a fallen `unit`. `seen`: the player saw it fall. */
