@@ -246,7 +246,7 @@ export const GENERATED_MECHANICS_REFERENCE = {
       "type": "Sword",
       "rankRequired": "Mast",
       "range": "1",
-      "special": "x3 against dragons and the undead; x2 against the Entity"
+      "special": "x3 against dragons and the undead (felled undead leave no remains); x2 against the Entity"
     },
     {
       "name": "Eldritch Grasp",

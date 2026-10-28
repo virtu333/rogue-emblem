@@ -173,7 +173,7 @@ export function guidanceText(id, context = {}) {
     case 'guide_veteran_kills':
       return `${name} is strong now but barely grows and earns little XP. Weaken enemies with ${name}, then leave the final blow to ${lord} and your recruits: they grow from it.`;
     case 'guide_zombie_remains':
-      return 'Fallen undead leave bones. The number counts the enemy phases until they rise again at half HP. Bring a unit within weapon reach and choose Smash to end them for good. Light magic leaves no bones.';
+      return 'Fallen undead leave bones. The number counts the enemy phases until they rise again at half HP. Bring a unit within weapon reach and choose Smash to end them for good. Light magic and Daybreak leave no bones.';
     case 'guide_first_shop':
       return 'A shop: buy and sell here, and Forge makes a weapon stronger for gold. Every shop stocks its own wares; gold also pays for revivals and promotions.';
     case 'guide_first_event':

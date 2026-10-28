@@ -751,8 +751,8 @@ const STATIC_HELP_TABS = [
           { text: "  and ends the unit's action." },
           { text: '' },
           { text: 'Rout waits until every pile is gone.', color: GRAY },
-          { text: 'Light magic leaves no bones; a risen', color: GRAY },
-          { text: 'foe stays down when it falls again.', color: GRAY },
+          { text: 'Light magic and Daybreak leave no bones.', color: GRAY },
+          { text: 'A risen foe stays down when it falls again.', color: GRAY },
         ],
       },
       {
