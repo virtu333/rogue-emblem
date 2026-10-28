@@ -675,11 +675,10 @@ export class ShopMenu {
               shopForgeSaving(weapon, stat.key, terms),
               { short: true },
             );
+        const line = `${cost} · ${forgeStatProgressText(weapon, stat.key)} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`;
+        // A forge that only wakes a sleeping one says so on a line of its own.
         const wake = forgeWakeNote(weapon, stat.key);
-        return stackedLines([
-          `${cost} · ${forgeStatProgressText(weapon, stat.key)} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`,
-          { text: wake && `${wake} (no new forge)`, tone: 'note' },
-        ]);
+        return wake ? stackedLines([line, { text: `${wake} (no new forge)`, tone: 'note' }]) : line;
       },
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),
