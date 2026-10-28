@@ -31,6 +31,7 @@
 // Pure of Phaser and the DOM; the draws are seeded and the builder never reads the caller's
 // Math.random.
 
+import { spareRecruitName } from './SpareRecruitName.js';
 import { createSeededRng } from './SeededRng.js';
 import { everFallenUnits } from './LaidToRest.js';
 import { isPromotedRecruitSource } from './RecruitPromotion.js';
@@ -89,6 +90,8 @@ function pickName(ctx, className, taken, rng) {
   const names = Array.isArray(pool) ? pool : [];
   const free = names.filter((name) => !taken.has(name));
   if (free.length) return free[Math.floor(rng() * free.length)];
+  const spare = spareRecruitName(run.gameData?.recruits?.namePool, taken, rng);
+  if (spare) return spare;
   const base = names.length ? names[Math.floor(rng() * names.length)] : className;
   return run._makeUniqueRecruitName(base, taken);
 }

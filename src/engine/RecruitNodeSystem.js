@@ -27,6 +27,7 @@ import { VULNERARY_NAME, consumableTemplateFor } from './VulneraryRecipe.js';
 import { BASE_CLASS_LEVEL_CAP, DEPLOY_LIMITS, RECRUIT_SKILL_POOL } from '../utils/constants.js';
 import { lordRecruitChance } from './LordRecruitChance.js';
 import { createSeededRng } from './SeededRng.js';
+import { spareRecruitName } from './SpareRecruitName.js';
 import { resolveDeployLimits } from './BattleDeployCount.js';
 import {
   createBossLordUnit,
@@ -168,7 +169,8 @@ export function ensureRecruitPreviews(
     const free = names.filter((n) => !taken.has(n));
     const name = free.length
       ? free[Math.floor(rng() * free.length)]
-      : uniqueName(names.length ? names[Math.floor(rng() * names.length)] : className, taken);
+      : (spareRecruitName(namePool, taken, rng) ??
+        uniqueName(names.length ? names[Math.floor(rng() * names.length)] : className, taken));
     taken.add(name);
     node.recruitPreview = { v: RECRUIT_PREVIEW_VERSION, className, name };
     created++;
@@ -213,7 +215,8 @@ export function ensureRecruitAlternates(
     const free = names.filter((n) => !taken.has(n));
     const name = free.length
       ? free[Math.floor(rng() * free.length)]
-      : uniqueName(names.length ? names[Math.floor(rng() * names.length)] : className, taken);
+      : (spareRecruitName(namePool, taken, rng) ??
+        uniqueName(names.length ? names[Math.floor(rng() * names.length)] : className, taken));
     taken.add(name);
     node.recruitAlternate = { v: RECRUIT_PREVIEW_VERSION, className, name };
     created++;

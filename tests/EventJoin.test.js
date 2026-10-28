@@ -204,6 +204,8 @@ describe('names are never reused', () => {
   it('with every pool name taken it makes a unique one (never a duplicate)', () => {
     const { run, node } = setup([join({ class: 'Archer' })]);
     withNames(run, ['Rook']);
+    // Every pool in the game is spent, so a name borrowed from another class is not left.
+    run.gameData.recruits.namePool = { Archer: ['Rook'] };
     addUnit(run, 'Archer', { name: 'Rook' });
     chooseEventOption(run, node.id, 'go');
     const names = run.roster.map((u) => u.name);
