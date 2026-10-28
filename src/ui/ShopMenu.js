@@ -35,7 +35,7 @@ import { isWorn, wearCount, wearDisplay } from '../engine/WeaponWear.js';
 import {
   canForge,
   forgeFullText,
-  forgePullsForward,
+  forgeWakeNote,
   forgeStatBlock,
   forgeStatProgressText,
 } from '../engine/ForgeSystem.js';
@@ -671,8 +671,11 @@ export class ShopMenu {
               shopForgeSaving(weapon, stat.key, terms),
               { short: true },
             );
-        const early = forgePullsForward(weapon, stat.key) ? ' · Wakes a sleeping forge early' : '';
-        return `${cost} · ${forgeStatProgressText(weapon, stat.key)} upgrades${early}${forgeImpactSuffix(owner, weapon, stat.key)}`;
+        const wake = forgeWakeNote(weapon, stat.key);
+        const progress = wake
+          ? `${wake} (no new forge)`
+          : `${forgeStatProgressText(weapon, stat.key)} upgrades`;
+        return `${cost} · ${progress}${forgeImpactSuffix(owner, weapon, stat.key)}`;
       },
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),

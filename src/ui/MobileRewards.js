@@ -38,7 +38,7 @@ import {
   REWARD_FORGE_STATS,
 } from '../engine/LootRewardCommands.js';
 import { isImbueStone, getImbueList } from '../engine/ImbueSystem.js';
-import { forgePullsForward, forgeStatBlock, forgeStatusLine } from '../engine/ForgeSystem.js';
+import { forgeStatBlock, forgeStatusLine, forgeWakeNote } from '../engine/ForgeSystem.js';
 import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -870,7 +870,9 @@ export class MobileRewards {
       icon: (weapon) => weapon,
       describe: (weapon) => {
         const forge = isImbueStone(item) ? '' : forgeStatusLine(weapon);
-        return `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}${forge ? ` · ${forge}` : ''}`;
+        // A full weapon that still has sleeping forges takes the stone by waking one.
+        const wake = isImbueStone(item) ? '' : forgeWakeNote(weapon, item.forgeStat);
+        return `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}${forge ? ` · ${forge}` : ''}${wake ? `. ${wake}` : ''}`;
       },
       blocked: (weapon) =>
         unit.inventory.includes(weapon) ? rewardWeaponBlock(item, weapon) : 'Weapon unavailable',
@@ -888,7 +890,7 @@ export class MobileRewards {
           describe: (entry) =>
             imbue
               ? entry.description
-              : `${forgePullsForward(weapon, entry.key) ? 'Wakes a sleeping forge early. ' : ''}${forgeImpactLine(unit, weapon, entry.key) || 'Permanent weapon upgrade.'}`,
+              : `${forgeWakeNote(weapon, entry.key) ? `${forgeWakeNote(weapon, entry.key)}. ` : ''}${forgeImpactLine(unit, weapon, entry.key) || 'Permanent weapon upgrade.'}`,
           blocked: (entry) => (imbue ? '' : forgeStatBlock(weapon, entry.key)),
           final: true,
           apply: (entry) => apply(weapon, imbue ? entry.id : entry.key),

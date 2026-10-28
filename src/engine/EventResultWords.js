@@ -169,6 +169,7 @@ function forgeLine(record) {
     text: `${record.unit}'s ${record.weapon} is forged`,
     detail: [
       forgeEffect(record.stat),
+      record.woke ? 'wakes a sleeping forge early' : '',
       record.name && record.name !== record.weapon ? `now ${record.name}` : '',
     ]
       .filter(Boolean)
