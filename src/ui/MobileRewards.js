@@ -1,5 +1,9 @@
 import { forgeImpactLine } from './itemDecisionText.js';
-import { comparisonFragment, equipmentComparisonSegments } from './equipmentComparison.js';
+import {
+  comparisonFragment,
+  equipmentComparisonSegments,
+  stackedLines,
+} from './equipmentComparison.js';
 import { inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { formatPerkMods, MASTERY_HELP } from './rosterDisplay.js';
@@ -872,7 +876,11 @@ export class MobileRewards {
         const forge = isImbueStone(item) ? '' : forgeStatusLine(weapon);
         // A full weapon that still has sleeping forges takes the stone by waking one.
         const wake = isImbueStone(item) ? '' : forgeWakeNote(weapon, item.forgeStat);
-        return `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}${forge ? ` · ${forge}` : ''}${wake ? `. ${wake}` : ''}`;
+        return stackedLines([
+          `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}`,
+          forge,
+          { text: wake, tone: 'note' },
+        ]);
       },
       blocked: (weapon) =>
         unit.inventory.includes(weapon) ? rewardWeaponBlock(item, weapon) : 'Weapon unavailable',
@@ -890,7 +898,10 @@ export class MobileRewards {
           describe: (entry) =>
             imbue
               ? entry.description
-              : `${forgeWakeNote(weapon, entry.key) ? `${forgeWakeNote(weapon, entry.key)}. ` : ''}${forgeImpactLine(unit, weapon, entry.key) || 'Permanent weapon upgrade.'}`,
+              : stackedLines([
+                  forgeImpactLine(unit, weapon, entry.key) || 'Permanent weapon upgrade.',
+                  { text: forgeWakeNote(weapon, entry.key), tone: 'note' },
+                ]),
           blocked: (entry) => (imbue ? '' : forgeStatBlock(weapon, entry.key)),
           final: true,
           apply: (entry) => apply(weapon, imbue ? entry.id : entry.key),

@@ -895,6 +895,15 @@
 .cmp-down {
   color: var(--re-bad);
 }
+/* A row's facts one per line (equipmentComparison.stackedLines); a note stands out. */
+.row-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.row-line--note {
+  color: var(--re-warn);
+}
 .ch-forwhom {
   display: flex;
   flex-direction: column;

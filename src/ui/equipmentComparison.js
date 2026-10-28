@@ -127,3 +127,20 @@ export function comparisonFragment(segments) {
   }
   return line;
 }
+
+/**
+ * A row's facts as stacked lines (one block span each, empty ones dropped), so a weapon row
+ * reads stats / forges / a note rather than one run-on sentence. `tone: 'note'` marks a line
+ * the player should not miss (choice.css `.row-line--note`).
+ */
+export function stackedLines(lines) {
+  const stack = element('span', null, 'row-lines');
+  for (const line of lines) {
+    const entry = typeof line === 'string' ? { text: line } : line;
+    if (!entry?.text) continue;
+    stack.append(
+      element('span', entry.text, entry.tone === 'note' ? 'row-line row-line--note' : 'row-line'),
+    );
+  }
+  return stack;
+}

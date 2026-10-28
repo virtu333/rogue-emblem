@@ -1,5 +1,9 @@
 import { forgeImpactSuffix, repairImpactSuffix } from './itemDecisionText.js';
-import { comparisonFragment, equipmentComparisonSegments } from './equipmentComparison.js';
+import {
+  comparisonFragment,
+  equipmentComparisonSegments,
+  stackedLines,
+} from './equipmentComparison.js';
 import { appendItemDetail } from './itemDetailView.js';
 import { ContextHelp } from './ContextHelp.js';
 import { equippedBadgeElement } from './equippedBadge.js';
@@ -672,10 +676,10 @@ export class ShopMenu {
               { short: true },
             );
         const wake = forgeWakeNote(weapon, stat.key);
-        const progress = wake
-          ? `${wake} (no new forge)`
-          : `${forgeStatProgressText(weapon, stat.key)} upgrades`;
-        return `${cost} · ${progress}${forgeImpactSuffix(owner, weapon, stat.key)}`;
+        return stackedLines([
+          `${cost} · ${forgeStatProgressText(weapon, stat.key)} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`,
+          { text: wake && `${wake} (no new forge)`, tone: 'note' },
+        ]);
       },
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),
