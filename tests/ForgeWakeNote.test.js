@@ -6,6 +6,7 @@ import { applyForge, forgeWakeNote } from '../src/engine/ForgeSystem.js';
 import { lullForges } from '../src/engine/KeptForges.js';
 import { describeResult } from '../src/engine/EventResultWords.js';
 import { applyStep } from '../src/engine/EventEffects.js';
+import { forgeChangeSections } from '../src/ui/itemDecisionText.js';
 
 const data = loadGameData();
 const catalog = (name) => structuredClone(data.weapons.find((w) => w.name === name));
@@ -81,5 +82,56 @@ describe('an event forge that wakes a sleeping forge', () => {
     expect(
       describeResult({ kind: 'forge', unit: 'B', weapon: 'S', name: 'S', stat: 'hit' }).detail,
     ).not.toContain('wakes');
+  });
+});
+
+describe('forgeChangeSections (the reward detail table)', () => {
+  const owner = {
+    name: 'Edric',
+    stats: { HP: 20, STR: 6, MAG: 0, SKL: 6, SPD: 7, LCK: 4, DEF: 5, RES: 1, MOV: 5 },
+  };
+  const rowOf = (sections, title, label) =>
+    sections.find((s) => s.title === title).rows.find((r) => r.label === label);
+
+  it('shows a waking Weight forge as a gain on the weapon and the owner, and the slot as woken', () => {
+    // Failure: the table shows no change for a forge that only wakes one, or calls a lighter
+    // weapon a loss, or a sleeping forge taken early a gain or loss of its own.
+    const sword = keptFull();
+    const sections = forgeChangeSections(owner, sword, 'weight');
+    expect(rowOf(sections, 'Weapon', 'Weight')).toMatchObject({
+      before: sword.weight,
+      after: sword.weight - 1,
+      better: true,
+    });
+    expect(rowOf(sections, 'Weapon', 'Might').better).toBeNull();
+    expect(rowOf(sections, 'Forges', 'Forges')).toMatchObject({ before: '15/15', after: '15/15' });
+    expect(rowOf(sections, 'Forges', 'Awake')).toMatchObject({ before: 2, after: 3, better: true });
+    expect(rowOf(sections, 'Forges', 'Asleep')).toMatchObject({
+      before: 13,
+      after: 12,
+      better: null,
+    });
+    // The sword itself is never touched by a preview.
+    expect(sword._forgeLevel).toBe(2);
+  });
+
+  it('a new forge on a plain weapon counts up and owns no sleeping rows', () => {
+    const sword = { ...catalog('Silver Sword'), uid: 'itm_new' };
+    const sections = forgeChangeSections(owner, sword, 'might');
+    expect(rowOf(sections, 'Weapon', 'Might').better).toBe(true);
+    expect(rowOf(sections, 'Edric', 'Attack').after).toBe(
+      rowOf(sections, 'Edric', 'Attack').before + 1,
+    );
+    expect(rowOf(sections, 'Forges', 'Forges')).toMatchObject({
+      before: '0/15',
+      after: '1/15',
+      better: true,
+    });
+    expect(rowOf(sections, 'Forges', 'Asleep')).toBeUndefined();
+  });
+
+  it('with no stat chosen nothing changes', () => {
+    const sections = forgeChangeSections(owner, keptFull(), null);
+    for (const { rows } of sections) for (const row of rows) expect(row.before).toEqual(row.after);
   });
 });

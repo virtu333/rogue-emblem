@@ -131,16 +131,55 @@ export function comparisonFragment(segments) {
 /**
  * A row's facts as stacked lines (one block span each, empty ones dropped), so a weapon row
  * reads stats / forges / a note rather than one run-on sentence. `tone: 'note'` marks a line
- * the player should not miss (choice.css `.row-line--note`).
+ * the player should not miss (choice.css `.row-line--note`); `node` puts a built line in place
+ * of `text` (a coloured comparison).
  */
 export function stackedLines(lines) {
   const stack = element('span', null, 'row-lines');
   for (const line of lines) {
     const entry = typeof line === 'string' ? { text: line } : line;
-    if (!entry?.text) continue;
+    const content = entry?.node || entry?.text;
+    if (!content) continue;
     stack.append(
-      element('span', entry.text, entry.tone === 'note' ? 'row-line row-line--note' : 'row-line'),
+      element('span', content, entry.tone === 'note' ? 'row-line row-line--note' : 'row-line'),
     );
   }
   return stack;
+}
+
+/**
+ * Before → after, one small table per subject (itemDecisionText.forgeChangeSections), side by side
+ * where the panel is wide enough: label, the value now, and the value after when it changes,
+ * green for a gain and red for a loss. The arrow and both numbers stay in the text, so colour is
+ * never the only cue.
+ */
+export function changeTable(sections) {
+  const table = element('div', null, 'change-table');
+  for (const { title, rows } of sections || []) {
+    const section = element('div', null, 'change-section');
+    section.append(element('span', title, 'change-head'));
+    for (const { label, before, after, better } of rows) {
+      const changed = before !== after;
+      const tone = !changed || better == null ? '' : better ? ' cmp-up' : ' cmp-down';
+      section.append(
+        element('span', label, 'change-label'),
+        element('span', String(before), 'change-before'),
+        element('span', changed ? `→ ${after}` : '', `change-after${tone}`),
+      );
+    }
+    table.append(section);
+  }
+  return table;
+}
+
+/** The same rows on one line, "Forges 15/15 · Awake 2 → 3", each change in its colour. */
+export function changeLine(rows) {
+  return comparisonFragment(
+    (rows || []).flatMap(({ label, before, after, better }, i) => [
+      ...(i ? [{ text: ' · ', better: null }] : []),
+      before === after
+        ? { text: `${label} ${before}`, better: null }
+        : { text: `${label} ${before} → ${after}`, better },
+    ]),
+  );
 }
