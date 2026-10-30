@@ -146,6 +146,27 @@ const FORGE_STAT_NAMES = { might: 'Might', crit: 'Crit', hit: 'Hit', weight: 'We
 const asleepText = (n) => (n ? ` · ${n} asleep` : '');
 
 /**
+ * Words for a forge that wakes a sleeping forge instead of adding a new one, or '' when it adds
+ * one. With a `stat`, whichever cap left no room says so: "Already 15/15 · wakes a sleeping
+ * Weight forge now" (the weapon is full) or "Weight already 5/5 · wakes a sleeping Weight forge
+ * now" (the stat is). With none (a Silver Whetstone's choice) only a full weapon is told, since
+ * only then every pick wakes rather than adds.
+ */
+export function forgeWakeNote(weapon, stat) {
+  const slots = forgeSlots(weapon);
+  if (Object.hasOwn(FORGE_BONUSES, stat)) {
+    if (!forgePullsForward(weapon, stat)) return '';
+    const name = FORGE_STAT_NAMES[stat];
+    const full = slots.full
+      ? `Already ${slots.total}/${slots.max}`
+      : `${name} already ${getStatForgeCount(weapon, stat) + dormantOf(weapon, stat)}/${FORGE_STAT_CAP}`;
+    return `${full} · wakes a sleeping ${name} forge now`;
+  }
+  if (!slots.full || !slots.asleep || !canForge(weapon)) return '';
+  return `Already ${slots.total}/${slots.max} · a forge wakes a sleeping one now`;
+}
+
+/**
  * A weapon's forges as the caps count them: `awake` (on the weapon now), `asleep` (an NG+ kept
  * weapon's sleeping forges, engine/KeptForges.js), their `total` against `max`, and `full`.
  * Sleeping forges take a slot, so a weapon that reads "+2" can be fully forged.

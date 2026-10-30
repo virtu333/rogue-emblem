@@ -895,6 +895,51 @@
 .cmp-down {
   color: var(--re-bad);
 }
+/* A row's facts one per line (equipmentComparison.stackedLines); a note stands out. */
+.row-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.row-line--note {
+  color: var(--re-warn);
+}
+/* Before → after, one small table per subject (equipmentComparison.changeTable). */
+.change-table {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.change-note {
+  color: var(--re-warn);
+}
+.change-section {
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  gap: 1px 10px;
+  align-content: start;
+}
+.change-head {
+  grid-column: 1 / -1;
+  padding-bottom: 1px;
+  border-bottom: 1px solid var(--re-line-soft);
+  color: var(--re-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.change-label {
+  color: var(--re-muted);
+}
+.change-before {
+  text-align: right;
+}
+.change-after {
+  min-width: 3ch;
+  font-weight: 600;
+}
 .ch-forwhom {
   display: flex;
   flex-direction: column;

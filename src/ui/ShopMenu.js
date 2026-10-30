@@ -1,5 +1,9 @@
 import { forgeImpactSuffix, repairImpactSuffix } from './itemDecisionText.js';
-import { comparisonFragment, equipmentComparisonSegments } from './equipmentComparison.js';
+import {
+  comparisonFragment,
+  equipmentComparisonSegments,
+  stackedLines,
+} from './equipmentComparison.js';
 import { appendItemDetail } from './itemDetailView.js';
 import { ContextHelp } from './ContextHelp.js';
 import { equippedBadgeElement } from './equippedBadge.js';
@@ -35,7 +39,7 @@ import { isWorn, wearCount, wearDisplay } from '../engine/WeaponWear.js';
 import {
   canForge,
   forgeFullText,
-  forgePullsForward,
+  forgeWakeNote,
   forgeStatBlock,
   forgeStatProgressText,
 } from '../engine/ForgeSystem.js';
@@ -671,8 +675,10 @@ export class ShopMenu {
               shopForgeSaving(weapon, stat.key, terms),
               { short: true },
             );
-        const early = forgePullsForward(weapon, stat.key) ? ' · Wakes a sleeping forge early' : '';
-        return `${cost} · ${forgeStatProgressText(weapon, stat.key)} upgrades${early}${forgeImpactSuffix(owner, weapon, stat.key)}`;
+        const line = `${cost} · ${forgeStatProgressText(weapon, stat.key)} upgrades${forgeImpactSuffix(owner, weapon, stat.key)}`;
+        // A forge that only wakes a sleeping one says so on a line of its own.
+        const wake = forgeWakeNote(weapon, stat.key);
+        return wake ? stackedLines([line, { text: `${wake} (no new forge)`, tone: 'note' }]) : line;
       },
       blocked: (stat) =>
         shopForgeBlock(this.run, weapon, stat.key, { ...this.forgeOptions(), expectedLevel }),

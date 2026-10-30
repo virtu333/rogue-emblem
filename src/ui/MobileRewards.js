@@ -1,5 +1,11 @@
-import { forgeImpactLine } from './itemDecisionText.js';
-import { comparisonFragment, equipmentComparisonSegments } from './equipmentComparison.js';
+import { forgeChangeSections, forgeImpactSegments } from './itemDecisionText.js';
+import {
+  changeLine,
+  changeTable,
+  comparisonFragment,
+  equipmentComparisonSegments,
+  stackedLines,
+} from './equipmentComparison.js';
 import { inventoryDisplayOrder } from '../engine/UnitManager.js';
 import { appendItemArtDetails } from './ItemArtDetails.js';
 import { formatPerkMods, MASTERY_HELP } from './rosterDisplay.js';
@@ -38,7 +44,7 @@ import {
   REWARD_FORGE_STATS,
 } from '../engine/LootRewardCommands.js';
 import { isImbueStone, getImbueList } from '../engine/ImbueSystem.js';
-import { forgePullsForward, forgeStatBlock, forgeStatusLine } from '../engine/ForgeSystem.js';
+import { forgeStatBlock, forgeStatusLine, forgeWakeNote } from '../engine/ForgeSystem.js';
 import { pushOverlay, removeOverlay } from '../utils/overlayStack.js';
 import { pushInputScope, popInputScope } from '../utils/inputFocus.js';
 import { InputAction } from '../utils/InputActions.js';
@@ -55,6 +61,22 @@ const node = (tag, text, cls = '') => {
   else if (text != null) el.textContent = text;
   return el;
 };
+/**
+ * A forge's preview for the detail panel: the forge count and any wake note beside the picture
+ * (`lead`), the weapon's and the owner's numbers before → after below it (`table`).
+ */
+function forgeDetail(unit, weapon, key, wakeStat) {
+  const sections = forgeChangeSections(unit, weapon, key);
+  const forges = sections.pop();
+  const wake = forgeWakeNote(weapon, wakeStat);
+  return {
+    lead: [
+      node('p', changeLine(forges.rows), 'change-forges'),
+      ...(wake ? [node('p', wake, 'change-note')] : []),
+    ],
+    table: changeTable(sections),
+  };
+}
 // "Legend · Weapon" as two parts, so a narrow card can keep the tier alone in
 // view (the category stays in the text and the card's name).
 function rarityText({ tier, category, label }) {
@@ -754,22 +776,30 @@ export class MobileRewards {
     const copy = node('div', null, 'mu-copy');
     const chosen = step.selected;
     const title = node('h2', chosen ? step.label(chosen) : 'No available choices');
-    const line = node(
-      'p',
-      chosen
-        ? step.blocked?.(chosen) || step.describe?.(chosen) || ''
-        : 'Go back to choose another reward.',
-    );
+    // A step may lay out what the choice changes (a forge's before → after): its lead lines
+    // stand in for the row's one-line description beside a smaller picture, its table below.
+    const detailView = chosen && !step.blocked?.(chosen) ? step.detail?.(chosen) : null;
+    const lead = detailView
+      ? detailView.lead
+      : [
+          node(
+            'p',
+            chosen
+              ? step.blocked?.(chosen) || step.describe?.(chosen) || ''
+              : 'Go back to choose another reward.',
+          ),
+        ];
     // The chosen weapon's picture, else the reward's own (who gets it, which stat).
     const subject = (chosen ? step.icon?.(chosen) : null) || step.subject || null;
     if (subject) {
       // The picture beside the choice's name.
       const head = node('div', null, 'reward-hero');
       const text = node('div', null, 'reward-hero-title');
-      text.append(title, line);
-      head.append(itemHero(subject, { size: 96 }), text);
+      text.append(title, ...lead);
+      head.append(itemHero(subject, { size: detailView ? 64 : 96 }), text);
       copy.append(head);
-    } else copy.append(title, line);
+    } else copy.append(title, ...lead);
+    if (detailView?.table) copy.append(detailView.table);
     const status = node('p', message);
     status.setAttribute('role', 'status');
     copy.append(status);
@@ -870,8 +900,24 @@ export class MobileRewards {
       icon: (weapon) => weapon,
       describe: (weapon) => {
         const forge = isImbueStone(item) ? '' : forgeStatusLine(weapon);
-        return `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}${forge ? ` · ${forge}` : ''}`;
+        // A full weapon that still has sleeping forges takes the stone by waking one.
+        const wake = isImbueStone(item) ? '' : forgeWakeNote(weapon, item.forgeStat);
+        return stackedLines([
+          `Might ${weapon.might} · Hit ${weapon.hit} · Crit ${weapon.crit} · Weight ${weapon.weight}`,
+          forge,
+          { text: wake, tone: 'note' },
+        ]);
       },
+      // What the stone does to the chosen weapon (a Silver Whetstone's stat is picked next).
+      detail: (weapon) =>
+        isImbueStone(item)
+          ? null
+          : forgeDetail(
+              unit,
+              weapon,
+              item.forgeStat === 'choice' ? null : item.forgeStat,
+              item.forgeStat,
+            ),
       blocked: (weapon) =>
         unit.inventory.includes(weapon) ? rewardWeaponBlock(item, weapon) : 'Weapon unavailable',
       final: !needsChoice,
@@ -888,7 +934,13 @@ export class MobileRewards {
           describe: (entry) =>
             imbue
               ? entry.description
-              : `${forgePullsForward(weapon, entry.key) ? 'Wakes a sleeping forge early. ' : ''}${forgeImpactLine(unit, weapon, entry.key) || 'Permanent weapon upgrade.'}`,
+              : stackedLines([
+                  forgeImpactSegments(unit, weapon, entry.key).length
+                    ? { node: comparisonFragment(forgeImpactSegments(unit, weapon, entry.key)) }
+                    : 'Permanent weapon upgrade.',
+                  { text: forgeWakeNote(weapon, entry.key), tone: 'note' },
+                ]),
+          detail: (entry) => (imbue ? null : forgeDetail(unit, weapon, entry.key, entry.key)),
           blocked: (entry) => (imbue ? '' : forgeStatBlock(weapon, entry.key)),
           final: true,
           apply: (entry) => apply(weapon, imbue ? entry.id : entry.key),

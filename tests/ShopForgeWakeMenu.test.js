@@ -112,3 +112,26 @@ it('names the gold missing when the purse is short', () => {
   expect(button(/^Wake/).disabled).toBe(true);
   expect(text()).toContain('Not enough gold: 200 G short.');
 });
+
+it("a full weapon's forge picker puts the wake on its own note line", () => {
+  // Failure: the wake is buried in one long run-on line (Jeff missed it), or a stat that would
+  // add a new forge is told it wakes one.
+  for (const stat of ['hit', 'crit', 'might', 'hit', 'crit', 'might', 'hit', 'weight'])
+    applyForge(weapon, stat, 0, { free: true });
+  lullForges(weapon, 2);
+  openForge();
+  button('Choose forge').onclick();
+  const describe = d.menu.child.options.describe;
+  const notes = (stat) =>
+    describe({ key: stat })
+      .all()
+      .filter((n) => n.classList.contains('row-line--note'))
+      .map((n) => n.textContent);
+  expect(notes('weight')).toEqual([
+    'Already 15/15 · wakes a sleeping Weight forge now (no new forge)',
+  ]);
+  const lines = describe({ key: 'weight' })
+    .all()
+    .filter((n) => n.classList.contains('row-line'));
+  expect(lines).toHaveLength(2);
+});

@@ -64,7 +64,7 @@
 //                                                 -> { kind:'contract', goal, label, short, line, reward, penalty }
 //   forge       { stat?: 'might'|'crit'|'hit'|'weight'|'random' }  one free forge step on the target's
 //                                                equipped weapon (a whetstone, without the gold)
-//                                                -> { kind:'forge', unit, weapon, name, stat }
+//                                                -> { kind:'forge', unit, weapon, name, stat, woke? }
 //   wear        {}                              one wear step on the target's equipped weapon (a forge
 //                                                gone wrong: WeaponWear.js; nothing to wear -> fallback)
 //                                                -> { kind:'wear', unit, weapon, name, stat }
@@ -852,7 +852,14 @@ function applyForgeStep(ctx, step) {
   const done = applyForge(step.weapon, step.stat);
   if (!done.success) throw new Error(`Forge "${step.stat}" did not take on ${from}.`);
   return [
-    { kind: 'forge', unit: step.unit.name, weapon: from, name: step.weapon.name, stat: step.stat },
+    {
+      kind: 'forge',
+      unit: step.unit.name,
+      weapon: from,
+      name: step.weapon.name,
+      stat: step.stat,
+      ...(done.pulledForward ? { woke: true } : {}),
+    },
   ];
 }
 
