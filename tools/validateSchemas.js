@@ -18,6 +18,7 @@ import { validateOmensConfig } from '../src/engine/Omens.js';
 import { validateAchievementsCatalog } from '../src/engine/Achievements.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 import { validateWeaponUsesConfig } from '../src/engine/WeaponUses.js';
+import { validateSurvivorsConfig } from '../src/engine/survivors/SurvivorsConfig.js';
 
 const DATA_DIR = path.resolve('data');
 const SCHEMA_DIR = path.resolve('schemas');
@@ -244,6 +245,22 @@ if (weaponUsesErrors.length === 0) {
 } else {
   console.error('FAIL  weaponUses.json (engine validator)');
   for (const err of weaponUsesErrors) console.error(`      ${err}`);
+  failed = true;
+}
+
+// Darkest Before Dawn, the survivors mode (engine/survivors/SurvivorsConfig.js)
+const survivorsResult = validateSurvivorsConfig(readData('survivors.json'), {
+  weapons: readData('weapons.json'),
+  classes: readData('classes.json'),
+  lords: readData('lords.json'),
+  terrain: readData('terrain.json'),
+  enemies: readData('enemies.json'),
+});
+if (survivorsResult.ok) {
+  console.log('  OK  survivors.json (engine validator)');
+} else {
+  console.error('FAIL  survivors.json (engine validator)');
+  for (const err of survivorsResult.errors) console.error(`      ${err}`);
   failed = true;
 }
 

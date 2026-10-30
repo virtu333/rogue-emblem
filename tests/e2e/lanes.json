@@ -77,7 +77,8 @@
         "mobile-home-base.spec.js",
         "ng-plus.spec.js",
         "omens.spec.js",
-        "mobile-run-loop.spec.js"
+        "mobile-run-loop.spec.js",
+        "survivors.spec.js"
       ]
     },
     {

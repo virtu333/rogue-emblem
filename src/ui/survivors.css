@@ -1,0 +1,289 @@
+/* Darkest Before Dawn (the survivors mode): the HUD over the night's field, the stick under
+   the thumb, and its panels (choose a lord, level-up choices, pause, the night's end). */
+.dbd-root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--re-depth-route);
+  color: var(--re-text);
+  font: var(--re-t-body);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.dbd-root * {
+  box-sizing: border-box;
+}
+.dbd-root [hidden] {
+  display: none !important;
+}
+.dbd-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: max(6px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) 0
+    max(10px, env(safe-area-inset-left));
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dbd-xp {
+  height: 8px;
+  border: 1px solid var(--re-line);
+  background: var(--re-sunken);
+}
+.dbd-xp-fill {
+  height: 100%;
+  width: 0;
+  background: var(--re-info);
+}
+.dbd-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font: var(--re-t-label);
+  text-shadow: 0 1px 2px var(--re-sunken);
+}
+.dbd-clock {
+  flex: 1;
+  text-align: center;
+  font: var(--re-t-title);
+  color: var(--re-text);
+}
+.dbd-clock.is-dawn {
+  color: var(--re-accent-text);
+}
+.dbd-kills::before {
+  content: '✕ ';
+  color: var(--re-muted);
+}
+.dbd-pause {
+  pointer-events: auto;
+  min-height: var(--re-tap);
+  min-width: var(--re-tap);
+  border: 1px solid var(--re-line);
+  background: var(--re-raised);
+  color: var(--re-text);
+  font: var(--re-t-label);
+  padding: 4px 10px;
+}
+.dbd-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.dbd-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px 1px 2px;
+  border: 1px solid var(--re-line-soft);
+  background: var(--re-panel);
+  font: var(--re-t-micro);
+}
+.dbd-slot.is-passive {
+  border-color: var(--re-line);
+}
+.dbd-boss {
+  align-self: center;
+  width: min(420px, 90%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font: var(--re-t-label);
+  color: var(--re-bad);
+}
+.dbd-boss-track {
+  width: 100%;
+  height: 8px;
+  border: 1px solid var(--re-danger-line);
+  background: var(--re-danger-bg);
+}
+.dbd-boss-fill {
+  height: 100%;
+  background: var(--re-bad);
+}
+.dbd-stick {
+  position: absolute;
+  width: 92px;
+  height: 92px;
+  margin: -46px 0 0 -46px;
+  border: 2px solid var(--re-line-strong);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--re-sunken) 45%, transparent);
+  pointer-events: none;
+}
+.dbd-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border-radius: 50%;
+  background: var(--re-accent);
+  opacity: 0.85;
+}
+.dbd-banner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 28%;
+  text-align: center;
+  font: var(--re-t-title);
+  color: var(--re-accent-text);
+  text-shadow: 0 2px 4px var(--re-sunken);
+  pointer-events: none;
+}
+.dbd-panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--re-bg) 82%, transparent);
+  overflow-y: auto;
+}
+.dbd-panel[data-kind='lords'],
+.dbd-panel[data-kind='result'] {
+  background: var(--re-bg);
+}
+.dbd-panel button {
+  min-height: var(--re-tap);
+  border: 1px solid var(--re-line);
+  background: var(--re-raised);
+  color: var(--re-text);
+  font: var(--re-t-body);
+  padding: 8px 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.dbd-panel button:focus-visible {
+  outline: 2px solid var(--re-focus);
+  outline-offset: -3px;
+}
+.dbd-panel button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.dbd-panel .dbd-primary {
+  border-color: var(--re-accent);
+  color: var(--re-accent-text);
+}
+.dbd-head {
+  text-align: center;
+  max-width: 520px;
+}
+.dbd-head h1 {
+  margin: 0;
+  font: var(--re-t-display);
+  color: var(--re-accent-text);
+}
+.dbd-head h1.is-dawn {
+  color: var(--re-accent);
+}
+.dbd-head p {
+  margin: 4px 0 0;
+}
+.dbd-muted {
+  color: var(--re-muted);
+}
+.dbd-gains {
+  color: var(--re-good);
+  font: var(--re-t-label);
+}
+.dbd-lords {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px;
+  width: min(720px, 100%);
+}
+.dbd-lord {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+.dbd-lord[aria-pressed='true'] {
+  border-color: var(--re-accent);
+  background: var(--re-selected);
+}
+.dbd-lord-words,
+.dbd-choice-words {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dbd-lord-words span,
+.dbd-choice-words span {
+  font: var(--re-t-small);
+}
+.dbd-face {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  image-rendering: pixelated;
+}
+.dbd-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(460px, 100%);
+}
+.dbd-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+.dbd-choice em {
+  font: var(--re-t-micro);
+  font-style: normal;
+  color: var(--re-info);
+}
+.dbd-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.dbd-actions.is-column {
+  flex-direction: column;
+  width: min(280px, 100%);
+}
+.dbd-lines {
+  text-align: center;
+}
+.dbd-lines p {
+  margin: 2px 0;
+}
+.dbd-damage {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: min(300px, 100%);
+}
+.dbd-damage li {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--re-line-soft);
+  padding: 2px 0;
+  font: var(--re-t-small);
+}
+.dbd-loading {
+  font: var(--re-t-label);
+  color: var(--re-muted);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dbd-xp-fill,
+  .dbd-boss-fill {
+    transition: width 0.15s linear;
+  }
+}

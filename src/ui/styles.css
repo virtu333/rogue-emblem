@@ -54,6 +54,8 @@
 
 /* Save select: the candle shrine (SlotPickerView.js). */
 @import './slotPicker.css';
+/* Darkest Before Dawn, the survivors mode: its HUD, stick and panels. */
+@import './survivors.css';
 /* Portrait battles: upright phone layout, map above a thumb-reach rail. Last. */
 @import './portraitBattle.css';
 @import './portraitMode.css';

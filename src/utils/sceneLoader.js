@@ -40,6 +40,8 @@ const SCENE_LOADERS = {
   NodeMap: () => import('../scenes/NodeMapScene.js').then((m) => m.NodeMapScene),
   Battle: () => import('../scenes/BattleScene.js').then((m) => m.BattleScene),
   RunComplete: () => import('../scenes/RunCompleteScene.js').then((m) => m.RunCompleteScene),
+  // Darkest Before Dawn, the survivors mode (docs/specs/survivors-mode.md): web only.
+  Survivors: () => import('../scenes/SurvivorsScene.js').then((m) => m.SurvivorsScene),
 };
 let globalStartSceneInFlight = false;
 let globalSceneStartCooldownUntil = 0;

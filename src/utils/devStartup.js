@@ -35,6 +35,9 @@ const DEV_SCENE_ALIASES = {
   lootui: 'Battle',
   // Review route: the run-complete screen for a won run (`&route=` picks the ending).
   victory: 'RunComplete',
+  // Darkest Before Dawn, the survivors mode: every lord open, `&seed=` pins the night,
+  // `&lord=Name` skips the picker, `&autoplay=1` lets the balance bot play it.
+  survivors: 'Survivors',
 };
 // `&route=` for devScene=victory: where the won run ended, and on which rung. Dusk's road runs
 // on past the Emperor to the Lieutenant (`dusk`); `emperor` is a Dusk run saved before that,
@@ -689,6 +692,8 @@ export function parseDevStartupConfig(search, options = {}) {
     devTools: parseBool(params.get('devTools')),
     ...(params.get('route') ? { route: params.get('route') } : {}),
     ...(params.get('event') ? { event: params.get('event') } : {}),
+    ...(params.get('lord') ? { lord: params.get('lord') } : {}),
+    ...(parseBool(params.get('autoplay')) ? { autoplay: true } : {}),
     // Event review extras (applyEventPreset): the node's kind, the burdens and contract the run
     // carries, a Dark Omen, and roster additions.
     ...(parsePositiveInt(params.get('act'))
@@ -795,6 +800,19 @@ export function buildDevStartupRoute(sourceGameData, registry, config) {
     registry.set('hints', sessionHints(registry, ['guide_first_event']));
 
   const meta = ensureMetaRegistry(registry, gameData, config.preset);
+
+  if (config.sceneKey === 'Survivors') {
+    return {
+      key: 'Survivors',
+      data: {
+        ...baseData,
+        devRoute: true,
+        ...(config.seed != null ? { seed: config.seed } : {}),
+        ...(config.lord ? { lordName: config.lord } : {}),
+        ...(config.autoplay ? { autoplay: true } : {}),
+      },
+    };
+  }
 
   if (
     config.sceneKey === 'HomeBase' ||
