@@ -1,0 +1,523 @@
+{
+  "version": 1,
+  "title": "Darkest Before Dawn",
+  "durationSec": 600,
+  "field": {
+    "cols": 64,
+    "rows": 64,
+    "biome": "grassland",
+    "clearRadius": 6,
+    "blobs": [
+      {"terrain": "Forest", "count": 34, "minCells": 10, "maxCells": 46},
+      {"terrain": "Water", "count": 9, "minCells": 6, "maxCells": 20},
+      {"terrain": "Mountain", "count": 9, "minCells": 3, "maxCells": 9}
+    ]
+  },
+  "player": {
+    "hpScale": 4,
+    "speedBase": 62,
+    "speedPerMov": 10,
+    "radius": 10,
+    "invulnSec": 0.6,
+    "pickupRadius": 34,
+    "pickupPerLck": 3,
+    "maxWeapons": 4,
+    "maxPassives": 4,
+    "terrainSlowPerCost": 0.45,
+    "cooldownPerAttackSpeed": 0.015,
+    "minCooldownScale": 0.45
+  },
+  "enemy": {
+    "speedBase": 22,
+    "speedPerMov": 7,
+    "flyingSpeedBonus": 6,
+    "radius": 10,
+    "contactCooldownSec": 0.5,
+    "knockback": 70,
+    "rangedKeepDistance": 150,
+    "rangedEverySec": 2.8,
+    "rangedSpeed": 150,
+    "xpBase": 1,
+    "xpPerLevels": 3,
+    "vulneraryChance": 0.006,
+    "damageScale": 0.7,
+    "despawnScale": 1.8
+  },
+  "xp": {
+    "first": 5,
+    "perLevel": 9,
+    "shardMergeAbove": 260
+  },
+  "triangleDamage": 2,
+  "offerCount": 3,
+  "restHealShare": 0.3,
+  "vulneraryHealShare": 0.25,
+  "startWeaponByType": {
+    "Swords": "sword",
+    "Lances": "lance",
+    "Axes": "axe",
+    "Bows": "bow",
+    "Tomes": "fire",
+    "Light": "light"
+  },
+  "weapons": {
+    "sword": {
+      "name": "Sword",
+      "pattern": "arc",
+      "stat": "STR",
+      "description": "A quick slash in front of you.",
+      "sfx": "sfx_sword",
+      "levels": [
+        {
+          "weapon": "Iron Sword",
+          "cooldown": 1.0,
+          "reach": 62,
+          "arc": 120,
+          "swings": 1,
+          "note": "A quick slash in front of you."
+        },
+        {
+          "weapon": "Steel Sword",
+          "cooldown": 0.95,
+          "reach": 68,
+          "arc": 130,
+          "swings": 1,
+          "note": "Steel Sword: harder hits, longer reach."
+        },
+        {
+          "weapon": "Steel Sword",
+          "cooldown": 0.9,
+          "reach": 72,
+          "arc": 140,
+          "swings": 2,
+          "note": "Also slashes behind you."
+        },
+        {
+          "weapon": "Silver Sword",
+          "cooldown": 0.85,
+          "reach": 80,
+          "arc": 150,
+          "swings": 2,
+          "note": "Silver Sword: much harder hits."
+        },
+        {
+          "weapon": "Silver Sword",
+          "cooldown": 0.7,
+          "reach": 92,
+          "arc": 170,
+          "swings": 2,
+          "note": "Faster, wider slashes."
+        }
+      ]
+    },
+    "lance": {
+      "name": "Lance",
+      "pattern": "thrust",
+      "stat": "STR",
+      "description": "A long thrust that pierces every foe in a line.",
+      "sfx": "sfx_lance",
+      "levels": [
+        {
+          "weapon": "Iron Lance",
+          "cooldown": 1.3,
+          "length": 96,
+          "width": 22,
+          "thrusts": 1,
+          "note": "A long thrust through a line of foes."
+        },
+        {
+          "weapon": "Steel Lance",
+          "cooldown": 1.25,
+          "length": 110,
+          "width": 24,
+          "thrusts": 1,
+          "note": "Steel Lance: harder hits, longer reach."
+        },
+        {
+          "weapon": "Steel Lance",
+          "cooldown": 1.15,
+          "length": 116,
+          "width": 26,
+          "thrusts": 2,
+          "note": "Also thrusts behind you."
+        },
+        {
+          "weapon": "Silver Lance",
+          "cooldown": 1.1,
+          "length": 128,
+          "width": 28,
+          "thrusts": 2,
+          "note": "Silver Lance: much harder hits."
+        },
+        {
+          "weapon": "Silver Lance",
+          "cooldown": 0.95,
+          "length": 144,
+          "width": 30,
+          "thrusts": 4,
+          "note": "Thrusts to all four sides."
+        }
+      ]
+    },
+    "axe": {
+      "name": "Hand Axe",
+      "pattern": "boomerang",
+      "stat": "STR",
+      "description": "A thrown axe that cuts through foes and comes back.",
+      "sfx": "sfx_axe",
+      "levels": [
+        {
+          "weapon": "Hand Axe",
+          "cooldown": 1.6,
+          "range": 150,
+          "speed": 260,
+          "count": 1,
+          "radius": 12,
+          "note": "A thrown axe that comes back."
+        },
+        {
+          "weapon": "Hand Axe",
+          "cooldown": 1.45,
+          "range": 170,
+          "speed": 270,
+          "count": 2,
+          "radius": 12,
+          "note": "Throws two axes."
+        },
+        {
+          "weapon": "Tomahawk",
+          "cooldown": 1.4,
+          "range": 180,
+          "speed": 280,
+          "count": 2,
+          "radius": 14,
+          "note": "Tomahawk: harder hits."
+        },
+        {
+          "weapon": "Tomahawk",
+          "cooldown": 1.3,
+          "range": 200,
+          "speed": 290,
+          "count": 3,
+          "radius": 14,
+          "note": "Throws three axes."
+        },
+        {
+          "weapon": "Tomahawk",
+          "cooldown": 1.1,
+          "range": 220,
+          "speed": 310,
+          "count": 4,
+          "radius": 16,
+          "note": "Throws four axes, faster."
+        }
+      ]
+    },
+    "bow": {
+      "name": "Bow",
+      "pattern": "arrow",
+      "stat": "STR",
+      "description": "Arrows at the nearest foes.",
+      "sfx": "sfx_bow",
+      "levels": [
+        {
+          "weapon": "Iron Bow",
+          "cooldown": 1.1,
+          "speed": 420,
+          "count": 1,
+          "pierce": 1,
+          "note": "An arrow at the nearest foe."
+        },
+        {
+          "weapon": "Steel Bow",
+          "cooldown": 1.05,
+          "speed": 440,
+          "count": 1,
+          "pierce": 1,
+          "note": "Steel Bow: harder hits."
+        },
+        {
+          "weapon": "Steel Bow",
+          "cooldown": 0.95,
+          "speed": 460,
+          "count": 2,
+          "pierce": 1,
+          "note": "Two arrows."
+        },
+        {
+          "weapon": "Silver Bow",
+          "cooldown": 0.95,
+          "speed": 480,
+          "count": 3,
+          "pierce": 2,
+          "note": "Silver Bow: three arrows."
+        },
+        {
+          "weapon": "Silver Bow",
+          "cooldown": 0.85,
+          "speed": 520,
+          "count": 3,
+          "pierce": 3,
+          "note": "Three arrows that pierce three foes."
+        }
+      ]
+    },
+    "fire": {
+      "name": "Fire",
+      "pattern": "bolt",
+      "stat": "MAG",
+      "description": "A fire bolt that bursts on the first foe it meets. Uses MAG.",
+      "sfx": "sfx_fire",
+      "levels": [
+        {
+          "weapon": "Fire",
+          "cooldown": 1.4,
+          "speed": 240,
+          "count": 1,
+          "burst": 34,
+          "note": "A fire bolt that bursts. Uses MAG."
+        },
+        {"weapon": "Fire", "cooldown": 1.3, "speed": 250, "count": 2, "burst": 38, "note": "Two bolts."},
+        {
+          "weapon": "Wildfire",
+          "cooldown": 1.25,
+          "speed": 260,
+          "count": 2,
+          "burst": 46,
+          "note": "Wildfire: harder hits, wider bursts."
+        },
+        {
+          "weapon": "Wildfire",
+          "cooldown": 1.15,
+          "speed": 270,
+          "count": 3,
+          "burst": 50,
+          "note": "Three bolts."
+        },
+        {
+          "weapon": "Conflagration",
+          "cooldown": 1.05,
+          "speed": 290,
+          "count": 3,
+          "burst": 62,
+          "note": "Conflagration: the widest bursts."
+        }
+      ]
+    },
+    "light": {
+      "name": "Light",
+      "pattern": "aura",
+      "stat": "MAG",
+      "description": "A ring of light that strikes every foe near you. Uses MAG.",
+      "sfx": "sfx_light",
+      "levels": [
+        {"weapon": "Glimmer", "cooldown": 1.3, "radius": 72, "note": "A ring of light around you. Uses MAG."},
+        {"weapon": "Glimmer", "cooldown": 1.2, "radius": 82, "note": "A wider ring."},
+        {"weapon": "Brilliance", "cooldown": 1.15, "radius": 90, "note": "Brilliance: harder hits."},
+        {"weapon": "Brilliance", "cooldown": 1.05, "radius": 100, "note": "A wider, quicker ring."},
+        {"weapon": "Crownlight", "cooldown": 0.95, "radius": 116, "note": "Crownlight: the widest ring."}
+      ]
+    }
+  },
+  "passives": {
+    "power_ring": {
+      "name": "Power Ring",
+      "kind": "accessory",
+      "maxLevel": 3,
+      "stat": "STR",
+      "perLevel": 2,
+      "description": "+2 STR a level."
+    },
+    "magic_ring": {
+      "name": "Magic Ring",
+      "kind": "accessory",
+      "maxLevel": 3,
+      "stat": "MAG",
+      "perLevel": 2,
+      "description": "+2 MAG a level."
+    },
+    "skill_ring": {
+      "name": "Skill Ring",
+      "kind": "accessory",
+      "maxLevel": 3,
+      "stat": "SKL",
+      "perLevel": 4,
+      "description": "+4 SKL a level: more crits."
+    },
+    "speed_ring": {
+      "name": "Speed Ring",
+      "kind": "accessory",
+      "maxLevel": 3,
+      "stat": "SPD",
+      "perLevel": 3,
+      "description": "+3 SPD a level: faster attacks."
+    },
+    "shield_ring": {
+      "name": "Shield Ring",
+      "kind": "accessory",
+      "maxLevel": 3,
+      "stat": "DEF",
+      "perLevel": 2,
+      "description": "+2 DEF a level."
+    },
+    "barrier_ring": {
+      "name": "Barrier Ring",
+      "kind": "accessory",
+      "maxLevel": 3,
+      "stat": "RES",
+      "perLevel": 3,
+      "description": "+3 RES a level: magic hurts less."
+    },
+    "life_ring": {
+      "name": "Life Ring",
+      "kind": "accessory",
+      "maxLevel": 3,
+      "stat": "HP",
+      "perLevel": 4,
+      "description": "+4 HP a level."
+    },
+    "boots": {
+      "name": "Boots",
+      "kind": "accessory",
+      "maxLevel": 3,
+      "moveBonus": 0.12,
+      "description": "Move 12% faster a level."
+    },
+    "mentors_band": {
+      "name": "Mentor's Band",
+      "kind": "accessory",
+      "maxLevel": 3,
+      "xpBonus": 0.15,
+      "description": "15% more EXP a level."
+    },
+    "sol": {
+      "name": "Sol",
+      "kind": "skill",
+      "skillId": "sol",
+      "maxLevel": 3,
+      "healChance": 0.04,
+      "healShare": 0.5,
+      "description": "Each hit has a 4% chance a level to heal you for half its damage."
+    },
+    "renewal": {
+      "name": "Renewal",
+      "kind": "skill",
+      "skillId": "renewal",
+      "maxLevel": 3,
+      "regenEverySec": 4,
+      "regenAmount": 1,
+      "description": "Heal 1 HP every 4 s, faster each level.",
+      "icon": "Soothing Stone"
+    },
+    "wrath": {
+      "name": "Wrath",
+      "kind": "skill",
+      "skillId": "wrath",
+      "maxLevel": 3,
+      "lowHpCrit": 15,
+      "description": "+15 crit a level while below half HP."
+    },
+    "miracle": {
+      "name": "Miracle",
+      "kind": "skill",
+      "skillId": "miracle",
+      "maxLevel": 3,
+      "cooldownSec": [90, 70, 50],
+      "description": "Once in a while, a lethal blow leaves you at 1 HP."
+    }
+  },
+  "waves": [
+    {
+      "fromSec": 0,
+      "spawnPerSec": 1.2,
+      "maxAlive": 30,
+      "level": [1, 1],
+      "hpScale": 0.6,
+      "classes": ["Fighter", "Soldier"]
+    },
+    {
+      "fromSec": 60,
+      "spawnPerSec": 2.0,
+      "maxAlive": 60,
+      "level": [1, 3],
+      "hpScale": 0.7,
+      "classes": ["Fighter", "Soldier", "Myrmidon", "Archer"]
+    },
+    {
+      "fromSec": 150,
+      "spawnPerSec": 3.0,
+      "maxAlive": 100,
+      "level": [2, 5],
+      "hpScale": 0.8,
+      "classes": ["Fighter", "Mercenary", "Myrmidon", "Thief", "Cavalier", "Archer"]
+    },
+    {
+      "fromSec": 285,
+      "spawnPerSec": 1.5,
+      "maxAlive": 60,
+      "level": [5, 7],
+      "hpScale": 0.8,
+      "classes": ["Cavalier", "Soldier", "Fighter"]
+    },
+    {
+      "fromSec": 330,
+      "spawnPerSec": 4.0,
+      "maxAlive": 160,
+      "level": [7, 11],
+      "hpScale": 0.9,
+      "classes": ["Knight", "Soldier", "Mage", "Pegasus Knight", "Mercenary", "Fighter"]
+    },
+    {
+      "fromSec": 450,
+      "spawnPerSec": 5.5,
+      "maxAlive": 220,
+      "level": [13, 16],
+      "hpScale": 1.0,
+      "classes": ["Warrior", "Knight", "Wyvern Rider", "Sage", "Swordmaster", "Paladin", "Sniper"]
+    },
+    {
+      "fromSec": 540,
+      "spawnPerSec": 7.0,
+      "maxAlive": 280,
+      "level": [15, 19],
+      "hpScale": 1.1,
+      "classes": ["Warrior", "Hero", "Wyvern Lord", "Falcon Knight", "General", "Sage", "Swordmaster"]
+    }
+  ],
+  "elites": {
+    "atSec": [120, 240, 420, 510],
+    "levelBonus": 3,
+    "hpScale": 6,
+    "xpScale": 6,
+    "sizeScale": 1.35
+  },
+  "bosses": [
+    {
+      "atSec": 300,
+      "act": "act1",
+      "name": "Iron Captain",
+      "levelBonus": 5,
+      "hpScale": 34,
+      "speedScale": 1.0,
+      "charge": {"everySec": 5, "windupSec": 0.7, "dashSec": 0.6, "dashSpeedScale": 3.2}
+    },
+    {
+      "atSec": 540,
+      "act": "act1",
+      "name": "Warchief",
+      "levelBonus": 14,
+      "hpScale": 48,
+      "speedScale": 0.95,
+      "charge": {"everySec": 4.5, "windupSec": 0.6, "dashSec": 0.7, "dashSpeedScale": 3.4}
+    }
+  ],
+  "music": {
+    "battle": "music_battle_eclipsed",
+    "calmBelow": 12,
+    "win": "music_run_win",
+    "lose": "music_defeat"
+  },
+  "startWeaponByLord": {
+    "Voss": "bow"
+  }
+}

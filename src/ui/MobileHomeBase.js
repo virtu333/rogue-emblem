@@ -17,6 +17,7 @@ import { showRunRecords } from './RunRecordsMenu.js';
 import { achievementChipText } from './achievementsModel.js';
 import { achievementMedal } from './AchievementsTab.js';
 import { NG_PLUS_TAB_LABEL, ngPlusTabVisible, openRideWarning } from './ngPlusModel.js';
+import { survivorsEntryShown } from '../utils/survivorsEntry.js';
 const node = (tag, cls, text) => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -53,6 +54,12 @@ export class MobileHomeBase {
     b.type = 'button';
     b.onclick = action;
     if (pressed != null) b.setAttribute('aria-pressed', String(pressed));
+    return b;
+  }
+  /** Darkest Before Dawn, the survivors mode (web only; utils/survivorsEntry.js). */
+  survivorsButton() {
+    const b = this.button('Darkest Before Dawn', () => void this.transition('Survivors'));
+    b.dataset.focus = 'survivors';
     return b;
   }
   /** "Achievements 12 / 69": opens Records on its Achievements tab (every slot's, shared). */
@@ -377,6 +384,7 @@ export class MobileHomeBase {
     begin.className = 'mu-buy';
     begin.dataset.focus = 'begin';
     actions.append(begin);
+    if (survivorsEntryShown() && this.tab !== 'ngplus') actions.append(this.survivorsButton());
     detail.append(copy, actions);
     split.append(list, detail);
     const status = node('div', 'mu-status', this.message || 'Progress stored on this device.');
