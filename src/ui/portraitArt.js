@@ -19,6 +19,8 @@ import manifest from './Pc98PortraitManifest.json';
 import rebuiltManifest from './RebuiltPortraitManifest.json';
 import { variantPortraitId } from '../engine/PortraitVariants.js';
 import { promotedFromName } from '../engine/ClassLineage.js';
+import { outfitPortraitId } from '../engine/LordOutfits.js';
+import { wornOutfitFor } from './lordOutfitArt.js';
 
 export const PC98_MANIFEST = manifest;
 export const PC98_SIZES = Object.freeze([...manifest.sizes].sort((a, b) => b - a));
@@ -103,6 +105,14 @@ export function portraitCandidates(unit, gameData = {}) {
   if (unit.specialCharId) rebuilt(`special_${unit.specialCharId}`);
   if (unit.isBoss) rebuilt(`boss_${name}`);
   if (unit.isLord || rebuiltManifest[`lord_${name}`]) {
+    // The Wardrobe: the outfit the lord wears (its promoted drawing first once promoted).
+    const outfit = wornOutfitFor(unit);
+    if (outfit) {
+      const ids = [outfitPortraitId(unit.name, outfit)];
+      if (unit.tier === 'promoted')
+        ids.unshift(outfitPortraitId(unit.name, outfit, { promoted: true }));
+      for (const id of ids) if (hasPc98(id)) out.push(id);
+    }
     if (unit.tier === 'promoted') rebuilt(`lord_${name}_promoted`);
     rebuilt(`lord_${name}`);
   }

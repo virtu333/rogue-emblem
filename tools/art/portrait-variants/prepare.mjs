@@ -19,6 +19,7 @@ import { describeImage } from '../gen/geminiImage.mjs';
 import { estimateGrid } from '../pc98/lib/grid.mjs';
 import { buildPlan } from './plan.mjs';
 import { cutout, framingTransform } from './lib/cutout.mjs';
+import { outfitPortraitJobs } from '../lord-outfits/portraitJobs.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..');
 const WORK = join(ROOT, 'References/portrait-variants');
@@ -51,7 +52,9 @@ function writeSources() {
   writeFileSync(sourcesFile, `${JSON.stringify(sorted, null, 2)}\n`);
 }
 
-const { jobs } = buildPlan(new Set(Object.keys(pc98.portraits)));
+const { jobs: variantJobs } = buildPlan(new Set(Object.keys(pc98.portraits)));
+// The Wardrobe's outfit portraits (tools/art/lord-outfits) take the same pass.
+const jobs = [...variantJobs, ...outfitPortraitJobs()];
 const sha = (buf) => createHash('sha256').update(buf).digest('hex').slice(0, 16);
 const rawFile = (id) =>
   ['.png', '.jpg'].map((e) => join(RAW, id + e)).find((f) => existsSync(f)) || null;
@@ -81,7 +84,7 @@ async function locateFace(id, file) {
 let made = 0;
 for (const job of jobs) {
   if (job.mode === 'keep' || (ONLY && !ONLY.includes(job.id))) continue;
-  const file = rawFile(job.id);
+  const file = job.raw || rawFile(job.id);
   if (!file) continue;
   const bytes = readFileSync(file);
   const rawSha = sha(bytes);
@@ -149,7 +152,7 @@ for (const job of jobs) {
     .png({ palette: true, colours: 256, dither: 0, compressionLevel: 9, effort: 10 })
     .toFile(out);
   sources[job.id] = {
-    raw: `References/portrait-variants/raw/${file.split('/').pop()}`,
+    raw: file.slice(ROOT.length + 1),
     rawSha256: rawSha,
     options: optionsKey,
     side: job.side,

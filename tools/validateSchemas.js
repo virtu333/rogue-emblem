@@ -16,6 +16,7 @@ import { validateDifficultyConfig } from '../src/engine/DifficultyEngine.js';
 import { validateNgPlusConfig } from '../src/engine/NgPlusEcho.js';
 import { validateOmensConfig } from '../src/engine/Omens.js';
 import { validateAchievementsCatalog } from '../src/engine/Achievements.js';
+import { validateLordOutfitsConfig } from '../src/engine/LordOutfits.js';
 import { validateCrossReferences } from './validateCrossReferences.js';
 import { validateWeaponUsesConfig } from '../src/engine/WeaponUses.js';
 
@@ -130,6 +131,19 @@ if (achievementsResult.valid) {
 } else {
   console.error('FAIL  achievements.json (engine validator)');
   for (const err of achievementsResult.errors) console.error(`      ${err}`);
+  failed = true;
+}
+
+// The Wardrobe's outfits (engine/LordOutfits.js: ids, lords, price, words)
+const lordOutfitErrors = validateLordOutfitsConfig(
+  readData('lordOutfits.json'),
+  readData('lords.json'),
+);
+if (!lordOutfitErrors.length) {
+  console.log('  OK  lordOutfits.json (engine validator)');
+} else {
+  console.error('FAIL  lordOutfits.json (engine validator)');
+  for (const err of lordOutfitErrors) console.error(`      ${err}`);
   failed = true;
 }
 

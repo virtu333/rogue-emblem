@@ -1,0 +1,47 @@
+{
+  "price": 6000,
+  "outfits": [
+    {
+      "id": "ashen_crown",
+      "lord": "Edric",
+      "name": "Ashen Crown",
+      "description": "Soot-black plate, a burnt cloak and an iron circlet: the prince who walked out of the fire."
+    },
+    {
+      "id": "field_marshal",
+      "lord": "Kira",
+      "name": "Field Marshal",
+      "description": "A grey officer's greatcoat, brass buttons and a map case. She plans the war now."
+    },
+    {
+      "id": "winter_ranger",
+      "lord": "Voss",
+      "name": "Winter Ranger",
+      "description": "A fur-lined mantle, pale leathers and a birch bow, dressed for the northern passes."
+    },
+    {
+      "id": "hollow_sun_vestments",
+      "lord": "Sera",
+      "name": "Hollow Sun Vestments",
+      "description": "Ivory and gold vestments stitched with the eclipsed sun she has seen in every vision."
+    },
+    {
+      "id": "black_banner",
+      "lord": "Rowan",
+      "name": "Black Banner",
+      "description": "Gunmetal cavalry plate and a black pennant. The banner rides with no house behind it."
+    },
+    {
+      "id": "storm_rider",
+      "lord": "Astrid",
+      "name": "Storm Rider",
+      "description": "Slate scale and storm-blue enamel, a rider who comes in ahead of the weather."
+    },
+    {
+      "id": "old_guard",
+      "lord": "Cael",
+      "name": "Old Guard",
+      "description": "Dented bronze from an older war, an open helm and a tower shield. Worn and proud."
+    }
+  ]
+}

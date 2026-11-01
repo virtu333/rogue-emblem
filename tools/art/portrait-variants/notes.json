@@ -98,5 +98,12 @@
   "generic_general": {
     "take": 2,
     "note": "The legacy image is a small floating bust: ignore its framing. Draw the bust large, filling the frame like the first reference image, with the shoulders spanning the full bottom edge. Clean armour with no red marks or scratches."
+  },
+  "lord_astrid__storm_rider": {
+    "prepare": {
+      "framing": {
+        "minScale": 1.12
+      }
+    }
   }
 }

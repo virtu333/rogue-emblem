@@ -36,12 +36,12 @@ const REFS = 'References/sprite-refs-2026-09-25';
 const RAW = `${REFS}/raw`;
 const TAKES = `${REFS}/takes`;
 const OUT = 'docs/art/sprite-candidates-2026-09-25';
-const STYLE = 'docs/art/sprite-candidates-2026-09-22/reference.png';
+export const STYLE = 'docs/art/sprite-candidates-2026-09-22/reference.png';
 const EXEMPLAR = 'docs/art/sprite-candidates-2026-09-22/sources/edric.png';
 const R = (n) => `docs/art/rebuilt-sprite-sources/${n}.png`;
 const PORTRAIT = (n) => `assets/portraits/pc98/192/${n}.png`;
 
-const BASE = [
+export const BASE = [
   'Create ONE original production tactical MAP SPRITE for a tactics RPG. Image 1 is the owner-approved target style:',
   'copy the craftsmanship, compact proportions, purposeful pixel clusters and strong dark contour of its SMALL ON-MAP',
   'figures (not the terrain). Image 2 is an approved sprite made for this set: match its pixel scale, rendering and',
@@ -59,7 +59,7 @@ const BASE = [
 
 // v2 (second pass): the model tends to copy the identity sprite's resolution (native
 // 100-300 px, i.e. no gain); spell out the pixel budget.
-const SCALE = [
+export const SCALE = [
   'PIXEL SCALE IS THE POINT OF THIS IMAGE: the whole character, head to feet, is only about 56 pixels tall,',
   'like image 2 — big chunky square pixels, each about one fortieth of the image height, the head only about',
   '12 pixels tall. The identity images are drawn at a much higher resolution: do NOT copy their resolution or',

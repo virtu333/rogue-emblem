@@ -46,6 +46,7 @@ import { installSaveLifecycle } from './utils/saveLifecycle.js';
 import { installAndroidBackButton } from './utils/androidBackButton.js';
 import { nativeCapacitor, startNativeSaveMirror } from './utils/nativeSaveMirror.js';
 import { GAME_TITLE } from './utils/gameIdentity.js';
+import { setWornOutfitSource } from './ui/lordOutfitArt.js';
 
 // Module-level cloud state accessible by scenes via import
 export let cloudState = null;
@@ -539,6 +540,9 @@ function bootGame(user) {
   };
 
   window[GAME_INSTANCE_KEY] = new Phaser.Game(config);
+  // The Wardrobe: portraits and map sprites read what the open slot's lords wear.
+  const game = window[GAME_INSTANCE_KEY];
+  setWornOutfitSource((lordName) => game.registry?.get?.('meta')?.wornLordOutfit?.(lordName));
   installDOMDragRelease(window[GAME_INSTANCE_KEY]);
   startupViewportGuard.reconcileNow('phaser_boot_complete');
 
