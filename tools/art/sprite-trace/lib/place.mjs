@@ -4,15 +4,23 @@
 // D = 1 is the current 64 px texture; D = 1.5 puts sprite pixels on the painted
 // terrain's 48-texel-per-cell lattice (96 px texture shown at 64 world px). Pure.
 
-/** Per-kind limits in WORLD px (32 px tile). body = target body height (outline incl.). */
+/**
+ * Per-kind limits in WORLD px (32 px tile). body = target body height (outline incl.).
+ * mass = the most body area (world px², weapons excluded) a figure of the kind may cover:
+ * height alone let broad designs (the Great Knight's barded horse and tower shield, the
+ * enemy Knight's shield wall) fill half again the board of others of their kind, so a
+ * figure over its kind's mass is scaled down to it. Set just above the kind's ordinary
+ * designs (2026-10-27): it binds only the broad ones; a recipe's `mass: false` (dragons,
+ * meant to loom) opts out, and bosses and big bodies have none.
+ */
 export const KINDS = {
-  infantry: { body: 34, maxW: 38, maxH: 34 },
-  mage: { body: 30, maxW: 38, maxH: 30 },
-  heavy: { body: 36, maxW: 38, maxH: 36 },
-  mounted: { body: 40, maxW: 46, maxH: 40 },
-  flyer: { body: 34, maxW: 40, maxH: 34 },
+  infantry: { body: 34, maxW: 38, maxH: 34, mass: 540 },
+  mage: { body: 30, maxW: 38, maxH: 30, mass: 460 },
+  heavy: { body: 36, maxW: 38, maxH: 36, mass: 560 },
+  mounted: { body: 40, maxW: 46, maxH: 40, mass: 575 },
+  flyer: { body: 34, maxW: 40, maxH: 34, mass: 600 },
   // legibility-v2: the thief crouch is 80% of a standing unit, not normalised up
-  crouch: { body: 27, maxW: 38, maxH: 27 },
+  crouch: { body: 27, maxW: 38, maxH: 27, mass: 360 },
   boss: { body: 36, maxW: 42, maxH: 36 },
   // The Entity fills a 3x3 footprint: a 128 px texture (RebuiltSprites 'entity' placement)
   entity: { body: 90, maxW: 94, maxH: 90, texture: 128, foot: 106 },
@@ -38,11 +46,18 @@ export function footRow(density, kind = null) {
  * Scale for a native figure: body (non-weapon) height maps to the kind's body
  * height; the full figure (weapons included) must fit the kind's max width and the
  * texture height above the baseline. `outline` = px added around the fill.
+ * `bodyArea` (native px of body fill, weapons excluded) caps the figure's mass at the
+ * kind's `mass`: a design drawn broad (an armoured horse, a tower shield) would otherwise
+ * fill far more of the board than others of its kind at the same height.
  */
-export function fitScale(bodyH, fullW, fullH, kind, density, outline = 2) {
+export function fitScale(bodyH, fullW, fullH, kind, density, outline = 2, bodyArea = null) {
   const k = KINDS[kind] || KINDS.infantry;
   const bodyPx = Math.round(k.body * density) - outline;
   let s = bodyPx / bodyH;
+  if (k.mass && bodyArea > 0) {
+    const massPx = k.mass * density * density;
+    if (bodyArea * s * s > massPx) s = Math.sqrt(massPx / bodyArea);
+  }
   const maxW = Math.round(k.maxW * density) - outline;
   if (fullW * s > maxW) s = maxW / fullW;
   const room = footRow(density, kind) - outline; // everything must fit above the baseline

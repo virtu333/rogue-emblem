@@ -176,6 +176,18 @@ i/6 --atmosphere act1|act4`) and reviewed at phone size. Findings:
   Left as designed (their identity is black armour on a black horse).
 - Everything else holds its faction area, face and weapon line under both grades.
 
+## Size budget (2026-10-27)
+
+Owner review: the Great Knight drew far bigger than its neighbours. The height rule fits
+every figure of a kind to the same body height, so a design drawn broad (a barded horse
+and tower shield, a shield wall) covered half again the board of a slim one. Each kind now
+also has a `mass` (`tools/art/sprite-trace/lib/place.mjs` `KINDS`): the most body area
+(weapons excluded) a figure may cover; a figure over it is scaled down to it. The budgets
+sit just above the ordinary designs, so they bind only the broad ones: the Great Knight,
+Dark Knight, Bow Knight and enemy Cavalier (riders), the enemy Knight (heavy), and, a few
+percent, Rowan, the player Cavalier and the Old Knight. Dragons opt out (`mass: false`);
+bosses have no budget. Pinned by `tests/TracedSpriteMass.test.js`.
+
 ## Reproduce
 
 ```bash

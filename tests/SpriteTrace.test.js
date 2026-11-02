@@ -248,6 +248,21 @@ describe('trace', () => {
     expect(fitScale(60, 200, 60, 'infantry', 1.5)).toBeCloseTo(55 / 200, 5);
   });
 
+  it("scales a broad body down to its kind's mass, never a slight one", () => {
+    // mounted at D = 1.5: body 40 world px -> 58 px of fill under a 2 px outline
+    const height = 58 / 100;
+    // a slight horse (2000 native px of body at 0.58 is ~673 px, inside the budget)
+    expect(fitScale(100, 70, 100, 'mounted', 1.5, 2, 2000)).toBeCloseTo(height, 5);
+    // a broad one would cover ~1682 px: it shrinks until it covers the budget exactly
+    const broad = fitScale(100, 70, 100, 'mounted', 1.5, 2, 5000);
+    expect(broad).toBeLessThan(height);
+    expect(5000 * broad * broad).toBeCloseTo(KINDS.mounted.mass * 1.5 * 1.5, 3);
+    // no area given (a recipe with `mass: false`), no cap
+    expect(fitScale(100, 70, 100, 'mounted', 1.5, 2)).toBeCloseTo(height, 5);
+    // bosses carry no budget
+    expect(KINDS.boss.mass).toBeUndefined();
+  });
+
   it('segments the materials the treatments need', () => {
     const t = traceNative(figureNative(), recipe);
     const slots = new Set(t.sprite.slot);
