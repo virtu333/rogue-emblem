@@ -322,9 +322,23 @@ export class CeremonyLayer {
     }
   }
 
+  /** Run `fn` once when the layer is torn down (art loops, observers a card owns). */
+  onDestroy(fn) {
+    if (this.destroyed) fn();
+    else (this._teardowns ||= []).push(fn);
+  }
+
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
+    for (const fn of this._teardowns || []) {
+      try {
+        fn();
+      } catch {
+        // a card's own teardown never blocks the layer's
+      }
+    }
+    this._teardowns = null;
     if (this._kickerFrame) globalThis.cancelAnimationFrame?.(this._kickerFrame);
     globalThis.removeEventListener?.('resize', this._onResize);
     globalThis.removeEventListener?.('orientationchange', this._onResize);

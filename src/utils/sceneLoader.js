@@ -1,3 +1,4 @@
+import { closeSceneVeil, openSceneVeil, openSceneVeilWhenReady } from './sceneVeil.js';
 import { markStartup } from './startupTelemetry.js';
 import { captureResourceSnapshot } from './resourceSnapshot.js';
 
@@ -181,8 +182,10 @@ export async function startSceneLazyDetailed(scene, key, data = undefined, { rea
     }
   };
 
+  let veil = 0;
   try {
-    await ensureSceneLoaded(scene, key);
+    // The veil closes while the scene's code loads; the start waits for whichever is last.
+    [, veil] = await Promise.all([ensureSceneLoaded(scene, key), closeSceneVeil(scene)]);
     const isActive = typeof scene.sys?.isActive === 'function' ? scene.sys.isActive() : true;
     if (!isActive) {
       markAudioDiag(scene, 'transition_blocked_inactive_source', { targetScene: key });
@@ -197,8 +200,10 @@ export async function startSceneLazyDetailed(scene, key, data = undefined, { rea
       globalThis.__sceneState._pendingTransitionMeta = meta;
     }
 
-    scene.scene.start(key, data);
+    const manager = scene.scene;
+    manager.start(key, data);
     started = true;
+    openSceneVeilWhenReady(veil, manager, key);
     globalSceneStartCooldownUntil = Date.now() + GLOBAL_SCENE_START_COOLDOWN_MS;
     markAudioDiag(scene, 'transition_started', { targetScene: key });
     clearStaleChunkFlag();
@@ -217,6 +222,7 @@ export async function startSceneLazyDetailed(scene, key, data = undefined, { rea
     return { status: TRANSITION_RESULTS.FAILED };
   } finally {
     if (!started) {
+      openSceneVeil(veil);
       cleanupMeta();
       markAudioDiag(scene, 'transition_aborted', { targetScene: key });
       releaseTransitionLock();

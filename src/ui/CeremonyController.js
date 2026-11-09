@@ -39,6 +39,31 @@ import {
 } from './ceremonyDom.js';
 import { actPhaseName } from './eclipseContent.js';
 import { bossCardCue, duckMusic, playCue, stopCues } from './ceremonyMusic.js';
+import { mountActVista } from '../art/keyart/actVistaBackdrop.js';
+import { ACT_VISTA_IDS } from '../art/keyart/actVista.js';
+
+function systemReducedMotion() {
+  try {
+    return Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Review only (dev server and deploy previews): `?actCard=act3` shows that act's card and
+ * vista wherever an act card plays, e.g. `?devScene=nodemap&preset=fresh&actCard=finalBoss`.
+ */
+function devActCardOverride() {
+  try {
+    const env = import.meta.env;
+    if (!(env?.DEV || env?.VITE_DEV_ROUTES === 'true')) return null;
+    const id = new URLSearchParams(globalThis.location?.search || '').get('actCard');
+    return ACT_VISTA_IDS.includes(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
 
 export class CeremonyController {
   constructor(scene) {
@@ -499,8 +524,9 @@ export class CeremonyController {
   }
 
   /** ACT n · region · grade · hairline — then the existing story lines. */
-  showActCard({ actId, withLines = false }) {
+  showActCard({ actId: givenActId, withLines = false }) {
     if (!canRenderCeremony() || this.destroyed) return null;
+    const actId = devActCardOverride() || givenActId;
     // The run's Eclipse phase rides the kicker ("Act III · Umbral").
     const content = actCardContent(actId, { phase: actPhaseName(this.scene?.runManager) });
     if (!content.title && !content.kicker) return null;
@@ -512,6 +538,16 @@ export class CeremonyController {
       label: [content.kicker, content.title, content.grade].filter(Boolean).join(' · '),
       withLines,
       build: (layer) => {
+        // The road ahead, painted behind the title (art/keyart/actVista.js).
+        const vista = el('div', 'ce-vista');
+        vista.setAttribute('aria-hidden', 'true');
+        layer.root.prepend(vista);
+        const backdrop = mountActVista(vista, {
+          actId,
+          reducedMotion: () => this.prefs().reducedMotion || systemReducedMotion(),
+        });
+        if (backdrop) layer.onDestroy(() => backdrop.destroy());
+        else vista.remove();
         const card = el('div', 'ce-act');
         if (content.kicker) card.append(el('div', 'ce-act-kicker', content.kicker));
         const title = el('div', 'ce-act-title', content.title);

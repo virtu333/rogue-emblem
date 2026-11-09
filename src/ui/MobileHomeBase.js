@@ -17,6 +17,7 @@ import { showRunRecords } from './RunRecordsMenu.js';
 import { achievementChipText } from './achievementsModel.js';
 import { achievementMedal } from './AchievementsTab.js';
 import { NG_PLUS_TAB_LABEL, ngPlusTabVisible, openRideWarning } from './ngPlusModel.js';
+import { CampPlateHost } from './CampPlateHost.js';
 const node = (tag, cls, text) => {
   const el = document.createElement(tag);
   el.className = cls;
@@ -32,6 +33,7 @@ export class MobileHomeBase {
     this.role = 'commander';
     this.tab = 'lords';
     this.ngPlus = new NgPlusPanel(this);
+    this.camp = new CampPlateHost(() => scene.registry.get('settings'));
     const hints = scene.registry.get('hints');
     this.onboarding = [];
     if (hints?.shouldShow('homebase_intro'))
@@ -109,6 +111,7 @@ export class MobileHomeBase {
     if (!this.visible) return;
     this.visible = false;
     popInputScope(this);
+    this.camp?.destroy();
     this.root.remove();
     this.scene.input.enabled = this.previousInput;
   }
@@ -181,6 +184,7 @@ export class MobileHomeBase {
     const lords = this.scene.gameData.lords || [];
     const lord = lords.find((l) => l.name === selection[this.role]);
     this.root.replaceChildren();
+    if (this.tab !== 'lords') this.camp?.destroy();
     const header = node('header', 'mu-header');
     header.append(
       node('h1', '', 'Home base'),
@@ -294,8 +298,13 @@ export class MobileHomeBase {
         );
         list.append(b);
       }
-      if (met.length < lords.length)
+      const more = met.length < lords.length;
+      if (more)
         list.append(node('p', 'mu-help mh-more-lords', 'More lords join as you meet them.'));
+      // Upright only (CSS): the camp fills the room left under the court.
+      list.style.setProperty('--mh-rows', String(Math.ceil(met.length / 2) + (more ? 1 : 0)));
+      const camp = this.camp?.element(selection.commander, selection.partner);
+      if (camp) list.append(camp);
     } else {
       const name = lord?.name;
       const assigned = this.meta.getSkillAssignments()[name] || [];

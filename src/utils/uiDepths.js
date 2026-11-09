@@ -76,5 +76,6 @@ export const DOM_UI_DEPTHS = {
   DIALOGUE: 1200,
   MENU: 1250,
   RITE: 1300, // Promotion rite: plays over the church / roster menu that confirmed it.
+  VEIL: 1350, // The scene-change veil: over every menu, click-through, under the toast.
   TOAST: 1400, // The achievement card: a small corner notice over everything, click-through.
 };

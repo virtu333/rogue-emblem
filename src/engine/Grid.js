@@ -930,15 +930,21 @@ export class Grid {
   // Display blue movement range overlay (skip unit's own tile and non-stoppable tiles)
   showMovementRange(reachable, unitCol, unitRow, color = 0x3366cc, alpha = 0.4) {
     this.clearHighlights();
+    // Tiles of the range that get no highlight of their own: the dressing draws them
+    // as part of the region, so its border runs round the whole reach.
+    const quiet = [];
     for (const [key, entry] of reachable) {
-      if (key === `${unitCol},${unitRow}`) continue;
-      if (entry.stoppable === false) continue;
       const [col, row] = key.split(',').map(Number);
       const { x, y } = this.gridToPixel(col, row);
+      if (key === `${unitCol},${unitRow}` || entry.stoppable === false) {
+        quiet.push({ x, y });
+        continue;
+      }
       const highlight = this.scene.add.rectangle(x, y, TILE_SIZE - 1, TILE_SIZE - 1, color, alpha);
       highlight.setDepth(5);
       this.highlightTiles.push(highlight);
     }
+    this.rangeDressing?.dress('move', this.highlightTiles, { color, quiet });
   }
 
   // Display green heal range overlay (reuses attackHighlightTiles — never shown simultaneously)
@@ -950,6 +956,7 @@ export class Grid {
       highlight.setDepth(5);
       this.attackHighlightTiles.push(highlight);
     }
+    this.rangeDressing?.dress('attack', this.attackHighlightTiles, { color: 0x33cc66 });
   }
 
   // Display red attack range overlay
@@ -961,6 +968,7 @@ export class Grid {
       highlight.setDepth(5);
       this.attackHighlightTiles.push(highlight);
     }
+    this.rangeDressing?.dress('attack', this.attackHighlightTiles, { color });
   }
 
   /**
@@ -1005,6 +1013,7 @@ export class Grid {
   }
 
   clearAttackHighlights() {
+    this.rangeDressing?.clear('attack');
     this.attackHighlightTiles.forEach((h) => {
       this.scene.tweens?.killTweensOf?.(h);
       h.destroy();
@@ -1015,6 +1024,12 @@ export class Grid {
   // Show path preview (lighter blue trail)
   showPath(path) {
     this.clearPath();
+    // The battle's range dressing (ui/RangeDressing.js) draws the walk as one ribbon.
+    const ribbon = this.rangeDressing?.drawPath(path, (col, row) => this.gridToPixel(col, row));
+    if (ribbon) {
+      this.pathTiles.push(ribbon);
+      return;
+    }
     // Skip first node (unit's position)
     for (let i = 1; i < path.length; i++) {
       const { x, y } = this.gridToPixel(path[i].col, path[i].row);
@@ -1027,6 +1042,13 @@ export class Grid {
   // Overlay cyan dots for the slide segment of a path preview.
   showSlidePath(slidePath) {
     if (!Array.isArray(slidePath) || slidePath.length === 0) return;
+    const dashes = this.rangeDressing?.drawSlide(slidePath, (col, row) =>
+      this.gridToPixel(col, row),
+    );
+    if (dashes) {
+      this.pathTiles.push(dashes);
+      return;
+    }
     for (const step of slidePath) {
       const { x, y } = this.gridToPixel(step.col, step.row);
       const dot = this.scene.add.rectangle(x, y, TILE_SIZE * 0.28, TILE_SIZE * 0.28, 0x66ddff, 0.7);
@@ -1041,6 +1063,7 @@ export class Grid {
   }
 
   clearHighlights() {
+    this.rangeDressing?.clear('move');
     this.highlightTiles.forEach((h) => h.destroy());
     this.highlightTiles = [];
     this.clearPath();

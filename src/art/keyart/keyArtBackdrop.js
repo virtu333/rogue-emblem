@@ -54,6 +54,31 @@ export function computeBackdropFrame({
   };
 }
 
+/**
+ * Frame for a scene that is composed for its box instead of cropped from a fixed plate
+ * (the act vistas): the plate is the box itself at an integer device scale, chosen so
+ * the short side is about `target` plate px. Same shape as computeBackdropFrame.
+ */
+export function computeComposedFrame({ width, height, dpr = 1, target = 195, maxSide = 520 } = {}) {
+  const ratio = Number.isFinite(dpr) && dpr > 0 ? dpr : 1;
+  const devW = Math.max(1, Math.round(Math.max(0, width || 0) * ratio));
+  const devH = Math.max(1, Math.round(Math.max(0, height || 0) * ratio));
+  let scale = Math.max(1, Math.round(Math.min(devW, devH) / target));
+  scale = Math.max(scale, Math.ceil(Math.max(devW, devH) / maxSide));
+  const cw = Math.ceil(devW / scale);
+  const ch = Math.ceil(devH / scale);
+  return {
+    scale,
+    integer: true,
+    sx: 0,
+    sy: 0,
+    cw,
+    ch,
+    cssW: (cw * scale) / ratio,
+    cssH: (ch * scale) / ratio,
+  };
+}
+
 /** Plate coordinates -> CSS px inside the backdrop box, for laying UI over the art. */
 export function plateToView(frame, px, py, dpr = 1) {
   const k = frame.scale / (dpr || 1);
@@ -79,6 +104,12 @@ function systemReducedMotion() {
  * @param {number} [opts.fps]
  * @param {(box: {width:number,height:number}) => {anchorX?:number, anchorY?:number}} [opts.anchor]
  * @param {HTMLCanvasElement} [opts.canvas]  adopt an existing canvas (auth screen)
+ * @param {(o: {seed:number, variant:string, reducedMotion:boolean, width:number, height:number}) => object} [opts.createScene]
+ *   another plate than the Hollow Sun: anything with render(ctx, timeMs),
+ *   setReducedMotion(bool) and destroy()
+ * @param {'crop'|'compose'} [opts.fit]  'compose' builds the scene for the box (the scene
+ *   takes `width` x `height` plate px and is rebuilt when they change) instead of
+ *   cropping a fixed plate
  */
 export function mountKeyArtBackdrop(host, opts = {}) {
   const canvas = opts.canvas || document.createElement('canvas');
@@ -95,6 +126,11 @@ export function mountKeyArtBackdrop(host, opts = {}) {
         ? systemReducedMotion()
         : !!reducedOpt;
 
+  const compose = opts.fit === 'compose';
+  const createScene = opts.createScene || createHollowSunScene;
+  let builtFor = '';
+  let buildTried = false;
+  let building = false;
   let variant = opts.variant || 'dusk';
   let scene = null;
   let frame = null;
@@ -118,7 +154,14 @@ export function mountKeyArtBackdrop(host, opts = {}) {
     if (!width || !height) return false;
     dpr = globalThis.devicePixelRatio || 1;
     const anchor = opts.anchor?.({ width, height }) || {};
-    frame = computeBackdropFrame({ width, height, dpr, maxCrop: opts.maxCrop ?? 1.12, ...anchor });
+    frame = compose
+      ? computeComposedFrame({ width, height, dpr, target: opts.target, maxSide: opts.maxSide })
+      : computeBackdropFrame({ width, height, dpr, maxCrop: opts.maxCrop ?? 1.12, ...anchor });
+    // A composed scene belongs to one plate size: a turned phone gets a new painting.
+    if (compose && buildTried && (!scene || builtFor !== `${frame.cw}x${frame.ch}`)) {
+      if (building) return false;
+      return build();
+    }
     if (canvas.width !== frame.cw) canvas.width = frame.cw;
     if (canvas.height !== frame.ch) canvas.height = frame.ch;
     canvas.style.width = `${frame.cssW}px`;
@@ -166,20 +209,47 @@ export function mountKeyArtBackdrop(host, opts = {}) {
   function build() {
     buildTimer = 0;
     buildRaf = 0;
-    if (destroyed) return;
+    if (destroyed) return false;
+    buildTried = true;
+    building = true;
     try {
       scene?.destroy();
-      scene = createHollowSunScene({ seed: opts.seed ?? 7, variant, reducedMotion: reduced() });
+      scene = null;
+      if (compose) {
+        const rect = host.getBoundingClientRect();
+        if (!Math.round(rect.width) || !Math.round(rect.height)) {
+          building = false;
+          return false;
+        }
+        const box = computeComposedFrame({
+          width: Math.round(rect.width),
+          height: Math.round(rect.height),
+          dpr: globalThis.devicePixelRatio || 1,
+          target: opts.target,
+          maxSide: opts.maxSide,
+        });
+        builtFor = `${box.cw}x${box.ch}`;
+        scene = createScene({
+          seed: opts.seed ?? 7,
+          variant,
+          reducedMotion: reduced(),
+          width: box.cw,
+          height: box.ch,
+        });
+      } else scene = createScene({ seed: opts.seed ?? 7, variant, reducedMotion: reduced() });
     } catch (err) {
       // Art is decoration: the ink host background stays and nothing else breaks.
       scene = null;
+      building = false;
       if (typeof console !== 'undefined') console.warn('[keyart] backdrop unavailable', err);
-      return;
+      return false;
     }
+    building = false;
     resize();
     host.classList.add('re-keyart-ready');
     opts.onReady?.(controller);
     sync();
+    return true;
   }
 
   function scheduleBuild() {

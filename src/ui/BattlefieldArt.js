@@ -23,6 +23,10 @@
 // Register with registerBattlefieldTerrainRenderer(); make it the default with
 // setDefaultBattlefieldTerrainRenderer(id). Callers never see atlases.
 
+import { attachRangeDressing } from './RangeDressing.js';
+import { attachBoardFrame, boardRect } from './BoardFrame.js';
+import { collectShimmer, shimmerFrame } from '../art/terrain/shimmer.js';
+import { collectWater, waterFrame, WATER_MOTION } from '../art/terrain/waterMotion.js';
 import { loadWeatheredArt, drawWeatheredTile, WEATHERED_TILE_SIZE } from './WeatheredTerrain.js';
 import { softenGrassTexture } from './BattleContrast.js';
 import { TILE_SIZE } from '../utils/constants.js';
@@ -33,6 +37,7 @@ import {
   battlefieldTerrainArtEnabled,
   battlefieldSpriteArtEnabled,
   battlefieldContrastEnabled,
+  boardDressingEnabled,
   requestedTerrainRenderer,
 } from './battlefieldArtFlags.js';
 
@@ -282,7 +287,87 @@ export class BattlefieldTerrainPainting {
     }
     this._unlisten = grid.addTerrainListener?.((col, row) => this.onTerrainChanged(col, row));
     this.painted = true;
+    this._startShimmer();
     return true;
+  }
+
+  // Living liquids: the painter's palette-cycled glints (water, lava, acid) and the
+  // river's drifting streaks and bank foam, recoloured on one small overlay just above
+  // the tiles (below the fog). Off under Reduce motion, low effects or Atmosphere off;
+  // a failure here only loses the motion.
+  _startShimmer() {
+    const { scene, grid } = this;
+    const state = this.result?.terrain?.state;
+    if (!state || !scene?.add?.image || !scene.time?.addEvent || !boardDressingEnabled()) return;
+    try {
+      const settings = scene.registry?.get?.('settings');
+      if (settings?.getReduceMotion?.()) return;
+      if (settings?.getEffectsQuality?.() === 'low' || settings?.getAtmosphere?.() === 'off')
+        return;
+      const canvas = makeCanvas(state.W, state.H);
+      const ctx = canvas.getContext('2d');
+      const key = `${this.key}-shimmer`;
+      if (scene.textures.exists(key)) scene.textures.remove(key);
+      const texture = scene.textures.addCanvas(key, canvas);
+      const rect = boardRect(grid);
+      this._shimmerKey = key;
+      this._shimmerImage = scene.add
+        .image(rect.x, rect.y, key)
+        .setOrigin(0, 0)
+        .setDisplaySize(rect.width, rect.height)
+        .setDepth(0.5);
+      const life = { image: null, out32: null, glints: null, water: null, started: scene.time.now };
+      life.collect = () => {
+        life.image = new ImageData(state.W, state.H);
+        life.out32 = new Uint32Array(life.image.data.buffer);
+        life.glints = collectShimmer(state);
+        life.water = collectWater(state);
+      };
+      life.draw = () => {
+        if (!life.glints.count && !life.water.count) return;
+        const t = scene.time.now - life.started;
+        waterFrame(life.water, life.out32, t);
+        shimmerFrame(life.glints, life.out32, t);
+        ctx.putImageData(life.image, 0, 0);
+        texture.refresh();
+      };
+      life.collect();
+      if (!life.glints.count && !life.water.count) return this._stopShimmer();
+      life.draw();
+      life.timer = scene.time.addEvent({
+        delay: WATER_MOTION.frameMs,
+        loop: true,
+        callback: () => {
+          try {
+            life.draw();
+          } catch (error) {
+            this._stopShimmer();
+            console.warn('[BattlefieldArt] shimmer', error?.message || error);
+          }
+        },
+      });
+      // After a repaint (temporary terrain, a rewind) the animated pixels may have moved.
+      life.refresh = () => {
+        life.collect();
+        ctx.clearRect(0, 0, state.W, state.H);
+        life.draw();
+      };
+      this._shimmer = life;
+    } catch (error) {
+      this._stopShimmer();
+      console.warn('[BattlefieldArt] shimmer', error?.message || error);
+    }
+  }
+
+  _stopShimmer() {
+    this._shimmer?.timer?.remove?.();
+    this._shimmer = null;
+    if (this._shimmerImage?.scene) this._shimmerImage.destroy();
+    this._shimmerImage = null;
+    this._shimmerTexture = null;
+    if (this._shimmerKey && this.scene?.textures?.exists?.(this._shimmerKey))
+      this.scene.textures.remove(this._shimmerKey);
+    this._shimmerKey = null;
   }
 
   // Area-average the renderer's canvas down to the display density (desktop).
@@ -386,6 +471,7 @@ export class BattlefieldTerrainPainting {
     }
     this.texture.refresh();
     for (const { col, row } of cells) this._applyTile(col, row);
+    this._shimmer?.refresh?.();
   }
 
   restore() {
@@ -404,6 +490,7 @@ export class BattlefieldTerrainPainting {
     this._abort?.abort();
     this._unlisten?.();
     this._unlisten = null;
+    this._stopShimmer();
     this.restore();
     if (this.scene?.textures?.exists?.(this.key)) this.scene.textures.remove(this.key);
     this.renderer.dispose?.(this.result);
@@ -418,6 +505,11 @@ export class BattlefieldTerrainPainting {
  * or null when terrain art is off or the scene cannot host it (tests, no DOM).
  */
 export function paintBattlefieldTerrain(scene, grid, options = {}) {
+  // The board's dressing (range overlays, walk ribbon) rides with its art.
+  if (boardDressingEnabled()) {
+    attachRangeDressing(scene, grid);
+    attachBoardFrame(scene, grid);
+  }
   if (!battlefieldTerrainArtEnabled()) return null;
   if (typeof document === 'undefined' || !grid?.tiles?.length || !scene?.textures?.addCanvas)
     return null;

@@ -11,6 +11,7 @@
 //   ?spriteArt=classic       classic unit sprites
 //   ?spriteArt=rebuilt       the previous rebuilt 64 px sprite set instead of the traced one
 //   ?battleContrast=original no contour / palette lift / grass softening
+//   ?boardDressing=classic   flat range squares and path dots, no board frame, still water
 
 function readSearch(search) {
   if (typeof search === 'string') return search;
@@ -33,6 +34,7 @@ export function resolveBattlefieldArtFlags(search = '', { dev = false } = {}) {
     sprites,
     contrast,
     traced,
+    dressing: all && devValue('boardDressing') !== 'classic',
     terrainRenderer: terrain && terrainChoice ? terrainChoice : null,
   };
 }
@@ -62,6 +64,11 @@ export function battlefieldTracedSpritesEnabled(search) {
 
 export function battlefieldContrastEnabled(search) {
   return flags(search).contrast;
+}
+
+/** Range regions, the walk ribbon, the board frame and moving water. */
+export function boardDressingEnabled(search) {
+  return flags(search).dressing;
 }
 
 /** Dev-only renderer id requested with ?terrainArt=<id> (null = default renderer). */
