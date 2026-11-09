@@ -414,6 +414,10 @@ html.mobile-preview .mu-screen {
   grid-column: 1 / -1;
   margin: 4px 0 0;
 }
+/* The camp plate (CampPlateHost.js): upright Home Base only, see the portrait block. */
+.mh-camp {
+  display: none;
+}
 .mh-lord span {
   font-size: 12px;
   color: var(--re-muted);
@@ -641,6 +645,25 @@ html.mobile-preview .mu-screen {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-content: start;
     gap: 6px;
+  }
+  /* The room under the court holds the camp: an inert plate, never a tap target. */
+  html.portrait-ui .mh-screen .mu-list:has(.mh-camp) {
+    grid-template-rows: repeat(var(--mh-rows, 1), auto) minmax(0, 1fr);
+  }
+  html.portrait-ui .mh-screen .mh-camp {
+    display: block;
+    position: relative;
+    grid-column: 1 / -1;
+    min-height: 0;
+    margin-top: 2px;
+    overflow: hidden;
+    border: 1px solid var(--re-line);
+    border-radius: 4px;
+    background: var(--re-sunken);
+    pointer-events: none;
+  }
+  html.portrait-ui .mh-screen .mh-camp.mh-camp-small {
+    visibility: hidden;
   }
   html.portrait-ui .mh-screen .mh-lord {
     grid-template-columns: 40px minmax(0, 1fr);

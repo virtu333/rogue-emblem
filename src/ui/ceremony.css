@@ -783,6 +783,52 @@
   background: radial-gradient(ellipse at 50% 45%, rgba(14, 12, 20, 0.88), rgba(7, 6, 11, 0.98) 75%);
   animation: ce-fade 500ms ease-out both;
 }
+/* The act's vista (art/keyart/actVista.js) behind the title: the canvas is the plate at an
+   integer scale; the wash keeps the title and the dialogue readable over it. */
+.ce-vista {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+/* The vista is the layer's first child; what follows in the flow is lifted over it. */
+.ce-act-layer > .ce-vista ~ * {
+  position: relative;
+}
+.ce-vista::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(7, 6, 11, 0.6) 0%,
+    rgba(7, 6, 11, 0.34) 26%,
+    rgba(7, 6, 11, 0) 50%,
+    rgba(7, 6, 11, 0.3) 100%
+  );
+}
+/* Alone on the screen the title sits mid-plate: darken behind it instead. */
+.ce-act-layer:not(.has-lines) > .ce-vista::after {
+  background: radial-gradient(
+    ellipse 75% 34% at 50% 50%,
+    rgba(7, 6, 11, 0.72),
+    rgba(7, 6, 11, 0.5) 55%,
+    rgba(7, 6, 11, 0.12) 100%
+  );
+}
+.ce-act-layer:has(> .ce-vista.re-keyart-ready) .ce-act-title {
+  text-shadow:
+    0 2px 0 var(--ce-ink-0),
+    0 0 12px rgba(7, 6, 11, 0.9);
+}
+.ce-act-layer:has(> .ce-vista.re-keyart-ready) :is(.ce-act-kicker, .ce-act-grade) {
+  text-shadow:
+    0 1px 0 var(--ce-ink-0),
+    0 0 8px rgba(7, 6, 11, 0.9);
+}
+.ce-act-layer:has(> .ce-vista.re-keyart-ready) .ce-act-grade {
+  color: var(--ce-bone, var(--re-text));
+}
 /* With story lines to follow, the title sits above the dialogue panel. */
 .ce-story-layer.has-lines {
   justify-content: flex-start;

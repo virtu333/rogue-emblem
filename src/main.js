@@ -13,6 +13,7 @@ import '@fontsource/cinzel/latin-500.css';
 import '@fontsource/cinzel/latin-700.css';
 import '@fontsource/cinzel/latin-900.css';
 import './ui/styles.css';
+import { enableSceneVeil } from './utils/sceneVeil.js';
 import { installPixelFontGrid } from './utils/pixelFontGrid.js';
 import { installCrispCanvasText } from './utils/crispCanvasText.js';
 import { BootScene } from './scenes/BootScene.js';
@@ -539,6 +540,7 @@ function bootGame(user) {
   };
 
   window[GAME_INSTANCE_KEY] = new Phaser.Game(config);
+  enableSceneVeil();
   installDOMDragRelease(window[GAME_INSTANCE_KEY]);
   startupViewportGuard.reconcileNow('phaser_boot_complete');
 

@@ -1,0 +1,81 @@
+/* The scene-change veil (utils/sceneVeil.js): ink, with the gold thread drawn across. */
+.re-scene-veil {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  background: radial-gradient(ellipse at 50% 50%, #16131e 0%, #0e0c14 45%, #07060b 100%);
+  transition:
+    opacity var(--veil-ms, 110ms) ease-in,
+    visibility 0s linear var(--veil-ms, 110ms);
+}
+.re-scene-veil.is-closed {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity var(--veil-ms, 110ms) ease-out,
+    visibility 0s;
+}
+.re-scene-veil-thread {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #b3702c 18%,
+    #f3cb6c 50%,
+    #b3702c 82%,
+    transparent
+  );
+  transform: scaleX(0);
+  opacity: 0;
+}
+.re-scene-veil-knot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin: -4px 0 0 -4px;
+  background: #f3cb6c;
+  box-shadow:
+    0 0 0 1px #07060b,
+    0 0 10px 1px rgba(220, 160, 68, 0.55);
+  transform: rotate(45deg) scale(0);
+}
+.re-scene-veil.is-closed .re-scene-veil-thread {
+  animation: re-veil-thread 420ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.re-scene-veil.is-closed .re-scene-veil-knot {
+  animation: re-veil-knot 300ms cubic-bezier(0.3, 1.5, 0.5, 1) 60ms forwards;
+}
+/* Opening: the thread and knot stay where they are and fade with the veil. */
+.re-scene-veil.is-open .re-scene-veil-thread {
+  transform: scaleX(1);
+  opacity: 1;
+}
+.re-scene-veil.is-open .re-scene-veil-knot {
+  transform: rotate(45deg) scale(1);
+}
+@keyframes re-veil-thread {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+@keyframes re-veil-knot {
+  from {
+    transform: rotate(45deg) scale(0);
+  }
+  to {
+    transform: rotate(45deg) scale(1);
+  }
+}

@@ -8,15 +8,28 @@ describe('resolveBattlefieldArtFlags', () => {
       '?mobilePreview=1',
       '?terrainArt=classic&spriteArt=classic',
       '?spriteArt=rebuilt',
+      '?boardDressing=classic',
     ]) {
       expect(resolveBattlefieldArtFlags(search, { dev: false })).toEqual({
         terrain: true,
         sprites: true,
         contrast: true,
         traced: true,
+        dressing: true,
         terrainRenderer: null,
       });
     }
+  });
+
+  it('dev: ?boardDressing=classic switches only the board dressing off', () => {
+    const f = (search) => resolveBattlefieldArtFlags(search, { dev: true });
+    expect(f('')).toMatchObject({ dressing: true });
+    expect(f('?boardDressing=classic')).toMatchObject({
+      dressing: false,
+      terrain: true,
+      sprites: true,
+    });
+    expect(f('?battlefieldArt=classic')).toMatchObject({ dressing: false });
   });
 
   it('dev: traced is the default; ?spriteArt=rebuilt shows the rebuilt set instead', () => {
