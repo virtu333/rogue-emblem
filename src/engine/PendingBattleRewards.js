@@ -77,7 +77,7 @@ export function rewardChoiceCount(draw) {
 
 /**
  * Roll a battle's random item choices: the one draw the first offer and every reroll
- * share, so they cannot drift. Uses Math.random (as it always has); the Vulnerary bundle
+ * share, so they cannot drift. Uses Math.random (as it always has); the Poultice bundle
  * and the late-pressure gold multiplier apply here. Accessory skills and weapon-art
  * spawns ride generateLootChoices itself. Lottery Loot's card replaces the last one after the
  * battle's own draw, on its own stream (`round`: 0 for the first offer, n for the n-th reroll).
@@ -105,9 +105,9 @@ export function rollBattleRewardChoices(run, data, draw, { round = 0 } = {}) {
     },
   );
   const choices = applyLotteryCards(run, data, draw, drawn, { round });
-  // A rolled Vulnerary reward is a small bundle (LOOT_VULNERARY_BUNDLE items).
+  // A rolled Poultice reward is a small bundle (LOOT_VULNERARY_BUNDLE items).
   for (const choice of choices)
-    if (choice.item?.name === 'Vulnerary') choice.quantity = LOOT_VULNERARY_BUNDLE;
+    if (choice.item?.name === 'Poultice') choice.quantity = LOOT_VULNERARY_BUNDLE;
   const pressure = Number.isFinite(draw.goldMultiplier) ? draw.goldMultiplier : 1;
   // Hollow Sun's Favor, read from the draw (never the run), so a reroll pays what the first offer
   // would have, and a card rolled before the take is not raised by it.

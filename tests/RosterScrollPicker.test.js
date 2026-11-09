@@ -160,10 +160,10 @@ describe('scroll picker layout', () => {
     const unit = rm.roster[0];
 
     rm.scrolls = [
-      { name: 'Sol Scroll', type: 'Scroll', skillId: 'sol' },
-      { name: 'Luna Scroll', type: 'Scroll', skillId: 'luna' },
-      { name: 'Adept Scroll', type: 'Scroll', skillId: 'adept' },
-      { name: 'Vantage Scroll', type: 'Scroll', skillId: 'vantage' },
+      { name: 'Reclaim Scroll', type: 'Scroll', skillId: 'sol' },
+      { name: 'Umbra Scroll', type: 'Scroll', skillId: 'luna' },
+      { name: 'Flurry Scroll', type: 'Scroll', skillId: 'adept' },
+      { name: 'Forestall Scroll', type: 'Scroll', skillId: 'vantage' },
     ];
 
     overlay._showScrollPicker(unit);

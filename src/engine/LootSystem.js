@@ -29,6 +29,9 @@ import { isSignatureWeapon } from './SignatureWeapons.js';
 import { bindAccessorySkill } from './AccessorySkills.js';
 import { legendaryExclusions } from './LegendaryOwnership.js';
 import { epicKillGold } from './EpicWeapons.js';
+import { grantedSkillSpecial } from './SkillNames.js';
+
+export { grantedSkillSpecial };
 
 const META_INNATE_TIERS = new Set(['Iron', 'Steel', 'Silver']);
 // Tiers an act tunes in lootTables.json `artTiers` (base art chance, scroll slots).
@@ -595,7 +598,7 @@ const LEGENDARY_SKILL_POOL = ['sol', 'luna', 'vantage', 'wrath', 'adept'];
  * @param {Array} allWeapons - weapons.json array
  * @returns {object} a unique legendary weapon object
  */
-export function generateRandomLegendary(allWeapons) {
+export function generateRandomLegendary(allWeapons, skillsData = null) {
   const name = LEGENDARY_NAMES[Math.floor(Math.random() * LEGENDARY_NAMES.length)];
   const types = Object.keys(SILVER_BASES);
   const type = types[Math.floor(Math.random() * types.length)];
@@ -646,14 +649,7 @@ export function generateRandomLegendary(allWeapons) {
   } else {
     // Skill grant: embed a skill from pool
     const skillId = LEGENDARY_SKILL_POOL[Math.floor(Math.random() * LEGENDARY_SKILL_POOL.length)];
-    const skillNames = {
-      sol: 'Sol',
-      luna: 'Luna',
-      vantage: 'Vantage',
-      wrath: 'Wrath',
-      adept: 'Adept',
-    };
-    weapon.special = `Grants ${skillNames[skillId]} to wielder`;
+    weapon.special = grantedSkillSpecial(skillId, skillsData);
     weapon._grantedSkill = skillId;
   }
 
@@ -1300,7 +1296,7 @@ export function generateShopInventory(
   }
 
   // Guarantee at least one weapon. A single random pick can land on an
-  // unsellable entry (price <= 0, e.g. the Fortify staff in the weapons pool)
+  // unsellable entry (price <= 0, e.g. the Canticle staff in the weapons pool)
   // or an already-used name, which addByName silently rejects — leaving the
   // shop with no weapon. Start at a random index and scan the whole pool so a
   // sellable weapon is added whenever one exists.
@@ -1338,7 +1334,7 @@ export function generateShopInventory(
       if (!inHealingOrPromotion) continue;
       addByName(name, 'consumable');
     }
-    // Basic medicine: a set number of Vulneraries in every act, pool or not
+    // Basic medicine: a set number of Poultices in every act, pool or not
     // (Acts III-IV list none). Each is its own row and instance, bought once.
     // The first is always stocked, as before; another only while the shelf
     // has room, so a small shelf keeps its size.
@@ -1346,11 +1342,11 @@ export function generateShopInventory(
     const vulneraryCount = Number.isInteger(requestedVulneraries)
       ? Math.max(0, requestedVulneraries)
       : SHOP_GUARANTEED_VULNERARIES;
-    let vulneraries = inventory.filter((entry) => entry.item?.name === 'Vulnerary').length;
+    let vulneraries = inventory.filter((entry) => entry.item?.name === 'Poultice').length;
     while (vulneraries < vulneraryCount && (vulneraries === 0 || inventory.length < itemCount)) {
-      const item = findItem('Vulnerary', allWeapons, consumables, allAccessories);
+      const item = findItem('Poultice', allWeapons, consumables, allAccessories);
       if (!item || item.price <= 0) break;
-      usedNames.add('Vulnerary');
+      usedNames.add('Poultice');
       inventory.push({ item: structuredClone(item), price: item.price, type: 'consumable' });
       vulneraries++;
     }
@@ -1398,11 +1394,11 @@ export function generateShopInventory(
     });
   }
 
-  // Append cure items (Herb + Remedy + Restore staff) if shop cure gating is
+  // Append cure items (Herb + Remedy + Unbinding staff) if shop cure gating is
   // active for this act, so a gated shop always stocks the full reactive kit.
   const shopCureGating = generateOptions?.shopCureGating;
   if (shopCureGating && shopCureGating[actId]) {
-    for (const cureName of ['Herb', 'Remedy', 'Restore']) {
+    for (const cureName of ['Herb', 'Remedy', 'Unbinding']) {
       if (usedNames.has(cureName)) continue;
       const cureItem = findItem(cureName, allWeapons, consumables, allAccessories);
       if (cureItem && cureItem.price > 0) {

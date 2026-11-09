@@ -1,11 +1,11 @@
 // A Gemini partner's SKL or SPD counts in the wearer's skill proc odds, as the wearer's own stat
 // would (the outside review of PR #440): on-attack procs, on-defend procs, a counter's procs and
-// Astra all read the side's `procStatBonus` (SkillSystem.getSkillCombatMods → Combat.js).
+// Constellation all read the side's `procStatBonus` (SkillSystem.getSkillCombatMods → Combat.js).
 //
 // Odds worked by hand (getActivationChance: SKL and SPD skills at the stat, SKL_HALF at half):
-//   Luna, Pavise (SKL) at SKL 19: 19% alone, 21% with a SKL partner.
-//   Adept (SPD) at SPD 19: 19% alone, 21% with a SPD partner.
-//   Astra (SKL_HALF) at SKL 41: floor(41 / 2) = 20% alone, floor(43 / 2) = 21% paired.
+//   Umbra, Shieldwall (SKL) at SKL 19: 19% alone, 21% with a SKL partner.
+//   Flurry (SPD) at SPD 19: 19% alone, 21% with a SPD partner.
+//   Constellation (SKL_HALF) at SKL 41: floor(41 / 2) = 20% alone, floor(43 / 2) = 21% paired.
 // The battle RNG is pinned at 0.2 (a roll of 20): each proc fires paired and not alone.
 // Hit is sure at any roll (Iron Sword 95 + SKL x 2 against Avoid 0); the foe's LCK 40 leaves no
 // crit (floor(SKL / 2) - 40 is below 0).
@@ -98,7 +98,7 @@ describe('the side view carries only what a proc reads', () => {
 });
 
 describe("a partner's stat in the wearer's procs", () => {
-  it('Luna on attack: 19% alone does not fire on a roll of 20, 21% paired does', () => {
+  it('Umbra on attack: 19% alone does not fire on a roll of 20, 21% paired does', () => {
     const run = (allies) => {
       const h = hero(['luna'], { SKL: 19 });
       return procs(fight(h, foe(), allies(h), null));
@@ -107,7 +107,7 @@ describe("a partner's stat in the wearer's procs", () => {
     expect(run((h) => [h, partner('SKL')])).toContain('luna');
   });
 
-  it('Adept reads a SPD partner', () => {
+  it('Flurry reads a SPD partner', () => {
     const run = (allies) => {
       const h = hero(['adept'], { SPD: 19, SKL: 10 });
       return procs(fight(h, foe(), allies(h), null));
@@ -116,16 +116,16 @@ describe("a partner's stat in the wearer's procs", () => {
     expect(run((h) => [h, partner('SPD')])).toContain('adept');
   });
 
-  it('Astra: floor(41 / 2) = 20 alone, floor(43 / 2) = 21 paired', () => {
+  it('Constellation: floor(41 / 2) = 20 alone, floor(43 / 2) = 21 paired', () => {
     const run = (allies) => {
       const h = hero(['astra'], { SKL: 41 });
       return procs(fight(h, foe(), allies(h), null));
     };
-    expect(run((h) => [h])).not.toContain('Astra');
-    expect(run((h) => [h, partner('SKL')])).toContain('Astra');
+    expect(run((h) => [h])).not.toContain('Constellation');
+    expect(run((h) => [h, partner('SKL')])).toContain('Constellation');
   });
 
-  it('Pavise when the wearer is struck reads its own side, not the attacker', () => {
+  it('Shieldwall when the wearer is struck reads its own side, not the attacker', () => {
     const run = (allies) => {
       const h = hero(['pavise'], { SKL: 19, LCK: 40 });
       h.weapon = null; // no counter: only the defence is rolled
@@ -137,7 +137,7 @@ describe("a partner's stat in the wearer's procs", () => {
     expect(run((h) => [h, partner('SKL')])).toContain('pavise');
   });
 
-  it("a counter's Luna reads the defending wearer's partner", () => {
+  it("a counter's Umbra reads the defending wearer's partner", () => {
     const run = (allies) => {
       const h = hero(['luna'], { SKL: 19, LCK: 40 });
       const attacker = armed(foe({ STR: 20 }));
@@ -150,7 +150,7 @@ describe("a partner's stat in the wearer's procs", () => {
   });
 
   it('the foe never gains from the wearer’s partner', () => {
-    // The foe attacks with Luna at SKL 19 into the paired wearer: still 19%, no proc.
+    // The foe attacks with Umbra at SKL 19 into the paired wearer: still 19%, no proc.
     const h = hero([], { LCK: 40 });
     const attacker = armed(foe({ STR: 20, SKL: 19 }));
     attacker.skills = ['luna'];

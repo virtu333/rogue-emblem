@@ -105,7 +105,7 @@ describe('the scrolls', () => {
   });
 
   it('carry every field the older skill scrolls carry', () => {
-    const reference = data.weapons.find((w) => w.name === 'Death Blow Scroll');
+    const reference = data.weapons.find((w) => w.name === 'Onslaught Scroll');
     for (const id of NEW_SKILLS) {
       expect(Object.keys(scrollFor(id)).sort()).toEqual(Object.keys(reference).sort());
     }
@@ -148,7 +148,7 @@ describe('the teachers', () => {
     );
   };
 
-  it('the Old Swordmaster teaches Uncanny Blow to swords and Warding Blow to lances', () => {
+  it('the Old Swordmaster teaches Uncanny Blow to swords and Warded Advance to lances', () => {
     const effects = teaching('old_swordmaster');
     expect(effects.length).toBeGreaterThan(0);
     for (const effect of effects) {
@@ -158,7 +158,7 @@ describe('the teachers', () => {
     }
   });
 
-  it('the Chained Shelf teaches Lifetaker', () => {
+  it("the Chained Shelf teaches Reaper's Due", () => {
     const effects = teaching('chained_shelf');
     expect(effects.length).toBeGreaterThan(0);
     for (const effect of effects) expect(effect.pool).toContain('lifetaker');

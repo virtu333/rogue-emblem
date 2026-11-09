@@ -44,7 +44,7 @@ const armyPool = {
   pool: { kind: 'weapon', weaponTypes: '$army', tierOffset: 0 },
   to: 'auto',
 };
-const vulnerary = { type: 'item', name: 'Vulnerary', to: 'auto' };
+const vulnerary = { type: 'item', name: 'Poultice', to: 'auto' };
 const flag = { type: 'flag', key: 'seen', value: true };
 
 /** A run holding one event whose single choice `go` has the given outcomes. */
@@ -71,7 +71,7 @@ function fillWeapons(run, name) {
 }
 function fillConsumables(run, name) {
   const u = unit(run, name);
-  while (u.consumables.length < 3) u.consumables.push(run.getConsumableTemplate('Vulnerary'));
+  while (u.consumables.length < 3) u.consumables.push(run.getConsumableTemplate('Poultice'));
 }
 const everyone = ['Edric', 'Sera', 'Gaspar'];
 const fullWeaponBags = (run) => everyone.forEach((name) => fillWeapons(run, name));
@@ -83,7 +83,7 @@ function fullWeaponConvoy(run) {
 }
 function fullConsumableConvoy(run) {
   run.convoy.consumables = Array.from({ length: run.getConvoyCapacities().consumables }, () =>
-    run.getConsumableTemplate('Vulnerary'),
+    run.getConsumableTemplate('Poultice'),
   );
 }
 /** No weapon can be carried anywhere; consumables have room everywhere. */
@@ -160,7 +160,7 @@ describe('a consumable needs consumable space', () => {
     expect(block()).toBe('');
     const result = chooseEventOption(run, node.id, 'go');
     expect(result.ok).toBe(true);
-    expect(result.results[0]).toMatchObject({ kind: 'item', name: 'Vulnerary' });
+    expect(result.results[0]).toMatchObject({ kind: 'item', name: 'Poultice' });
   });
 
   it('is blocked when every consumable place is full, even with weapon space everywhere', () => {

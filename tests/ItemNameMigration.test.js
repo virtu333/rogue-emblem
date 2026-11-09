@@ -55,12 +55,19 @@ describe('composed names', () => {
 });
 
 describe('the rename table', () => {
-  it('every old weapon name is gone from the catalog and every new one is in it', () => {
-    const names = new Set(gameData.weapons.map((w) => w.name));
+  it('every old name is gone from the catalog and every new one is in it', () => {
+    const names = new Set(
+      [
+        ...gameData.weapons,
+        ...gameData.consumables,
+        ...gameData.accessories,
+        ...(gameData.whetstones?.whetstones || gameData.whetstones || []),
+      ].map((w) => w?.name),
+    );
     const stones = new Set((gameData.imbues?.imbues || []).map((i) => i.stone?.name));
     const arts = new Set(gameData.weaponArts.arts.map((a) => a.name));
     for (const [oldName, newName] of Object.entries(ITEM_RENAMES)) {
-      expect(names.has(oldName), oldName).toBe(false);
+      expect(names.has(oldName) || arts.has(oldName), oldName).toBe(false);
       expect(names.has(newName) || stones.has(newName) || arts.has(newName), newName).toBe(true);
     }
   });
@@ -207,5 +214,80 @@ describe('battle checkpoint and rewind timeline', () => {
     const tree = { a: [legacy('Keen Axe', 'Killer Axe'), { weaponName: 'Luce' }] };
     expect(renameItemsDeep(tree, gameData)).toBe(2);
     expect(renameItemsDeep(tree, gameData)).toBe(0);
+  });
+});
+
+// Revision 2 (the rebuilt naming pass, 2026-11-09): supplies, gear, staves, skill and art
+// scrolls. A revision-1 save (written between the two passes) must take every revision-2 name,
+// keep the plain words that are not items, and say a random legendary's skill as it is now.
+describe('revision 2 on a save written after revision 1', () => {
+  const consumable = (name) => structuredClone(gameData.consumables.find((c) => c.name === name));
+  const accessory = (name) => structuredClone(gameData.accessories.find((a) => a.name === name));
+  const old = (item, oldName, fields = {}) => ({ ...item, name: oldName, ...fields });
+
+  function revisionOneRun() {
+    const rm = new RunManager(gameData);
+    rm.startRun();
+    const saved = JSON.parse(JSON.stringify(rm.toJSON()));
+    saved.itemNamesRevision = 1;
+    const unit = saved.roster[0];
+    unit.consumables = [old(consumable('Poultice'), 'Vulnerary', { lore: 'old words' })];
+    unit.recruitBlessingGrants = ['field_kit:Vulnerary', 'field_kit:Elixir'];
+    // A unit's history keeps a plain word that is no item: it must stay.
+    unit.deeds = { earned: [{ id: 'recover_deed', name: 'Recover' }] };
+    unit.inventory = [
+      ...unit.inventory,
+      old(weapon('Unbinding'), 'Restore'),
+      old(weapon('Iron Sword'), 'Iron Sword', {
+        _isRandomLegendary: true,
+        _grantedSkill: 'sol',
+        special: 'Grants Sol to wielder',
+      }),
+    ];
+    saved.convoy = {
+      weapons: [old(weapon("Reaper's Due Scroll"), 'Lifetaker Scroll', { special: 'old' })],
+      consumables: [old(consumable('Sovereign Seal'), 'Master Seal')],
+    };
+    saved.accessories = [old(accessory('Onrush Charm'), 'Galeforce Charm')];
+    return saved;
+  }
+
+  it('renames supplies, staves, scrolls and gear, and refreshes their text', () => {
+    const rm = RunManager.fromJSON(revisionOneRun(), gameData);
+    const unit = rm.roster[0];
+    expect(unit.consumables[0].name).toBe('Poultice');
+    expect(unit.consumables[0].lore).toBe(consumable('Poultice').lore);
+    expect(unit.inventory.some((w) => w.name === 'Unbinding')).toBe(true);
+    expect(unit.inventory.some((w) => w.name === 'Restore')).toBe(false);
+    expect(rm.convoy.weapons[0].name).toBe("Reaper's Due Scroll");
+    expect(rm.convoy.weapons[0].special).toBe(weapon("Reaper's Due Scroll").special);
+    expect(rm.convoy.consumables[0].name).toBe('Sovereign Seal');
+    expect(rm.accessories.map((a) => a.name)).toContain('Onrush Charm');
+  });
+
+  it('renames a recruit grant key, so the renamed Poultice is never granted twice', () => {
+    const rm = RunManager.fromJSON(revisionOneRun(), gameData);
+    expect(rm.roster[0].recruitBlessingGrants).toEqual(['field_kit:Poultice', 'field_kit:Elixir']);
+  });
+
+  it('keeps a plain word that is not an item', () => {
+    // The walk itself (fromJSON then sanitizes deeds by its own rules).
+    const saved = revisionOneRun();
+    migrateSavedItemNames(saved, gameData);
+    expect(saved.roster[0].deeds.earned[0].name).toBe('Recover');
+    expect(saved.roster[0].consumables[0].name).toBe('Poultice');
+  });
+
+  it("says a random legendary's granted skill by its name today", () => {
+    const rm = RunManager.fromJSON(revisionOneRun(), gameData);
+    const legend = rm.roster[0].inventory.find((w) => w._isRandomLegendary);
+    expect(legend.special).toBe('Grants Reclaim to wielder');
+  });
+
+  it('a save already at revision 2 is left alone', () => {
+    const saved = revisionOneRun();
+    saved.itemNamesRevision = ITEM_NAMES_REVISION;
+    migrateSavedItemNames(saved, gameData);
+    expect(saved.roster[0].consumables[0].name).toBe('Vulnerary');
   });
 });

@@ -240,7 +240,7 @@ describe('Keen Eye in a resolved combat', () => {
     expect([strikes[0].miss, strikes[1].miss]).toEqual([false, true]);
   });
 
-  it('rolls an Adept bonus strike at base Hit', () => {
+  it('rolls an Flurry bonus strike at base Hit', () => {
     let granted = false;
     const result = resolveAt(65, {
       extraCtx: {
@@ -267,7 +267,7 @@ describe('Keen Eye in a resolved combat', () => {
     expect(counter[0].miss).toBe(true);
   });
 
-  it("still lifts the attacker's first strike when a Vantage defender strikes first", () => {
+  it("still lifts the attacker's first strike when a Forestall defender strikes first", () => {
     const result = resolveAt(65, { defMods: { vantage: true } });
     expect(result.events.find((e) => e.type === 'strike').attackerSide).toBe('defender');
     const [first] = strikesBy(result, 'attacker');

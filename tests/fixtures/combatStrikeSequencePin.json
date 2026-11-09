@@ -81,123 +81,123 @@
   },
   "adept_bonus_strikes@4": {
     "strikes": 24,
-    "sha": "e26d8b0dbd92606c7ab07a0df74fb91963b01481"
+    "sha": "bd3d844d59e1e0cae7379999aafb0e696302f1fc"
   },
   "adept_bonus_strikes@11": {
     "strikes": 68,
-    "sha": "c3a052c774b45d665049f610e309bdbb5896050d"
+    "sha": "d0c0f39aa4e5133c24aa4077ee97645abfb1f7bf"
   },
   "adept_bonus_strikes@19": {
     "strikes": 80,
-    "sha": "1c868e4b6287fc11d053ce9e0d08e67282257973"
+    "sha": "8edfe5b7c7c90d6610da78653b698753141f1693"
   },
   "adept_bonus_strikes@30": {
     "strikes": 80,
-    "sha": "9338743d8a1b6f78c6f31a60929c8f3a26312404"
+    "sha": "0a3a07afb7ceecf741261d1bdc3448c17c3b3d72"
   },
   "adept_bonus_strikes@52": {
     "strikes": 80,
-    "sha": "017fec06850b996ba16a8fac325fbb04abeaaa8e"
+    "sha": "d10685b03b589fc75bc95e53e011903c32a11164"
   },
   "aether_and_sol@4": {
     "strikes": 24,
-    "sha": "c2114d039e9cd559aa478a97d79fbc408cf69988"
+    "sha": "de8f3ce9770f311e618219e5a90caabb334ce96a"
   },
   "aether_and_sol@11": {
     "strikes": 58,
-    "sha": "d1c73d6d365597fcdc9f1b7a2a737eb260a41453"
+    "sha": "e7271a6ae854a633ad7bf2cbe4691983f272c23e"
   },
   "aether_and_sol@19": {
     "strikes": 58,
-    "sha": "a3000a691e184ce3d8d414ecd861308c1c8cb7b6"
+    "sha": "6e0f9fda63b896c91244857afbc86498fc539d0c"
   },
   "aether_and_sol@30": {
     "strikes": 73,
-    "sha": "853babe6d3dc08543f9157c60c96e348cec36979"
+    "sha": "2ed30d2a9cac6033399b8ab181fe2705d4c7182b"
   },
   "aether_and_sol@52": {
     "strikes": 75,
-    "sha": "c1cd70651bf30846705ba23c92a6ea2557e08d34"
+    "sha": "2f4f272f7f18e63a04e018561e5584692f5737c1"
   },
   "astra_multi_hit@4": {
     "strikes": 24,
-    "sha": "b04dff10a52741544eeb3933b468a4c96bdd42d0"
+    "sha": "f83a390121788ef00b2d4c6167f60fc8e4c05d53"
   },
   "astra_multi_hit@11": {
     "strikes": 31,
-    "sha": "209da71d56f82516d9549c0815e7875a7e6ecbd7"
+    "sha": "12e1f462d05b77e400cf528b13d0ea5bae16a925"
   },
   "astra_multi_hit@19": {
     "strikes": 74,
-    "sha": "766b23d0ade2cdce65527ea150ecdcf2941f319b"
+    "sha": "cf9b73214a2312d9d0828376b7b99a746a27b843"
   },
   "astra_multi_hit@30": {
     "strikes": 84,
-    "sha": "bb0ed659bb71a07cfd9b386a8258af36c8e2b386"
+    "sha": "8932bb8f5ef676d1379f76024e06137641f960a3"
   },
   "astra_multi_hit@52": {
     "strikes": 110,
-    "sha": "af8f38e8adb29241a8759d3cd8d98652da0ba1fd"
+    "sha": "201ee649a59930b4b5820b1480526f9313ac016e"
   },
   "desperation_attacker@4": {
     "strikes": 24,
-    "sha": "88a176a0166dd00a466b6cca6d61d1379eb093f9"
+    "sha": "44eab0df3dab007f1099c89f250b3ae8ffc3395a"
   },
   "desperation_attacker@11": {
     "strikes": 48,
-    "sha": "1ce476691682f4fb5f4bce8b105846873138a689"
+    "sha": "4a6409d1db587fe8f6cb8a576ee8304065d4ccdc"
   },
   "desperation_attacker@19": {
     "strikes": 72,
-    "sha": "1d7bf7b9bae722a1a52930e53e219251b8b6e11d"
+    "sha": "8a650a3f3c395e70b58ba1e230ba327d102d2914"
   },
   "desperation_attacker@30": {
     "strikes": 72,
-    "sha": "14e075f72b95c66c24cfb9ea28242f30cdd9676b"
+    "sha": "17addbcd0dd9ad4be395c3d8acccf4d25702504d"
   },
   "desperation_attacker@52": {
     "strikes": 72,
-    "sha": "db83aa1a33fb1b3e863c54dab19ff0295d59d57a"
+    "sha": "ab02fe00b6c0aa5f8e2b8f7de628f3c23ddb3f62"
   },
   "vantage_defender@4": {
     "strikes": 50,
-    "sha": "ece4943526361da40d5225629f7bd8312822be6c"
+    "sha": "bef4471031e781dbecf5a0837aac49a8f2046b2b"
   },
   "vantage_defender@11": {
     "strikes": 72,
-    "sha": "741e0c05f811362fef297dd666876dc9798fb0f2"
+    "sha": "2f399225f47a36a2b4ce3ad1ecea821c0c488196"
   },
   "vantage_defender@19": {
     "strikes": 72,
-    "sha": "b57fae09146687728a67628f614b89ace5ebddef"
+    "sha": "2a3e62837c09abbea0a3ef9d504821441ba09263"
   },
   "vantage_defender@30": {
     "strikes": 72,
-    "sha": "57c807565a8b3149ff264cc3b2aa66004fce0e8c"
+    "sha": "32380aa55866e6dfd37db73ade0548d60e42265b"
   },
   "vantage_defender@52": {
     "strikes": 72,
-    "sha": "68077ae782ba4cec4275e5c7ecd97834a3a38c05"
+    "sha": "5f6667385dd6c0183a1c99683f41b342a7654608"
   },
   "defender_desperation@4": {
     "strikes": 34,
-    "sha": "bb3c4d9c3a6c6a2c1d288b1c6c9c89a1ee019b72"
+    "sha": "ce22cc6ef71fff62aa44721aa5d17c7cda443ce5"
   },
   "defender_desperation@11": {
     "strikes": 72,
-    "sha": "406a5173e19a343853f5d9e074ecb7b52233eb4f"
+    "sha": "565cf9389bfd0b63e4db80b6d93899e00bd761ef"
   },
   "defender_desperation@19": {
     "strikes": 72,
-    "sha": "1ab628c4704ad6a05d04fac7bff82e0d843712f3"
+    "sha": "6526d6d51582ce62d1582e77d05d0a0b88758671"
   },
   "defender_desperation@30": {
     "strikes": 72,
-    "sha": "29c239c3058e644c106d1b5a6cb8bdc29e0fff6b"
+    "sha": "1a2e42e64109d55696df92f5323215e367d8a34d"
   },
   "defender_desperation@52": {
     "strikes": 72,
-    "sha": "47f85eedb6cf89068c7d7f58360fa6646fc2139a"
+    "sha": "53f1e1d47be6b9816ce4a8aea177190da590de34"
   },
   "weapon_art_follow_up@4": {
     "strikes": 24,
@@ -221,15 +221,15 @@
   },
   "miracle_defender@4": {
     "strikes": 52,
-    "sha": "bde43c44cc1a67345f9e16fbecc0b460f4932fb4"
+    "sha": "c9148052aef7b1894d874bb5cc0005182f2c9bd7"
   },
   "miracle_defender@11": {
     "strikes": 52,
-    "sha": "e15814b3e4ad35f87ec29a3ba7518ee35c4ff102"
+    "sha": "6de042a701552976645e6643b74167c789467140"
   },
   "miracle_defender@19": {
     "strikes": 72,
-    "sha": "57094657dd7b68d6580311723e09971a828d42b8"
+    "sha": "502ce3c2881954d3dbc802010af6548b6e99bd63"
   },
   "miracle_defender@30": {
     "strikes": 72,

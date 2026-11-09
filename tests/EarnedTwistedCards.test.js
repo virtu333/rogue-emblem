@@ -557,8 +557,8 @@ describe('a twist burden is never cleansable (one rule: Burdens.isCleansable)', 
 const oathStats = () =>
   card('kingmakers_oath').boons.find((b) => b.type === 'kingmaker_promotion').params.stats;
 
-describe("Kingmaker's Oath: free church promotions +2 to the class's best stat; no Master Seal", () => {
-  const seal = (effect = 'promote', name = 'Master Seal') => ({
+describe("Kingmaker's Oath: free church promotions +2 to the class's best stat; no Sovereign Seal", () => {
+  const seal = (effect = 'promote', name = 'Sovereign Seal') => ({
     name,
     type: 'Consumable',
     effect,
@@ -623,7 +623,7 @@ describe("Kingmaker's Oath: free church promotions +2 to the class's best stat; 
     expect(churchPromoteHeading(freshRun())).toMatch(/2000 G · lords 3500 G/);
   });
 
-  it('a Master Seal is refused from the bag and from the convoy; the reclass seals still work', () => {
+  it('a Sovereign Seal is refused from the bag and from the convoy; the reclass seals still work', () => {
     // Failure: the roster sheet or the convoy's Use promotes with a seal; the reclass seal is
     // caught by the ban too.
     const rm = take(freshRun(), 'kingmakers_oath');
@@ -646,7 +646,7 @@ describe("Kingmaker's Oath: free church promotions +2 to the class's best stat; 
     expect(rm.addToConvoy(seal())).toBeTruthy();
     const convoySeal = rm.convoy.consumables.find((c) => c.effect === 'promote');
     expect(rosterClassChangeBlock(rm, unit, convoySeal, data)).toBe(MASTER_SEAL_BANNED);
-    // A reclass seal is not a Master Seal.
+    // A reclass seal is not a Sovereign Seal.
     for (const name of ['Infantry Seal', 'Mounted Seal']) {
       const template = data.consumables.find((c) => c.name === name);
       expect(template?.effect, name).toBe('reclass');
@@ -668,7 +668,7 @@ describe("Kingmaker's Oath: free church promotions +2 to the class's best stat; 
 });
 
 describe("Kingmaker's Oath: what the player is shown is what the altar does", () => {
-  it('across a save the oath still promotes for nothing and still bans the Master Seal', () => {
+  it('across a save the oath still promotes for nothing and still bans the Sovereign Seal', () => {
     // Failure: the save drops `kingmakerPromotion` (the church charges again after a reload)
     // while the ban survives, or the other way round.
     const loaded = roundTrip(take(freshRun(), 'kingmakers_oath'));
@@ -686,7 +686,7 @@ describe("Kingmaker's Oath: what the player is shown is what the altar does", ()
     expect(
       classChangeItemBlock(
         loaded,
-        data.consumables.find((c) => c.name === 'Master Seal'),
+        data.consumables.find((c) => c.name === 'Sovereign Seal'),
       ),
     ).toBe(MASTER_SEAL_BANNED);
   });
@@ -709,7 +709,7 @@ describe("Kingmaker's Oath: what the player is shown is what the altar does", ()
             subject.stats[stat],
           );
         }
-        // Without the church's run (a Master Seal's path), no oath bonus is shown.
+        // Without the church's run (a Sovereign Seal's path), no oath bonus is shown.
         const sealed = promotionPathContent(unit, target, data);
         const best = kingmakerBonusStats(target.promotionBonuses, oathStats());
         for (const stat of best)
@@ -752,11 +752,11 @@ describe("Kingmaker's Oath: what the player is shown is what the altar does", ()
     }
   });
 
-  it("a Master Seal stays in shops and loot, marked: the card says it can't be used", () => {
+  it("a Sovereign Seal stays in shops and loot, marked: the card says it can't be used", () => {
     // Failure: the seal is filtered out of the loot draw (moving the loot stream), or offered
     // with no word that it is useless under the oath.
     const rm = take(freshRun(), 'kingmakers_oath');
-    const seal = structuredClone(data.consumables.find((c) => c.name === 'Master Seal'));
+    const seal = structuredClone(data.consumables.find((c) => c.name === 'Sovereign Seal'));
     expect(classChangeItemTag(rm, seal)).toBe(MASTER_SEAL_BANNED_TAG);
     expect(MASTER_SEAL_BANNED_TAG).toBe("Can't be used: Kingmaker's Oath");
     expect(rewardForWhom({ type: 'item', item: seal }, rm)).toMatchObject({
@@ -779,9 +779,9 @@ describe("Kingmaker's Oath: what the player is shown is what the altar does", ()
         Math.random = createSeededRng(seed);
         const b = rollBattleRewardChoices(plain, plain.gameData, draw).map(names());
         expect(a, `${actId} ${seed}`).toEqual(b);
-        seals += a.filter((card) => card[2] === 'Master Seal').length;
+        seals += a.filter((card) => card[2] === 'Sovereign Seal').length;
       }
-    // The draws compared do hold Master Seals (the comparison is not empty).
+    // The draws compared do hold Sovereign Seals (the comparison is not empty).
     expect(seals).toBeGreaterThan(0);
   });
 
@@ -796,7 +796,7 @@ describe("Kingmaker's Oath: what the player is shown is what the altar does", ()
     const knight = addRecruit(rm, 'Fighter', 10);
     knight.specialCharId = 'old_knight';
     rm.roster.push(knight);
-    const seal = structuredClone(data.consumables.find((c) => c.name === 'Master Seal'));
+    const seal = structuredClone(data.consumables.find((c) => c.name === 'Sovereign Seal'));
     knight.consumables = [seal];
     expect(rosterClassChangeBlock(rm, knight, seal, withVoices)).toBe(MASTER_SEAL_BANNED);
     // Without the oath the knight still refuses in his own words.

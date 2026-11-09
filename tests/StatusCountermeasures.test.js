@@ -1,4 +1,4 @@
-// Status countermeasures + Restore staff suite.
+// Status countermeasures + Unbinding staff suite.
 // See docs/reports/status_countermeasures_restore_spec_2026-06-12.md
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -28,7 +28,7 @@ import { XP_BASE_HEAL } from '../src/utils/constants.js';
 
 const gameData = loadGameData();
 const artById = new Map(gameData.weaponArts.arts.map((art) => [art.id, art]));
-const restoreStaff = gameData.weapons.find((w) => w.name === 'Restore');
+const restoreStaff = gameData.weapons.find((w) => w.name === 'Unbinding');
 const wardingCharm = gameData.accessories.find((a) => a.name === 'Warding Charm');
 
 function makeUnit(overrides = {}) {
@@ -61,7 +61,7 @@ function withWardingCharm(unit) {
 }
 
 describe('countermeasures: data shapes', () => {
-  it('Restore staff exists with the cure contract', () => {
+  it('Unbinding staff exists with the cure contract', () => {
     expect(restoreStaff).toMatchObject({
       type: 'Staff',
       tier: 'Steel',
@@ -105,7 +105,7 @@ describe('countermeasures: data shapes', () => {
 
     for (const actId of ['act2', 'act3', 'act4']) {
       const table = gameData.lootTables[actId];
-      expect(table.weapons).toContain('Restore');
+      expect(table.weapons).toContain('Unbinding');
       expect(table.accessories).toContain('Warding Charm');
       expect(
         table.healing.some((name) => {
@@ -121,7 +121,7 @@ describe('countermeasures: data shapes', () => {
     expect(gameData.lootTables.act3.healing).toContain('Remedy');
     expect(gameData.lootTables.act4.healing).toContain('Remedy');
     // Act 1 stays countermeasure-free (no status pressure before act2)
-    expect(gameData.lootTables.act1.weapons).not.toContain('Restore');
+    expect(gameData.lootTables.act1.weapons).not.toContain('Unbinding');
     expect(gameData.lootTables.act1.healing).not.toContain('Herb');
   });
 });
@@ -162,7 +162,7 @@ describe('countermeasures: status immunity engine gate', () => {
   });
 
   it('resolveStatusStaff short-circuits without consuming RNG for immune targets', () => {
-    const staff = gameData.weapons.find((w) => w.name === 'Sleep Staff');
+    const staff = gameData.weapons.find((w) => w.name === 'Lullaby Staff');
     const caster = makeUnit({ faction: 'enemy' });
     const target = withWardingCharm(makeUnit());
     const rng = vi.fn(() => 0); // would always hit if rolled
@@ -205,7 +205,7 @@ describe('countermeasures: art status vs immunity (scene/headless parity)', () =
     headless.npcUnits = [];
   });
 
-  it('Encloser cannot root a Warding Charm holder in scene or harness', async () => {
+  it('Pinning Shot cannot root a Warding Charm holder in scene or harness', async () => {
     const result = {
       events: [{ type: 'strike', attackerSide: 'attacker', miss: false, damage: 6 }],
     };
@@ -261,7 +261,7 @@ describe('countermeasures: art status vs immunity (scene/headless parity)', () =
   });
 });
 
-describe('countermeasures: Restore staff flow', () => {
+describe('countermeasures: Unbinding staff flow', () => {
   function makeHealSceneCtx() {
     const ctx = {
       _battleSession: 1,
@@ -360,7 +360,7 @@ describe('countermeasures: Restore staff flow', () => {
     expect(targets.map((t) => t.name)).toEqual(['Wounded']);
   });
 
-  it('executeHeal with Restore cures, spends a use, and awards staff XP', async () => {
+  it('executeHeal with Unbinding cures, spends a use, and awards staff XP', async () => {
     const ctx = makeHealSceneCtx();
     const staff = { ...restoreStaff, _usesSpent: 0 };
     const sword = { name: 'Iron Sword', type: 'Sword', range: '1', rankRequired: 'Prof' };
@@ -392,11 +392,11 @@ describe('countermeasures: Restore staff flow', () => {
     expect(staff._usesSpent).toBe(1);
     expect(ctx.awardScaledXP).toHaveBeenCalledWith(healer, XP_BASE_HEAL, { present: false });
     expect(ctx.finishUnitAction).toHaveBeenCalledWith(healer, { session: ctx._battleSession });
-    // Target HP untouched — Restore is cure-only
+    // Target HP untouched — Unbinding is cure-only
     expect(target.currentHP).toBe(target.stats.HP);
   });
 
-  it('re-equips a combat weapon when Restore is depleted', async () => {
+  it('re-equips a combat weapon when Unbinding is depleted', async () => {
     const ctx = makeHealSceneCtx();
     // MAG 4 → no bonus uses; one use left
     const staff = { ...restoreStaff, _usesSpent: 1 };
@@ -428,8 +428,8 @@ describe('countermeasures: Restore staff flow', () => {
   });
 });
 
-describe('countermeasures: shop cure gating includes the Restore staff', () => {
-  it('a gated shop always stocks Herb, Remedy, and Restore', () => {
+describe('countermeasures: shop cure gating includes the Unbinding staff', () => {
+  it('a gated shop always stocks Herb, Remedy, and Unbinding', () => {
     const inventory = generateShopInventory(
       'act1', // act1 pools carry no cure items — only the gated append can add them
       gameData.lootTables,
@@ -443,9 +443,9 @@ describe('countermeasures: shop cure gating includes the Restore staff', () => {
     const names = inventory.map((entry) => entry.item.name);
     expect(names).toContain('Herb');
     expect(names).toContain('Remedy');
-    expect(names).toContain('Restore');
+    expect(names).toContain('Unbinding');
 
-    const restoreEntry = inventory.find((entry) => entry.item.name === 'Restore');
+    const restoreEntry = inventory.find((entry) => entry.item.name === 'Unbinding');
     expect(restoreEntry.type).toBe('weapon');
     expect(restoreEntry.price).toBe(1200);
   });
@@ -465,7 +465,7 @@ describe('countermeasures: shop cure gating includes the Restore staff', () => {
       const names = inventory.map((entry) => entry.item.name);
       expect(names).not.toContain('Herb');
       expect(names).not.toContain('Remedy');
-      expect(names).not.toContain('Restore');
+      expect(names).not.toContain('Unbinding');
     }
   });
 });

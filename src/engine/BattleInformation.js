@@ -128,7 +128,7 @@ export function statusDescriptions(unit) {
 /**
  * A foe's status staff (Sleep / Silence) as an item line: it rides `unit.statusStaff`, beside
  * the weapon and outside `inventory`, so every place that lists a foe's items reads it here
- * ("Silence Staff · Range 3-7 · 1/2 uses", "Sleep Staff · Range 3-5 · spent"). Callers show it
+ * ("Hush Staff · Range 3-7 · 1/2 uses", "Lullaby Staff · Range 3-5 · spent"). Callers show it
  * only for a unit the player may inspect (`statusStaffPipShown` is the one rule for the map).
  */
 export function statusStaffInfo(unit) {
@@ -162,7 +162,7 @@ export function statusStaffThreat(unit) {
 
 /**
  * What a foe carries for a Thief to steal (docs/specs/phase3.md 3G): the item and its
- * line ("Carrying: Vulnerary", "Carrying: Gold Pouch (500 G)"), or null. Callers show it
+ * line ("Carrying: Poultice", "Carrying: Gold Pouch (500 G)"), or null. Callers show it
  * only for a unit the player may inspect (`carrierPipShown` is the one rule for the map).
  */
 export function carriedItemInfo(unit) {

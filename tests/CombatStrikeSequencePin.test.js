@@ -1,7 +1,7 @@
 // Pins the strike sequence of combats between units with no Revival Stones (Phase 3D).
 //
 // Revival Stones end an exchange early when a bar breaks. Every gate that rule touches
-// (the strike loop, Adept/Aether bonus strikes, Astra, brave, Desperation, Vantage, art
+// (the strike loop, Flurry/Corona bonus strikes, Constellation, brave, Death's Door, Forestall, art
 // follow-ups) must leave a combat with no stones exactly as it was. This file ran green
 // on the code before the stones landed; its fixture is that code's output, one digest per
 // scenario and starting HP (the events, both final HPs and both death flags of every seed).

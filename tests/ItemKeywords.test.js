@@ -120,7 +120,7 @@ describe('tags', () => {
   it('plain weapons, staves, scrolls, supplies and accessories have no tags', () => {
     expect(itemKeywords(weapon('Iron Sword'))).toEqual([]);
     expect(itemKeywords(weapon('Heal'))).toEqual([]);
-    expect(itemKeywords(weapon('Sol Scroll'))).toEqual([]);
+    expect(itemKeywords(weapon('Reclaim Scroll'))).toEqual([]);
     expect(itemKeywords(consumables[0])).toEqual([]);
     expect(itemKeywords(accessories[0])).toEqual([]);
     expect(itemKeywords(null)).toEqual([]);
@@ -143,7 +143,7 @@ describe('base line', () => {
     expect(itemBaseLine(weapon('Sunder Bow'))).toBe('Rare Bow');
     expect(itemBaseLine(weapon('Conflagration'))).toBe('Tome');
     expect(itemBaseLine(weapon('Endword'))).toBe('Legend Light Tome');
-    expect(itemBaseLine(weapon('Mend'))).toBe('Staff');
+    expect(itemBaseLine(weapon('Solace'))).toBe('Staff');
   });
 
   it('is left out when the name already says it', () => {
@@ -156,6 +156,6 @@ describe('base line', () => {
   it('supplies, scrolls and accessories have none', () => {
     expect(itemBaseLine(consumables[0])).toBeNull();
     expect(itemBaseLine(accessories[0])).toBeNull();
-    expect(itemBaseLine(weapon('Sol Scroll'))).toBeNull();
+    expect(itemBaseLine(weapon('Reclaim Scroll'))).toBeNull();
   });
 });

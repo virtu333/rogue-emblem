@@ -175,7 +175,7 @@ describe('roster: the Oath it will swear, the others folded', () => {
     const { sheet } = manage([unit]);
     const card = q(sheet, '.mr-oath-choice');
     expect(card.querySelector('.mr-oath-current').textContent).toBe(
-      'Oath of the Bane · Fiendish Blow',
+      'Oath of the Bane · Hellfire Charge',
     );
     expect(qa(sheet, '.mr-oath-option')).toHaveLength(0);
     const toggle = q(sheet, '.mr-oath-toggle');
@@ -192,11 +192,11 @@ describe('roster: the Oath it will swear, the others folded', () => {
       'false',
       'false',
     ]);
-    pressText(sheet, 'Oath of the Bridge · Pavise');
+    pressText(sheet, 'Oath of the Bridge · Shieldwall');
     expect(unit.deeds.pledge).toBe('held_the_line');
     // Like a select: the list closes on the pick and focus returns to its toggle.
     expect(qa(sheet, '.mr-oath-option')).toHaveLength(0);
-    expect(q(sheet, '.mr-oath-current').textContent).toBe('Oath of the Bridge · Pavise');
+    expect(q(sheet, '.mr-oath-current').textContent).toBe('Oath of the Bridge · Shieldwall');
     expect(dom.doc.activeElement).toBe(q(sheet, '.mr-oath-toggle'));
     expect(q(sheet, '.mr-oath-toggle').getAttribute('aria-expanded')).toBe('false');
     sheet.destroy();
@@ -207,7 +207,7 @@ describe('roster: the Oath it will swear, the others folded', () => {
     const { sheet, persist } = manage([unit]);
     const before = JSON.stringify(unit.deeds);
     q(sheet, '.mr-oath-toggle').click();
-    pressText(sheet, 'Oath of the Bane · Fiendish Blow');
+    pressText(sheet, 'Oath of the Bane · Hellfire Charge');
     expect(JSON.stringify(unit.deeds)).toBe(before);
     expect(persist).not.toHaveBeenCalled();
     expect(qa(sheet, '.mr-oath-option')).toHaveLength(0);
@@ -245,7 +245,7 @@ describe('promotion chooser: the Oath picker folds to one line', () => {
     expect(dom.doc.querySelectorAll('.gr-oath-option')).toHaveLength(0);
     expect(toggle().getAttribute('aria-expanded')).toBe('false');
     expect(toggle().querySelector('.re-disclosure-label').textContent).toBe(
-      'Oath of the Bane · Fiendish Blow',
+      'Oath of the Bane · Hellfire Charge',
     );
     // Every path card still says which Oath it swears.
     expect(dom.doc.querySelectorAll('.gr-path-oath').length).toBeGreaterThan(0);
@@ -254,11 +254,11 @@ describe('promotion chooser: the Oath picker folds to one line', () => {
     expect(toggle().getAttribute('aria-expanded')).toBe('true');
     const options = dom.doc.querySelectorAll('.gr-oath-option');
     expect(options.length).toBeGreaterThan(1);
-    options.find((b) => b.textContent === 'Oath of the Bridge · Pavise').click();
+    options.find((b) => b.textContent === 'Oath of the Bridge · Shieldwall').click();
     expect(unit.deeds.pledge).toBe('held_the_line');
     expect(dom.doc.querySelectorAll('.gr-oath-option')).toHaveLength(0);
     expect(toggle().querySelector('.re-disclosure-label').textContent).toBe(
-      'Oath of the Bridge · Pavise',
+      'Oath of the Bridge · Shieldwall',
     );
     expect(dom.doc.activeElement).toBe(toggle());
     // Only a preview: nothing is learned until the promotion is confirmed.

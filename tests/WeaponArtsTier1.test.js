@@ -228,7 +228,7 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       (w) => Array.isArray(w.weaponArtIds) && w.weaponArtIds.length > 0,
     );
 
-    it('all non-staff legendary weapons except Fortify have bound arts', () => {
+    it('all non-staff legendary weapons except Canticle have bound arts', () => {
       expect(boundWeapons.length).toBe(17); // + Daybreak
     });
 
@@ -260,9 +260,9 @@ describe('Tier 1 Weapon Arts Expansion', () => {
       expect(stormbreaker.weaponArtIds).toContain('legend_cataclysm');
     });
 
-    it("Hermit's Bow is bound while Fortify remains unbound", () => {
+    it("Hermit's Bow is bound while Canticle remains unbound", () => {
       const doublebow = gameData.weapons.find((w) => w.name === "Hermit's Bow");
-      const fortify = gameData.weapons.find((w) => w.name === 'Fortify');
+      const fortify = gameData.weapons.find((w) => w.name === 'Canticle');
       expect(doublebow.weaponArtIds).toEqual(['legend_hermit_fan']);
       expect(fortify.weaponArtIds).toBeUndefined();
     });
@@ -368,12 +368,12 @@ describe('Tier 1 Weapon Arts Expansion', () => {
     it('loot tables have updated act2 weapon art scroll pool', () => {
       // Act 2 lists only the anytime utility scrolls; every other Iron/Steel scroll is drawn.
       expect(gameData.lootTables.act2.weaponArtScroll).toEqual([
-        'Grounder Scroll',
-        'Helm Splitter Scroll',
+        'Sweep Scroll',
+        'Helmcleaver Scroll',
       ]);
       const act2Pool = actPool('act2');
-      expect(act2Pool).toContain('Windsweep Scroll');
-      expect(act2Pool).toContain('Seraphim Scroll');
+      expect(act2Pool).toContain('Gale Cut Scroll');
+      expect(act2Pool).toContain('Scouring Fire Scroll');
       expect(act2Pool).toContain('Precise Cut Scroll');
       expect(act2Pool).not.toContain('Comet Edge Scroll');
       expect(act2Pool).toContain("Hunter's Focus Scroll");
@@ -383,8 +383,8 @@ describe('Tier 1 Weapon Arts Expansion', () => {
 
     it('loot tables have updated act3 weapon art scroll pool', () => {
       const act3Pool = actPool('act3');
-      expect(act3Pool).toContain('Dragonhaze Scroll');
-      expect(act3Pool).toContain('Nosferatu Scroll');
+      expect(act3Pool).toContain('Heat Haze Scroll');
+      expect(act3Pool).toContain('Grave Hunger Scroll');
       expect(act3Pool).not.toContain('Comet Edge Scroll');
       expect(gameData.lootTables.act3.weaponArtScroll.length).toBe(13); // 2 anytime + 11 Silver
     });

@@ -124,7 +124,7 @@ for (const [width, height] of [
       await expect(dialog).toHaveCount(0);
     }
     // The longest title a menu builds (a scroll's weapon picker) wraps; Close stays whole.
-    const long = "Choose weapon for Hunter's Volley Scroll";
+    const long = "Choose weapon for Hawk's Talons Scroll";
     await page.evaluate(async (title) => {
       const { MenuSurface } = await import('/src/ui/MenuSurface.js');
       const scene = window.__emblemRogueGame.scene.getScene('Title');

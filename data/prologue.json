@@ -37,7 +37,7 @@
       "traits": [],
       "inventory": [
         "Iron Sword",
-        "Vulnerary"
+        "Poultice"
       ]
     },
     "Sera": {
@@ -72,7 +72,7 @@
       "inventory": [
         "Glimmer",
         "Heal",
-        "Vulnerary"
+        "Poultice"
       ]
     },
     "Tamsin": {
@@ -468,7 +468,7 @@
           "item": "Iron Lance"
         },
         {
-          "item": "Vulnerary",
+          "item": "Poultice",
           "quantity": 3
         },
         {
@@ -1193,8 +1193,8 @@
         "title": "Harrow's Market",
         "preview": "Spend your gold on fixed stock: no restock here. The crossing's watch archer waits at either stop.",
         "stock": [
-          "Vulnerary",
-          "Vulnerary",
+          "Poultice",
+          "Poultice",
           "Iron Sword",
           "Iron Lance",
           "Javelin"
@@ -1220,8 +1220,8 @@
         "title": "The Old Watchtower",
         "preview": "Rest heals the whole army, free. Scavenge opens the tower's old stores instead. The ruins allow one.",
         "stock": [
-          "Vulnerary",
-          "Vulnerary",
+          "Poultice",
+          "Poultice",
           "Javelin",
           "Steel Sword"
         ],

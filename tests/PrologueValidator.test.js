@@ -111,7 +111,7 @@ describe('validatePrologueConfig', () => {
     });
 
     it('a unit can wield what it carries', () => {
-      expect(errorsAfter((p) => (p.units.Edric.inventory = ['Iron Axe', 'Vulnerary']))).toEqual([
+      expect(errorsAfter((p) => (p.units.Edric.inventory = ['Iron Axe', 'Poultice']))).toEqual([
         `units.Edric.inventory: Edric can't wield "Iron Axe" (Axe)`,
       ]);
     });
@@ -425,14 +425,14 @@ describe('validatePrologueConfig', () => {
       expect(errorsAfter((p) => (node(p, 'prologue_2b').preview = 'x'.repeat(161)))).toEqual([
         'route.nodes[3] (prologue_2b).preview must be a string of at most 160 characters',
       ]);
-      expect(errorsAfter((p) => (node(p, 'prologue_2b').stock = ['Vulnerary']))).toEqual([
+      expect(errorsAfter((p) => (node(p, 'prologue_2b').stock = ['Poultice']))).toEqual([
         'route.nodes[3] (prologue_2b): only a shop or a ruins node has a stock',
       ]);
       expect(errorsAfter((p) => node(p, 'prologue_2a').stock.push('Moon Bow'))).toEqual([
         'route.nodes[2] (prologue_2a).stock: unknown item "Moon Bow"',
       ]);
       expect(
-        errorsAfter((p) => (node(p, 'prologue_2a').stock = Array(9).fill('Vulnerary'))),
+        errorsAfter((p) => (node(p, 'prologue_2a').stock = Array(9).fill('Poultice'))),
       ).toEqual(['route.nodes[2] (prologue_2a).stock must be an array of 1 to 8 item names']);
     });
 

@@ -291,25 +291,25 @@ export function weaponSpec(w, ctx = grammarContext()) {
 }
 
 const BOOSTER = {
-  STR: () => D.gemItem({ mat: 'blood', cut: 'drop' }),
+  STR: () => D.root(),
   MAG: () => D.pouch({ cloth: 'unlight', sparkle: 'lilac' }),
   SKL: () =>
     D.tome({ cover: 'pearl', fit: 'gilt', emblem: 'dark', emblemMat: 'ink', pages: 'parchment' }),
   SPD: () => D.feather({ mat: 'sky' }),
-  DEF: () => D.shield({ face: 'steel', rim: 'silverFit', emblem: 'diamond', emblemMat: 'sky' }),
-  RES: () => D.pendant({ chain: 'silverFit', body: 'silver', gem: 'lilac', form: 'leaf' }),
-  HP: () => D.robe({ cloth: 'pearl', trim: 'gilt', wings: 'pearl' }),
+  DEF: () => D.dragonScale(),
+  RES: () => D.knotCord(),
+  HP: () => D.robe({ cloth: 'verdigris', trim: 'gilt' }),
   MOV: () => D.boot({ leather: 'wood', trim: 'leaf', wing: true }),
 };
 
 export function consumableSpec(c) {
   switch (c.effect) {
     case 'heal':
-      return D.vial({ liquid: 'verdigris' });
+      return D.poultice();
     case 'healFull':
       return D.vial({ shape: 'flask', liquid: 'ember', cork: 'gilt' });
     case 'promote':
-      return D.seal({ wax: 'blood', ribbon: 'cloth', metal: 'gilt', glyph: 'star' });
+      return D.seal({ wax: 'blood', ribbon: 'lilac', metal: 'gilt', glyph: 'crown' });
     case 'reclass':
       return D.seal({
         wax: c.subEffect === 'mounted' ? 'earth' : 'steel',
@@ -352,10 +352,10 @@ export function accessorySpec(a) {
     return D.ringItem({ band: 'silver', gem: 'pearl' });
   }
   const table = {
-    'Goddess Icon': () => D.pendant({ form: 'wing', gem: 'blood' }),
-    'Seraph Robe': () => D.robe({ cloth: 'pearl', trim: 'gilt', wings: 'gilt', hood: true }),
-    Boots: () => D.boot({ leather: 'wood', trim: 'leaf' }),
-    'Delphi Shield': () =>
+    'Fatethread Pendant': () => D.pendant({ form: 'sun', chain: 'blood' }),
+    "Sisters' Mantle": () => D.robe({ cloth: 'pearl', trim: 'verdigris' }),
+    "Courier's Boots": () => D.boot({ leather: 'wood', trim: 'leaf' }),
+    'Picket Buckler': () =>
       D.shield({ face: 'lilac', rim: 'gilt', emblem: 'diamond', emblemMat: 'pearl' }),
     "Veteran's Crest": () =>
       D.medal({
@@ -660,7 +660,7 @@ export const UPGRADE_ICON_REUSE = Object.freeze({
  * because the atlas is full (360 cells, the mobile texture budget in tests/ItemIcons.test.js).
  * Enemy-only gear the player never holds takes the picture of its sibling: the Circle Adept's
  * Greycord wears Gravesong's dark cover (the enemy-only tomes). A scroll keeps the scroll
- * plaque: Hunter's Focus Scroll (the art came back from retirement) wears the Encloser
+ * plaque: Hunter's Focus Scroll (the art came back from retirement) wears the Pinning Shot
  * Scroll's bow page.
  */
 export const WEAPON_ICON_REUSE = Object.freeze({
@@ -670,7 +670,7 @@ export const WEAPON_ICON_REUSE = Object.freeze({
   // the Iron Guardian's maul (docs/specs/large-units.md), carried by no one the player meets
   // except as a foe
   'Ironfall Maul': 'hammer',
-  "Hunter's Focus Scroll": 'encloser-scroll',
+  "Hunter's Focus Scroll": 'pinning-shot-scroll',
   'Toppling Blow Scroll': 'lunge-scroll',
   // Epic weapons (docs/specs/epic-weapons.md) and the relic Daybreak: borrowed pictures until
   // they get art of their own; an Epic weapon wears the Rare rim (catalog.mjs weaponRim).
@@ -704,15 +704,15 @@ export const WEAPON_ICON_REUSE = Object.freeze({
  * Accessories drawn with another icon's cell: accessory name -> the icon id whose picture it
  * shares. Like the others the accessory keeps its own id, the accessory socket and its rim;
  * only the art is reused, because the atlas is full (360 cells). The Gemini Ring wears the
- * Phalanx Band (both are issued in pairs), the Warden's Buckler the Delphi Shield.
+ * Phalanx Band (both are issued in pairs), the Warden's Buckler the Picket Buckler.
  */
 export const ACCESSORY_ICON_REUSE = Object.freeze({
   'Gemini Ring': 'phalanx-band',
-  "Warden's Buckler": 'delphi-shield',
+  "Warden's Buckler": 'picket-buckler',
   'Briar Cloak': 'hunters-cloak',
   'Anchor Stone': 'soothing-stone',
   'Grudge Locket': 'diamond-medallion',
-  'Galeforce Charm': 'speedwing',
+  'Onrush Charm': 'fleet-plume',
   'Longarm Bracer': 'duelists-glove',
 });
 
@@ -726,8 +726,8 @@ export const ACCESSORY_ICON_REUSE = Object.freeze({
  * Duelist's Creed the Duelist's Glove. An earned blessing (no tier) takes the Legend rim. The rest
  * of §5 (PR D4): Late Bloom the herb, Dawn Tithe the Coin of Fate, Lone Banner the deploy-limit
  * banner, Cavalier's Hour the Mounted Seal, Saint's Reserve the staff upgrade, Cutpurse's Luck the
- * Steal Scroll, Open Roll the extra-recruit pool, Watcher's Grace the Talisman, Patient Dawn the
- * Soothing Stone, Twin Chapel the Angelic Robe, Omen Reader the Warding Charm and Lottery Loot the
+ * Steal Scroll, Open Roll the extra-recruit pool, Watcher's Grace the Warding Cord, Patient Dawn the
+ * Soothing Stone, Twin Chapel the Blessed Vestment, Omen Reader the Warding Charm and Lottery Loot the
  * loot-quality chest. The target must be an icon with a cell of its own.
  */
 export const BLESSING_ICON_REUSE = Object.freeze({
@@ -751,9 +751,9 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   saints_reserve: 'upgrade-staff_upgrade',
   cutpurses_luck: 'steal-scroll',
   open_roll: 'upgrade-extra_starting_unit_pool',
-  watchers_grace: 'talisman',
+  watchers_grace: 'warding-cord',
   patient_dawn: 'soothing-stone',
-  twin_chapel: 'angelic-robe',
+  twin_chapel: 'blessed-vestment',
   omen_reader: 'warding-charm',
   lottery_loot: 'upgrade-loot_quality',
   // PR D1's earned blessings (the atlas is full): a standard's crest, an hourglass-pale moon, a
@@ -767,15 +767,15 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   tithe_box: 'upgrade-starting_gold',
   lantern_of_the_road: 'blessing-pilgrim_coin',
   crest_of_the_road: 'veterans-crest',
-  // PR D2's earned blessings (the atlas is full): Saint's Reliquary the Goddess Icon (a relic of
+  // PR D2's earned blessings (the atlas is full): Saint's Reliquary the Fatethread Pendant (a relic of
   // healers), Mercenary Ledger the trade-contacts ledger, Smith's Covenant the weapon forge,
   // Thief's Lantern the Hunter's Cloak (a thief's hooded cloak; the atlas's one lantern is
-  // already worn twice) and Seer's Eye the Delphi Shield (the seer's eye on its boss).
-  saints_reliquary: 'goddess-icon',
+  // already worn twice) and Seer's Eye the Picket Buckler (the seer's eye on its boss).
+  saints_reliquary: 'fatethread-pendant',
   mercenary_ledger: 'upgrade-trade_contacts',
   smiths_covenant: 'upgrade-weapon_forge',
   thiefs_lantern: 'hunters-cloak',
-  seers_eye: 'delphi-shield',
+  seers_eye: 'picket-buckler',
   // PR D3's twisted earned blessings (the atlas is full): a darkened sun (the third Vision cell,
   // beside Second Dawn's second), a blood shard, an heir's crown, and a gilt medallion for the
   // dark sun's coin.
@@ -792,14 +792,14 @@ export const BLESSING_ICON_REUSE = Object.freeze({
   kingmakers_oath_ii: 'upgrade-legendary_heir',
   hollow_sun_favor_ii: 'diamond-medallion',
   forced_march: 'swiftsoles',
-  bulwark: 'dracoshield',
+  bulwark: 'wyrmscale',
   way_of_the_art: 'upgrade-art_adept',
   gamblers_edge: 'gamblers-coin',
   the_chosen_few: 'upgrade-partner_choice',
   the_levy: 'upgrade-deploy_limit',
   stone_vow: 'shield-ring',
   collectors_eye: 'upgrade-trinket_collector',
-  featherweight: 'speedwing',
+  featherweight: 'fleet-plume',
   reckless_edge: 'upgrade-lethal_armory_killer',
   shield_wall: 'barrier-ring',
   // Wave 2: the reworked Standard keeps its crest; an oath blade, a longbow for the siege, and the

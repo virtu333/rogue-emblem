@@ -575,7 +575,7 @@ export function resetUnitForBattle(unit) {
   unit._movementCommitted = false;
   unit.hasActed = false;
   unit._miracleUsed = false;
-  readyBattleAccessories(unit); // the Warden's Buckler, the Galeforce Charm
+  readyBattleAccessories(unit); // the Warden's Buckler, the Onrush Charm
   unit._gambitUsedThisTurn = false;
   unit._conditions = [];
   delete unit._speedtakerStacks;
@@ -1840,7 +1840,7 @@ export class BattleScene extends Phaser.Scene {
         playerUnit1.row = bc.playerSpawns[0].row;
         const steelSword = this.gameData.weapons.find((w) => w.name === 'Steel Sword');
         if (steelSword) addToInventory(playerUnit1, steelSword);
-        const vulnerary = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
+        const vulnerary = this.gameData.consumables.find((c) => c.name === 'Poultice');
         if (vulnerary) addToConsumables(playerUnit1, vulnerary);
         this.playerUnits.push(playerUnit1);
         this.addUnitGraphic(playerUnit1);
@@ -1853,7 +1853,7 @@ export class BattleScene extends Phaser.Scene {
         playerUnit2.proficiencies.push({ type: 'Staff', rank: 'Prof' });
         const healStaff = this.gameData.weapons.find((w) => w.name === 'Heal');
         if (healStaff) addToInventory(playerUnit2, healStaff);
-        const vulnerary2 = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
+        const vulnerary2 = this.gameData.consumables.find((c) => c.name === 'Poultice');
         if (vulnerary2) addToConsumables(playerUnit2, vulnerary2);
         this.playerUnits.push(playerUnit2);
         this.addUnitGraphic(playerUnit2);
@@ -2858,7 +2858,7 @@ export class BattleScene extends Phaser.Scene {
     applyEnemySpawnGear(enemy, spawn, {
       weapons: this.gameData.weapons,
       difficultyId: this.battleParams?.difficultyId,
-      // A carrier's item, as this run acquires it (the Vulnerary recipe), with a uid that
+      // A carrier's item, as this run acquires it (the Poultice recipe), with a uid that
       // never draws Math.random (engine/EnemyCarry.js).
       consumables: this.runManager?.getConsumableCatalog?.() ?? this.gameData.consumables,
       battleKey: String(this.deriveBattleSeed()),
@@ -5592,7 +5592,7 @@ export class BattleScene extends Phaser.Scene {
     return targets;
   }
 
-  /** Allies Dance can refresh: the rule is engine-side (Goddess Dance reads it too). */
+  /** Allies Dance can refresh: the rule is engine-side (Dawn Dance reads it too). */
   findDanceTargets(unit) {
     return findDanceRefreshTargets(unit, this.playerUnits).map((ally) => ({ ally }));
   }
@@ -6864,7 +6864,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /**
-   * The Master Seal this unit can promote with now, or null: none carried, or the run's
+   * The Sovereign Seal this unit can promote with now, or null: none carried, or the run's
    * Kingmaker's Oath forbids them (TwistedBoons.classChangeItemBlock: the Promote command and the
    * item menu both read this).
    */
@@ -8477,8 +8477,8 @@ export class BattleScene extends Phaser.Scene {
     }
     this._historyActor = historyUnitVisible(this, attacker) ? attacker.battleEntityId : null;
 
-    // Animate events. Consecutive strikes by the same side (Astra flurries,
-    // brave doubles, Adept bonus strikes) animate at follow-up tempo.
+    // Animate events. Consecutive strikes by the same side (Constellation flurries,
+    // brave doubles, Flurry bonus strikes) animate at follow-up tempo.
     let prevStrikeSide = null;
     let strikeIndex = 0;
     for (const event of result.events) {
@@ -9236,7 +9236,7 @@ export class BattleScene extends Phaser.Scene {
   _presentWarp(unit, warp, { session }) {
     return presentTeleporterWarp(this, unit, warp, { session });
   }
-  /** Animate a pre-combat skill activation event (Vantage, Astra, Desperation). */
+  /** Animate a pre-combat skill activation event (Forestall, Constellation, Death's Door). */
   async animateSkillActivation(event) {
     await (this._procBanner ||= new ProcBannerController(this)).showSkillBanner(
       event,

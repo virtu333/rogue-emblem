@@ -7,12 +7,12 @@ import {
 import { rewardPresentation } from '../src/ui/rewardDisplay.js';
 import { loadGameData } from './testData.js';
 const data = loadGameData();
-it('explains what Seraphim scroll grants and how to bind and activate it', () => {
+it('explains what Scouring Fire scroll grants and how to bind and activate it', () => {
   const scroll = data.weapons.find((w) => w.teachesWeaponArtId === 'magic_seraphim');
   const text = weaponArtScrollText(scroll, data.weaponArts.arts);
   const art = data.weaponArts.arts.find((a) => a.id === 'magic_seraphim');
   expect(text).toContain(
-    'Weapon art scroll: binds Seraphim to one Tome / Light weapon for this run.',
+    'Weapon art scroll: binds Scouring Fire to one Tome / Light weapon for this run.',
   );
   expect(text).toContain('Use: Roster → Skills → Bind to weapon. Kept until bound.');
   expect(text).toContain(`Cost: ${art.hpCost} HP · ${art.perMapLimit} per battle`);
@@ -39,5 +39,5 @@ it('a skill scroll says it teaches a skill, and a command skill says so', () => 
     data.weapons.find((w) => w.skillId === 'sol'),
     data.skills,
   );
-  expect(sol.split('\n')[0]).toBe('Skill scroll: teaches Sol to one unit.');
+  expect(sol.split('\n')[0]).toBe('Skill scroll: teaches Reclaim to one unit.');
 });

@@ -85,7 +85,7 @@ describe('Staff-only units threaten no damage', () => {
       data.classes,
     );
     expect(sage.weapon.type).not.toBe('Staff');
-    sage.statusStaff = structuredClone(data.weapons.find((w) => w.name === 'Sleep Staff'));
+    sage.statusStaff = structuredClone(data.weapons.find((w) => w.name === 'Lullaby Staff'));
     Object.assign(sage, { col: 5, row: 5, mov: 0 });
     sage.stats.MOV = 0;
     const tiles = computeDangerTiles(ctxFor(grid, [sage]));

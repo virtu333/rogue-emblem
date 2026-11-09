@@ -471,14 +471,14 @@ describe('CloudSync run merge guard', () => {
     });
     mockCloudBootstrap({
       metaData: {
-        1: { savedAt: 300, purchasedUpgrades: withDiscoveryKeys({}, { items: ['Vulnerary'] }) },
+        1: { savedAt: 300, purchasedUpgrades: withDiscoveryKeys({}, { items: ['Poultice'] }) },
       },
     });
     await fetchAllToLocalStorage('user-1', { timeoutMs: 50 });
     kept = JSON.parse(store[key]);
     expect(kept.savedAt).toBe(300);
     expect(discoveriesInUpgrades(kept.purchasedUpgrades)).toEqual({
-      items: ['Rapier', 'Vulnerary'],
+      items: ['Poultice', 'Rapier'],
       skills: ['vantage'],
     });
   });

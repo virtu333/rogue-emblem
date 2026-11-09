@@ -2,7 +2,7 @@
 // (docs/specs/dusk-pressure.md §2c). Pure, no Phaser, no RNG.
 //
 // An enemy whose next strike weapon is a siege tome (Breachbolt: "Siege magic", 3-10)
-// with shots left is artillery; an enemy carrying a Sleep or Silence Staff with a use
+// with shots left is artillery; an enemy carrying a Sleep or Hush Staff with a use
 // left is a staff caster. Neither ever walks: artillery fires from where it stands at
 // the best target in siege range (none: it waits), a staff caster casts, or strikes with
 // its weapon, from where it stands (nothing in reach: it waits). The Danger overlay

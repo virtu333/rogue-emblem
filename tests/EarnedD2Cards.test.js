@@ -179,13 +179,13 @@ describe("Saint's Reliquary: staves heal 5 more and reach a tile further", () =>
     const options = staffRunOptions(rm, { faction: 'player' });
     const grid = { cols: 12, rows: 12, getMoveCost: () => 1 };
     const empty = () => null;
-    const warp = staff('Warp Staff');
+    const warp = staff('Fold Staff');
     const caster = unit('Mage', 'player', 6, 6);
     const ally = unit('Ally', 'player', 6, 7);
     const far = (tiles) => Math.max(...tiles.map((t) => Math.abs(t.col - 6) + Math.abs(t.row - 6)));
     expect(far(getRelocationDestinations(warp, caster, ally, grid, empty))).toBe(4);
     expect(far(getRelocationDestinations(warp, caster, ally, grid, empty, options))).toBe(5);
-    const rescue = staff('Rescue Staff');
+    const rescue = staff('Deliverance Staff');
     const distant = unit('Distant', 'player', 6, 10);
     expect(findRelocateTargets(rescue, caster, [caster, distant], grid, empty)).toEqual([]);
     expect(findRelocateTargets(rescue, caster, [caster, distant], grid, empty, options)).toEqual([
@@ -387,7 +387,7 @@ describe("Thief's Lantern: the Collectors' lamp", () => {
     // Failure: the waiver reaches enemy thieves, or the row still says "Too slow" for a holder.
     const rm = runHolding(['thiefs_lantern']);
     const slow = { faction: 'player', col: 0, row: 0, currentHP: 10, stats: { SPD: 1, STR: 5 }, inventory: [], consumables: [] }; // prettier-ignore
-    const quick = { faction: 'enemy', col: 1, row: 0, currentHP: 10, stats: { SPD: 20, STR: 5 }, carriedItem: { name: 'Vulnerary', type: 'Consumable', uses: 2 } }; // prettier-ignore
+    const quick = { faction: 'enemy', col: 1, row: 0, currentHP: 10, stats: { SPD: 20, STR: 5 }, carriedItem: { name: 'Poultice', type: 'Consumable', uses: 2 } }; // prettier-ignore
     expect(stealRunOptions(rm, slow)).toEqual({ ignoreSpeed: true });
     expect(stealRunOptions(rm, { ...slow, faction: 'enemy' })).toEqual({});
     expect(stealBlockReason(slow, quick, stealRunOptions(runHolding([]), slow))).toBe(

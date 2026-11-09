@@ -514,7 +514,7 @@ function createBlessingRuntimeModifiers() {
     // Chronicle, Tithe Box, Lantern of the Road, Crest of the Road).
     ...earnedBoonModifierDefaults(),
     // The twisted earned blessings of engine/TwistedBoons.js (Darkened Dawn's faster Eclipse and
-    // its carry, Kingmaker's Oath and its ban on Master Seals, Hollow Sun's Favor's loot gold).
+    // its carry, Kingmaker's Oath and its ban on Sovereign Seals, Hollow Sun's Favor's loot gold).
     ...twistedBoonModifierDefaults(),
     // The act boss's trade cards of engine/TradeBoons.js (combat numbers, Move, the Levy's cut,
     // Featherweight, Gambler's Edge, Way of the Art, Collector's Eye, Chronicle, Kingmaker's terms).
@@ -992,7 +992,7 @@ export class RunManager {
     this.rngSeed = this.runSeed >>> 0;
     this.visionChargesRemaining = this.getBaseVisionCharges();
     this.visionCount = 0;
-    this.randomLegendary = generateRandomLegendary(this.gameData.weapons);
+    this.randomLegendary = generateRandomLegendary(this.gameData.weapons, this.gameData.skills);
     // A new run starts with no floor, before its first map can raise one (_buildActNodeMap).
     this.requiredCapabilityFloor = [];
     this.nodeMap = this._buildActNodeMap();
@@ -3139,7 +3139,7 @@ export class RunManager {
 
   /**
    * Build one starting lord. The commander slot carries the extra Steel-tier
-   * weapon, Deadly Arsenal loadout, Battle Trinket, and extra Vulnerary;
+   * weapon, Deadly Arsenal loadout, Battle Trinket, and extra Poultice;
    * Sera's healer kit (Staff proficiency + staff) travels with Sera herself,
    * whichever slot she occupies.
    */
@@ -3181,7 +3181,7 @@ export class RunManager {
       this._applyDeadlyArsenalLoadout(unit, primaryType);
     }
 
-    // The Vulnerary comes from the catalog, with the uses this run's Vulneraries have.
+    // The Poultice comes from the catalog, with the uses this run's Poultices have.
     const vulnerary = this.getConsumableTemplate(VULNERARY_NAME);
     if (vulnerary) {
       addToConsumables(unit, vulnerary);
@@ -4029,7 +4029,7 @@ export class RunManager {
   }
 
   /**
-   * The effects a Vulnerary is made under: the run's meta effects (snapshotted when the
+   * The effects a Poultice is made under: the run's meta effects (snapshotted when the
    * run started, saved with it), or a prologue run's authored `consumableEffects`
    * (the prologue applies no meta effects). One rule for every item the army acquires.
    */
@@ -5670,7 +5670,7 @@ export class RunManager {
     migrateSavedGamblerCoins(saved, gameData);
     // Per-battle weapons (Breachbolt) take the catalog's shot counts (same places).
     migrateSavedPerBattleWeapons(saved, gameData);
-    // Staves with a use rule of their own (the Warp Staff) take the catalog's (same places).
+    // Staves with a use rule of their own (the Fold Staff) take the catalog's (same places).
     migrateSavedStaffUseRules(saved, gameData);
     // Legendaries saved before the rework take its changes (Oathblade, Hermit's Bow).
     migrateSavedLegendaryRelics(saved);

@@ -1,5 +1,5 @@
-// Warp Staves in saved runs take the catalog's use rules (WeaponCatalogMigration.js).
-// Saves store whole items, so a Warp Staff saved before the nerf has no `useBonuses`
+// Fold Staves in saved runs take the catalog's use rules (WeaponCatalogMigration.js).
+// Saves store whole items, so a Fold Staff saved before the nerf has no `useBonuses`
 // or `maxUses` and would keep the shared +1 at MAG 8/14/20 with no cap. Ways the
 // migration can fail, each caught below:
 //   - a place in the save is not walked, so an old copy keeps 4 warps at MAG 20;
@@ -15,9 +15,9 @@ const gameData = loadGameData();
 const catalog = (name) => structuredClone(gameData.weapons.find((w) => w.name === name));
 const healer = (mag) => ({ stats: { MAG: mag } });
 
-/** A Warp Staff as a save from before the nerf held it. */
+/** A Fold Staff as a save from before the nerf held it. */
 function legacyWarp(extra = {}) {
-  const warp = { ...catalog('Warp Staff'), uid: 'itm_old', ...extra };
+  const warp = { ...catalog('Fold Staff'), uid: 'itm_old', ...extra };
   delete warp.useBonuses;
   delete warp.maxUses;
   return warp;
@@ -40,7 +40,7 @@ function legacySave() {
   return saved;
 }
 
-describe('RunManager.fromJSON on a save with a pre-nerf Warp Staff', () => {
+describe('RunManager.fromJSON on a save with a pre-nerf Fold Staff', () => {
   it('an old copy follows the new rule: 1 warp at MAG 14, 3 at most', () => {
     expect(getStaffMaxUses(legacyWarp(), healer(20))).toBe(4); // the bug, before loading
     const rm = RunManager.fromJSON(legacySave(), gameData);

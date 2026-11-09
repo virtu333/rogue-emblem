@@ -489,9 +489,9 @@ describe('recruit-node outfitting meta upgrades', () => {
     expect(unit.accessory).toBeNull();
   });
 
-  it('adds a Vulnerary when recruitStartingVulnerary is active', () => {
+  it('adds a Poultice when recruitStartingVulnerary is active', () => {
     const { unit } = build({ gameData: noLords, metaEffects: { recruitStartingVulnerary: true } });
-    expect(unit.consumables.some((c) => c.name === 'Vulnerary')).toBe(true);
+    expect(unit.consumables.some((c) => c.name === 'Poultice')).toBe(true);
   });
 });
 

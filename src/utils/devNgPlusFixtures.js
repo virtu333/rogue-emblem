@@ -97,7 +97,7 @@ export function devNgPlusRide(gameData) {
         ],
         kit([
           ['Steel Axe', 'itm_dev_ng_4'],
-          ['Vulnerary', 'itm_dev_ng_5'],
+          ['Poultice', 'itm_dev_ng_5'],
         ]),
       ),
       recruit(

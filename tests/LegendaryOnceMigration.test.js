@@ -24,12 +24,12 @@ const weapon = (name) => structuredClone(loadGameData().weapons.find((w) => w.na
 const reload = (run) =>
   RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), loadGameData());
 
-/** A run that held Ragnarok (convoy) and a Warp Staff (bag) when an older build saved it. */
+/** A run that held Ragnarok (convoy) and a Fold Staff (bag) when an older build saved it. */
 function oldSave() {
   const run = new RunManager(loadGameData());
   run.startRun();
   expect(run.addToConvoy(weapon('Ragnarok'))).toBe(true);
-  run.roster[0].inventory.push(weapon('Warp Staff'));
+  run.roster[0].inventory.push(weapon('Fold Staff'));
   const saved = JSON.parse(JSON.stringify(run.toJSON()));
   delete saved.legendaryGrants;
   return saved;
@@ -73,7 +73,7 @@ describe('legendary ledger on loading a save from before it', () => {
     expect(choices.some((c) => c.item?.name === 'Ragnarok')).toBe(false);
     // The staff was never adopted: it stays repeatable.
     expect(again.legendaryGrants).toEqual(['Ragnarok']);
-    expect(isDuplicateLegendary(again, weapon('Warp Staff'))).toBe(false);
+    expect(isDuplicateLegendary(again, weapon('Fold Staff'))).toBe(false);
   });
 
   it('records a forged, imbued copy under its catalog name', () => {

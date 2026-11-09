@@ -73,7 +73,7 @@ function unit(name, col, row, extra = {}) {
   };
 }
 const thiefAt = (col, row, extra = {}) => unit('Thief', col, row, { skills: ['steal'], ...extra });
-const carrier = (name, col, row, item = 'Vulnerary', extra = {}) =>
+const carrier = (name, col, row, item = 'Poultice', extra = {}) =>
   unit(name, col, row, {
     faction: 'enemy',
     carriedItem: { ...catalog(item), uid: `itm_${name}` },
@@ -122,7 +122,7 @@ describe('who can be robbed', () => {
 
   it('a downed carrier is not robbed', () => {
     const t = thiefAt(5, 5);
-    const down = carrier('Down', 6, 5, 'Vulnerary', { currentHP: 0 });
+    const down = carrier('Down', 6, 5, 'Poultice', { currentHP: 0 });
     expect(findStealTargets(t, ability, { enemies: [down], ...probe(run()) })).toEqual([]);
   });
 });
@@ -131,8 +131,8 @@ describe('speed: the thief must be at least as fast', () => {
   it('an equal attack speed is allowed, one slower is refused ("Too slow")', () => {
     const r = run();
     const t = thiefAt(5, 5); // SPD 9, no weapon: attack speed 9
-    const equal = carrier('Equal', 6, 5, 'Vulnerary', { stats: { ...STATS, SPD: 9 } });
-    const quicker = carrier('Quicker', 4, 5, 'Vulnerary', { stats: { ...STATS, SPD: 10 } });
+    const equal = carrier('Equal', 6, 5, 'Poultice', { stats: { ...STATS, SPD: 9 } });
+    const quicker = carrier('Quicker', 4, 5, 'Poultice', { stats: { ...STATS, SPD: 10 } });
     expect(stealSpeed(t)).toBe(9);
     expect(isFastEnoughToSteal(t, equal)).toBe(true);
     expect(isFastEnoughToSteal(t, quicker)).toBe(false);
@@ -149,14 +149,14 @@ describe('speed: the thief must be at least as fast', () => {
     // STR 4: floor(4 / 5) = 0 off the weight, so SPD 9 - 3 = 6.
     const heavy = thiefAt(5, 5, { weapon: sword, inventory: [sword] });
     expect(stealSpeed(heavy)).toBe(6);
-    const foe = carrier('Foe', 6, 5, 'Vulnerary', { stats: { ...STATS, SPD: 7 } }); // bare: 7
+    const foe = carrier('Foe', 6, 5, 'Poultice', { stats: { ...STATS, SPD: 7 } }); // bare: 7
     expect(stealBlockReason(heavy, foe, probe(r))).toBe(STEAL_REASONS.tooSlow);
     // STR 15: floor(15 / 5) = 3 off, so the sword weighs nothing: 9 against 7.
     const strong = thiefAt(5, 5, { weapon: sword, inventory: [sword], stats: { ...STATS, STR: 15 } }); // prettier-ignore
     expect(stealSpeed(strong)).toBe(9);
     expect(stealBlockReason(strong, foe, probe(r))).toBeNull();
     // The foe's weapon weighs on it too: SPD 7 - 3 = 4 loses to the heavy thief's 6.
-    const armed = carrier('Armed', 6, 5, 'Vulnerary', { stats: { ...STATS, SPD: 7 }, weapon: sword }); // prettier-ignore
+    const armed = carrier('Armed', 6, 5, 'Poultice', { stats: { ...STATS, SPD: 7 }, weapon: sword }); // prettier-ignore
     expect(stealSpeed(armed)).toBe(4);
     expect(stealBlockReason(heavy, armed, probe(r))).toBeNull();
   });
@@ -164,7 +164,7 @@ describe('speed: the thief must be at least as fast', () => {
   it('says "Too slow" when every adjacent carrier is faster, and settles nothing', () => {
     const r = run();
     const t = thiefAt(5, 5);
-    const quick = carrier('Quick', 6, 5, 'Vulnerary', { stats: { ...STATS, SPD: 12 } });
+    const quick = carrier('Quick', 6, 5, 'Poultice', { stats: { ...STATS, SPD: 12 } });
     const status = stealStatus(t, ability, { enemies: [quick], ...probe(r) });
     expect(status).toEqual({ targets: [], reason: STEAL_REASONS.tooSlow });
     expect(stealReasonLabel(status.reason)).toBe('Too slow');
@@ -241,8 +241,8 @@ describe('room: the bag, then the convoy, then a refusal', () => {
     const r = fillConvoy(run(), 'weapons');
     const bagFull = Array.from({ length: INVENTORY_MAX }, () => weapon('Iron Sword'));
     const t = thiefAt(5, 5, { inventory: bagFull });
-    // Full of swords but empty of consumables: a Vulnerary still fits the bag...
-    expect(stealDestination(t, catalog('Vulnerary'), probe(r))).toBe('bag');
+    // Full of swords but empty of consumables: a Poultice still fits the bag...
+    expect(stealDestination(t, catalog('Poultice'), probe(r))).toBe('bag');
     // ...and a sword goes nowhere, the weapon convoy being full too.
     expect(stealDestination(t, weapon('Steel Sword'), probe(r))).toBeNull();
   });
@@ -250,7 +250,7 @@ describe('room: the bag, then the convoy, then a refusal', () => {
   it('"too slow" wins over "full": the speed is the first word', () => {
     const r = fillConvoy(run());
     const t = thiefAt(5, 5, { consumables: [catalog('Herb'), catalog('Herb'), catalog('Herb')] });
-    const quick = carrier('Quick', 6, 5, 'Vulnerary', { stats: { ...STATS, SPD: 12 } });
+    const quick = carrier('Quick', 6, 5, 'Poultice', { stats: { ...STATS, SPD: 12 } });
     expect(stealBlockReason(t, quick, probe(r))).toBe(STEAL_REASONS.tooSlow);
     // With two foes, one too slow and one with no room, the picker names the room: the
     // player can do something about that.
@@ -306,7 +306,7 @@ describe('the transfer is one thing', () => {
   it('an item that had no uid gets one before it can reach the convoy', () => {
     const r = run();
     const t = thiefAt(5, 5, { consumables: [catalog('Herb'), catalog('Herb'), catalog('Herb')] });
-    const foe = unit('Foe', 6, 5, { faction: 'enemy', carriedItem: catalog('Vulnerary') });
+    const foe = unit('Foe', 6, 5, { faction: 'enemy', carriedItem: catalog('Poultice') });
     expect(foe.carriedItem.uid).toBeUndefined();
     const done = settleSteal(t, foe, { run: r });
     expect(done.uid).toMatch(/^itm_/);
@@ -329,18 +329,18 @@ describe('the transfer is one thing', () => {
   it("takes only the carried item: never an equipped weapon or the foe's other gear", () => {
     const t = thiefAt(5, 5);
     const sword = weapon('Iron Sword');
-    const foe = carrier('Foe', 6, 5, 'Vulnerary', {
+    const foe = carrier('Foe', 6, 5, 'Poultice', {
       weapon: sword,
       inventory: [sword],
       consumables: [catalog('Herb')],
-      accessory: { name: 'Boots', type: 'Accessory' },
+      accessory: { name: "Courier's Boots", type: 'Accessory' },
     });
     settleSteal(t, foe, { run: run() });
     expect(foe.weapon).toBe(sword);
     expect(foe.inventory).toEqual([sword]);
     expect(foe.consumables).toHaveLength(1);
-    expect(foe.accessory.name).toBe('Boots');
-    expect(t.consumables.map((i) => i.name)).toEqual(['Vulnerary']);
+    expect(foe.accessory.name).toBe("Courier's Boots");
+    expect(t.consumables.map((i) => i.name)).toEqual(['Poultice']);
   });
 
   it("the carried item is never in the foe's bag, so no other path finds it twice", () => {

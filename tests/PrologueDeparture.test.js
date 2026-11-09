@@ -60,10 +60,10 @@ describe('when the departure asks (pure)', () => {
     expect(unarmedDeparture(rm, node(rm, 'prologue_3'))).toBeNull();
   });
 
-  it('a weapon she cannot wield, or a staff or a Vulnerary, is still no weapon', () => {
+  it('a weapon she cannot wield, or a staff or a Poultice, is still no weapon', () => {
     const rm = atFork();
     tamsin(rm).inventory.push(weapon('Iron Lance'));
-    tamsin(rm).consumables = [structuredClone(data.consumables.find((c) => c.name === 'Vulnerary'))]; // prettier-ignore
+    tamsin(rm).consumables = [structuredClone(data.consumables.find((c) => c.name === 'Poultice'))]; // prettier-ignore
     expect(hasUsableWeapon(tamsin(rm))).toBe(false);
     expect(unarmedDeparture(rm, node(rm, 'prologue_3'))).toEqual({ unit: 'Tamsin' });
   });

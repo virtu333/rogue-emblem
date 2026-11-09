@@ -149,8 +149,8 @@ describe('a legendary is granted once a run', () => {
     expect(stock(['Test Blade'])).not.toContain('Test Blade');
   });
 
-  it('shops keep selling Warp Staff after one is owned', () => {
-    expect(stock(['Warp Staff'])).toContain('Warp Staff');
+  it('shops keep selling Fold Staff after one is owned', () => {
+    expect(stock(['Fold Staff'])).toContain('Fold Staff');
   });
 });
 
@@ -236,10 +236,10 @@ describe('save and resume', () => {
 describe('scope and old saves', () => {
   it('leaves Legend-tier staves repeatable', () => {
     const run = { roster: [], convoy: { weapons: [], consumables: [] } };
-    expect(recordLegendaryGrant(run, { name: 'Warp Staff', tier: 'Legend', type: 'Staff' })).toBe(
+    expect(recordLegendaryGrant(run, { name: 'Fold Staff', tier: 'Legend', type: 'Staff' })).toBe(
       false,
     );
-    run.convoy.weapons.push({ name: 'Fortify', tier: 'Legend', type: 'Staff' });
+    run.convoy.weapons.push({ name: 'Canticle', tier: 'Legend', type: 'Staff' });
     expect(ownedLegendaryNames(run).size).toBe(0);
   });
 
@@ -259,7 +259,7 @@ describe('scope and old saves', () => {
 
   it('a corrupt ledger entry excludes nothing outside the Legend catalog', () => {
     const names = legendaryExclusions(
-      ['Vulnerary', 'Iron Sword', 'Warp Staff', 'Ragnarok'],
+      ['Poultice', 'Iron Sword', 'Fold Staff', 'Ragnarok'],
       data.weapons,
     );
     expect([...names]).toEqual(['Ragnarok']);

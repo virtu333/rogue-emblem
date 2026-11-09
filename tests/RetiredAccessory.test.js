@@ -54,7 +54,7 @@ describe('retired accessories', () => {
       return view._getItemsForTab(tab).map((i) => i.name);
     };
     expect(items([])).not.toContain(NAME);
-    expect(items([])).toContain('Galeforce Charm'); // other accessories stay listed
+    expect(items([])).toContain('Onrush Charm'); // other accessories stay listed
     expect(items([NAME])).toContain(NAME);
   });
 });

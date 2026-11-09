@@ -566,7 +566,7 @@ export function sanitizeStartGift(raw) {
   };
 }
 
-/** What a taken gift handed out, as one phrase ("Power Ring · Vantage, Speed Ring"). */
+/** What a taken gift handed out, as one phrase ("Power Ring · Forestall, Speed Ring"). */
 export function giftGrantedText(record, skills = null) {
   return (Array.isArray(record?.granted) ? record.granted : [])
     .map((entry) => {

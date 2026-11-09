@@ -305,7 +305,7 @@ it('prioritizes recorded casualties, village rewards, and strike outcomes over m
   expect(eventTitle({ actorId: 'a', beats: [moved, attacked, hit] })).toBe(hit.label);
   const village = {
     type: 'visited the village',
-    label: 'Cinder visited the village · Village saved! +250g, Vulnerary sent to convoy.',
+    label: 'Cinder visited the village · Village saved! +250g, Poultice sent to convoy.',
   };
   expect(eventTitle({ actorId: 'a', beats: [moved, village] })).toBe(village.label);
 });

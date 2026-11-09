@@ -117,7 +117,7 @@ describe('recording', () => {
     expect(hero._battleDeeds.phaseAttacks).toBe(0);
   });
 
-  it('brink: wounded to 1 HP, or saved by Miracle; not merely standing at 1 HP', () => {
+  it('brink: wounded to 1 HP, or saved by Reprieve; not merely standing at 1 HP', () => {
     const wounded = unit({ currentHP: 1 });
     recordCombat({ events: [strike('attacker')] }, foe(), wounded, {});
     expect(wounded._battleDeeds.brink).toBe(1);
@@ -527,7 +527,7 @@ describe('the fallen', () => {
 
   it('records a player unit at death with its bags; normalizes garbage; replaces a repeat', () => {
     const sword = { name: 'Iron Sword', type: 'Sword', uid: 'w1', _strikes: 4, _kills: 1 };
-    const vulnerary = { name: 'Vulnerary', type: 'Consumable', uid: 'c1', uses: 1 };
+    const vulnerary = { name: 'Poultice', type: 'Consumable', uid: 'c1', uses: 1 };
     const fallen = unit({
       name: 'Bo',
       unitUid: 'u-bo',
@@ -573,7 +573,7 @@ describe('the fallen', () => {
       unitUid: 'u-bo',
       weapon: entrySword,
       inventory: [entrySword, { name: 'Iron Lance', type: 'Lance', uid: 'w3' }],
-      consumables: [{ name: 'Vulnerary', type: 'Consumable', uid: 'c1', uses: 3 }],
+      consumables: [{ name: 'Poultice', type: 'Consumable', uid: 'c1', uses: 3 }],
     };
     const record = {
       name: 'Bo',
@@ -585,7 +585,7 @@ describe('the fallen', () => {
           { ...entrySword, _strikes: 4 },
           { name: 'Iron Bow', type: 'Bow', uid: 'w2' },
         ],
-        consumables: [{ name: 'Vulnerary', type: 'Consumable', uid: 'c1', uses: 1 }],
+        consumables: [{ name: 'Poultice', type: 'Consumable', uid: 'c1', uses: 1 }],
         weapon: 1,
       },
     };

@@ -1,7 +1,7 @@
 // A promotion that swears an Oath and opens a weapon type, for a unit whose five skill slots
 // and five-weapon bag are already full: the Oath takes its own slot (#382) and the new type's
 // Iron weapon goes to the convoy (#381), on every promotion path (church altar, the roster's
-// Master Seal, a battle's Master Seal), and through every way back into the run (save and
+// Sovereign Seal, a battle's Sovereign Seal), and through every way back into the run (save and
 // load, Resume Battle, a Vision rewind, Continue from Map). Nothing is lost, and nothing is
 // duplicated: one Oath, one Iron Sword.
 //
@@ -15,7 +15,7 @@
 //
 // Expected values are read from the rules, not the code: Aldo is a Cavalier (Lances) who
 // promotes to Paladin (Lances, Swords), so the one grant is the Iron Sword; his deed (three
-// enemy phases held on a bridge) swears Oath of the Bridge, Pavise.
+// enemy phases held on a bridge) swears Oath of the Bridge, Shieldwall.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
 
@@ -141,12 +141,12 @@ describe('between battles', () => {
     const res = promoteAtChurch(run, unit, 'c1', paladin(unit), data);
     expect(res.ok).toBe(true);
     expectPromoted(unit, run, swords);
-    expect(res.message).toContain('Oath of the Bridge: learned Pavise.');
+    expect(res.message).toContain('Oath of the Bridge: learned Shieldwall.');
     expect(res.message).toContain('Bag full: Iron Sword sent to the convoy.');
     expectSurvivesReload(run, swords);
   });
 
-  it("the roster's Master Seal: the same, and the seal spent once", () => {
+  it("the roster's Sovereign Seal: the same, and the seal spent once", () => {
     const unit = aldo();
     const seal = masterSeal();
     unit.consumables = [seal];
@@ -238,7 +238,7 @@ const promoteInBattle = async ({ scene }) => {
 };
 const stored = (storage) => JSON.parse(storage.getItem('emblem_rogue_slot_1_run'));
 
-describe("a battle's Master Seal", () => {
+describe("a battle's Sovereign Seal", () => {
   it('promotes as the altar does; the checkpoint holds the Oath in its slot and the sword in the convoy', async () => {
     const ctx = battle();
     const unit = await promoteInBattle(ctx);

@@ -25,7 +25,7 @@ export function rosterClassChangeBlock(run, unit, item, gameData) {
   // A seal works from the unit's bag or straight from the convoy.
   if (!consumableSource(run, unit, item) || !((item.uses ?? 1) > 0))
     return 'Seal is no longer available.';
-  // Kingmaker's Oath: no Master Seal in this run (a reclass seal still works). The run's ban is
+  // Kingmaker's Oath: no Sovereign Seal in this run (a reclass seal still works). The run's ban is
   // read first: it holds for every unit, whoever this one is.
   const banned = classChangeItemBlock(run, item);
   if (banned) return banned;
@@ -148,7 +148,7 @@ function promote(run, unit, item, promotedClassData, gameData) {
   );
   notices.push(...classChangeGrantNotices(grants));
 
-  // Consume the Master Seal
+  // Consume the Sovereign Seal
   spendConsumableUse(run, unit, item);
 
   return { ok: true, notices, droppedSkills, oath };

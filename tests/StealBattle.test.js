@@ -42,7 +42,7 @@ function unit(name, col, row, extra = {}) {
     ...extra,
   };
 }
-const carrier = (name, col, row, item = 'Vulnerary', extra = {}) =>
+const carrier = (name, col, row, item = 'Poultice', extra = {}) =>
   unit(name, col, row, {
     faction: 'enemy',
     carriedItem: { ...catalog(item), uid: `itm_${name}` },
@@ -110,7 +110,7 @@ describe('the Steal row', () => {
 
   it('says "Too slow" beside a faster carrier, and "No valid targets" beside nothing', () => {
     const t = unit('Thief', 5, 5, { skills: ['steal'] });
-    const quick = carrier('Quick', 6, 5, 'Vulnerary', { stats: { ...t.stats, SPD: 12 } });
+    const quick = carrier('Quick', 6, 5, 'Poultice', { stats: { ...t.stats, SPD: 12 } });
     const scene = sceneWith({ players: [t], enemies: [quick], run: new RunManager(gameData) });
     expect(entryOf(scene, t)[1]).toBe('Unlimited uses · Too slow');
     scene.enemyUnits = [];
@@ -178,7 +178,7 @@ describe('Steal in the battle scene', () => {
     expect(scene.finishUnitAction).toHaveBeenCalledWith(t, { session: 1 });
     // The carrier's sack pip is redrawn without the sack, and the thief is told.
     expect(scene.updateAffixPips).toHaveBeenCalledWith(brigand);
-    expect(scene.showMinorHintAt.mock.calls.map((c) => c[2])).toEqual(['Stole Vulnerary']);
+    expect(scene.showMinorHintAt.mock.calls.map((c) => c[2])).toEqual(['Stole Poultice']);
     expect(t._battleAbilityUsage).toBeUndefined(); // no per-battle limit
   });
 
@@ -190,7 +190,7 @@ describe('Steal in the battle scene', () => {
     expect(run.convoy.consumables.map((i) => i.uid)).toEqual(['itm_Brigand']);
     expect(t.consumables).toHaveLength(3);
     expect(brigand.carriedItem).toBeUndefined();
-    expect(scene.showMinorHintAt.mock.calls.map((c) => c[2])).toEqual(['Stole Vulnerary (convoy)']);
+    expect(scene.showMinorHintAt.mock.calls.map((c) => c[2])).toEqual(['Stole Poultice (convoy)']);
   });
 
   it('a tap that is stale by then (the bag and convoy filled) says why and changes nothing', async () => {
@@ -250,13 +250,13 @@ describe('Steal in the battle scene', () => {
 });
 
 describe('what a carrier shows', () => {
-  it('"Carrying: Vulnerary"; a Gold Pouch adds its gold; a unit with nothing shows nothing', () => {
-    expect(carriedItemInfo(carrier('A', 1, 1))).toMatchObject({ text: 'Carrying: Vulnerary' });
+  it('"Carrying: Poultice"; a Gold Pouch adds its gold; a unit with nothing shows nothing', () => {
+    expect(carriedItemInfo(carrier('A', 1, 1))).toMatchObject({ text: 'Carrying: Poultice' });
     const pouch = unit('B', 1, 1, { faction: 'enemy', carriedItem: makeGoldPouch(catalog('Gold Pouch'), 500) }); // prettier-ignore
     expect(carriedItemInfo(pouch).text).toBe('Carrying: Gold Pouch (500 G)');
     expect(carriedItemInfo(unit('C', 1, 1, { faction: 'enemy' }))).toBeNull();
     // Only a foe wears it: the same field on a player unit reads as nothing.
-    expect(carriedItemInfo(unit('D', 1, 1, { carriedItem: catalog('Vulnerary') }))).toBeNull();
+    expect(carriedItemInfo(unit('D', 1, 1, { carriedItem: catalog('Poultice') }))).toBeNull();
   });
 
   it('the detail overlay, the inspection panel and the phone HUD all read the same line', () => {
@@ -327,7 +327,7 @@ describe('the fog', () => {
       });
       return scene;
     };
-    const foe = carrier('Foe', 6, 0, 'Vulnerary', { affixes: [gameData.affixes.affixes[0].id] });
+    const foe = carrier('Foe', 6, 0, 'Poultice', { affixes: [gameData.affixes.affixes[0].id] });
     drawn.length = 0;
     const seen = build(new Set());
     seen.updateAffixPips.call(seen, foe);

@@ -25,7 +25,7 @@ const SIZES = [
 ];
 
 /**
- * A signed contract (reward: a Vulnerary), every consumable bag and the convoy full of one-use Elixirs,
+ * A signed contract (reward: a Poultice), every consumable bag and the convoy full of one-use Elixirs,
  * Edric wounded (so an Elixir can be used to make room), the next battle won in the engine's own victory
  * commit and saved, then the scene rebuilt from the slot, as a refresh does.
  */
@@ -37,7 +37,7 @@ async function wonWithFullArmy(page) {
     const run = s.runManager;
     run.contract = normalizeContract({
       goal: 'underPar',
-      reward: [{ type: 'item', name: 'Vulnerary' }],
+      reward: [{ type: 'item', name: 'Poultice' }],
       penalty: [],
       eventId: 'mercenary_contract',
       nodeId: 'dev-contract',
@@ -53,8 +53,8 @@ async function wonWithFullArmy(page) {
     const battle = run.nodeMap.nodes.find((n) => n.type === 'battle' && !n.completed);
     run.currentNodeId = battle.id;
     const have = () =>
-      run.roster.flatMap((u) => u.consumables).filter((i) => i.name === 'Vulnerary').length +
-      run.convoy.consumables.filter((i) => i.name === 'Vulnerary').length;
+      run.roster.flatMap((u) => u.consumables).filter((i) => i.name === 'Poultice').length +
+      run.convoy.consumables.filter((i) => i.name === 'Poultice').length;
     const vulneraries = have(); // the starting kit already carries some
     run.completeBattle(run.getRoster(), battle.id, 100, { turnCount: 1, turnPar: 5 });
     s.registry.set('activeSlot', 1);
@@ -64,15 +64,15 @@ async function wonWithFullArmy(page) {
   });
 }
 
-/** The run's contract state and how many Vulneraries the army carries, live and as saved in slot 1. */
+/** The run's contract state and how many Poultices the army carries, live and as saved in slot 1. */
 const state = (page, battleId) =>
   page.evaluate(async (id) => {
     const s = window.__emblemRogueGame.scene.getScene('NodeMap');
     const { loadRun } = await import('/src/engine/RunManager.js');
     const read = (run) => {
       const vulneraries =
-        run.roster.flatMap((u) => u.consumables).filter((i) => i.name === 'Vulnerary').length +
-        run.convoy.consumables.filter((i) => i.name === 'Vulnerary').length;
+        run.roster.flatMap((u) => u.consumables).filter((i) => i.name === 'Poultice').length +
+        run.convoy.consumables.filter((i) => i.name === 'Poultice').length;
       return {
         owed: run.contractOwed
           ? { kept: run.contractOwed.kept, blocked: run.contractOwed.blocked }
@@ -115,7 +115,7 @@ for (const size of SIZES) {
       // The map holds the party at the battle node and opens the page by itself.
       await expect(dialog).toBeVisible();
       await expect(dialog.locator('.ev-failed')).toContainText('The reward is waiting.');
-      await expect(dialog.locator('.ev-failed')).toContainText('No room for Vulnerary');
+      await expect(dialog.locator('.ev-failed')).toContainText('No room for Poultice');
       for (const name of ['Claim', 'Back to map', 'Give up the reward', 'Roster'])
         await expect(actions(dialog).getByRole('button', { name, exact: true })).toBeVisible();
       await expect(
@@ -124,13 +124,13 @@ for (const size of SIZES) {
       await expectFits(page, '.ev-menu');
       await page.screenshot({ path: info.outputPath('contract-owed.png') });
       expect(await state(page, battleId)).toMatchObject({
-        live: { owed: { kept: true, blocked: 'No room for Vulnerary' }, open: null, held: true },
+        live: { owed: { kept: true, blocked: 'No room for Poultice' }, open: null, held: true },
         saved: { owed: { kept: true }, held: true },
       });
 
       // Claim with no room: it says so, and everything is still owed.
       await actions(dialog).getByRole('button', { name: 'Claim', exact: true }).click();
-      await expect(dialog).toContainText('Still waiting: No room for Vulnerary');
+      await expect(dialog).toContainText('Still waiting: No room for Poultice');
       expect((await state(page, battleId)).saved.vulneraries).toBe(vulneraries);
 
       // Back to map: no trap, still owed; the held node's card and the chip reopen the page.
@@ -179,7 +179,7 @@ for (const size of SIZES) {
 
       // Claim: the reward arrives, once; the page says what came, and saved.
       await actions(dialog).getByRole('button', { name: 'Claim', exact: true }).click();
-      await expect(dialog.locator('.ev-result[data-kind="item"]')).toContainText('Vulnerary');
+      await expect(dialog.locator('.ev-result[data-kind="item"]')).toContainText('Poultice');
       await expect(dialog).toContainText('The reward arrived.');
       expect(await state(page, battleId)).toMatchObject({
         live: { owed: null, vulneraries: vulneraries + 1 },

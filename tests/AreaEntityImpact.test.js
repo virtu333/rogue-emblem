@@ -91,7 +91,7 @@ function strike(attacker, defender, artId, units) {
 //   Cataclysm (Ruin, range 1): STR 20 + Mt 14 + art Atk 5 - DEF 4 = 35; row 1 ×0.75 = 26,
 //     row 2 ×0.5 = 17.
 //   Fan Shot (Hermit's Bow, range 1-2): STR 15 + Mt 11 - DEF 2 = 24; ×0.7 = 16.
-//   Burning Quake (Fire, range 1-2, a radius 1): MAG 20 + Mt 4 - RES 0 = 24; ×0.6 = 14.
+//   Cinder Quake (Fire, range 1-2, a radius 1): MAG 20 + Mt 4 - RES 0 = 24; ×0.6 = 14.
 const ARTS = {
   cataclysm: {
     id: 'legend_annihilate',
@@ -139,7 +139,7 @@ const SCENARIOS = [
   // neighbours are (6,8) and (8,6). The anchor's distance-6 ring would take (4,6), (6,4).
   ['fan', 'south-east (range 2)', [8, 8], { '6,8': 16, '8,6': 16 }, ['4,6', '6,4']],
 
-  // Burning Quake: radius 1 round the struck tile (body tiles and the attacker drop out).
+  // Cinder Quake: radius 1 round the struck tile (body tiles and the attacker drop out).
   // The anchor's radius would take (5,4) and (4,5).
   ['quake', 'east', [8, 7], { '7,8': 14 }, ['5,4', '4,5']],
   ['quake', 'south', [7, 8], { '8,7': 14 }, ['5,4', '4,5']],

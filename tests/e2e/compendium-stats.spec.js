@@ -29,7 +29,7 @@ test('Stats reference filters, search and long details work on a small phone', a
   await dialog.getByRole('button', { name: 'Scroll details down', exact: true }).tap();
   await expect(dialog.getByText(/When extended leveling is enabled/)).toBeInViewport();
   await page.screenshot({ path: info.outputPath('stats-small-phone.png') });
-  await dialog.getByRole('searchbox').fill('Master Seal');
+  await dialog.getByRole('searchbox').fill('Sovereign Seal');
   await expect(dialog.getByRole('button', { name: /Promotion Growth/ })).toBeVisible();
   await page.keyboard.press('Escape');
   expect(errors).toEqual([]);

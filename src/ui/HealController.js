@@ -203,7 +203,7 @@ export class HealController {
       return;
     }
 
-    // Fortify: auto-heal all targets, no selection needed
+    // Canticle: auto-heal all targets, no selection needed
     if (staff.healAll) {
       scene.executeHealAll(unit, targets);
       return;
@@ -483,7 +483,7 @@ export class HealController {
   _executeHealing(healer, targets, all) {
     const scene = this.scene;
     const staff = healer?.weapon;
-    // Fortify's supplied list can contain a full-health ally; recompute the
+    // Canticle's supplied list can contain a full-health ally; recompute the
     // same menu targets and settle only the still-mendable supplied allies.
     let selected;
     return this._runStaff(healer, all ? 'healAll' : 'heal', {

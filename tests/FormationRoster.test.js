@@ -234,8 +234,8 @@ describe('FormationRoster: closing', () => {
     const { scene, units } = formationScene(entered);
     const { rm } = entered;
     openFormationRoster(scene);
-    // In the sheet: Edric takes a Vulnerary from the convoy.
-    const vuln = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
+    // In the sheet: Edric takes a Poultice from the convoy.
+    const vuln = structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'));
     vuln.uid = 'itm_test_convoy';
     rm.convoy.consumables = [];
     const lord = rm.roster.find((u) => u.unitUid === units[0].unitUid);
@@ -273,13 +273,13 @@ describe('FormationRoster: closing', () => {
 
   it('an edit made there is never half-undone by Continue from Map', () => {
     // Failure: the battle flag kept its entry convoy across the edit, so the app closed
-    // with the sheet open and Continue from Map put the Vulnerary back in the convoy
+    // with the sheet open and Continue from Map put the Poultice back in the convoy
     // while Edric still held it (a copy), or the re-entered battle did the same.
     for (const reenter of [false, true]) {
       const entered = enteredRun();
       const { scene } = formationScene(entered);
       const { rm, nodeId } = entered;
-      const vuln = structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'));
+      const vuln = structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'));
       vuln.uid = 'itm_dup_probe';
       rm.convoy.consumables.push(vuln);
       rm.beginBattleInProgress(nodeId, { battleParams: { act: 'act1' } }); // entered with it
@@ -847,7 +847,7 @@ describe('RunManager.revertBattleInProgressToEntryUndoable', () => {
     rm.rewardRerollsSpent = 1;
     rm.prologueVisionGranted = true;
     rm.gold += 250;
-    rm.convoy = { weapons: [], consumables: [{ name: 'Vulnerary', uid: 'itm_mid' }] };
+    rm.convoy = { weapons: [], consumables: [{ name: 'Poultice', uid: 'itm_mid' }] };
     rm.accessories = [{ name: 'Power Ring', uid: 'itm_ring' }];
     const before = JSON.stringify(rm.toJSON());
     const flag = rm.battleInProgress;
@@ -866,7 +866,7 @@ describe('RunManager.revertBattleInProgressToEntryUndoable', () => {
     const { rm } = enteredRun();
     rm.battleInProgress.entryBattleState = null; // a pre-v2 flag
     rm.battleInProgress.checkpoint = { villageState: { rewardItemUid: 'itm_village' } };
-    rm.convoy.consumables.push({ name: 'Vulnerary', uid: 'itm_village' });
+    rm.convoy.consumables.push({ name: 'Poultice', uid: 'itm_village' });
     const before = JSON.stringify(rm.toJSON());
     const undo = rm.revertBattleInProgressToEntryUndoable();
     expect(rm.convoy.consumables.some((i) => i.uid === 'itm_village')).toBe(false);

@@ -107,7 +107,7 @@ describe('selling and the catalog', () => {
     expect(isGoldPouch(big)).toBe(true);
     expect(isGoldPouch({ ...big, type: 'Sword' })).toBe(false);
     expect(goldPouchValue(big)).toBe(800);
-    expect(goldPouchValue({ name: 'Vulnerary', effect: 'heal', value: 10, type: 'Consumable' })).toBe(0); // prettier-ignore
+    expect(goldPouchValue({ name: 'Poultice', effect: 'heal', value: 10, type: 'Consumable' })).toBe(0); // prettier-ignore
   });
 
   it('says what it is worth', () => {

@@ -227,7 +227,7 @@ describe('HealController applies the fixed resolver on every path', () => {
   });
 
   it('heal-all: every target resolves with the multiplier before the cap, one use total', async () => {
-    const staff = structuredClone(data.weapons.find((w) => w.name === 'Fortify'));
+    const staff = structuredClone(data.weapons.find((w) => w.name === 'Canticle'));
     const sera = healer(staff); // MAG 5 + 5 = 10 raw, 8 effective
     sera.proficiencies = [{ type: 'Staff', rank: 'Mast' }];
     const allies = [target(29), target(25, 30, { row: 2 }), target(10, 30, { col: 1, row: 3 })];

@@ -753,14 +753,14 @@ export function driver(page, { touch = false } = {}) {
       await d.select(name);
       let p = await d.plan(name, opts);
       await d.trace(`${name} ${JSON.stringify(p)}`);
-      // Hurt (half HP or less) with a Vulnerary in the bag and no sure kill: step to the
-      // safest useful tile and drink it (Item → Vulnerary), as P1's tip teaches.
+      // Hurt (half HP or less) with a Poultice in the bag and no sure kill: step to the
+      // safest useful tile and drink it (Item → Poultice), as P1's tip teaches.
       const drink = await page.evaluate(
         ([n, below]) => {
           const u = window.__emblemRogueGame.scene.getScene('Battle').playerUnits.find((x) => x.name === n); // prettier-ignore
           return (
             u.currentHP <= u.stats.HP * below &&
-            (u.consumables || []).some((c) => c.name === 'Vulnerary' && !(c.uses <= 0))
+            (u.consumables || []).some((c) => c.name === 'Poultice' && !(c.uses <= 0))
           );
         },
         [name, opts.drinkBelow ?? 0.5],
@@ -769,7 +769,7 @@ export function driver(page, { touch = false } = {}) {
         p = await d.plan(name, { ...opts, attack: false, caution: 3 });
         await d.moveSelected(p.to.col, p.to.row);
         await d.menu('Item');
-        await d.menu(/^Vulnerary/);
+        await d.menu(/^Poultice/);
         await d.acted(name);
         return { ...p, kind: 'drink' };
       }

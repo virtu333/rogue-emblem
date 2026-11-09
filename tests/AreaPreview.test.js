@@ -69,7 +69,7 @@ const visible = (p) => ({
 });
 
 describe('area preview numbers', () => {
-  it('a Burning Quake preview names each known foe with its blow and KO', () => {
+  it('a Cinder Quake preview names each known foe with its blow and KO', () => {
     // Fire 4 + MAG 20 − RES 4 = 20, × 0.6 = 12: the 10-HP foe falls, the 30-HP one takes 12.
     const mage = unit('Mage', 'player', 1, 1, { MAG: 20 }, { weapon: weapon('Fire') });
     const target = unit('Target', 'enemy', 2, 1, { RES: 4 });

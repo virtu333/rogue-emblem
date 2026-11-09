@@ -75,7 +75,7 @@ describe('Combat UI Stats Logic', () => {
     expect(stats.atk).toBe(15);
   });
 
-  it('forecast AS includes situational speed bonuses (e.g. Darting Blow)', () => {
+  it('forecast AS includes situational speed bonuses (e.g. Quickstep)', () => {
     const weapon = {
       type: 'Sword',
       range: '1',

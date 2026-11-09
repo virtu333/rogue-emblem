@@ -10,7 +10,7 @@
 //   - a reroll after a pick, past the last charge, on authored loot or in the prologue
 //   - a reroll that touches the gold already earned (vault, skip figure, summary)
 //   - a reroll that draws with other parameters than the first draw (count, the
-//     Vulnerary bundle, the late-pressure gold multiplier, accessory skills)
+//     Poultice bundle, the late-pressure gold multiplier, accessory skills)
 //   - the spent count lost or invented by a save/load, or an old save reading garbage
 //   - a failed save that keeps the new choices or the spent charge in memory
 //   - the button shown to a player without the upgrade, or enabled when it must not be
@@ -240,7 +240,7 @@ describe('a reroll', () => {
     expect(rerollBattleReward(run, data).ok).toBe(false);
   });
 
-  it('draws with the first draw’s parameters: the Vulnerary bundle and the pressure gold multiplier', () => {
+  it('draws with the first draw’s parameters: the Poultice bundle and the pressure gold multiplier', () => {
     const gameData = onlyCategories(['healing', 'gold']);
     const run = makeRun(2, gameData);
     const pressure = { goldMultiplier: 0.5 };
@@ -265,10 +265,10 @@ describe('a reroll', () => {
         { lootCategoryWeightBonuses: run.metaEffects.lootCategoryWeightBonuses },
       ),
     );
-    expect(raw.some((c) => c.item?.name === 'Vulnerary')).toBe(true);
+    expect(raw.some((c) => c.item?.name === 'Poultice')).toBe(true);
     expect(raw.some((c) => c.type === 'gold')).toBe(true);
     const expected = raw.map((c) =>
-      c.item?.name === 'Vulnerary'
+      c.item?.name === 'Poultice'
         ? { ...c, quantity: 2 }
         : c.type === 'gold'
           ? { ...c, goldAmount: Math.floor(c.goldAmount * 0.5) }

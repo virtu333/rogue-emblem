@@ -278,14 +278,14 @@ describe('item', () => {
     );
   });
 
-  it('a named consumable is delivered as the run acquires it (a Vulnerary has 2 uses)', () => {
-    const { run, result } = play([{ type: 'item', name: 'Vulnerary', to: 'target' }], {
+  it('a named consumable is delivered as the run acquires it (a Poultice has 2 uses)', () => {
+    const { run, result } = play([{ type: 'item', name: 'Poultice', to: 'target' }], {
       ...withTarget,
       targetName: 'Edric',
     });
     expect(result.ok).toBe(true);
     const bag = run.roster.find((u) => u.name === 'Edric').consumables;
-    expect(bag.at(-1)).toMatchObject({ name: 'Vulnerary', uses: 2 });
+    expect(bag.at(-1)).toMatchObject({ name: 'Poultice', uses: 2 });
   });
 
   it('wear: n steps are applied to wearable stats and the weapon says so', () => {
@@ -333,9 +333,9 @@ describe('item', () => {
     // Both bag kinds and both convoy compartments full: the same answer.
     for (const unit of run.roster)
       while (unit.consumables.length < 3)
-        unit.consumables.push(run.getConsumableTemplate('Vulnerary'));
+        unit.consumables.push(run.getConsumableTemplate('Poultice'));
     run.convoy.consumables = Array.from({ length: caps.consumables }, () =>
-      run.getConsumableTemplate('Vulnerary'),
+      run.getConsumableTemplate('Poultice'),
     );
     expect(eventChoiceBlock(run, node.id, 'go')).toBe(WEAPON_LINE);
     // One free place in the weapon convoy and the choice is open again.
@@ -855,10 +855,10 @@ describe('layToRest', () => {
 });
 
 describe('consume', () => {
-  const vuln = (run, uses) => ({ ...run.getConsumableTemplate('Vulnerary'), uses });
+  const vuln = (run, uses) => ({ ...run.getConsumableTemplate('Poultice'), uses });
   const consumeEvent = () =>
-    soloEvent([{ type: 'consume', name: 'Vulnerary', uses: 1 }], {
-      choice: { requires: { consumable: 'Vulnerary' } },
+    soloEvent([{ type: 'consume', name: 'Poultice', uses: 1 }], {
+      choice: { requires: { consumable: 'Poultice' } },
     });
 
   it('spends a use from the healthiest holder (highest HP ratio), not the one who needs it', () => {
@@ -871,7 +871,7 @@ describe('consume', () => {
     const result = chooseEventOption(run, node.id, 'go');
     expect(result.results[0]).toEqual({
       kind: 'consume',
-      name: 'Vulnerary',
+      name: 'Poultice',
       uses: 1,
       holder: 'Edric',
     });
@@ -914,7 +914,7 @@ describe('consume', () => {
     for (const unit of run.roster) unit.consumables = [];
     run.convoy.consumables = [];
     const node = arriveAs(run, 'solo');
-    expect(eventChoiceBlock(run, node.id, 'go')).toBe('You have no Vulnerary to spare.');
+    expect(eventChoiceBlock(run, node.id, 'go')).toBe('You have no Poultice to spare.');
   });
 });
 
@@ -1019,7 +1019,7 @@ describe('plan, then apply', () => {
     const run = runWithEvents([
       soloEvent(
         [
-          { type: 'item', name: 'Vulnerary', to: 'target' },
+          { type: 'item', name: 'Poultice', to: 'target' },
           {
             type: 'item',
             pool: { kind: 'weapon', weaponTypes: '$army', tierOffset: 0 },

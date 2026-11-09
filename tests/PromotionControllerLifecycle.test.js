@@ -163,7 +163,7 @@ it('a full bag sends the starter weapon to the run convoy, and the banner says s
   );
 });
 
-it('Gaspar refuses a Master Seal through the scene flow without spending item or action', async () => {
+it('Gaspar refuses a Sovereign Seal through the scene flow without spending item or action', async () => {
   const { scene, seal, controller } = fixture();
   const { loadGameData } = await import('./testData.js');
   const { readFileSync } = await import('node:fs');

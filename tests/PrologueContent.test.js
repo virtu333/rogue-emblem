@@ -93,9 +93,9 @@ describe('prologue copy', () => {
       terrain: { name: 'Fort', defBonus: 2, avoidBonus: 20 },
     });
     expect(fort).toContain('Fort tile reached — Defense +2, Avoid +20.');
-    const vulnerary = data.consumables.find((c) => c.name === 'Vulnerary');
+    const vulnerary = data.consumables.find((c) => c.name === 'Poultice');
     expect(prologueNoteText('battle_consumable_supply', { consumable: vulnerary })).toContain(
-      `Vulnerary heals ${vulnerary.value} HP`,
+      `Poultice heals ${vulnerary.value} HP`,
     );
     expect(prologueNoteText('nope')).toBe('');
     expect(prologueNudgeText('gate_select', { lord: 'Kira' })).toBe('Select Kira first.');

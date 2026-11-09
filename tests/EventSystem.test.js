@@ -6,7 +6,7 @@
 //     the run seed, the node and what is eligible), or follows catalog order, or ignores
 //     weights, or reads Math.random;
 //   - a gate lets an event through that the run cannot play (no fallen ally for the Echo, no
-//     Vulnerary for the courier, too little gold, the wrong rung/phase/act), or blocks one it
+//     Poultice for the courier, too little gold, the wrong rung/phase/act), or blocks one it
 //     should allow;
 //   - an event repeats within a run, or the fallback is ever used up;
 //   - the outcome roll uses the wrong seed or key, weightByRung stops at the exact rung (Black
@@ -274,19 +274,19 @@ describe('eligibility gates (each key, positive and negative)', () => {
     expect(gate(run, { fallen: true })).toBe('');
   });
 
-  it('consumable needs a Vulnerary with a use left, in a bag or the convoy', () => {
+  it('consumable needs a Poultice with a use left, in a bag or the convoy', () => {
     const run = newRun();
     for (const unit of run.roster) unit.consumables = [];
     run.convoy.consumables = [];
-    expect(gate(run, { consumable: 'Vulnerary' })).not.toBe('');
+    expect(gate(run, { consumable: 'Poultice' })).not.toBe('');
     const gaspar = run.roster.find((u) => u.name === 'Gaspar');
-    gaspar.consumables = [{ ...run.getConsumableTemplate('Vulnerary'), uses: 0 }];
-    expect(gate(run, { consumable: 'Vulnerary' })).not.toBe('');
-    gaspar.consumables = [{ ...run.getConsumableTemplate('Vulnerary'), uses: 1 }];
-    expect(gate(run, { consumable: 'Vulnerary' })).toBe('');
+    gaspar.consumables = [{ ...run.getConsumableTemplate('Poultice'), uses: 0 }];
+    expect(gate(run, { consumable: 'Poultice' })).not.toBe('');
+    gaspar.consumables = [{ ...run.getConsumableTemplate('Poultice'), uses: 1 }];
+    expect(gate(run, { consumable: 'Poultice' })).toBe('');
     gaspar.consumables = [];
-    run.convoy.consumables = [run.getConsumableTemplate('Vulnerary')];
-    expect(gate(run, { consumable: 'Vulnerary' })).toBe('');
+    run.convoy.consumables = [run.getConsumableTemplate('Poultice')];
+    expect(gate(run, { consumable: 'Poultice' })).toBe('');
   });
 
   it('flag, notFlag, notBurden', () => {
@@ -321,7 +321,7 @@ describe('eligibility gates (each key, positive and negative)', () => {
     const run = newRun();
     for (const unit of run.roster) unit.consumables = [];
     run.convoy.consumables = [];
-    // act1, no fallen, no Vulnerary, no debt:
+    // act1, no fallen, no Poultice, no debt:
     const eligible = ids(eligibleEvents(run, eventNode(run), catalogOf(run)));
     expect(eligible).not.toContain('the_echo');
     expect(eligible).toContain('moneylender');

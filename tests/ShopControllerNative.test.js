@@ -82,7 +82,7 @@ it.each(['weapon', 'consumable'])(
     const menu = d.shop.nativeMenu,
       unit = d.run.roster[0];
     const item = structuredClone(
-      type === 'weapon' ? unit.weapon : d.data.consumables.find((i) => i.name === 'Vulnerary'),
+      type === 'weapon' ? unit.weapon : d.data.consumables.find((i) => i.name === 'Poultice'),
     );
     const field = type === 'weapon' ? 'inventory' : 'consumables';
     unit[field] = Array.from({ length: type === 'weapon' ? 5 : 3 }, () => structuredClone(item));
@@ -187,7 +187,7 @@ it('ruins stock, prices and visit limits survive leave, reload and re-entry', ()
 });
 
 it('shop scroll headers do not imply a weapon rank requirement', () => {
-  const item = structuredClone(d.data.weapons.find((i) => i.name === 'Sol Scroll'));
+  const item = structuredClone(d.data.weapons.find((i) => i.name === 'Reclaim Scroll'));
   expect(item.rankRequired).toBe('Prof');
   d.scene.shopBuyItems = [{ type: 'scroll', item, price: 100 }];
   d.shop.nativeMenu.render();
@@ -195,7 +195,7 @@ it('shop scroll headers do not imply a weapon rank requirement', () => {
     .all()
     .map((n) => n.textContent)
     .join(' ');
-  expect(text).toContain('Sol Scroll');
+  expect(text).toContain('Reclaim Scroll');
   expect(text).not.toContain('Requires Prof');
   expect(text).not.toMatch(/Needs (Scroll )?(proficiency|Master rank)/);
 });
@@ -375,12 +375,12 @@ it('the last weapon of a type is a muted note in the sell pane; the last weapon 
   expect(notes(sword)).toEqual([['Leaves Edric unarmed.', 'warn']]);
 });
 
-// Review (blessings v3 D3): under Kingmaker's Oath a Master Seal is still sold (the twist is
+// Review (blessings v3 D3): under Kingmaker's Oath a Sovereign Seal is still sold (the twist is
 // taken knowingly) but its row says it can't be used; a reclass seal reads as ever.
-it("a Master Seal's buy row says it can't be used while Kingmaker's Oath is held", () => {
+it("a Sovereign Seal's buy row says it can't be used while Kingmaker's Oath is held", () => {
   const menu = d.shop.nativeMenu;
   const template = (name) => structuredClone(d.data.consumables.find((c) => c.name === name));
-  const entries = ['Master Seal', 'Infantry Seal'].map((name) => ({
+  const entries = ['Sovereign Seal', 'Infantry Seal'].map((name) => ({
     type: 'consumable',
     item: template(name),
     price: 100,
@@ -398,13 +398,13 @@ it("a Master Seal's buy row says it can't be used while Kingmaker's Oath is held
         .find((b) => String(b.className).includes('shop-row') && deepText(b).includes(name)),
     );
   menu.render();
-  expect(rowText('Master Seal')).not.toContain("Can't be used");
+  expect(rowText('Sovereign Seal')).not.toContain("Can't be used");
   const card = d.data.blessings.blessings.find((b) => b.id === 'kingmakers_oath');
   expect(
     d.run.addBlessingMidRun('kingmakers_oath', { earned: true, price: twistPriceOf(card) }),
   ).toBe(true);
   menu.render();
-  expect(rowText('Master Seal')).toContain("Can't be used: Kingmaker's Oath");
+  expect(rowText('Sovereign Seal')).toContain("Can't be used: Kingmaker's Oath");
   expect(rowText('Infantry Seal')).not.toContain("Can't be used");
   expect(d.scene.shopBuyItems).toEqual(entries);
 });

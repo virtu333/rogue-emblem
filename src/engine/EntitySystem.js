@@ -204,7 +204,7 @@ export function entitySplashCountFor(config) {
  * presentation and the harness drives without). Rolls the tiles (rollSplashTiles, with
  * entitySplashCountFor(world.battleConfig)), then, tile by tile, strikes the living non-enemy
  * unit standing there (never the primary target) for rollSplashDamage through
- * UnitHealth.damageUnitDetailed (no hit roll, no Miracle): a Revival Stone refills a bar and
+ * UnitHealth.damageUnitDetailed (no hit roll, no Reprieve): a Revival Stone refills a bar and
  * the Unbroken Banner holds a player unit at 1 (`world.battleBlessings`).
  *
  * A generator: each hit is yielded after its HP change and before the next tile is read, so

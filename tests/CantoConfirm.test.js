@@ -722,7 +722,7 @@ describe('Canto confirm checkpoint rollback', () => {
     withPersistence(scene, edric);
     edric.hasActed = false;
     edric.currentHP = 8;
-    const item = { name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 };
+    const item = { name: 'Poultice', effect: 'heal', value: 10, uses: 3 };
     edric.consumables = [item];
     scene.battleState = 'PLAYER_IDLE';
     scene._captureSuspendCheckpoint({ session: scene._battleSession });

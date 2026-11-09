@@ -71,7 +71,7 @@ function unit(name, stats, skills = []) {
     weaponRank: 'Prof',
   };
 }
-describe('Luna defense reduction', () => {
+describe('Umbra defense reduction', () => {
   it.each([
     ['Sword', false, 2],
     ['Tome', false, 9],

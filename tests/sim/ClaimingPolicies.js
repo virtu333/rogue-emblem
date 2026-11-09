@@ -322,7 +322,7 @@ const HEAL_BELOW = 0.6;
 
 /**
  * Between battles a player drinks what the army carries: a unit below 60% HP uses a healing
- * item from its own bag, then the convoy's (Vulnerary before Elixir); every Gold Pouch is
+ * item from its own bag, then the convoy's (Poultice before Elixir); every Gold Pouch is
  * opened; a stat booster a unit carries is used by that unit. All through rosterItemAction.
  * @returns {{ heals: object[], pouches: number, boosters: number }}
  */
@@ -418,7 +418,7 @@ export function learnScrolls(run, data) {
 }
 
 /**
- * Use a Master Seal on a unit that can promote (lords first). Kingmaker's Oath refuses every seal
+ * Use a Sovereign Seal on a unit that can promote (lords first). Kingmaker's Oath refuses every seal
  * (its twist): the refusal is counted, as a player who tries would see it.
  */
 export function useMasterSeals(run, data) {

@@ -5,7 +5,7 @@ import { battleSession, isCurrentBattleSession } from './BattleSession.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
 // AbilityController — the "Ability" action-menu surface for utility abilities
 // (action-trigger skills with structured `actionAbility` data: Blink, Rally
-// Cry, Healing Circle, Ensnare, Smite, Transfuse, Steal, Great Sacrifice, Goddess Dance,
+// Cry, Healing Circle, Ensnare, Smite, Transfuse, Steal, Great Sacrifice, Dawn Dance,
 // Blink Strike). Owns the ability submenu (patterned on
 // WeaponArtController.showWeaponArtPicker), the SELECTING_ABILITY_TILE flow for Blink,
 // the confirm prompt for self-centered abilities (the AOEs, Great Sacrifice, Goddess
@@ -412,11 +412,11 @@ export class AbilityController {
   }
 
   // --- Self-centered abilities (Rally Cry / Healing Circle / Ensnare / Great Sacrifice /
-  //     Goddess Dance): a confirm prompt naming who is affected ---
+  //     Dawn Dance): a confirm prompt naming who is affected ---
 
   /**
    * The units a self-centered ability would affect right now, as the player knows them:
-   * the AOEs' radius, Great Sacrifice's hurt and healable allies in range, Goddess Dance's
+   * the AOEs' radius, Great Sacrifice's hurt and healable allies in range, Dawn Dance's
    * adjacent allies who have acted.
    */
   _affectedBy(unit, skill) {
@@ -600,7 +600,7 @@ export class AbilityController {
         safeBattlePresentation('ability menu', () => scene.hideActionMenu(), { scene });
         scene.inEquipMenu = false;
         if (facts.kind === 'refresh_adjacent') {
-          // Goddess Dance: every refreshed ally wakes (its dimming lifts) with Dance's sparkle.
+          // Dawn Dance: every refreshed ally wakes (its dimming lifts) with Dance's sparkle.
           for (const ally of facts.refreshed) presentRefreshSparkle(scene, ally);
           return;
         }

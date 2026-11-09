@@ -165,7 +165,7 @@ export function carriedItemUid(spawn, battleKey = '') {
 }
 
 /**
- * The whole item a carrier holds, from the run's consumable catalog (a Vulnerary at the
+ * The whole item a carrier holds, from the run's consumable catalog (a Poultice at the
  * uses the run gives it: `run.getConsumableCatalog()`) or, for a weapon name, the weapon
  * catalog. A fresh copy with a uid, or null when the spawn carries nothing or the name is
  * unknown.

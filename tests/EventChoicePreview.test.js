@@ -197,7 +197,7 @@ describe('what a choice can do: one line per result that can happen here', () =>
   it("the choice's own effects are a line of their own, before the outcomes", () => {
     const lines = preview(newRun(), 'wounded_courier', 'tend');
     expect(lines.map((l) => [l.lead, l.text])).toEqual([
-      ['', 'Spends a use of Vulnerary'],
+      ['', 'Spends a use of Poultice'],
       ['70%', '+1 Vision'],
       // { base: -50, perAct: -50 } in Act I.
       ['30%', '−100 G'],
@@ -471,7 +471,7 @@ describe('every effect has words', () => {
     const ctx = { run, event: eventById('sunken_mine'), state: { fallen: { name: 'Rook' } } };
     const sample = {
       gold: { type: 'gold', value: 10 },
-      item: { type: 'item', name: 'Vulnerary' },
+      item: { type: 'item', name: 'Poultice' },
       learnSkill: { type: 'learnSkill', to: 'target', skillId: 'vantage' },
       fallenSkill: { type: 'fallenSkill', to: 'target' },
       hp: { type: 'hp', mode: 'heal', percent: 10, scope: 'all' },
@@ -480,7 +480,7 @@ describe('every effect has words', () => {
       blessing: { type: 'blessing', tier: 1 },
       burden: { type: 'burden', id: 'hunted' },
       layToRest: { type: 'layToRest' },
-      consume: { type: 'consume', name: 'Vulnerary', uses: 1 },
+      consume: { type: 'consume', name: 'Poultice', uses: 1 },
       stat: { type: 'stat', stat: 'STR', value: 1, scope: 'target' },
       battle: { type: 'battle', enemyLevelBonus: 0, afterVictory: [] },
       counter: { type: 'counter', key: 'torches', delta: -1 },

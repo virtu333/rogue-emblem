@@ -218,14 +218,14 @@ export function buildCases(_gameData) {
     (rm, apply) => apply(E('disable_personal_skills_until_act', { act: 'act3' })),
   );
 
-  for (const name of ['Vulnerary', 'Elixir', 'Nope', '', undefined, 'Iron Sword'])
+  for (const name of ['Poultice', 'Elixir', 'Nope', '', undefined, 'Iron Sword'])
     add(`starting_consumable_all name=${name}`, E('starting_consumable_all', { name }));
   add(
     'starting_consumable_all x3 (bags fill)',
-    E('starting_consumable_all', { name: 'Vulnerary' }),
+    E('starting_consumable_all', { name: 'Poultice' }),
     (rm, apply) => {
-      apply(E('starting_consumable_all', { name: 'Vulnerary' }));
-      apply(E('starting_consumable_all', { name: 'Vulnerary' }));
+      apply(E('starting_consumable_all', { name: 'Poultice' }));
+      apply(E('starting_consumable_all', { name: 'Poultice' }));
     },
   );
   for (const type of ['extra_consumable', 'extra_vulnerary'])
@@ -237,7 +237,7 @@ export function buildCases(_gameData) {
       { itemName: 'Elixir', count: 2 },
       { itemName: 'Nope', count: 2 },
       { itemName: 'Iron Sword', count: 2 },
-      { itemName: 'Vulnerary', count: 7 },
+      { itemName: 'Poultice', count: 7 },
       { count: 12 },
       {},
       { count: 'x', value: 4 },
@@ -309,14 +309,14 @@ export function buildCases(_gameData) {
     rm.actIndex = 1;
   });
   for (const params of [
-    { itemName: 'Vulnerary', count: 1 },
-    { itemName: 'Vulnerary', count: 2 },
+    { itemName: 'Poultice', count: 1 },
+    { itemName: 'Poultice', count: 2 },
     { itemName: 'Elixir', value: 1 },
-    { itemName: 'Vulnerary' },
+    { itemName: 'Poultice' },
     { itemName: 'Nope', count: 1 },
     { itemName: 'Iron Sword', count: 1 },
     { itemName: '', count: 1 },
-    { itemName: 'Vulnerary', count: 0 },
+    { itemName: 'Poultice', count: 0 },
     {},
   ]) {
     add(`act_start_convoy_item ${js(params)}`, E('act_start_convoy_item', params));
@@ -337,7 +337,7 @@ export function buildCases(_gameData) {
   }
   add(
     'act_start_convoy_item mid-run in act2',
-    E('act_start_convoy_item', { itemName: 'Vulnerary', count: 2 }),
+    E('act_start_convoy_item', { itemName: 'Poultice', count: 2 }),
     (rm) => {
       rm.actIndex = 1;
       rm.activeBlessings = [{ id: ID, rolledCost: null, midRun: true }];
@@ -345,9 +345,9 @@ export function buildCases(_gameData) {
   );
   add(
     'act_start_convoy_item with a full convoy',
-    E('act_start_convoy_item', { itemName: 'Vulnerary', count: 3 }),
+    E('act_start_convoy_item', { itemName: 'Poultice', count: 3 }),
     (rm) => {
-      const template = rm.getConsumableTemplate('Vulnerary');
+      const template = rm.getConsumableTemplate('Poultice');
       while (rm.addToConvoy(template));
     },
   );

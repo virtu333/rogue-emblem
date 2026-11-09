@@ -1,4 +1,4 @@
-// Great Sacrifice and Goddess Dance (docs/specs/phase3.md 3E): the rules in the engine and the
+// Great Sacrifice and Dawn Dance (docs/specs/phase3.md 3E): the rules in the engine and the
 // two abilities through the battle scene's Ability menu and confirm prompt.
 //
 // Ways this goes wrong, each caught below:
@@ -7,7 +7,7 @@
 //                    mends the user; is offered when it would only burn HP (the user at 1 HP,
 //                    nobody hurt in range: it must never waste the turn); is usable twice in
 //                    a battle, or shares one unit's limit with another
-//   Goddess Dance    refreshes someone who has not acted, a dancer, or a diagonal neighbour;
+//   Dawn Dance    refreshes someone who has not acted, a dancer, or a diagonal neighbour;
 //                    leaves a refreshed ally unable to move or act again; resets the ally's
 //                    spent movement (Dance never did); skips the deed or the XP of an ally;
 //                    differs from Dance's own rule (they share one)
@@ -191,9 +191,9 @@ describe('Great Sacrifice: the rules', () => {
   });
 });
 
-// --- Goddess Dance (the rules) ---------------------------------------------------------
+// --- Dawn Dance (the rules) ---------------------------------------------------------
 
-describe('Goddess Dance: the rules', () => {
+describe('Dawn Dance: the rules', () => {
   const acted = (name, col, row, extra = {}) =>
     unit(name, col, row, {
       hasActed: true,
@@ -415,7 +415,7 @@ describe('Great Sacrifice in the battle scene', () => {
   });
 });
 
-describe('Goddess Dance in the battle scene', () => {
+describe('Dawn Dance in the battle scene', () => {
   const skill = skillById.get('goddess_dance');
   const setup = () => {
     const bard = unit('Bard', 5, 5, { skills: ['dance', 'goddess_dance'] });
@@ -494,7 +494,7 @@ describe('Goddess Dance in the battle scene', () => {
     ]);
   });
 
-  it('Dance and Goddess Dance read one rule: the scene’s Dance targets are the engine’s', () => {
+  it('Dance and Dawn Dance read one rule: the scene’s Dance targets are the engine’s', () => {
     const { scene, bard, a, b } = setup();
     expect(scene.findDanceTargets(bard).map((t) => t.ally)).toEqual(
       findDanceRefreshTargets(bard, scene.playerUnits),
@@ -505,7 +505,7 @@ describe('Goddess Dance in the battle scene', () => {
 });
 
 describe('the one effective-skill model', () => {
-  it('a Great Sacrifice or Goddess Dance an accessory lends is listed, usable and limited like a known one', () => {
+  it('a Great Sacrifice or Dawn Dance an accessory lends is listed, usable and limited like a known one', () => {
     const lent = unit('Lent', 5, 5, { accessory: { _boundSkill: 'great_sacrifice' } });
     const known = unit('Known', 5, 5, { skills: ['great_sacrifice'] });
     expect(getActionAbilities(lent, data.skills).map((s) => s.id)).toEqual(['great_sacrifice']);

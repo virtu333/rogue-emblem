@@ -193,7 +193,7 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
       c.type === 'gold' ? `gold:${c.goldAmount}` : c.item?.name,
     );
   });
-  expect(offered.sort()).toEqual(['Iron Lance', 'Vulnerary', 'gold:150'].sort());
+  expect(offered.sort()).toEqual(['Iron Lance', 'Poultice', 'gold:150'].sort());
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const index = s.runManager.pendingBattleReward.choices.findIndex((c) => c.type === 'gold');
@@ -235,7 +235,7 @@ test('New Game offers the prologue; Play opens P1 as a run, P1 joins Gaspar, the
   expect(atMarket).toEqual({
     roster: ['Edric', 'Gaspar', 'Tamsin'],
     convoy: ['Iron Bow'],
-    stock: ['Vulnerary', 'Vulnerary', 'Iron Sword', 'Iron Lance', 'Javelin'],
+    stock: ['Poultice', 'Poultice', 'Iron Sword', 'Iron Lance', 'Javelin'],
   });
   // The join is saved before the card: a refresh here keeps her.
   expect((await slotRun(page)).roster.map((u) => u.name)).toContain('Tamsin');

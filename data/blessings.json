@@ -436,13 +436,13 @@
       "lore": "No one leaves the shrine without a salve. Yes, even you. Especially you.",
       "name": "Field Medic",
       "tier": 1,
-      "description": "All units, including later recruits, receive a Vulnerary.",
+      "description": "All units, including later recruits, receive a Poultice.",
       "weight": 1,
       "boons": [
         {
           "type": "starting_consumable_all",
           "params": {
-            "name": "Vulnerary"
+            "name": "Poultice"
           }
         }
       ],
@@ -1833,7 +1833,7 @@
         }
       ],
       "twist": {
-        "label": "Master Seals can't be used: promote only at a church",
+        "label": "Sovereign Seals can't be used: promote only at a church",
         "effects": [
           {
             "type": "master_seals_forbidden",
@@ -1954,7 +1954,7 @@
         }
       ],
       "twist": {
-        "label": "No Master Seals; churches promote from level 15, at most 2 a visit",
+        "label": "No Sovereign Seals; churches promote from level 15, at most 2 a visit",
         "effects": [
           {
             "type": "master_seals_forbidden",

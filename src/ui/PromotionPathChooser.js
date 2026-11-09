@@ -4,7 +4,7 @@
 // One card per path: the class crest, the promoted portrait and the map
 // sprite before → after, the stat bonuses, weapon-rank changes, new skills
 // and growth/move changes, all readable at 844×390. Used by the battle
-// Master Seal (PromotionChoicePanel), the church and the roster seal.
+// Sovereign Seal (PromotionChoicePanel), the church and the roster seal.
 // Presentation and selection only: `apply` (optional) is the caller's
 // command, run on Confirm; eligibility is revalidated there.
 import { MenuSurface, element, button } from './MenuSurface.js';

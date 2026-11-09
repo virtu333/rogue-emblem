@@ -10,7 +10,7 @@
 import { stripItemNameSuffix, weaponCatalogNames } from '../utils/itemNames.js';
 
 // Legend-tier weapons and the one-of-a-kind Epic weapons (docs/specs/epic-weapons.md): the
-// Legend staves (Warp Staff, Fortify) stay repeatable.
+// Legend staves (Fold Staff, Canticle) stay repeatable.
 const isLegend = (item) =>
   (item?.tier === 'Legend' && item.type !== 'Staff') || item?.tier === 'Epic';
 

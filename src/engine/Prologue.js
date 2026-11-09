@@ -6,7 +6,7 @@
 //                   the prologue run).
 //   grant           { valor, supply }: the Home Base grant paid once at the end.
 //   consumableEffects  { vulneraryUses }: the prologue applies no meta effects, so the
-//                   uses its Vulneraries have are named here and every Vulnerary it
+//                   uses its Poultices have are named here and every Poultice it
 //                   builds (kits, loot, stock, grants) reads them (VulneraryRecipe.js).
 //   units           { <key>: unit spec } (buildPrologueUnit). The key is how chapters,
 //                   beats and joins name the unit; it is also the unit's name.
@@ -909,8 +909,8 @@ function parseProficiencyList(list) {
 
 /**
  * A weapon or consumable by name. A consumable comes as the prologue builds it: its
- * Vulnerary has the uses `consumableEffects` names (the catalog's base is not the
- * prologue's), through the one rule a run's Vulneraries follow.
+ * Poultice has the uses `consumableEffects` names (the catalog's base is not the
+ * prologue's), through the one rule a run's Poultices follow.
  */
 function findItem(gameData, name, effects = gameData?.prologue?.consumableEffects) {
   const weapon = (gameData.weapons || []).find((w) => w?.name === name);

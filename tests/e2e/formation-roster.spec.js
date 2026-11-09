@@ -78,7 +78,7 @@ test.describe('phone', () => {
     // The overview (a card per unit) comes first; the lord's card opens his detail.
     await openRosterUnit(sheet, 'Edric', { tap: true });
     await sheet.getByRole('button', { name: 'Equipment', exact: true }).tap();
-    // Edric's Vulnerary goes to the convoy (his consumable row's Store).
+    // Edric's Poultice goes to the convoy (his consumable row's Store).
     await sheet.getByRole('button', { name: 'Store', exact: true }).last().tap();
     // Back returns to the overview, whose header leads back to the formation.
     await closeRoster(sheet, 'Back to formation', { tap: true });

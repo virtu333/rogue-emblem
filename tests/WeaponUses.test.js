@@ -211,14 +211,14 @@ describe('refilling after a battle', () => {
   it('refill clears a weapon and a Breachbolt, never a consumable', () => {
     const sword = { ...weapon('Iron Sword'), _usesSpent: 7 };
     const bolt = { ...weapon('Breachbolt'), _usesSpent: 2 };
-    const vul = { name: 'Vulnerary', type: 'Consumable', uses: 2, _usesSpent: 1 };
+    const vul = { name: 'Poultice', type: 'Consumable', uses: 2, _usesSpent: 1 };
     [sword, bolt, vul].forEach(refillBattleUses);
     expect([sword._usesSpent, bolt._usesSpent, vul._usesSpent]).toEqual([0, 0, 1]);
   });
 
   it('a fresh staff or Breachbolt starts the battle at 0 spent, not undefined', () => {
     // The battle and its browser specs read a staff's count as a number.
-    const staff = { ...weapon('Warp Staff') };
+    const staff = { ...weapon('Fold Staff') };
     const bolt = { ...weapon('Breachbolt') };
     delete staff._usesSpent;
     delete bolt._usesSpent;

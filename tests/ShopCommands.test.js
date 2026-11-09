@@ -20,7 +20,7 @@ const clone = (value) => structuredClone(value);
 let run, unit;
 const sword = () => clone(data.weapons.find((item) => item.name === 'Iron Sword'));
 const weapon = (name) => clone(data.weapons.find((item) => item.name === name));
-const supply = () => clone(data.consumables.find((item) => item.name === 'Vulnerary'));
+const supply = () => clone(data.consumables.find((item) => item.name === 'Poultice'));
 const entryFor = (item, type = item.type === 'Consumable' ? 'consumable' : 'weapon') => ({
   item,
   type,
@@ -254,13 +254,13 @@ describe('shop sell risk: whose only weapon, staff or weapon type a row is', () 
   });
 
   it('a second usable staff, or a staff its carrier cannot use, is safe to sell', () => {
-    run.roster.push(healer([weapon('Heal'), weapon('Mend')]));
+    run.roster.push(healer([weapon('Heal'), weapon('Solace')]));
     unit.inventory.push(weapon('Heal')); // Edric has no Staff rank: dead weight
     expect(riskTable()).toEqual({
       'Iron Sword / Edric': ['only_weapon'],
       'Heal / Edric': [],
       'Heal / Sera': [],
-      'Mend / Sera': [],
+      'Solace / Sera': [],
     });
   });
 
@@ -309,9 +309,9 @@ describe('shop sell risk: whose only weapon, staff or weapon type a row is', () 
     unit.inventory.push(spare);
     expect(riskTable()).toEqual({
       'Iron Sword / Edric': [],
-      'Vulnerary / Edric': [],
+      'Poultice / Edric': [],
       'Iron Lance / Convoy': [],
-      'Vulnerary / Convoy': [],
+      'Poultice / Convoy': [],
     });
     const row = ownedRow(spare);
     unit.inventory.splice(unit.inventory.indexOf(spare), 1);

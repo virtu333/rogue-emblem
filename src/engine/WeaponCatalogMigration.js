@@ -82,9 +82,9 @@ export function migrateSavedPerBattleWeapons(saved, gameData = null) {
   return changed;
 }
 
-// Saved staves take the catalog's use rules (the Warp Staff nerf). A staff's own MAG
+// Saved staves take the catalog's use rules (the Fold Staff nerf). A staff's own MAG
 // steps (`useBonuses`) and cap (`maxUses`) are read off the item (Combat.getStaffMaxUses),
-// so a Warp Staff saved before the nerf would keep the shared +1 at MAG 8/14/20 and no
+// so a Fold Staff saved before the nerf would keep the shared +1 at MAG 8/14/20 and no
 // cap. The same walk copies `uses`, `useBonuses` and `maxUses` from the catalog onto
 // every saved staff whose catalog entry names either rule, or that holds one the catalog
 // no longer names. `_usesSpent` and the rest of the instance stay. Idempotent, ungated.

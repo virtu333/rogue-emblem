@@ -4,14 +4,14 @@
 // Ways this goes wrong, each caught below:
 //   skills     an ability with the wrong kind or limit, a Pass that is not a plain passive, a
 //              skill the schema would not accept (a warp strike with no range)
-//   learning   Goddess Dance sold as a scroll (a refresh-many from any unit is too strong);
+//   learning   Dawn Dance sold as a scroll (a refresh-many from any unit is too strong);
 //              a Bard that never learns it, or learns it early; a promoted Dancer from an old
 //              save that never gets it; a Trickster from an old save that never gets Pass (or
 //              loses it to a full skill list instead of the bench); Pass missing from the class
 //              text
 //   loot       a scroll that teaches nothing, a scroll in the wrong act, one in Act I or the
 //              finale, one that is not Rare 2500
-//   accessory  Goddess Dance lendable (it is excluded by id); Pass lent without being listed
+//   accessory  Dawn Dance lendable (it is excluded by id); Pass lent without being listed
 //              as a lendable innate; Great Sacrifice or Blink Strike lent by accident
 // Expected values come from the spec and the data files, never from the code under test.
 import { readFileSync } from 'node:fs';
@@ -41,9 +41,9 @@ describe('the four skills', () => {
     expect(skill('great_sacrifice').actionAbility.usableWhileSilenced).toBeUndefined();
   });
 
-  it('Goddess Dance: once per battle, a refresh; a dance is no spell, so silence does not stop it', () => {
+  it('Dawn Dance: once per battle, a refresh; a dance is no spell, so silence does not stop it', () => {
     expect(skill('goddess_dance')).toMatchObject({
-      name: 'Goddess Dance',
+      name: 'Dawn Dance',
       trigger: 'action',
       actionAbility: { kind: 'refresh_adjacent', perMapLimit: 1, usableWhileSilenced: true },
     });
@@ -59,7 +59,7 @@ describe('the four skills', () => {
     expect(skill('blink_strike').actionAbility.range).toBe(skill('blink').actionAbility.range);
   });
 
-  it('Pass: a plain passive, innate to the Trickster beside Darting Blow (owner Q3)', () => {
+  it('Pass: a plain passive, innate to the Trickster beside Quickstep (owner Q3)', () => {
     expect(skill('pass')).toMatchObject({
       name: 'Pass',
       trigger: 'passive',
@@ -117,7 +117,7 @@ describe('scrolls', () => {
     expect(scroll(name).lore.length).toBeGreaterThan(20);
   });
 
-  it('Goddess Dance has no scroll: the Bard learns it, nobody buys it', () => {
+  it('Dawn Dance has no scroll: the Bard learns it, nobody buys it', () => {
     expect(data.weapons.filter((w) => w.skillId === 'goddess_dance')).toEqual([]);
     const pooled = Object.values(data.lootTables).flatMap((table) => table?.skillScroll || []);
     expect(pooled.filter((name) => /goddess/i.test(name))).toEqual([]);
@@ -158,7 +158,7 @@ describe('how a unit comes to have them', () => {
     return unit;
   };
 
-  it('the Bard learns Goddess Dance at level 5 (the class data, not a scroll)', () => {
+  it('the Bard learns Dawn Dance at level 5 (the class data, not a scroll)', () => {
     expect(cls('Bard').learnableSkills).toEqual([{ skillId: 'goddess_dance', level: 5 }]);
     // No other class teaches it.
     const teachers = data.classes.filter((c) =>
@@ -167,7 +167,7 @@ describe('how a unit comes to have them', () => {
     expect(teachers.map((c) => c.name)).toEqual(['Bard']);
   });
 
-  it('a Dancer promoted to Bard has Dance, and learns Goddess Dance on reaching Bard level 5', () => {
+  it('a Dancer promoted to Bard has Dance, and learns Dawn Dance on reaching Bard level 5', () => {
     const dancer = makeUnit('Dancer');
     promoteUnit(dancer, cls('Bard'), cls('Bard').promotionBonuses, data.skills);
     expect(dancer.className).toBe('Bard');
@@ -192,7 +192,7 @@ describe('how a unit comes to have them', () => {
     const full = makeUnit('Dancer');
     promoteUnit(full, cls('Bard'), cls('Bard').promotionBonuses, data.skills);
     full.level = 7;
-    // Goddess Dance is an ability: five full skill slots leave its own slot free.
+    // Dawn Dance is an ability: five full skill slots leave its own slot free.
     full.skills = Array.from({ length: MAX_SKILLS }, (_, i) => `held-${i}`);
     full.skills.push('dance');
     migrated(full);
@@ -207,7 +207,7 @@ describe('how a unit comes to have them', () => {
     expect(crowded.benchedSkills).toContain('goddess_dance');
   });
 
-  it('a Trickster has Pass and Darting Blow on promotion', () => {
+  it('a Trickster has Pass and Quickstep on promotion', () => {
     const thief = makeUnit('Thief');
     promoteUnit(thief, cls('Trickster'), cls('Trickster').promotionBonuses, data.skills);
     expect(thief.className).toBe('Trickster');
@@ -240,7 +240,7 @@ describe('how a unit comes to have them', () => {
   it('the class text names Pass', () => {
     expect(cls('Trickster').roleChange).toMatch(/Pass/);
     expect(cls('Trickster').description).toMatch(/Pass/);
-    expect(cls('Bard').roleChange).toMatch(/Goddess Dance/);
+    expect(cls('Bard').roleChange).toMatch(/Dawn Dance/);
   });
 });
 
@@ -248,7 +248,7 @@ describe('accessories', () => {
   const config = data.lootTables.accessorySkills;
   const pooled = Object.values(config.poolByAct).flat();
 
-  it('Goddess Dance is never lent (excluded by id) and sits in no pool', () => {
+  it('Dawn Dance is never lent (excluded by id) and sits in no pool', () => {
     expect(config.neverBound).toContain('goddess_dance');
     expect(pooled).not.toContain('goddess_dance');
   });

@@ -482,13 +482,13 @@ describe('ESC priority model', () => {
     const skills = [
       {
         id: 'pavise',
-        name: 'Pavise',
+        name: 'Shieldwall',
         description: 'Halve physical damage sometimes.',
         classInnate: 'General',
       },
       {
         id: 'armored_blow',
-        name: 'Armored Blow',
+        name: 'Iron Advance',
         description: 'Initiating grants +4 DEF.',
         classInnate: 'Great Knight',
       },

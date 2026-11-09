@@ -17,7 +17,7 @@ import {
 
 const gameData = {
   skills: [
-    { id: 'vantage', name: 'Vantage' },
+    { id: 'vantage', name: 'Forestall' },
     { id: 'guard', name: 'Guard' },
   ],
 };
@@ -77,7 +77,7 @@ describe('eventResultLines', () => {
       kind: 'skill',
       chip: 'SKILL',
       tone: 'good',
-      text: 'Rowan learned Vantage',
+      text: 'Rowan learned Forestall',
     });
     const benched = only({
       kind: 'skill',
@@ -200,11 +200,11 @@ describe('eventResultLines', () => {
       text: 'Rook is laid to rest',
       detail: 'They can no longer be revived.',
     });
-    expect(only({ kind: 'consume', name: 'Vulnerary', uses: 1, holder: 'Edric' }).text).toBe(
-      'Spent a use of Vulnerary (Edric)',
+    expect(only({ kind: 'consume', name: 'Poultice', uses: 1, holder: 'Edric' }).text).toBe(
+      'Spent a use of Poultice (Edric)',
     );
-    expect(only({ kind: 'consume', name: 'Vulnerary', uses: 2, holder: 'convoy' }).text).toBe(
-      'Spent 2 uses of Vulnerary (the convoy)',
+    expect(only({ kind: 'consume', name: 'Poultice', uses: 2, holder: 'convoy' }).text).toBe(
+      'Spent 2 uses of Poultice (the convoy)',
     );
     expect(only({ kind: 'stat', unit: 'Rowan', stat: 'SKL', value: 1 })).toMatchObject({
       chip: 'STAT',

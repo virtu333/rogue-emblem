@@ -36,6 +36,7 @@
 // className, level, tier, recordId, identity (a recruit's), items, skills, skillKinds }.
 import { CONSUMABLE_MAX, INVENTORY_MAX, MAX_ABILITIES, MAX_SKILLS } from '../utils/constants.js';
 import { settleGeminiStat } from './GeminiRing.js';
+import { renameItemNamesIn } from './ItemNameMigration.js';
 
 export const NG_PLUS_STATE_VERSION = 1;
 /** purchasedUpgrades key of the unlock (max-merged with the upgrades, so never lost). */
@@ -145,10 +146,12 @@ export function keptItemKind(item) {
   return 'weapon';
 }
 
+// Kept items live in the meta save, which the run save's item-name migration never walks: an
+// item renamed since it was kept takes its new name here, on every read (ItemNameMigration).
 const sanitizeItems = (raw) =>
   (Array.isArray(raw) ? raw : [])
     .filter((item) => keptItemKind(item) && isId(item.uid))
-    .map((item) => settleGeminiStat(structuredClone(item)));
+    .map((item) => settleGeminiStat(renameItemNamesIn(structuredClone(item))));
 
 const sanitizeSkillIds = (raw) => [...new Set((Array.isArray(raw) ? raw : []).filter(isName))];
 
@@ -183,7 +186,8 @@ function sanitizeIdentity(raw) {
   };
 }
 
-const sanitizeItem = (raw) => (keptItemKind(raw) && isId(raw.uid) ? structuredClone(raw) : null);
+const sanitizeItem = (raw) =>
+  keptItemKind(raw) && isId(raw.uid) ? renameItemNamesIn(structuredClone(raw)) : null;
 
 /** One ride's keeps on a record (what undoLastRide takes back), or null. */
 function sanitizeRideEntry(raw) {

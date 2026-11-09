@@ -1,12 +1,12 @@
 // ActionRefresh.js — the one transition that lets a unit that has acted move and act again.
 // Pure, a leaf (no imports), so every refresh can share it without an import cycle.
 //
-// Every source of a fresh action goes through `refreshUnitAction`: the Galeforce Charm
+// Every source of a fresh action goes through `refreshUnitAction`: the Onrush Charm
 // (GaleforceCharm.consumeGaleforce), Commander's Gambit and a kill-move art's refreshActor
 // (BattlePresentationCheckpoint.completeResolvedAction, and the harness), Dance and Goddess
 // Dance (ActionAbilitySystem.refreshActedAlly). It resets the action flags, the movement the
 // last action spent (so Canto, Ride Down and the like read the new action's walk only) and
-// any Galeforce Charm proc still waiting: refreshes never stack, so when another refresh wins
+// any Onrush Charm proc still waiting: refreshes never stack, so when another refresh wins
 // on the same action the charm's proc is dropped, never carried to a later Wait, and the use it
 // took (`_galeforceUses`, counted when it rolled) is handed back: the charm gave nothing.
 // (GaleforceCharm.consumeGaleforce clears its own flag before calling here, so its refresh

@@ -1,5 +1,5 @@
 // The Unbroken Banner (an earned blessing, docs/specs/blessings-v3.md §6; engine/BattleBlessings.js):
-// once a battle, the first player unit a blow would fell survives at 1 HP. Miracle comes first,
+// once a battle, the first player unit a blow would fell survives at 1 HP. Reprieve comes first,
 // then Revival Stones, then the banner; the hold ends the exchange; it never holds an NPC ally
 // or a foe; it covers every lethal path (the exchange, an area art, a ram's crash, a lethal
 // after-combat blow) and touches nothing when the run does not hold it.
@@ -266,8 +266,8 @@ describe('in the exchange (Combat.rollStrike)', () => {
     ]);
   });
 
-  it('an Adept bonus strike that would fell the ally is held, and nothing follows it', () => {
-    // The foe's Adept procs (SPD% at roll 0) on its first hit: 20 -> 5, then the bonus strike's
+  it('an Flurry bonus strike that would fell the ally is held, and nothing follows it', () => {
+    // The foe's Flurry procs (SPD% at roll 0) on its first hit: 20 -> 5, then the bonus strike's
     // 15 would fell Edric: held at 1. The hold ends the exchange: no counter (30 -> 19) is
     // rolled. Without the blessing the same bonus strike kills (the contrast).
     const adept = () => foe({ skills: ['adept'] });
@@ -307,8 +307,8 @@ describe('in the exchange (Combat.rollStrike)', () => {
     expect(fight(ally, foe(), ctx(state)).attackerDied).toBe(true);
   });
 
-  it('Miracle comes first: a Miracle that leaves 1 HP spends no banner; the next blow is held', () => {
-    // Miracle (LCK-based, procs at roll 0) turns the counter's 15 on 10 HP into 9: 1 HP left.
+  it('Reprieve comes first: a Reprieve that leaves 1 HP spends no banner; the next blow is held', () => {
+    // Reprieve (LCK-based, procs at roll 0) turns the counter's 15 on 10 HP into 9: 1 HP left.
     const hero = edric({ hp: 10, skills: ['miracle'], stats: { LCK: 30 } });
     const state = banner();
     const first = fight(hero, foe(), ctx(state));
@@ -316,7 +316,7 @@ describe('in the exchange (Combat.rollStrike)', () => {
     expect(strikes(first)[1].bannerHeld).toBeUndefined();
     expect(first.attackerHP).toBe(1);
     expect(state.spent).toEqual([]);
-    // Miracle is spent for the battle: the next lethal counter is the banner's.
+    // Reprieve is spent for the battle: the next lethal counter is the banner's.
     hero.currentHP = first.attackerHP;
     const second = fight(hero, foe(), ctx(state));
     expect(strikes(second)[1]).toMatchObject({ bannerHeld: true, targetHPAfter: 1 });

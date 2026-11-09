@@ -9,7 +9,7 @@
       "Steel Bow",
       "Wildfire",
       "Brilliance",
-      "Mend",
+      "Solace",
       "Horsebane",
       "Mailbane",
       "Lancehook",
@@ -19,17 +19,17 @@
       "Shortbow"
     ],
     "healing": [
-      "Vulnerary",
-      "Vulnerary",
-      "Vulnerary",
-      "Vulnerary"
+      "Poultice",
+      "Poultice",
+      "Poultice",
+      "Poultice"
     ],
     "statBooster": [],
     "promotion": [
-      "Master Seal"
+      "Sovereign Seal"
     ],
     "skillScroll": [],
-    "weaponArtScroll": ["Grounder Scroll", "Helm Splitter Scroll"],
+    "weaponArtScroll": ["Sweep Scroll", "Helmcleaver Scroll"],
     "artTiers": {
       "innateChance": {"Iron": 0.3, "Steel": 0.1},
       "scrollSlots": {"Iron": 2, "Steel": 0}
@@ -38,7 +38,7 @@
     "epicChance": 0.1,
     "legendaryWeapon": [],
     "accessories": [
-      "Goddess Icon",
+      "Fatethread Pendant",
       "Shield Ring",
       "Forest Charm",
       "Soothing Stone",
@@ -51,7 +51,7 @@
       "Weight Whetstone"
     ],
     "carryPool": [
-      { "item": "Vulnerary", "weight": 6 },
+      { "item": "Poultice", "weight": 6 },
       { "item": "Gold Pouch", "weight": 3, "value": 300 }
     ],
     "weights": {
@@ -81,22 +81,22 @@
       ],
       "healing": [],
       "statBooster": [
-        "Angelic Robe",
-        "Energy Drop",
-        "Spirit Dust",
-        "Secret Book",
-        "Speedwing",
-        "Dracoshield",
-        "Talisman"
+        "Blessed Vestment",
+        "Mightroot",
+        "Spellstone Dust",
+        "Drill Primer",
+        "Fleet Plume",
+        "Wyrmscale",
+        "Warding Cord"
       ],
       "promotion": [
-        "Master Seal"
+        "Sovereign Seal"
       ],
       "skillScroll": [],
       "weaponArtScroll": [],
       "legendaryWeapon": [],
       "accessories": [
-        "Goddess Icon",
+        "Fatethread Pendant",
         "Shield Ring",
         "Forest Charm",
         "Soothing Stone",
@@ -138,49 +138,49 @@
       "Hammer",
       "Spear",
       "Keen Lance",
-      "Physic",
-      "Restore",
+      "Farcall",
+      "Unbinding",
       "Conflagration",
       "Crownlight",
       "Recurve Bow",
-      "Rescue Staff"
+      "Deliverance Staff"
     ],
     "healing": [
-      "Vulnerary",
+      "Poultice",
       "Elixir",
       "Herb"
     ],
     "statBooster": [
-      "Energy Drop",
-      "Spirit Dust",
-      "Secret Book",
-      "Speedwing",
-      "Dracoshield",
-      "Talisman",
-      "Angelic Robe",
+      "Mightroot",
+      "Spellstone Dust",
+      "Drill Primer",
+      "Fleet Plume",
+      "Wyrmscale",
+      "Warding Cord",
+      "Blessed Vestment",
       "Swiftsoles"
     ],
     "promotion": [
-      "Master Seal",
+      "Sovereign Seal",
       "Infantry Seal"
     ],
     "skillScroll": [
-      "Sol Scroll",
-      "Luna Scroll",
+      "Reclaim Scroll",
+      "Umbra Scroll",
       "Guard Scroll",
-      "Cancel Scroll",
-      "Desperation Scroll",
+      "Stifle Scroll",
+      "Death's Door Scroll",
       "Rally Cry Scroll",
       "Healing Circle Scroll",
       "Ensnare Scroll",
       "Pass Scroll",
       "Uncanny Blow Scroll",
-      "Warding Blow Scroll",
-      "Lifetaker Scroll",
-      "Speedtaker Scroll",
+      "Warded Advance Scroll",
+      "Reaper's Due Scroll",
+      "Quickening Scroll",
       "Defiant Scroll"
     ],
-    "weaponArtScroll": ["Grounder Scroll", "Helm Splitter Scroll"],
+    "weaponArtScroll": ["Sweep Scroll", "Helmcleaver Scroll"],
     "artTiers": {
       "innateChance": {"Iron": 0.25, "Steel": 0.2},
       "scrollSlots": {"Iron": 2, "Steel": 11}
@@ -200,7 +200,7 @@
       "Moontide Amulet",
       "Bounty Hunter's Mark",
       "Vampire's Bloodshard",
-      "Boots",
+      "Courier's Boots",
       "Warding Charm",
       "Mentor's Band",
       "Gemini Ring",
@@ -220,7 +220,7 @@
       "Prismatic Stone"
     ],
     "carryPool": [
-      { "item": "Vulnerary", "weight": 5 },
+      { "item": "Poultice", "weight": 5 },
       { "item": "Gold Pouch", "weight": 3, "value": 300 },
       { "from": "statBooster", "weight": 1 }
     ],
@@ -249,9 +249,9 @@
       "Silver Bow",
       "Conflagration",
       "Crownlight",
-      "Recover",
-      "Physic",
-      "Restore",
+      "Remembrance",
+      "Farcall",
+      "Unbinding",
       "Keen Sword",
       "Witchfire",
       "Sunflare",
@@ -264,8 +264,8 @@
       "Keen Bow",
       "Gale Blade",
       "Thunderbrand",
-      "Rescue Staff",
-      "Warp Staff"
+      "Deliverance Staff",
+      "Fold Staff"
     ],
     "healing": [
       "Elixir",
@@ -273,29 +273,29 @@
       "Remedy"
     ],
     "statBooster": [
-      "Energy Drop",
-      "Spirit Dust",
-      "Secret Book",
-      "Speedwing",
-      "Dracoshield",
-      "Talisman",
-      "Angelic Robe",
+      "Mightroot",
+      "Spellstone Dust",
+      "Drill Primer",
+      "Fleet Plume",
+      "Wyrmscale",
+      "Warding Cord",
+      "Blessed Vestment",
       "Swiftsoles"
     ],
     "promotion": [
-      "Master Seal",
+      "Sovereign Seal",
       "Infantry Seal",
       "Mounted Seal"
     ],
     "skillScroll": [
-      "Astra Scroll",
-      "Vantage Scroll",
-      "Wrath Scroll",
-      "Adept Scroll",
-      "Miracle Scroll",
-      "Quick Riposte Scroll",
-      "Death Blow Scroll",
-      "Darting Blow Scroll",
+      "Constellation Scroll",
+      "Forestall Scroll",
+      "Seethe Scroll",
+      "Flurry Scroll",
+      "Reprieve Scroll",
+      "Riposte Scroll",
+      "Onslaught Scroll",
+      "Quickstep Scroll",
       "Shove Scroll",
       "Pull Scroll",
       "Smite Scroll",
@@ -308,22 +308,22 @@
       "Healing Circle Scroll",
       "Ensnare Scroll",
       "Uncanny Blow Scroll",
-      "Warding Blow Scroll",
-      "Lifetaker Scroll",
-      "Speedtaker Scroll",
+      "Warded Advance Scroll",
+      "Reaper's Due Scroll",
+      "Quickening Scroll",
       "Defiant Scroll"
     ],
     "weaponArtScroll": [
-      "Grounder Scroll",
-      "Helm Splitter Scroll",
-      "Dragonhaze Scroll",
-      "Longearche Scroll",
-      "Glowing Ember Scroll",
-      "Armored Strike Scroll",
+      "Sweep Scroll",
+      "Helmcleaver Scroll",
+      "Heat Haze Scroll",
+      "Serpent's Reach Scroll",
+      "Forgefire Thrust Scroll",
+      "Ironclad Blow Scroll",
       "Deadeye Scroll",
-      "Hunter's Volley Scroll",
-      "Burning Quake Scroll",
-      "Nosferatu Scroll",
+      "Hawk's Talons Scroll",
+      "Cinder Quake Scroll",
+      "Grave Hunger Scroll",
       "Silence Strike Scroll",
       "Benediction Scroll",
       "Battering Ram Scroll"
@@ -354,10 +354,10 @@
       "Daybreak"
     ],
     "accessories": [
-      "Seraph Robe",
+      "Sisters' Mantle",
       "Magic Ring",
-      "Boots",
-      "Delphi Shield",
+      "Courier's Boots",
+      "Picket Buckler",
       "Wrath Band",
       "Counter Seal",
       "Pursuit Ring",
@@ -391,7 +391,7 @@
       "Cruel Imbuing Stone"
     ],
     "carryPool": [
-      { "item": "Vulnerary", "weight": 3 },
+      { "item": "Poultice", "weight": 3 },
       { "item": "Elixir", "weight": 3 },
       { "item": "Gold Pouch", "weight": 3, "value": 500 },
       { "from": "statBooster", "weight": 1 }
@@ -421,17 +421,17 @@
       "Silver Bow",
       "Conflagration",
       "Crownlight",
-      "Recover",
-      "Fortify",
-      "Warp Staff",
-      "Rescue Staff",
-      "Sleep Staff",
-      "Silence Staff",
+      "Remembrance",
+      "Canticle",
+      "Fold Staff",
+      "Deliverance Staff",
+      "Lullaby Staff",
+      "Hush Staff",
       "Tomahawk",
       "Spear",
       "Gale Blade",
       "Thunderbrand",
-      "Restore",
+      "Unbinding",
       "Witchfire",
       "Sunflare"
     ],
@@ -440,29 +440,29 @@
       "Remedy"
     ],
     "statBooster": [
-      "Energy Drop",
-      "Spirit Dust",
-      "Secret Book",
-      "Speedwing",
-      "Dracoshield",
-      "Talisman",
-      "Angelic Robe",
+      "Mightroot",
+      "Spellstone Dust",
+      "Drill Primer",
+      "Fleet Plume",
+      "Wyrmscale",
+      "Warding Cord",
+      "Blessed Vestment",
       "Swiftsoles"
     ],
     "promotion": [
-      "Master Seal",
+      "Sovereign Seal",
       "Infantry Seal",
       "Mounted Seal"
     ],
     "skillScroll": [
-      "Astra Scroll",
-      "Vantage Scroll",
-      "Wrath Scroll",
-      "Adept Scroll",
-      "Miracle Scroll",
-      "Quick Riposte Scroll",
-      "Death Blow Scroll",
-      "Darting Blow Scroll",
+      "Constellation Scroll",
+      "Forestall Scroll",
+      "Seethe Scroll",
+      "Flurry Scroll",
+      "Reprieve Scroll",
+      "Riposte Scroll",
+      "Onslaught Scroll",
+      "Quickstep Scroll",
       "Shove Scroll",
       "Pull Scroll",
       "Smite Scroll",
@@ -475,14 +475,14 @@
       "Healing Circle Scroll",
       "Ensnare Scroll",
       "Uncanny Blow Scroll",
-      "Warding Blow Scroll",
-      "Lifetaker Scroll",
-      "Speedtaker Scroll",
+      "Warded Advance Scroll",
+      "Reaper's Due Scroll",
+      "Quickening Scroll",
       "Defiant Scroll"
     ],
     "weaponArtScroll": [
-      "Grounder Scroll",
-      "Helm Splitter Scroll",
+      "Sweep Scroll",
+      "Helmcleaver Scroll",
       "Courtbreaker Scroll",
       "Last Bastion Scroll",
       "Crown Splitter Scroll",
@@ -518,10 +518,10 @@
       "Daybreak"
     ],
     "accessories": [
-      "Seraph Robe",
+      "Sisters' Mantle",
       "Magic Ring",
-      "Boots",
-      "Delphi Shield",
+      "Courier's Boots",
+      "Picket Buckler",
       "Wrath Band",
       "Counter Seal",
       "Pursuit Ring",
@@ -533,7 +533,7 @@
       "Warden's Buckler",
       "Anchor Stone",
       "Grudge Locket",
-      "Galeforce Charm"
+      "Onrush Charm"
     ],
     "forge": [
       "Silver Whetstone",
@@ -549,11 +549,11 @@
       "Cruel Imbuing Stone"
     ],
     "carryPool": [
-      { "item": "Vulnerary", "weight": 2 },
+      { "item": "Poultice", "weight": 2 },
       { "item": "Elixir", "weight": 3 },
       { "item": "Gold Pouch", "weight": 3, "value": 800 },
       { "from": "statBooster", "weight": 1 },
-      { "item": "Master Seal", "weight": 1 }
+      { "item": "Sovereign Seal", "weight": 1 }
     ],
     "weights": {
       "weapon": 15,
@@ -583,10 +583,10 @@
     "accessories": [],
     "forge": [],
     "carryPool": [
-      { "item": "Vulnerary", "weight": 2 },
+      { "item": "Poultice", "weight": 2 },
       { "item": "Elixir", "weight": 3 },
       { "item": "Gold Pouch", "weight": 3, "value": 800 },
-      { "item": "Master Seal", "weight": 1 }
+      { "item": "Sovereign Seal", "weight": 1 }
     ],
     "weights": {
       "gold": 100

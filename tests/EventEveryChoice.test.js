@@ -1,7 +1,7 @@
 // Every event x every choice x every outcome, resolved on a real run (docs/specs/event-nodes.md
 // §9): the shipped content cannot strand or corrupt a run.
 //
-// The run: a fallen ally, a Vulnerary, 2000 gold, and a unit of each weapon type (sword,
+// The run: a fallen ally, a Poultice, 2000 gold, and a unit of each weapon type (sword,
 // lance, axe, bow, tome, light, staff). For each choice, seeds are walked until each of its
 // outcomes has been drawn (so a rare branch is exercised too), then the run is checked:
 //   - the choice resolves (no refusal, no exception);
@@ -57,7 +57,7 @@ function buildRun(seed, { difficulty = 'normal', act = 0 } = {}) {
   const fallen = addUnit(run, 'Cavalier', { name: 'Rook', level: 5 });
   fallen.skills = ['pavise', 'wrath', 'guard'];
   fallAlly(run, fallen);
-  run.roster[0].consumables = [{ ...run.getConsumableTemplate('Vulnerary') }];
+  run.roster[0].consumables = [{ ...run.getConsumableTemplate('Poultice') }];
   // A spare blade in Brant's bag, worn: the Wandering Smith has something to mend and the
   // equipped weapons stay forgeable.
   const brant = run.roster.find((u) => u.name === 'Brant');
@@ -282,7 +282,7 @@ describe('the same on every rung and in every act', () => {
   });
 
   it('with the choice a player has no way to take, the node is still leavable (no soft-lock)', () => {
-    // A broke army: no gold, no Vulnerary, nobody fallen, every bag full, convoy full.
+    // A broke army: no gold, no Poultice, nobody fallen, every bag full, convoy full.
     for (const event of baseData.events.events) {
       const run = newRun({ seed: 5, gold: 0 });
       for (const unit of run.roster) {

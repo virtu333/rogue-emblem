@@ -1,4 +1,4 @@
-// The Galeforce Charm (engine/GaleforceCharm.js): a kill its wearer makes on its own attack may
+// The Onrush Charm (engine/GaleforceCharm.js): a kill its wearer makes on its own attack may
 // (SKL % chance) let it act again, at most twice a battle.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('phaser', () => ({ default: { Scene: class {} } }));
@@ -13,7 +13,7 @@ import { formatAccessoryDetail } from '../src/utils/accessoryText.js';
 import { loadGameData } from './testData.js';
 
 const data = loadGameData();
-const charm = () => structuredClone(data.accessories.find((a) => a.name === 'Galeforce Charm'));
+const charm = () => structuredClone(data.accessories.find((a) => a.name === 'Onrush Charm'));
 const weapon = (name) => structuredClone(data.weapons.find((w) => w.name === name));
 
 afterEach(() => vi.restoreAllMocks());
@@ -34,7 +34,7 @@ describe('the catalog row', () => {
     const row = charm();
     expect(row.legendary).toBe(true);
     const acts = ['act1', 'act2', 'act3', 'act4'].filter((act) =>
-      data.lootTables[act].accessories.includes('Galeforce Charm'),
+      data.lootTables[act].accessories.includes('Onrush Charm'),
     );
     expect(acts).toEqual(['act4']);
     expect(formatAccessoryDetail(row)).toContain(

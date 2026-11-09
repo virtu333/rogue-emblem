@@ -58,7 +58,7 @@ export function weaponCatalogNames(weapon) {
 /**
  * The name an item shows. Most items show their `name` (a forged or worn weapon's already
  * carries its " +N" / " -N"). An accessory with a bound skill keeps its identity
- * name and shows "Power Ring · Vantage" (docs/specs/item-names.md). Display only: every lookup keeps
+ * name and shows "Power Ring · Forestall" (docs/specs/item-names.md). Display only: every lookup keeps
  * reading the identity name. `skills` is the skills.json catalog, which names the lent skill.
  */
 export function itemDisplayName(item, skills = null) {

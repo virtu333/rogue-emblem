@@ -197,7 +197,7 @@ describe('using consumables from the convoy', () => {
 
   it('works with a full bag, and never for a full-HP unit or a convoy weapon', () => {
     const { run, unit } = fixture();
-    const vulnerary = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
+    const vulnerary = { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
     unit.consumables = [0, 1, 2].map(() => structuredClone(vulnerary));
     run.addToConvoy({ ...vulnerary, uses: 1 });
     const stored = liveConvoyItem(run);
@@ -216,7 +216,7 @@ describe('using consumables from the convoy', () => {
   it('a booster from the convoy raises the stat once', () => {
     const { run, unit } = fixture();
     run.addToConvoy({
-      name: 'Energy Drop',
+      name: 'Mightroot',
       type: 'Consumable',
       effect: 'statBoost',
       stat: 'STR',

@@ -456,7 +456,7 @@ describe('buildPrologueUnit', () => {
     expect(edric.weapon.name).toBe('Iron Sword');
     expect(edric.inventory.map((w) => w.name)).toEqual(['Iron Sword']);
     expect(edric.inventory[0]).toBe(edric.weapon);
-    expect(edric.consumables.map((c) => [c.name, c.uses])).toEqual([['Vulnerary', 3]]);
+    expect(edric.consumables.map((c) => [c.name, c.uses])).toEqual([['Poultice', 3]]);
     const uids = [...edric.inventory, ...edric.consumables].map((i) => i.uid);
     expect(uids.every((uid) => typeof uid === 'string')).toBe(true);
     expect(new Set(uids).size).toBe(uids.length);
@@ -515,7 +515,7 @@ describe('buildPrologueUnit', () => {
       lord: 'Sera',
       level: 1,
       proficiencies: ['Light', 'Staff'],
-      inventory: ['Glimmer', 'Heal', 'Vulnerary'],
+      inventory: ['Glimmer', 'Heal', 'Poultice'],
     };
     forbidMathRandom();
     const sera = buildPrologueUnit(spec, data, prologueUnitRng(1209, 'Sera'));
@@ -526,7 +526,7 @@ describe('buildPrologueUnit', () => {
     ]);
     expect(sera.weapon.name).toBe('Glimmer');
     expect(sera.inventory.map((w) => w.name)).toEqual(['Glimmer', 'Heal']);
-    expect(sera.consumables.map((c) => c.name)).toEqual(['Vulnerary']);
+    expect(sera.consumables.map((c) => c.name)).toEqual(['Poultice']);
     expect(sera.skills).toEqual(['renewal_aura']);
     // Staff usability as the battle decides it (UnitManager.hasStaff / getStaffWeapon).
     expect(hasStaff(sera)).toBe(true);

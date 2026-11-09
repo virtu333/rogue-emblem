@@ -55,7 +55,7 @@ describe('Prologue P3: The Seer on the Road', () => {
     expect(seer.weapon.name).toBe('Glimmer');
     expect(seer.proficiencies.map((p) => p.type)).toEqual(['Light', 'Staff']);
     expect(seer.inventory.map((w) => w.name)).toEqual(['Glimmer', 'Heal']);
-    expect(seer.consumables.map((c) => c.name)).toEqual(['Vulnerary']);
+    expect(seer.consumables.map((c) => c.name)).toEqual(['Poultice']);
     expect(seer.skills).toContain('renewal_aura');
     // Glimmer from 2 tiles: 9 against a Soldier, and its lance can't answer.
     const glimmer = getCombatForecast(seer, seer.weapon, s, s.weapon, 2, plain, plain);
@@ -195,7 +195,7 @@ describe('Prologue P3: The Seer on the Road', () => {
     const replay = await tally(naive, null);
     report('naive, replay', replay);
     expect(replay.wins).toBeGreaterThanOrEqual(SEEDS * 0.98);
-    // Entered as the naive P2 leaves it (Edric often on 5 HP with no Vulnerary left),
+    // Entered as the naive P2 leaves it (Edric often on 5 HP with no Poultice left),
     // through either branch, Tamsin armed or not. P2's own "Edric at P1 stats" floor is
     // no state P3 can be entered with: P1 is Edric's alone, so he always leaves it at
     // level 2 (both Fighters' XP is his).

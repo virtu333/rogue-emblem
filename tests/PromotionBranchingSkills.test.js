@@ -164,7 +164,7 @@ describe('Blow skills (initiate-only)', () => {
     expect(defMods.atkBonus).toBe(0);
   });
 
-  it('fiendish_blow stays below the Death Blow scroll skill', () => {
+  it('fiendish_blow stays below the Onslaught scroll skill', () => {
     const byId = Object.fromEntries(data.skills.map((s) => [s.id, s]));
     expect(byId.fiendish_blow.effects.atkBonus).toBeLessThan(byId.death_blow.effects.atkBonus);
     expect(byId.fiendish_blow.effects.atkBonus).toBeGreaterThan(byId.colossus.effects.atkBonus);

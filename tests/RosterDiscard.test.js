@@ -36,8 +36,8 @@ function fixture() {
   ];
   unit.weapon = unit.inventory[0];
   unit.consumables = [
-    { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 2, uid: 'vuln-a' },
-    { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 2, uid: 'vuln-b' },
+    { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 2, uid: 'vuln-a' },
+    { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 2, uid: 'vuln-b' },
   ];
   return { run, unit };
 }
@@ -223,8 +223,8 @@ describe('discarding a convoy item', () => {
   it('removes a stored consumable, leaving the same-named one', () => {
     const { run, unit } = fixture();
     run.convoy.consumables = [
-      { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 2, uid: 'v1' },
-      { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 2, uid: 'v2' },
+      { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 2, uid: 'v1' },
+      { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 2, uid: 'v2' },
     ];
     expect(rosterItemAction(run, unit, run.convoy.consumables[0], 'discard')).toBe('');
     expect(uidsOf(run.convoy.consumables)).toEqual(['v2']);

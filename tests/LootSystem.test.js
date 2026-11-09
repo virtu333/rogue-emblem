@@ -719,7 +719,7 @@ describe('LootSystem', () => {
         expect(inv.length).toBeLessThanOrEqual(6);
         expect(inv.some((entry) => entry.type === 'weapon')).toBe(true);
         expect(inv.some((entry) => entry.type === 'consumable')).toBe(true);
-        expect(inv.some((entry) => entry.item.name === 'Vulnerary')).toBe(true);
+        expect(inv.some((entry) => entry.item.name === 'Poultice')).toBe(true);
         expect(inv.some((entry) => entry.item.name === 'Elixir')).toBe(true);
       }
     });
@@ -782,8 +782,8 @@ describe('LootSystem', () => {
     it('classifies scroll shop entries as scroll type', () => {
       const customTables = {
         act2: {
-          weapons: ['Windsweep Scroll'],
-          healing: ['Vulnerary'],
+          weapons: ['Gale Cut Scroll'],
+          healing: ['Poultice'],
           statBooster: [],
           promotion: [],
           skillScroll: [],
@@ -813,7 +813,7 @@ describe('LootSystem', () => {
         gameData.consumables,
         gameData.accessories,
       );
-      const scrollEntry = inv.find((entry) => entry.item.name === 'Windsweep Scroll');
+      const scrollEntry = inv.find((entry) => entry.item.name === 'Gale Cut Scroll');
       expect(scrollEntry).toBeTruthy();
       expect(scrollEntry.type).toBe('scroll');
     });
@@ -821,8 +821,8 @@ describe('LootSystem', () => {
     it('respects roster weapon type filter for shop scroll pools', () => {
       const customTables = {
         act2: {
-          weapons: ['Windsweep Scroll'],
-          healing: ['Vulnerary'],
+          weapons: ['Gale Cut Scroll'],
+          healing: ['Poultice'],
           statBooster: [],
           promotion: [],
           skillScroll: [],
@@ -858,10 +858,10 @@ describe('LootSystem', () => {
         gameData.accessories,
         roster,
       );
-      expect(inv.some((entry) => entry.item.name === 'Windsweep Scroll')).toBe(false);
+      expect(inv.some((entry) => entry.item.name === 'Gale Cut Scroll')).toBe(false);
     });
 
-    it('no zero-price Legend-tier items in shop (Warp Staff is the priced exception)', () => {
+    it('no zero-price Legend-tier items in shop (Fold Staff is the priced exception)', () => {
       for (let i = 0; i < 30; i++) {
         const inv = generateShopInventory(
           'act3',
@@ -872,9 +872,9 @@ describe('LootSystem', () => {
         for (const entry of inv) {
           if (entry.item.tier !== 'Legend') continue;
           // Legendary combat weapons are all price 0 and must never be sold.
-          // The Warp Staff (price 5000) is deliberately shop-purchasable —
+          // The Fold Staff (price 5000) is deliberately shop-purchasable —
           // premium gold is part of its gating (act3+, Mast rank, 1 use).
-          expect(entry.item.name).toBe('Warp Staff');
+          expect(entry.item.name).toBe('Fold Staff');
           expect(entry.item.price).toBeGreaterThan(0);
         }
       }
@@ -889,7 +889,7 @@ describe('LootSystem', () => {
           gameData.consumables,
         );
         // The basic medicine pair is the one name a shelf repeats.
-        const names = inv.map((e) => e.item.name).filter((name) => name !== 'Vulnerary');
+        const names = inv.map((e) => e.item.name).filter((name) => name !== 'Poultice');
         expect(new Set(names).size).toBe(names.length);
       }
     });
@@ -898,7 +898,7 @@ describe('LootSystem', () => {
       const customTables = {
         act1: {
           weapons: ['Steel Sword'],
-          healing: ['Vulnerary'],
+          healing: ['Poultice'],
           statBooster: [],
           promotion: [],
           skillScroll: [],
@@ -943,7 +943,7 @@ describe('LootSystem', () => {
       const customTables = {
         act1: {
           weapons: ['Steel Sword'],
-          healing: ['Vulnerary'],
+          healing: ['Poultice'],
           statBooster: [],
           promotion: [],
           skillScroll: [],
@@ -1152,8 +1152,8 @@ describe('LootSystem', () => {
     it('act1 healing/promotion pools are split correctly', () => {
       const healing = gameData.lootTables.act1.healing;
       const promotion = gameData.lootTables.act1.promotion;
-      const vulnCount = healing.filter((n) => n === 'Vulnerary').length;
-      const sealCount = promotion.filter((n) => n === 'Master Seal').length;
+      const vulnCount = healing.filter((n) => n === 'Poultice').length;
+      const sealCount = promotion.filter((n) => n === 'Sovereign Seal').length;
       expect(vulnCount).toBe(4);
       expect(sealCount).toBe(1);
       expect(healing.length).toBe(4);
@@ -1180,7 +1180,7 @@ describe('LootSystem', () => {
       expect(pool).toContain('Keen Lance');
       expect(pool).toContain('Hammer');
       expect(pool).toContain('Spear');
-      expect(pool).toContain('Physic');
+      expect(pool).toContain('Farcall');
       expect(pool).toContain('Conflagration');
       expect(pool).toContain('Crownlight');
     });
@@ -1191,10 +1191,10 @@ describe('LootSystem', () => {
       const act2Rare = pool('act2');
       const act3Rare = pool('act3');
       const expected = [
-        'Knightkneeler Scroll',
+        'Kneebreaker Scroll',
         'Vengeance Scroll',
-        'Encloser Scroll',
-        'Seraphim Scroll',
+        'Pinning Shot Scroll',
+        'Scouring Fire Scroll',
       ];
       for (const name of expected) {
         expect(act2Rare).toContain(name);
@@ -1204,20 +1204,20 @@ describe('LootSystem', () => {
 
     it('act2 statBooster pool includes stat boosters', () => {
       const pool = gameData.lootTables.act2.statBooster;
-      expect(pool).toContain('Energy Drop');
-      expect(pool).toContain('Spirit Dust');
-      expect(pool).toContain('Speedwing');
-      expect(pool).toContain('Angelic Robe');
+      expect(pool).toContain('Mightroot');
+      expect(pool).toContain('Spellstone Dust');
+      expect(pool).toContain('Fleet Plume');
+      expect(pool).toContain('Blessed Vestment');
     });
 
     it('act3 statBooster pool includes stat boosters', () => {
       const pool = gameData.lootTables.act3.statBooster;
-      expect(pool).toContain('Energy Drop');
-      expect(pool).toContain('Dracoshield');
-      expect(pool).toContain('Talisman');
-      expect(pool).toContain('Secret Book');
-      expect(pool).toContain('Speedwing');
-      expect(pool).toContain('Angelic Robe');
+      expect(pool).toContain('Mightroot');
+      expect(pool).toContain('Wyrmscale');
+      expect(pool).toContain('Warding Cord');
+      expect(pool).toContain('Drill Primer');
+      expect(pool).toContain('Fleet Plume');
+      expect(pool).toContain('Blessed Vestment');
     });
 
     it('act2 weights are rebalanced', () => {
@@ -1266,8 +1266,8 @@ describe('LootSystem', () => {
       );
     });
 
-    it('act4 weapons pool includes Fortify', () => {
-      expect(gameData.lootTables.act4.weapons).toContain('Fortify');
+    it('act4 weapons pool includes Canticle', () => {
+      expect(gameData.lootTables.act4.weapons).toContain('Canticle');
     });
 
     it('act4 accessories pool includes Nullify Ring', () => {
@@ -1276,8 +1276,8 @@ describe('LootSystem', () => {
 
     it('act4 curates a distinct weapon pool', () => {
       expect(gameData.lootTables.act4.weapons).not.toEqual(gameData.lootTables.act3.weapons);
-      expect(gameData.lootTables.act4.weapons).toContain('Fortify');
-      expect(gameData.lootTables.act4.weapons).toContain('Sleep Staff');
+      expect(gameData.lootTables.act4.weapons).toContain('Canticle');
+      expect(gameData.lootTables.act4.weapons).toContain('Lullaby Staff');
     });
 
     it('act4 accessories include Nullify Ring', () => {
@@ -1299,13 +1299,13 @@ describe('LootSystem', () => {
   describe('stat booster shop exclusion', () => {
     it('shop never sells stat boosters in act2', () => {
       const statBoosterNames = [
-        'Energy Drop',
-        'Spirit Dust',
-        'Secret Book',
-        'Speedwing',
-        'Dracoshield',
-        'Talisman',
-        'Angelic Robe',
+        'Mightroot',
+        'Spellstone Dust',
+        'Drill Primer',
+        'Fleet Plume',
+        'Wyrmscale',
+        'Warding Cord',
+        'Blessed Vestment',
       ];
       for (let i = 0; i < 50; i++) {
         const inv = generateShopInventory(
@@ -1322,13 +1322,13 @@ describe('LootSystem', () => {
 
     it('shop never sells stat boosters in act3', () => {
       const statBoosterNames = [
-        'Energy Drop',
-        'Spirit Dust',
-        'Secret Book',
-        'Speedwing',
-        'Dracoshield',
-        'Talisman',
-        'Angelic Robe',
+        'Mightroot',
+        'Spellstone Dust',
+        'Drill Primer',
+        'Fleet Plume',
+        'Wyrmscale',
+        'Warding Cord',
+        'Blessed Vestment',
       ];
       for (let i = 0; i < 50; i++) {
         const inv = generateShopInventory(
@@ -1718,7 +1718,7 @@ describe('LootSystem', () => {
       const customTables = {
         act1: {
           weapons: ['Steel Sword'],
-          healing: ['Vulnerary'],
+          healing: ['Poultice'],
           statBooster: [],
           promotion: [],
           skillScroll: [],
@@ -1781,7 +1781,7 @@ describe('LootSystem', () => {
       const customTables = {
         act2: {
           weapons: ['Wildfire', 'Brilliance'],
-          healing: ['Vulnerary'],
+          healing: ['Poultice'],
           statBooster: [],
           promotion: [],
           skillScroll: [],
@@ -1847,7 +1847,7 @@ describe('LootSystem', () => {
   });
 
   describe('guaranteed shop consumables', () => {
-    it('every shop includes Vulnerary', () => {
+    it('every shop includes Poultice', () => {
       for (let i = 0; i < 50; i++) {
         const shop = generateShopInventory(
           'act1',
@@ -1856,7 +1856,7 @@ describe('LootSystem', () => {
           gameData.consumables,
           gameData.accessories,
         );
-        const hasVulnerary = shop.some((s) => s.item.name === 'Vulnerary');
+        const hasVulnerary = shop.some((s) => s.item.name === 'Poultice');
         expect(hasVulnerary).toBe(true);
       }
     });
@@ -1875,8 +1875,8 @@ describe('LootSystem', () => {
       }
     });
 
-    it('every ordinary shop stocks exactly two Vulneraries in every act', () => {
-      // Act III and IV list no Vulnerary in their pools: the guarantee does not
+    it('every ordinary shop stocks exactly two Poultices in every act', () => {
+      // Act III and IV list no Poultice in their pools: the guarantee does not
       // depend on the pool, and each copy is its own row with its own instance.
       for (const act of ['act1', 'act2', 'act3', 'act4', 'finalBoss']) {
         for (let i = 0; i < 40; i++) {
@@ -1887,7 +1887,7 @@ describe('LootSystem', () => {
             gameData.consumables,
             gameData.accessories,
           );
-          const vulneraries = shop.filter((s) => s.item.name === 'Vulnerary');
+          const vulneraries = shop.filter((s) => s.item.name === 'Poultice');
           expect(vulneraries).toHaveLength(2);
           expect(vulneraries.every((s) => s.type === 'consumable')).toBe(true);
           expect(new Set(vulneraries.map((s) => s.item.uid)).size).toBe(2);
@@ -1898,8 +1898,8 @@ describe('LootSystem', () => {
       }
     });
 
-    it('prices a guaranteed Vulnerary with the act markup like any shelf item', () => {
-      const base = gameData.consumables.find((c) => c.name === 'Vulnerary').price;
+    it('prices a guaranteed Poultice with the act markup like any shelf item', () => {
+      const base = gameData.consumables.find((c) => c.name === 'Poultice').price;
       const shop = generateShopInventory(
         'act3',
         gameData.lootTables,
@@ -1907,15 +1907,15 @@ describe('LootSystem', () => {
         gameData.consumables,
         gameData.accessories,
       );
-      const vulnerary = shop.find((s) => s.item.name === 'Vulnerary');
+      const vulnerary = shop.find((s) => s.item.name === 'Poultice');
       // data/economy.json: Act III shelves are marked up 30%.
       expect(vulnerary.price).toBe(Math.ceil(base * 1.3));
       expect(vulnerary.price).toBeGreaterThan(base);
     });
 
-    it('takes its Vulnerary uses from the catalog it is given (the run recipe)', () => {
+    it('takes its Poultice uses from the catalog it is given (the run recipe)', () => {
       const recipe = gameData.consumables.map((c) =>
-        c.name === 'Vulnerary' ? { ...c, uses: 3 } : c,
+        c.name === 'Poultice' ? { ...c, uses: 3 } : c,
       );
       const shop = generateShopInventory(
         'act4',
@@ -1924,12 +1924,12 @@ describe('LootSystem', () => {
         recipe,
         gameData.accessories,
       );
-      const vulneraries = shop.filter((s) => s.item.name === 'Vulnerary');
+      const vulneraries = shop.filter((s) => s.item.name === 'Poultice');
       expect(vulneraries).toHaveLength(2);
       expect(vulneraries.every((s) => s.item.uses === 3)).toBe(true);
     });
 
-    it('stocks the number of Vulneraries asked for (the Ruins ask for one)', () => {
+    it('stocks the number of Poultices asked for (the Ruins ask for one)', () => {
       for (const act of ['act1', 'act3']) {
         for (let i = 0; i < 30; i++) {
           const shop = generateShopInventory(
@@ -1942,7 +1942,7 @@ describe('LootSystem', () => {
             null,
             { itemCountRange: { min: 5, max: 6 }, guaranteedVulneraries: 1 },
           );
-          expect(shop.filter((s) => s.item.name === 'Vulnerary')).toHaveLength(1);
+          expect(shop.filter((s) => s.item.name === 'Poultice')).toHaveLength(1);
         }
       }
     });
@@ -1959,7 +1959,7 @@ describe('LootSystem', () => {
           null,
           { itemCountRange: { min: 3, max: 4 }, rareBias: true },
         );
-        expect(shop.some((s) => s.item.name === 'Vulnerary')).toBe(false);
+        expect(shop.some((s) => s.item.name === 'Poultice')).toBe(false);
       }
     });
 
@@ -2041,7 +2041,7 @@ describe('LootSystem', () => {
       const names = inv.map((i) => i.item.name);
       expect(names).toContain('Herb');
       expect(names).toContain('Remedy');
-      expect(names).toContain('Restore');
+      expect(names).toContain('Unbinding');
     });
 
     it('does NOT add Herb/Remedy when shopCureGating[act] is false', () => {
@@ -2077,7 +2077,7 @@ describe('LootSystem', () => {
       const names = inv.map((i) => i.item.name);
       expect(names).not.toContain('Herb');
       expect(names).not.toContain('Remedy');
-      expect(names).not.toContain('Restore');
+      expect(names).not.toContain('Unbinding');
     });
 
     it('does NOT add cures when shopCureGating is omitted', () => {
@@ -2090,13 +2090,13 @@ describe('LootSystem', () => {
       const names = inv.map((i) => i.item.name);
       expect(names).not.toContain('Herb');
       expect(names).not.toContain('Remedy');
-      expect(names).not.toContain('Restore');
+      expect(names).not.toContain('Unbinding');
     });
   });
 });
 
 describe('Act 1 boss reward floor (phone feedback)', () => {
-  it('offers upgraded loot instead of Vulneraries and ordinary Steel weapons', () => {
+  it('offers upgraded loot instead of Poultices and ordinary Steel weapons', () => {
     const data = loadGameData();
     const boss = data.lootTables.act1.bossRewards;
     const allowed = new Set([
@@ -2136,7 +2136,7 @@ describe('Act 1 boss reward floor (phone feedback)', () => {
       }
       expect(seen).toEqual(new Set(['weapon', 'statBooster', 'promotion', 'accessory', 'forge']));
       expect(boss.healing).toEqual([]);
-      expect(data.lootTables.act1.healing).toContain('Vulnerary');
+      expect(data.lootTables.act1.healing).toContain('Poultice');
     } finally {
       spy.mockRestore();
     }

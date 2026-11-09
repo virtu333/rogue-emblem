@@ -42,7 +42,7 @@ afterEach(() => {
 
 const UID = 'itm_vuln';
 
-/** A Thief (0,1) beside a Brigand (1,1) that carries a Vulnerary with its own uid. */
+/** A Thief (0,1) beside a Brigand (1,1) that carries a Poultice with its own uid. */
 function fixture({ bagFull = false } = {}) {
   const driver = new RunDriver(storage, { seed: 42 });
   const run = driver.run;
@@ -57,7 +57,7 @@ function fixture({ bagFull = false } = {}) {
     return unit;
   };
   const vulnerary = {
-    ...structuredClone(driver.data.consumables.find((c) => c.name === 'Vulnerary')),
+    ...structuredClone(driver.data.consumables.find((c) => c.name === 'Poultice')),
     uid: UID,
     uses: 2,
     _casts: 4,
@@ -162,7 +162,7 @@ describe('a stolen item can never exist twice or vanish', () => {
 
     await steal(scene, thief, brigand);
     expect(placesOf(UID, scene, run)).toEqual(['Thief.bag']);
-    expect(thief.consumables[0]).toMatchObject({ uid: UID, uses: 2, _casts: 4, name: 'Vulnerary' });
+    expect(thief.consumables[0]).toMatchObject({ uid: UID, uses: 2, _casts: 4, name: 'Poultice' });
     expect(brigand.carriedItem).toBeUndefined();
 
     // Resume from the checkpoint the action saved: both sides come back together.
@@ -176,7 +176,7 @@ describe('a stolen item can never exist twice or vanish', () => {
     rewindToBefore(scene, 'Before Thief’s steal on Brigand');
     expect(placesOf(UID, scene, run)).toEqual(['Brigand.carried']);
     const back = scene.enemyUnits.find((u) => u.name === 'Brigand');
-    expect(back.carriedItem).toMatchObject({ uid: UID, uses: 2, _casts: 4, name: 'Vulnerary' });
+    expect(back.carriedItem).toMatchObject({ uid: UID, uses: 2, _casts: 4, name: 'Poultice' });
     expect(scene.playerUnits.find((u) => u.name === 'Thief').consumables).toEqual([]);
 
     // The rewind's own checkpoint resumes to the same: still one place.
@@ -241,7 +241,7 @@ describe('a stolen item can never exist twice or vanish', () => {
     const nodeId = run.nodeMap.nodes[0].id;
     run.beginBattleInProgress(nodeId, { battleParams: {} });
     const vulnerary = {
-      ...structuredClone(driver.data.consumables.find((c) => c.name === 'Vulnerary')),
+      ...structuredClone(driver.data.consumables.find((c) => c.name === 'Poultice')),
       uid: UID,
       uses: 1,
     };
@@ -261,7 +261,7 @@ describe('a stolen item can never exist twice or vanish', () => {
     expect(run.completeBattle(survivors, nodeId, 0, { turnCount: 5, turnPar: 5 })).toBeTruthy();
     const after = run.roster.find((u) => u.name === rosterUnit.name);
     expect(after.consumables.filter((i) => i.uid === UID)).toHaveLength(1);
-    expect(after.consumables.find((i) => i.uid === UID)).toMatchObject({ name: 'Vulnerary', uses: 1 }); // prettier-ignore
+    expect(after.consumables.find((i) => i.uid === UID)).toMatchObject({ name: 'Poultice', uses: 1 }); // prettier-ignore
     expect(run.convoy.consumables.filter((i) => i.uid === UID)).toEqual([]);
     // And it survives a save and a load.
     const loaded = RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), driver.data);

@@ -373,7 +373,7 @@ describe('the loom’s words', () => {
             level: 3,
             isBoss: false,
             affixes: ['venomous'],
-            carries: 'Vulnerary',
+            carries: 'Poultice',
           },
           { className: 'Fighter', level: 1, isBoss: false, affixes: [], carries: null },
           {
@@ -393,7 +393,7 @@ describe('the loom’s words', () => {
     expect(view.note).toBe('Scouted for 4 in the field.');
     expect(view.rows.map((r) => [r.text, r.detail])).toEqual([
       ['Boss · Warchief, Fighter Lv 5', ''],
-      ['Archer Lv 3', 'Venomous · carries Vulnerary'],
+      ['Archer Lv 3', 'Venomous · carries Poultice'],
       ['Fighter Lv 1', ''],
       ['Fighter Lv 2 ×2', ''],
     ]);

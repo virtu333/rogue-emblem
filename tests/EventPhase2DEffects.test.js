@@ -89,16 +89,16 @@ const diff = (before, after) =>
 
 // The loot tables' accessory lists by act, copied from data/lootTables.json by hand.
 const ACT1 = [
-  'Goddess Icon',
+  'Fatethread Pendant',
   'Shield Ring',
   'Forest Charm',
   'Soothing Stone',
   "Hunter's Cloak",
   "Gambler's Coin",
 ];
-const ACT2 = ['Power Ring', 'Speed Ring', 'Barrier Ring', 'Skill Ring', 'Life Ring', "Veteran's Crest", 'Vanguard Crest', 'Diamond Medallion', 'Moontide Amulet', "Bounty Hunter's Mark", "Vampire's Bloodshard", 'Boots', 'Warding Charm', "Mentor's Band", 'Gemini Ring', 'Briar Cloak']; // prettier-ignore
-const ACT3 = ['Seraph Robe', 'Magic Ring', 'Boots', 'Delphi Shield', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Blood Gem', 'Recoil Guard', 'Phoenix Brooch', "Duelist's Glove", 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Gemini Ring', "Warden's Buckler", 'Briar Cloak', 'Anchor Stone', 'Grudge Locket']; // prettier-ignore
-const ACT4 = ['Seraph Robe', 'Magic Ring', 'Boots', 'Delphi Shield', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Nullify Ring', 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band', "Warden's Buckler", 'Anchor Stone', 'Grudge Locket', 'Galeforce Charm']; // prettier-ignore
+const ACT2 = ['Power Ring', 'Speed Ring', 'Barrier Ring', 'Skill Ring', 'Life Ring', "Veteran's Crest", 'Vanguard Crest', 'Diamond Medallion', 'Moontide Amulet', "Bounty Hunter's Mark", "Vampire's Bloodshard", 'Courier\'s Boots', 'Warding Charm', "Mentor's Band", 'Gemini Ring', 'Briar Cloak']; // prettier-ignore
+const ACT3 = ['Sisters\' Mantle', 'Magic Ring', 'Courier\'s Boots', 'Picket Buckler', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Blood Gem', 'Recoil Guard', 'Phoenix Brooch', "Duelist's Glove", 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Gemini Ring', "Warden's Buckler", 'Briar Cloak', 'Anchor Stone', 'Grudge Locket']; // prettier-ignore
+const ACT4 = ['Sisters\' Mantle', 'Magic Ring', 'Courier\'s Boots', 'Picket Buckler', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Nullify Ring', 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band', "Warden's Buckler", 'Anchor Stone', 'Grudge Locket', 'Onrush Charm']; // prettier-ignore
 
 describe('an accessory from the pool one tier up', () => {
   const grant = (tierOffset) => [{ type: 'item', pool: { kind: 'accessory', tierOffset } }];

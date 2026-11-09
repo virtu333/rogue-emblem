@@ -411,7 +411,7 @@ export class ClaimingRunDriver extends RunSimulationDriver {
       this._count('goldPouches', used.pouches);
       this._count('boostersUsed', used.boosters);
       for (const heal of used.heals) {
-        if (heal.item === 'Vulnerary') this._exerciseIfHeld('field_medic');
+        if (heal.item === 'Poultice') this._exerciseIfHeld('field_medic');
         if (heal.item === 'Elixir') {
           this._count('convoyElixirHeals');
           this._exerciseIfHeld('quartermaster_cache');

@@ -15,7 +15,7 @@
     min-width: 0;
   }
   /* Upright the header is ~300px wide: a 12px menu title keeps the longest one
-     ("Choose weapon for Hunter's Volley Scroll") to two lines. */
+     ("Choose weapon for Hawk's Talons Scroll") to two lines. */
   html.portrait-ui {
     --re-menu-title-size: var(--re-pf-12, 12px);
   }

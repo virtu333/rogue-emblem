@@ -165,12 +165,12 @@ describe('the choosing page', () => {
     const sword = run.gameData.weapons.find((w) => w.name === 'Iron Sword');
     for (const unit of run.roster) {
       unit.inventory = Array.from({ length: 5 }, () => ({ ...sword }));
-      unit.consumables = Array.from({ length: 3 }, () => run.getConsumableTemplate('Vulnerary'));
+      unit.consumables = Array.from({ length: 3 }, () => run.getConsumableTemplate('Poultice'));
     }
     const caps = run.getConvoyCapacities();
     run.convoy.weapons = Array.from({ length: caps.weapons }, () => ({ ...sword }));
     run.convoy.consumables = Array.from({ length: caps.consumables }, () =>
-      run.getConsumableTemplate('Vulnerary'),
+      run.getConsumableTemplate('Poultice'),
     );
     const d = new EventDriver({ run, eventId: 'abandoned_armory' });
     d.open();
@@ -358,7 +358,7 @@ describe('every shipped outcome renders a clean page', () => {
     const rook = addUnit(run, 'Cavalier', { name: 'Rook', level: 5 });
     rook.skills = ['pavise', 'wrath', 'guard'];
     fallAlly(run, rook);
-    run.roster[0].consumables = [{ ...run.getConsumableTemplate('Vulnerary') }];
+    run.roster[0].consumables = [{ ...run.getConsumableTemplate('Poultice') }];
     // A worn spare in Brant's bag, for the Wandering Smith.
     const brant = run.roster.find((u) => u.name === 'Brant');
     const spare = structuredClone(brant.inventory[0]);

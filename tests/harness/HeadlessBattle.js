@@ -278,7 +278,7 @@ export class HeadlessBattle {
    *   `buildRecruit`: how a full run builds a recruit battle's green unit (the run's own
    *   `getRecruitNodeUnit`); without it the battle builds one from its own params.
    *   `runManager`: the run the battle belongs to, present from `init()` (its blessings, the
-   *   Vulnerary recipe and the run-level battle effects); without it the battle is standalone.
+   *   Poultice recipe and the run-level battle effects); without it the battle is standalone.
    *   `steal`: offer Steal (a Thief's `steal_item` ability) in the action menu, as
    *   AbilityTargetingController does. Off by default, so the stock agents' legal actions (and
    *   every default sim) are what they were; the blessing sims' claiming policies turn it on.
@@ -906,7 +906,7 @@ export class HeadlessBattle {
     p1.row = bc.playerSpawns[0].row;
     const steelSword = this.gameData.weapons.find((w) => w.name === 'Steel Sword');
     if (steelSword) addToInventory(p1, steelSword);
-    const vul = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
+    const vul = this.gameData.consumables.find((c) => c.name === 'Poultice');
     if (vul) addToConsumables(p1, vul);
     this.playerUnits.push(p1);
 
@@ -919,7 +919,7 @@ export class HeadlessBattle {
       p2.proficiencies.push({ type: 'Staff', rank: 'Prof' });
       const heal = this.gameData.weapons.find((w) => w.name === 'Heal');
       if (heal) addToInventory(p2, heal);
-      const vul2 = this.gameData.consumables.find((c) => c.name === 'Vulnerary');
+      const vul2 = this.gameData.consumables.find((c) => c.name === 'Poultice');
       if (vul2) addToConsumables(p2, vul2);
       this.playerUnits.push(p2);
     }
@@ -2249,7 +2249,7 @@ export class HeadlessBattle {
     // Canto (including Measured Step) is disabled in this harness; scene tests cover it.
     unit.hasActed = true;
     this._handleVillageVisit(unit);
-    // As BattleActionCompletion: a Galeforce Charm that procced readies the unit again.
+    // As BattleActionCompletion: a Onrush Charm that procced readies the unit again.
     const again = consumeGaleforce(unit);
     this.selectedUnit = null;
     this.preMoveLoc = null;

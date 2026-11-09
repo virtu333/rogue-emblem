@@ -250,7 +250,7 @@ export class ShopMenu {
       const selling = this.scene.activeShopTab === 'sell';
       const buying = this.scene.activeShopTab === 'buy';
       const sub = buying
-        ? // A Master Seal under Kingmaker's Oath is sold, marked (TwistedBoons.classChangeItemTag).
+        ? // A Sovereign Seal under Kingmaker's Oath is sold, marked (TwistedBoons.classChangeItemTag).
           [row.item.type, itemKeywordText(row.item), classChangeItemTag(this.run, row.item)]
             .filter(Boolean)
             .join(' · ')

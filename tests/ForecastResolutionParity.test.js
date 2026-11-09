@@ -8,7 +8,7 @@
 // disadvantage, reavers, brave, effective, magic swords, Sunder, stat-bonus
 // weapons), weapon ranks, class skills, mastery perks, traits, affixes,
 // combat accessories, imbues, weapon arts, terrain and range. Per-strike procs
-// (Luna, Sol, Pavise, ...) are outside the displayed numbers by design and are
+// (Umbra, Reclaim, Shieldwall, ...) are outside the displayed numbers by design and are
 // not rolled here; everything the forecast folds in is.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getCombatForecast, resolveCombat, parseRange, isStaff } from '../src/engine/Combat.js';

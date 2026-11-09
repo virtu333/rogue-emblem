@@ -189,7 +189,7 @@ console.log(
 // ────────────────────────────────────────
 // 3b. Visit yield: big army, before and after the visit cap
 // ────────────────────────────────────────
-printHeader('Arena Yield per Visit: big army (Vulneraries for everyone), before and after the cap');
+printHeader('Arena Yield per Visit: big army (Poultices for everyone), before and after the cap');
 
 // "Before" is every unit fighting its full per-unit cap (units × maxFightsPerUnit bouts);
 // "after" is the visit cap on top. Bouts go round-robin across the army. Gold and XP are

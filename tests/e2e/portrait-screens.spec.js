@@ -978,7 +978,7 @@ function detailedRecord(id, endedAt, fallen) {
     tally: { kills: 14 + i, bossKills: 2, crits: 3, battles: 20 },
     stats: [62, 31, 6, 28, 27, 25, 14, 22],
     weapon: 'Silver Sword +2',
-    items: ['Steel Sword', 'Keen Sword', 'Iron Sword', 'Rapier', 'Vulnerary', 'Elixir', 'Master Seal'], // prettier-ignore
+    items: ['Steel Sword', 'Keen Sword', 'Iron Sword', 'Rapier', 'Poultice', 'Elixir', 'Sovereign Seal'], // prettier-ignore
     accessory: "Bounty Hunter's Mark",
     skills: ['charisma', 'sol', 'vantage', 'resolve', 'pavise'],
     deeds: ['bossbane', 'held_the_line', 'red_harvest', 'veteran', 'keen_edge', 'giantslayer'],

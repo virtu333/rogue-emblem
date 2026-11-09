@@ -30,7 +30,8 @@ const sword = {
   range: '1',
 };
 const axe = { name: 'Test Axe', type: 'Axe', might: 8, hit: 100, crit: 0, weight: 0, range: '1' };
-const robe = () => structuredClone(data.accessories.find((entry) => entry.name === 'Seraph Robe'));
+const robe = () =>
+  structuredClone(data.accessories.find((entry) => entry.name === "Sisters' Mantle"));
 
 afterEach(() => {
   Math.random = originalRandom;

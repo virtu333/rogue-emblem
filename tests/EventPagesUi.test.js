@@ -598,7 +598,7 @@ describe('every page of every shipped event reads cleanly', () => {
       ['Cleric', 'Mara'],
     ])
       addUnit(run, className, { name, level: 3 });
-    run.roster[0].consumables = [{ ...run.getConsumableTemplate('Vulnerary') }];
+    run.roster[0].consumables = [{ ...run.getConsumableTemplate('Poultice') }];
     return run;
   };
 

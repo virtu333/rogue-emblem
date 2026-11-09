@@ -21,7 +21,7 @@ describe('battleItemSummary', () => {
   it('shows staff mechanics and MAG-adjusted range', () => {
     const text = battleItemSummary(
       {
-        name: 'Physic',
+        name: 'Farcall',
         type: 'Staff',
         range: '1-2',
         uses: 1,
@@ -82,7 +82,7 @@ describe('battleItemBrief (one line per menu row; the rest on a long press)', ()
   });
   it('briefs consumables and staves by what they do and what is left', () => {
     expect(
-      battleItemBrief({ name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10 }),
+      battleItemBrief({ name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10 }),
     ).toBe('Restore 10 HP');
     expect(
       battleItemBrief(
@@ -194,7 +194,7 @@ describe('attack speed in the equip rows (the brief and the full detail)', () =>
 
   it('leaves consumables, staves and unit-less briefs alone', () => {
     const unit = makeUnit();
-    const vulnerary = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10 };
+    const vulnerary = { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10 };
     expect(battleItemBrief(vulnerary, unit)).toBe('Restore 10 HP');
     expect(battleItemSummary(vulnerary, unit)).not.toContain('Attack speed');
     expect(battleItemBrief(handAxe)).toBe('Mt 5 · Hit 65 · Rng 1-2\u00a0✦');

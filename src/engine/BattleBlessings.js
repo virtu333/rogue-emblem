@@ -1,7 +1,7 @@
 // BattleBlessings — the earned blessings that act inside one battle (docs/specs/blessings-v3.md §6).
 //
 //   Unbroken Banner   (`lastStand`)    the first player unit a blow would fell survives at 1 HP,
-//                                      `lastStand` times a battle (1 while held). Order: Miracle,
+//                                      `lastStand` times a battle (1 while held). Order: Reprieve,
 //                                      then Revival Stones, then the banner (UnitHealth.absorbLethal).
 //   Ember Lantern     (`firstKillHeal`) the army's first kill of the battle heals the killer this
 //                                      much, through healUnit; spent even when it heals nothing

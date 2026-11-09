@@ -288,11 +288,11 @@ describe('PrologueController: the guided steps', () => {
     edric.col = 4; // Back, to another tile
     prologue.syncTip();
     expect(holding.closed).toBe(false);
-    // An unscoped tip (the Vulnerary at 55%), then the turn's modal note: the tip goes.
+    // An unscoped tip (the Poultice at 55%), then the turn's modal note: the tip goes.
     edric.currentHP = 11;
     await prologue.onCombatResolved(unitOf(scene, 'a'), edric, { initiator: 'enemy' });
     const vulnerary = tipHandle();
-    expect(vulnerary.opts.text).toContain('Vulnerary');
+    expect(vulnerary.opts.text).toContain('Poultice');
     scene.battleState = 'PLAYER_IDLE';
     await prologue.beforeUnitActionCompletes(edric);
     expect(notes().at(-1)).toContain('Wait ends Edric');
@@ -468,7 +468,7 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
     );
   });
 
-  it('a hit that leaves Edric at 60% or less tips the Vulnerary, once, with its real numbers', async () => {
+  it('a hit that leaves Edric at 60% or less tips the Poultice, once, with its real numbers', async () => {
     const { scene, edric } = makeScene();
     const prologue = new PrologueController(scene).create();
     const a = unitOf(scene, 'a');
@@ -477,7 +477,7 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
     edric.currentHP = 11; // 55%
     // A tip: the enemy phase is never held for it.
     expect(await prologue.onCombatResolved(a, edric, { initiator: 'enemy' })).toBe(false);
-    expect(tips().at(-1)).toContain('Item → Vulnerary heals 10 HP');
+    expect(tips().at(-1)).toContain('Item → Poultice heals 10 HP');
     expect(showImportantHint).not.toHaveBeenCalled();
     tipHandle().read();
     expect(prologue.taught.has('battle_consumable_supply')).toBe(true);
@@ -527,22 +527,22 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
     expect([...prologue.lessons.shown]).toContain('hold_reach');
   });
 
-  it("P2: Gaspar hurt with no Vulnerary is told to Trade for Edric's, and only then", async () => {
+  it("P2: Gaspar hurt with no Poultice is told to Trade for Edric's, and only then", async () => {
     const { scene } = makeScene({ chapterId: 'p2_old_hands' });
     const prologue = new PrologueController(scene).create();
     const gaspar = scene.playerUnits.find((u) => u.name === 'Gaspar');
     const edric = scene.playerUnits.find((u) => u.name === 'Edric');
-    // The kits as authored: Edric's Vulnerary, nothing on Gaspar.
+    // The kits as authored: Edric's Poultice, nothing on Gaspar.
     expect((gaspar.consumables || []).some((c) => c.effect === 'heal')).toBe(false);
-    expect(edric.consumables.map((c) => c.name)).toContain('Vulnerary');
+    expect(edric.consumables.map((c) => c.name)).toContain('Poultice');
     gaspar.currentHP = Math.floor(gaspar.stats.HP * 0.5);
     await prologue.onCombatResolved(scene.enemyUnits[0], gaspar, { initiator: 'enemy' });
     expect(tips().at(-1)).toBe(
-      'Gaspar carries no Vulnerary, but Edric does. Move Gaspar next to Edric and choose Trade to take it, then Item → Vulnerary: it heals him this same turn.',
+      'Gaspar carries no Poultice, but Edric does. Move Gaspar next to Edric and choose Trade to take it, then Item → Poultice: it heals him this same turn.',
     );
   });
 
-  it('P2: no trade tip when Gaspar holds his own Vulnerary, or nobody has one', async () => {
+  it('P2: no trade tip when Gaspar holds his own Poultice, or nobody has one', async () => {
     for (const setup of [
       (gaspar, edric) => gaspar.consumables.push(edric.consumables.shift()),
       (_gaspar, edric) => (edric.consumables = []),
@@ -563,11 +563,11 @@ describe('PrologueController: forecasts, actions and the enemy phase', () => {
   it("turn 2's tip waits for an unread tip on screen, never replacing it", async () => {
     const { scene, edric } = makeScene();
     const prologue = new PrologueController(scene).create();
-    // The Vulnerary tip, raised by an enemy-phase hit: still unread at turn 2.
+    // The Poultice tip, raised by an enemy-phase hit: still unread at turn 2.
     edric.currentHP = 11;
     await prologue.onCombatResolved(unitOf(scene, 'a'), edric, { initiator: 'enemy' });
     const vulnerary = tipHandle();
-    expect(vulnerary.opts.text).toContain('Vulnerary');
+    expect(vulnerary.opts.text).toContain('Poultice');
     scene.battleState = 'PLAYER_IDLE';
     prologue.onPhaseStart('player', 2);
     prologue.flushDeferred();

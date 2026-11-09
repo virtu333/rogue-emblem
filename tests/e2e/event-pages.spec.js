@@ -463,7 +463,7 @@ for (const size of SIZES) {
       await expect(dialog).toBeVisible();
       await chooseThrough(page, dialog, /^Give your medicine/, { tap });
       await expect(dialog.locator('.ev-recent .ev-result[data-kind="consume"]')).toContainText(
-        'Vulnerary',
+        'Poultice',
       );
       await chooseThrough(page, dialog, /^Give a second dose/, { tap });
       await expect(dialog.locator('.ev-trail-toggle')).toContainText('1 step');

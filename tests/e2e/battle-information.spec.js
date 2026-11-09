@@ -382,7 +382,7 @@ test('canvas fallback keeps long affixes and full Gear above the footer at 640 b
       structuredClone(s.gameData.weapons.find((w) => w.name === 'Iron Lance')),
     );
     u.consumables = [
-      { name: 'Vulnerary', uses: 3 },
+      { name: 'Poultice', uses: 3 },
       { name: 'Antidote', uses: 3 },
     ];
     u.skills = ['vantage', 'luna', 'sol'];

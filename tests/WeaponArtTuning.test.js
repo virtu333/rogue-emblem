@@ -28,10 +28,10 @@ describe('weapon art data', () => {
     }
   });
 
-  it('Grounder and Helm Splitter scrolls are on sale from Act 1 to Act 4', () => {
+  it('Sweep and Helmcleaver scrolls are on sale from Act 1 to Act 4', () => {
     for (const act of ['act1', 'act2', 'act3', 'act4']) {
       expect(data.lootTables[act].weaponArtScroll, act).toEqual(
-        expect.arrayContaining(['Grounder Scroll', 'Helm Splitter Scroll']),
+        expect.arrayContaining(['Sweep Scroll', 'Helmcleaver Scroll']),
       );
     }
     // Act 1 sells them but never drops them.

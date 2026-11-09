@@ -157,7 +157,7 @@ describe('Tier 4 multiHit combat resolution', () => {
       resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, {
         atkWeaponArtMods: {
           multiHit: { count: 3, damageMultiplier: 0.6 },
-          activated: [{ id: 'weapon_art', name: 'Astra Strike' }],
+          activated: [{ id: 'weapon_art', name: 'Falling Stars' }],
         },
       }),
     );
@@ -199,7 +199,7 @@ describe('Tier 4 multiHit combat resolution', () => {
     expect(strikes).toHaveLength(3);
   });
 
-  it('suppresses Astra checks on the multiHit side', () => {
+  it('suppresses Constellation checks on the multiHit side', () => {
     const attacker = makeUnit({ name: 'Atk' });
     const defender = makeUnit({
       name: 'Def',
@@ -212,14 +212,14 @@ describe('Tier 4 multiHit combat resolution', () => {
       triggered: true,
       strikeCount: 5,
       damageMult: 0.5,
-      name: 'Astra',
+      name: 'Constellation',
     }));
 
     withHitNoCrit(() =>
       resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, {
         atkWeaponArtMods: {
           multiHit: { count: 3, damageMultiplier: 0.6 },
-          activated: [{ id: 'weapon_art', name: 'Astra Strike' }],
+          activated: [{ id: 'weapon_art', name: 'Falling Stars' }],
         },
         checkAstra,
         skillsData: [],
@@ -246,7 +246,7 @@ describe('Tier 4 multiHit combat resolution', () => {
       resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, {
         atkWeaponArtMods: {
           multiHit: { count: 2, damageMultiplier: 0.9 },
-          activated: [{ id: 'weapon_art', name: "Hunter's Volley" }],
+          activated: [{ id: 'weapon_art', name: "Hawk's Talons" }],
         },
       }),
     );
@@ -278,7 +278,7 @@ describe('Tier 4 multiHit combat resolution', () => {
       resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, {
         atkWeaponArtMods: {
           multiHit: { count: 3, damageMultiplier: 0.6 },
-          activated: [{ id: 'weapon_art', name: 'Astra Strike' }],
+          activated: [{ id: 'weapon_art', name: 'Falling Stars' }],
         },
       }),
     );
@@ -338,7 +338,7 @@ describe('Tier 4 drainPercent combat resolution', () => {
       resolveCombat(attacker, attacker.weapon, defender, defender.weapon, 1, null, null, {
         atkWeaponArtMods: {
           drainPercent: 1,
-          activated: [{ id: 'weapon_art', name: 'Nosferatu' }],
+          activated: [{ id: 'weapon_art', name: 'Grave Hunger' }],
         },
       }),
     );
@@ -518,7 +518,7 @@ describe('Tier 4 forecast parity', () => {
         atkWeaponArtMods: {
           multiHit: { count: 2, damageMultiplier: 0.9 },
           drainPercent: 0.3,
-          activated: [{ id: 'weapon_art', name: "Hunter's Volley" }],
+          activated: [{ id: 'weapon_art', name: "Hawk's Talons" }],
         },
       },
     );
