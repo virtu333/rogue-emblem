@@ -91,7 +91,8 @@ jobs:
   e2e:
     name: e2e (${{ matrix.id }})
     needs: e2e-lanes
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    # Pinned: Playwright 1.58 cannot install Chromium on ubuntu-26.04 (what ubuntu-latest became); lift with the Playwright upgrade.
     # Lane shards are split by measured time (tests/e2e/durations.json) to about 8
     # minutes each; a slow browser install can take up to ~18;
     # a hung job must not hold a runner for the 6-hour default (Oct 2026: installs stalled
