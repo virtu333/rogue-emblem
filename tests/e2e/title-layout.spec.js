@@ -226,8 +226,10 @@ test.describe('desktop', () => {
     await expect(prompt).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'New Game', exact: true })).toBeFocused();
     await expect(primary).not.toBeFocused();
+    // The fill eases back to gold when focus leaves, so wait for the transition to settle
+    // (a computed colour read mid-ease is a translucent rgba of the same gold).
+    await expect.poll(async () => (await fill()).bg).toBe((await fill()).accent);
     const rest = await fill();
-    expect(rest.bg).toBe(rest.accent);
     expect(rest.image).toContain('gradient');
     // The subline Resume carries with several runs going: one line, nothing cut off.
     await expectSublineFits(page);
