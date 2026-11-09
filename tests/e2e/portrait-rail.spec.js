@@ -221,7 +221,7 @@ function longestStrings(page) {
      sera.inventory[sera.inventory.length - 1] = tome; // a full pack: the tome replaces Warp
      sera.className = a.cls;
      sera.consumables = [
-       { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
+       { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
        { name: 'Elixir', type: 'Consumable', effect: 'heal', value: 99, uses: 1 },
      ];
      sera.currentHP = sera.stats.HP - 12;
@@ -354,8 +354,8 @@ for (const viewport of PORTRAIT_PHONES) {
         hud.locator('.mb-body > .mb-detail').filter({ hasText: 'ends this unit' }),
       ).toBeVisible();
       await expectFullWidthRows(page, '.mobile-battle-hud .mb-actions.mb-submenu');
-      await expectTappable(list.getByRole('button', { name: /^Vulnerary \(3\)/ }));
-      await expect(list.getByRole('button', { name: /^Vulnerary \(3\)/ })).toContainText(
+      await expectTappable(list.getByRole('button', { name: /^Poultice \(3\)/ }));
+      await expect(list.getByRole('button', { name: /^Poultice \(3\)/ })).toContainText(
         'Restore 10 HP',
       );
       expect(await clippedText(page, '.mobile-battle-hud .mb-body')).toEqual([]);
@@ -536,15 +536,15 @@ for (const viewport of PORTRAIT_PHONES) {
         page,
         `const hud = s._mobileBattleHud; const cfg = hud.forecast;
          const forecast = { ...cfg.forecast,
-           attacker: { ...cfg.forecast.attacker, skills: [{ id: 'sol', name: 'Sol' }, { id: 'luna', name: 'Luna' }] },
-           defender: { ...cfg.forecast.defender, skills: [{ id: 'vantage', name: 'Vantage' }] } };
+           attacker: { ...cfg.forecast.attacker, skills: [{ id: 'sol', name: 'Reclaim' }, { id: 'luna', name: 'Umbra' }] },
+           defender: { ...cfg.forecast.defender, skills: [{ id: 'vantage', name: 'Forestall' }] } };
          hud.showForecast({ ...cfg, forecast });`,
       );
       await expect(dialog.getByText(`Confirming equips ${LONG_WEAPON}`)).toBeVisible();
       await expect(dialog.locator('.mb-enemy h3')).toHaveText(LONG_CLASS);
       const modifiers = dialog.locator('details.mb-modifier > summary');
       await expect(modifiers).toHaveCount(3);
-      const sol = modifiers.filter({ hasText: 'Sol' });
+      const sol = modifiers.filter({ hasText: 'Reclaim' });
       await expectTappable(sol);
       await sol.tap();
       await expect(dialog.locator('details.mb-modifier[open] > p')).toContainText('heal');
@@ -566,7 +566,7 @@ for (const viewport of PORTRAIT_PHONES) {
          s._setSelectedWeaponArt(u, 'sword_wrath_strike', u.weapon);
          return s.showForecast(u, e);`,
       );
-      await expect(dialog.getByText(/^Wrath Strike · HP cost \d+ \(\d+ → \d+\)$/)).toBeVisible();
+      await expect(dialog.getByText(/^Grim Stroke · HP cost \d+ \(\d+ → \d+\)$/)).toBeVisible();
       await expect(dialog.getByText(/map uses left/)).toBeVisible();
       expect(await clippedText(page, '.mb-forecast')).toEqual([]);
       for (const name of ['Cancel', 'Confirm attack'])

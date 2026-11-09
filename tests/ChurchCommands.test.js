@@ -40,7 +40,7 @@ beforeEach(() => {
 
 describe('church promotion transactions', () => {
   it('promotes once, charges once, and preserves supplies without requiring a seal', () => {
-    unit.consumables = [{ name: 'Master Seal', type: 'Consumable', effect: 'promote', uses: 1 }];
+    unit.consumables = [{ name: 'Sovereign Seal', type: 'Consumable', effect: 'promote', uses: 1 }];
     const supplies = structuredClone(unit.consumables);
     const target = targetFor();
     expect(promoteAtChurch(run, unit, nodeId, target, data).ok).toBe(true);

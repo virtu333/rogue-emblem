@@ -153,7 +153,7 @@ export function formatAccessoryEffects(accessory, options = {}) {
   return parts.join(separator);
 }
 
-/** The Galeforce Charm's line (engine/GaleforceCharm.js): its proc stat and its limit. */
+/** The Onrush Charm's line (engine/GaleforceCharm.js): its proc stat and its limit. */
 function galeforceText(raw) {
   if (!raw) return '';
   const cfg = typeof raw === 'object' ? raw : {};

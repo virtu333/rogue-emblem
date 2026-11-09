@@ -340,7 +340,7 @@ export class ShopController {
       const uniquePasses = Math.max(4, targetCount * 4);
       for (let pass = 0; result.length < targetCount && pass < uniquePasses; pass++) {
         const batch = generatePricedItems();
-        // A fresh shelf takes the first batch whole (its two Vulneraries included);
+        // A fresh shelf takes the first batch whole (its two Poultices included);
         // a batch topping it up defers what the shelf already holds.
         const unique = preferUnique || pass > 0;
         for (const entry of batch) {

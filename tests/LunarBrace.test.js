@@ -193,7 +193,7 @@ describe('Lunar Brace in the forecast and in combat', () => {
     ]);
   });
 
-  it('artFollowUpStrike adds the share when its own mods carry it, Luna included', () => {
+  it('artFollowUpStrike adds the share when its own mods carry it, Umbra included', () => {
     const striker = lancer();
     const target = knight();
     const steel = weapon('Steel Lance');
@@ -203,12 +203,12 @@ describe('Lunar Brace in the forecast and in combat', () => {
       strikerMods: mergeCombatMods(null, { foeDefShare: 0.3 }),
     });
     expect(withShare.damage).toBe(7);
-    // Luna halves DEF first: 12 + 9 - 10 = 11, and the share reads that DEF 10: floor(3) = 3.
+    // Umbra halves DEF first: 12 + 9 - 10 = 11, and the share reads that DEF 10: floor(3) = 3.
     expect(none.lunaDamage).toBe(11);
     expect(withShare.lunaDamage).toBe(14);
   });
 
-  it("a Luna strike halves the foe's DEF and so does its share", () => {
+  it("a Umbra strike halves the foe's DEF and so does its share", () => {
     const a = lancer({ SPD: 5 });
     a.weapon = weapon('Steel Lance');
     const d = knight();
@@ -219,12 +219,12 @@ describe('Lunar Brace in the forecast and in combat', () => {
         modifiedDamage: 0,
         heal: 0,
         extraStrike: false,
-        activated: [{ id: 'luna', name: 'Luna' }],
+        activated: [{ id: 'luna', name: 'Umbra' }],
       }),
       skillsData: data.skills,
     };
     const strikes = strikesOf(resolve(structuredClone(a), structuredClone(d), null, luna));
-    // 14, not 11: the Lunar Brace bonus is kept when Luna lowers the DEF.
+    // 14, not 11: the Lunar Brace bonus is kept when Umbra lowers the DEF.
     expect(strikes.map((e) => e.damage)).toEqual([14]);
   });
 

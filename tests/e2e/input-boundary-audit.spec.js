@@ -130,7 +130,7 @@ test('a choice that becomes unavailable keeps focus and remains dismissible', as
     window.auditChoice = new ChoicePicker({
       scene: window.__emblemRogueGame.scene.getScene('Battle'),
       title: 'Stale choice audit',
-      choices: ['Master Seal'],
+      choices: ['Sovereign Seal'],
       label: (v) => v,
       blocked: () => (window.auditChoiceBlocked ? 'Seal is no longer available.' : ''),
       apply: () => {

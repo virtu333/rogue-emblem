@@ -4,7 +4,7 @@
 //   - the same garrison does not give the same carriers (a resume or a rewind differs);
 //   - the rates are not the table (per rung, per act, per slot), or a rung's max is ignored;
 //   - a boss, the Entity, an authored spawn or a Skeleton carries;
-//   - an act hands out an item it should not (Elixir before Act III, a Master Seal before IV);
+//   - an act hands out an item it should not (Elixir before Act III, a Sovereign Seal before IV);
 //   - a Gold Pouch is worth the wrong gold, or sells for more than it spends;
 //   - the flag does not become a whole item with a uid, or the unit's bag or the AI sees it;
 //   - the harness or scene drops the carrier (EnemySpawnGear), or a raised Skeleton gets one;
@@ -208,7 +208,7 @@ describe('the roll', () => {
     }
   });
 
-  it('draws what the act lists: Act I a Vulnerary or pouch, an Elixir from III, a Seal in IV', () => {
+  it('draws what the act lists: Act I a Poultice or pouch, an Elixir from III, a Seal in IV', () => {
     const N = 2500;
     const names = {};
     for (const act of ACTS) {
@@ -222,21 +222,21 @@ describe('the roll', () => {
     }
     const booster = new Set(data.lootTables.act2.statBooster);
     const kinds = (act) => Object.keys(names[act]);
-    expect(kinds('act1').sort()).toEqual(['Gold Pouch', 'Vulnerary']);
-    expect(kinds('act2').every((n) => ['Vulnerary', 'Gold Pouch'].includes(n) || booster.has(n))).toBe(true); // prettier-ignore
+    expect(kinds('act1').sort()).toEqual(['Gold Pouch', 'Poultice']);
+    expect(kinds('act2').every((n) => ['Poultice', 'Gold Pouch'].includes(n) || booster.has(n))).toBe(true); // prettier-ignore
     expect(kinds('act2')).not.toContain('Elixir');
-    expect(kinds('act2')).not.toContain('Master Seal');
+    expect(kinds('act2')).not.toContain('Sovereign Seal');
     expect(kinds('act3')).toContain('Elixir');
-    expect(kinds('act3')).not.toContain('Master Seal');
-    expect(kinds('act4')).toContain('Master Seal');
-    expect(kinds('finalBoss')).toContain('Master Seal');
+    expect(kinds('act3')).not.toContain('Sovereign Seal');
+    expect(kinds('act4')).toContain('Sovereign Seal');
+    expect(kinds('finalBoss')).toContain('Sovereign Seal');
     // Shares follow the pool weights (Act III: 3/3/3/1 of 10; the booster is one list).
     const total = (act) => Object.values(names[act]).reduce((a, b) => a + b, 0);
     const share = (act, pred) => Object.entries(names[act]).filter(([n]) => pred(n)).reduce((a, [, c]) => a + c, 0) / total(act); // prettier-ignore
     expect(Math.abs(share('act3', (n) => n === 'Elixir') - 0.3)).toBeLessThan(0.04);
     expect(Math.abs(share('act3', (n) => n === 'Gold Pouch') - 0.3)).toBeLessThan(0.04);
     expect(Math.abs(share('act3', (n) => booster.has(n)) - 0.1)).toBeLessThan(0.03);
-    expect(Math.abs(share('act4', (n) => n === 'Master Seal') - 1 / 10)).toBeLessThan(0.03);
+    expect(Math.abs(share('act4', (n) => n === 'Sovereign Seal') - 1 / 10)).toBeLessThan(0.03);
   });
 
   it('a Gold Pouch is worth 300, 300, 500, 800 and 800 by act', () => {
@@ -333,27 +333,27 @@ describe('the item a carrier holds', () => {
 
   it('is a whole item with a uid that draws no Math.random and is the same for the same battle', () => {
     const draws = vi.spyOn(Math, 'random');
-    const a = buildCarriedItem(spawn({ carries: 'Vulnerary' }), { consumables, battleKey: 'k1' });
-    const b = buildCarriedItem(spawn({ carries: 'Vulnerary' }), { consumables, battleKey: 'k1' });
-    const other = buildCarriedItem(spawn({ carries: 'Vulnerary' }), {
+    const a = buildCarriedItem(spawn({ carries: 'Poultice' }), { consumables, battleKey: 'k1' });
+    const b = buildCarriedItem(spawn({ carries: 'Poultice' }), { consumables, battleKey: 'k1' });
+    const other = buildCarriedItem(spawn({ carries: 'Poultice' }), {
       consumables,
       battleKey: 'k2',
     });
     expect(draws).not.toHaveBeenCalled();
     expect(a).toEqual(b);
-    expect(a).toMatchObject({ name: 'Vulnerary', type: 'Consumable', effect: 'heal', uses: 2 });
-    expect(a.uid).toBe(carriedItemUid(spawn({ carries: 'Vulnerary' }), 'k1'));
+    expect(a).toMatchObject({ name: 'Poultice', type: 'Consumable', effect: 'heal', uses: 2 });
+    expect(a.uid).toBe(carriedItemUid(spawn({ carries: 'Poultice' }), 'k1'));
     expect(a.uid).toMatch(/^itm_carry_/);
     expect(other.uid).not.toBe(a.uid);
     // A copy: the catalog entry is never the carried item and never changes.
-    expect(consumables.find((c) => c.name === 'Vulnerary')).not.toHaveProperty('uid');
+    expect(consumables.find((c) => c.name === 'Poultice')).not.toHaveProperty('uid');
   });
 
-  it('reads the run catalog: a Vulnerary has the uses the run gives it', () => {
+  it('reads the run catalog: a Poultice has the uses the run gives it', () => {
     const run = new RunManager(data, { vulneraryUses: 3 });
-    const item = buildCarriedItem(spawn({ carries: 'Vulnerary' }), { consumables: run.getConsumableCatalog() }); // prettier-ignore
+    const item = buildCarriedItem(spawn({ carries: 'Poultice' }), { consumables: run.getConsumableCatalog() }); // prettier-ignore
     expect(item.uses).toBe(3);
-    expect(buildCarriedItem(spawn({ carries: 'Vulnerary' }), { consumables }).uses).toBe(2);
+    expect(buildCarriedItem(spawn({ carries: 'Poultice' }), { consumables }).uses).toBe(2);
   });
 
   it('refuses a name nobody knows, a scroll, or a spawn that carries nothing', () => {
@@ -469,13 +469,13 @@ describe('the data', () => {
     bad.act1.carryPool = [{ item: 'Nothing Real', weight: 1 }];
     bad.act2.carryPool = [{ item: 'Steal Scroll', weight: 1 }];
     bad.act3.carryPool = [{ item: 'Gold Pouch', weight: 1 }]; // no value
-    bad.act4.carryPool = [{ item: 'Vulnerary', weight: 1, value: 5 }]; // a value on a non-pouch
+    bad.act4.carryPool = [{ item: 'Poultice', weight: 1, value: 5 }]; // a value on a non-pouch
     bad.finalBoss.carryPool = [{ from: 'statBooster', weight: 1 }]; // an empty list in that act
     const problems = validateCarryPools({ ...args, lootTables: bad }).join('\n');
     expect(problems).toMatch(/act1\.carryPool references unknown item "Nothing Real"/);
     expect(problems).toMatch(/act2\.carryPool lists "Steal Scroll": a scroll is never carried/);
     expect(problems).toMatch(/act3\.carryPool "Gold Pouch" must name its gold value/);
-    expect(problems).toMatch(/act4\.carryPool "Vulnerary" is not a Gold Pouch and takes no value/);
+    expect(problems).toMatch(/act4\.carryPool "Poultice" is not a Gold Pouch and takes no value/);
     expect(problems).toMatch(/finalBoss\.carryPool draws from "statBooster", which is empty/);
     delete bad.act1.carryPool;
     expect(validateCarryPools({ ...args, lootTables: bad }).join('\n')).toMatch(/act1\.carryPool must list at least one entry/); // prettier-ignore

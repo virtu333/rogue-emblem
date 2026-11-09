@@ -304,7 +304,7 @@ describe('the saved state', () => {
 
 describe('a warded unit takes no damage', () => {
   const sword = { name: 'Iron Sword', type: 'Sword', might: 5, hit: 100, crit: 0, range: '1' };
-  const drain = { ...sword, name: 'Nosferatu', special: 'Drains HP equal to damage dealt' };
+  const drain = { ...sword, name: 'Grave Hunger', special: 'Drains HP equal to damage dealt' };
   const unit = (name, extra = {}) => ({
     name,
     stats: { HP: 30, STR: 20, MAG: 0, SKL: 10, SPD: 10, DEF: 2, RES: 2, LCK: 0 },
@@ -391,7 +391,7 @@ describe('a warded unit takes no damage', () => {
     expect(bare.currentHP).toBe(30 - dose);
   });
 
-  it('a skill that adds damage (Flare) is turned aside before drain, Thorns and Teleporter read it', () => {
+  it('a skill that adds damage (Immolation) is turned aside before drain, Thorns and Teleporter read it', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     // The real rollers and data, as the scene and the harness hand them to resolveCombat.
     const skillCtx = {
@@ -403,7 +403,7 @@ describe('a warded unit takes no damage', () => {
       skillsData: data.skills,
       affixData: data.affixes,
     };
-    // Flare procs on SKL% (Math.random 0): its damage is the blow plus the target's RES (20),
+    // Immolation procs on SKL% (Math.random 0): its damage is the blow plus the target's RES (20),
     // far past Thorns' floor of 4. The Voice's own weapon does nothing back.
     const flarer = () => unit('A', { skills: ['flare'], currentHP: 20 });
     const limp = { ...sword, name: 'Practice Sword', might: 0 };
@@ -426,14 +426,14 @@ describe('a warded unit takes no damage', () => {
       const result = settle(a, v);
       const strikes = result.events.filter((e) => e.type === 'strike' && e.attacker === 'A');
       expect(strikes.length).toBeGreaterThan(0);
-      // Flare did roll (the test reaches the case), and nothing it set survives the ward.
+      // Immolation did roll (the test reaches the case), and nothing it set survives the ward.
       expect(strikes.some((e) => e.skillActivations.some((s) => s.id === 'flare'))).toBe(true);
       for (const e of strikes) {
         expect(e).toMatchObject({ damage: 0, heal: 0, reflectDamage: 0, warpRange: 0 });
         expect(e.skillActivations.map((s) => s.id)).not.toContain(affix);
       }
       expect(v.currentHP).toBe(30);
-      expect(a.currentHP).toBe(20); // no Flare heal, no Thorns back
+      expect(a.currentHP).toBe(20); // no Immolation heal, no Thorns back
     }
 
     // Unwarded, the same exchanges drain, reflect and warp (the test can fail).

@@ -44,6 +44,7 @@ import { serializeUnit } from './UnitSerialization.js';
 import { isPrologueRun } from './ScriptedBattle.js';
 import { carriedCopy, keptForgeAwakeLimit, lullForges } from './KeptForges.js';
 import { keptForgeAwakeTable, recordEcho } from './NgPlusEcho.js';
+import { refreshRenamedItemText } from './ItemNameMigration.js';
 import {
   INNATE_GROWTHS,
   isNgPlusRung,
@@ -102,7 +103,8 @@ function makeRoomForSignature(unit, kept) {
  * (the record's Pack) starts a bag item in the convoy instead, the bag when the convoy is full.
  */
 function placeKeptItem(run, unit, item, { toConvoy = false } = {}) {
-  const copy = structuredClone(item);
+  // A kept item renamed since it was kept (NgPlusState renamed it) takes the catalog's text.
+  const copy = refreshRenamedItemText(structuredClone(item), run.gameData);
   const kind = keptItemKind(copy);
   if (kind === 'accessory') {
     const started = equipAccessory(unit, copy);

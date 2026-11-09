@@ -5,7 +5,7 @@
 //   - its numbers drift from what the engine's forecast would say for the same units;
 //   - reading the forecast draws randomness and shifts every seeded result after it;
 //   - the output stops saying what the columns count;
-//   - the attacker is not treated as initiating, so Darting Blow, Death Blow and the other
+//   - the attacker is not treated as initiating, so Quickstep, Onslaught and the other
 //     initiating skills never fire.
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { spawnSync } from 'node:child_process';
@@ -152,7 +152,7 @@ describe('sim/matchups doubling columns', () => {
 });
 
 describe('sim/matchups initiating skills', () => {
-  it('the attacker initiates: a Trickster fights with Darting Blow (+6 SPD)', () => {
+  it('the attacker initiates: a Trickster fights with Quickstep (+6 SPD)', () => {
     // Trickster at L1 = Thief base stats + Trickster promotion bonuses, Iron Sword.
     const thief = classes.find((c) => c.name === 'Thief');
     const trickster = classes.find((c) => c.name === 'Trickster');
@@ -174,7 +174,7 @@ describe('sim/matchups initiating skills', () => {
       expect(row.doubled, row.Defender).toBe(pct(theirs >= mine + 5));
       if (mine + dartingBlow >= theirs + 5 && mine < theirs + 5) onlyWithDartingBlow++;
     }
-    // Not vacuous: some foes are doubled only because Darting Blow fired.
+    // Not vacuous: some foes are doubled only because Quickstep fired.
     expect(onlyWithDartingBlow).toBeGreaterThan(0);
   });
 });

@@ -468,11 +468,11 @@ describe('The Sunken Mine', () => {
     expect(eventChoiceBlock(run, node.id, 'blind')).toBe('');
   });
 
-  it("level two's chest pays by act: 500 G; 550 G and a Master Seal; 850 G and a Speedwing", () => {
+  it("level two's chest pays by act: 500 G; 550 G and a Sovereign Seal; 850 G and a Fleet Plume", () => {
     for (const [act, purse, extra] of [
       [1, 500, null],
-      [2, 550, 'Master Seal'],
-      [3, 850, 'Speedwing'],
+      [2, 550, 'Sovereign Seal'],
+      [3, 850, 'Fleet Plume'],
     ]) {
       const { run, node } = stand({ act });
       descend(run, node, 1);
@@ -554,7 +554,7 @@ describe('The Sunken Mine', () => {
   });
 
   it("by torchlight the guardian is the Iron Guardian's lit hall; its relic an accessory from the next act's table", () => {
-    const ACT3 = ['Seraph Robe', 'Magic Ring', 'Boots', 'Delphi Shield', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Blood Gem', 'Recoil Guard', 'Phoenix Brooch', "Duelist's Glove", 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Gemini Ring', "Warden's Buckler", 'Briar Cloak', 'Anchor Stone', 'Grudge Locket']; // prettier-ignore
+    const ACT3 = ['Sisters\' Mantle', 'Magic Ring', 'Courier\'s Boots', 'Picket Buckler', 'Wrath Band', 'Counter Seal', 'Pursuit Ring', 'Blood Gem', 'Recoil Guard', 'Phoenix Brooch', "Duelist's Glove", 'Warding Charm', "Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Gemini Ring', "Warden's Buckler", 'Briar Cloak', 'Anchor Stone', 'Grudge Locket']; // prettier-ignore
     const { run, node } = stand(); // act2: one tier up is act3's table
     descend(run, node, 2);
     expect(eventView(run, node.id).page).toBe('level_three');
@@ -636,14 +636,14 @@ describe('The Sunken Mine', () => {
 // ── The Plague Village ──────────────────────────────────────────────────
 
 describe('The Plague Village', () => {
-  /** A run with `uses` Vulnerary uses (two to a flask) in Hale's bag, everyone hurt to half. */
+  /** A run with `uses` Poultice uses (two to a flask) in Hale's bag, everyone hurt to half. */
   const stand = (uses = 4, opts = {}) => {
     const run = army({ ...opts });
     for (const u of run.roster) u.consumables = []; // every other flask goes: only Hale's count
     run.convoy.consumables = [];
     const hale = run.roster.find((u) => u.name === 'Hale');
     while (uses > 0) {
-      const flask = { ...run.getConsumableTemplate('Vulnerary') };
+      const flask = { ...run.getConsumableTemplate('Poultice') };
       flask.uses = Math.min(2, uses);
       hale.consumables.push(flask);
       uses -= flask.uses;
@@ -658,7 +658,7 @@ describe('The Plague Village', () => {
     return { run, node, hale, left };
   };
 
-  it('medicine needs a Vulnerary; without one the choice is greyed with its reason', () => {
+  it('medicine needs a Poultice; without one the choice is greyed with its reason', () => {
     const { run, node, hale } = stand(0);
     expect(hale.consumables).toEqual([]);
     expect(eventChoiceBlock(run, node.id, 'medicine')).toBe('You have no medicine left to give.');
@@ -711,7 +711,7 @@ describe('The Plague Village', () => {
     throw new Error('no eased first dose');
   });
 
-  it('a second dose needs a use left: with one Vulnerary use only, the page offers only the way out', () => {
+  it('a second dose needs a use left: with one Poultice use only, the page offers only the way out', () => {
     for (let seed = 1; seed <= 60; seed++) {
       const { run, node } = stand(1, { seed });
       if (pick(run, node, 'medicine').outcomeId !== 'eased') continue;

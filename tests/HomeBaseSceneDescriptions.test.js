@@ -254,7 +254,7 @@ describe('HomeBaseScene upgrade description helpers', () => {
     const scene = new HomeBaseScene();
 
     expect(scene._getActionDesc({ effects: [{ recruitStartingVulnerary: 1 }] })).toBe(
-      'Recruits start with Vulnerary',
+      'Recruits start with Poultice',
     );
     expect(scene._formatEffectValue({ recruitStartingVulnerary: 1 })).toBe('+1');
   });

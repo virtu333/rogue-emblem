@@ -88,7 +88,7 @@ describe('what a run shows as met', () => {
           name: 'Edric',
           weapon: forged,
           inventory: [forged, worn],
-          consumables: [{ name: 'Vulnerary', type: 'Consumable' }],
+          consumables: [{ name: 'Poultice', type: 'Consumable' }],
           accessory: { name: 'Power Ring', type: 'Accessory', _boundSkill: 'vantage' },
           skills: ['sol'],
           benchedSkills: ['luna'],
@@ -97,7 +97,7 @@ describe('what a run shows as met', () => {
       fallenUnits: [{ name: 'Gil', inventory: [weapon('Javelin')], skills: ['pavise'] }],
       convoy: { weapons: [weapon('Hand Axe')], consumables: [{ name: 'Elixir' }] },
       accessories: [{ name: 'Speed Ring' }],
-      scrolls: [{ name: 'Astra Scroll', type: 'Scroll', skillId: 'astra' }],
+      scrolls: [{ name: 'Constellation Scroll', type: 'Scroll', skillId: 'astra' }],
       pendingBattleReward: {
         choices: [
           { type: 'weapon', item: weapon('Starfall') },
@@ -105,23 +105,23 @@ describe('what a run shows as met', () => {
         ],
       },
       shopStateByNodeId: { n3: { items: [{ item: weapon('Rapier'), price: 1000 }] } },
-      activeCaravanShop: { shopState: { items: [{ item: { name: 'Master Seal' } }] } },
+      activeCaravanShop: { shopState: { items: [{ item: { name: 'Sovereign Seal' } }] } },
     };
     const found = discoveriesInRun(run);
     expect(found.items).toEqual(
       [
-        'Astra Scroll',
+        'Constellation Scroll',
         'Elixir',
         'Hand Axe',
         'Iron Sword',
         'Javelin',
-        'Master Seal',
+        'Sovereign Seal',
         'Power Ring',
         'Rapier',
         'Speed Ring',
         'Starfall',
         'Steel Axe',
-        'Vulnerary',
+        'Poultice',
       ].sort(),
     );
     expect(found.skills).toEqual(['astra', 'luna', 'pavise', 'sol', 'vantage']);
@@ -149,7 +149,7 @@ describe('what a run shows as met', () => {
             {
               name: 'Edric',
               weapon: 'Rapier +1',
-              items: ['Vulnerary'],
+              items: ['Poultice'],
               accessory: 'Power Ring',
               skills: ['sol'],
             },
@@ -159,13 +159,13 @@ describe('what a run shows as met', () => {
       skillAssignments: { Sera: ['miracle'] },
     };
     expect(discoveriesFromMetaSave(saved)).toEqual({
-      items: ['Power Ring', 'Rapier', 'Vulnerary'],
+      items: ['Poultice', 'Power Ring', 'Rapier'],
       skills: ['miracle', 'sol'],
     });
     // A save's keys are always unioned with its records (a copy that lost keys keeps
     // what its records show).
     expect(discoveriesOfMetaSave(seenSave({ items: ['Starfall'] }, saved))).toEqual({
-      items: ['Power Ring', 'Rapier', 'Starfall', 'Vulnerary'],
+      items: ['Poultice', 'Power Ring', 'Rapier', 'Starfall'],
       skills: ['miracle', 'sol'],
     });
   });
@@ -273,6 +273,23 @@ describe('MetaProgressionManager discoveries', () => {
     ]);
   });
 
+  it('a saved discovery under an old name still shows the renamed item as met', () => {
+    // A save written before the naming pass keeps "__seen_item:Vulnerary": the Compendium
+    // lists the Poultice, so its entry must not read "???".
+    store[META_1] = JSON.stringify({
+      purchasedUpgrades: {
+        '__seen_item:Vulnerary': 0,
+        '__seen_item:Master Seal': 0,
+        '__seen_item:Rapier': 0,
+      },
+    });
+    const meta = new MetaProgressionManager(gameData.metaUpgrades, META_1);
+    expect(meta.itemsSeen).toEqual(['Poultice', 'Rapier', 'Sovereign Seal']);
+    expect(
+      discoveriesInUpgrades({ '__seen_item:Restore': 0, '__seen_item:Galeforce Charm': 0 }).items,
+    ).toEqual(['Onrush Charm', 'Unbinding']);
+  });
+
   it('a stale manager adopting a newer disk save unions both lists', () => {
     const stale = new MetaProgressionManager(gameData.metaUpgrades, META_1);
     stale.recordDiscoveries({ items: ['Rapier'] });
@@ -356,9 +373,9 @@ describe('the Compendium', () => {
 
   it('skills fill in by id; Items by name', () => {
     const skills = compendiumEntries(overlay({ skills: ['sol'] }), tab('skills'), 0, 'skills');
-    expect(skills.filter((e) => !e.locked).map((e) => e.name)).toEqual(['Sol']);
-    const items = compendiumEntries(overlay({ items: ['Vulnerary'] }), tab('items'), 0, 'items');
-    expect(items.filter((e) => !e.locked).map((e) => e.name)).toEqual(['Vulnerary']);
+    expect(skills.filter((e) => !e.locked).map((e) => e.name)).toEqual(['Reclaim']);
+    const items = compendiumEntries(overlay({ items: ['Poultice'] }), tab('items'), 0, 'items');
+    expect(items.filter((e) => !e.locked).map((e) => e.name)).toEqual(['Poultice']);
   });
 
   it('every other tab is never locked', () => {

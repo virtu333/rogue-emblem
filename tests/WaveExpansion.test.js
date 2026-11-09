@@ -261,21 +261,21 @@ describe('Per-battle weapon uses (Breachbolt)', () => {
 // ─── Wave 3: New Combat Skills ───
 
 describe('isInitiating combat mods', () => {
-  it('Death Blow gives +6 ATK when initiating', () => {
+  it('Onslaught gives +6 ATK when initiating', () => {
     const unit = makeUnit({ skills: ['death_blow'], col: 0, row: 0 });
     const enemy = makeUnit({ faction: 'enemy', col: 1, row: 0 });
     const mods = getSkillCombatMods(unit, enemy, [unit], [enemy], data.skills, null, true);
     expect(mods.atkBonus).toBe(6);
   });
 
-  it('Death Blow gives 0 ATK when defending', () => {
+  it('Onslaught gives 0 ATK when defending', () => {
     const unit = makeUnit({ skills: ['death_blow'], col: 0, row: 0 });
     const enemy = makeUnit({ faction: 'enemy', col: 1, row: 0 });
     const mods = getSkillCombatMods(unit, enemy, [unit], [enemy], data.skills, null, false);
     expect(mods.atkBonus).toBe(0);
   });
 
-  it('Darting Blow gives +6 SPD when initiating', () => {
+  it('Quickstep gives +6 SPD when initiating', () => {
     const unit = makeUnit({ skills: ['darting_blow'], col: 0, row: 0 });
     const enemy = makeUnit({ faction: 'enemy', col: 1, row: 0 });
     const mods = getSkillCombatMods(unit, enemy, [unit], [enemy], data.skills, null, true);
@@ -302,7 +302,7 @@ describe('isInitiating combat mods', () => {
   });
 });
 
-describe('Desperation combat mod', () => {
+describe("Death's Door combat mod", () => {
   it('activates below 50% HP', () => {
     const unit = makeUnit({ skills: ['desperation'], currentHP: 5, col: 0, row: 0 });
     const enemy = makeUnit({ faction: 'enemy', col: 1, row: 0 });
@@ -318,7 +318,7 @@ describe('Desperation combat mod', () => {
   });
 });
 
-describe('Quick Riposte combat mod', () => {
+describe('Riposte combat mod', () => {
   it('activates above 50% HP when defending', () => {
     const unit = makeUnit({ skills: ['quick_riposte'], currentHP: 20, col: 0, row: 0 });
     const enemy = makeUnit({ faction: 'enemy', col: 1, row: 0 });
@@ -341,7 +341,7 @@ describe('Quick Riposte combat mod', () => {
   });
 });
 
-describe('Cancel on-defend skill', () => {
+describe('Stifle on-defend skill', () => {
   it('rollDefenseSkills includes cancelFollowUp field', () => {
     const defender = makeUnit({ skills: ['cancel'], stats: { ...makeUnit().stats, SPD: 100 } });
     // With SPD=100, cancel should almost certainly trigger (SPD% chance)
@@ -365,7 +365,7 @@ describe('LCK_THIRD activation chance', () => {
   });
 });
 
-describe('Pavise 5% floor', () => {
+describe('Shieldwall 5% floor', () => {
   it('procs even with SKL 0 due to minimum 5% activation', () => {
     const defender = makeUnit({ skills: ['pavise'], stats: { ...makeUnit().stats, SKL: 0 } });
     let procCount = 0;
@@ -553,7 +553,7 @@ describe('Weapon-granted skills in combat', () => {
   it('rollStrikeSkills checks weapon._grantedSkill', () => {
     const weapon = structuredClone(data.weapons.find((w) => w.name === 'Iron Sword'));
     weapon._grantedSkill = 'sol';
-    // Sol uses SKL_HALF activation, so SKL=200 → 100% proc
+    // Reclaim uses SKL_HALF activation, so SKL=200 → 100% proc
     const attacker = makeUnit({ weapon, skills: [], stats: { ...makeUnit().stats, SKL: 200 } });
     const target = makeUnit({ faction: 'enemy' });
     const result = rollStrikeSkills(attacker, 10, target, data.skills);
@@ -581,7 +581,7 @@ describe('Weapon-granted skills in combat', () => {
   it('does not duplicate skill if unit already has it', () => {
     const weapon = structuredClone(data.weapons.find((w) => w.name === 'Iron Sword'));
     weapon._grantedSkill = 'sol';
-    // Sol uses SKL_HALF activation, so SKL=200 → 100% proc
+    // Reclaim uses SKL_HALF activation, so SKL=200 → 100% proc
     const attacker = makeUnit({
       weapon,
       skills: ['sol'],
@@ -688,22 +688,22 @@ describe('L20 skill learning', () => {
   });
 });
 
-// ─── Wave 6: Aether / Flare / Commander's Gambit in rollStrikeSkills ───
+// ─── Wave 6: Corona / Immolation / Commander's Gambit in rollStrikeSkills ───
 
-describe('Aether skill', () => {
-  it('triggers Sol heal + extra strike flag', () => {
-    // Aether uses SKL_HALF activation, so SKL=200 → 100% proc
+describe('Corona skill', () => {
+  it('triggers Reclaim heal + extra strike flag', () => {
+    // Corona uses SKL_HALF activation, so SKL=200 → 100% proc
     const attacker = makeUnit({ skills: ['aether'], stats: { ...makeUnit().stats, SKL: 200 } });
     const target = makeUnit({ faction: 'enemy' });
     const result = rollStrikeSkills(attacker, 10, target, data.skills);
-    expect(result.heal).toBe(10); // Sol heal
+    expect(result.heal).toBe(10); // Reclaim heal
     expect(result.extraStrike).toBe(true);
     expect(result.aetherLuna).toBe(true);
     expect(result.activated.some((a) => a.id === 'aether')).toBe(true);
   });
 });
 
-describe('Flare skill', () => {
+describe('Immolation skill', () => {
   it('negates RES and drains HP', () => {
     const attacker = makeUnit({ skills: ['flare'], stats: { ...makeUnit().stats, SKL: 100 } });
     const target = makeUnit({ faction: 'enemy', stats: { ...makeUnit().stats, RES: 8 } });
@@ -821,11 +821,11 @@ describe('Skills data integrity', () => {
 
 describe('Scroll weapons exist for new skills', () => {
   const expectedScrolls = [
-    'Cancel Scroll',
-    'Desperation Scroll',
-    'Quick Riposte Scroll',
-    'Death Blow Scroll',
-    'Darting Blow Scroll',
+    'Stifle Scroll',
+    "Death's Door Scroll",
+    'Riposte Scroll',
+    'Onslaught Scroll',
+    'Quickstep Scroll',
     'Shove Scroll',
     'Pull Scroll',
   ];

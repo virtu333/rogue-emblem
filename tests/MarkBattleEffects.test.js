@@ -12,7 +12,7 @@
 // Ways this goes wrong, each caught below: a Mark rolls at the wrong percentage or at 0;
 // fires for a unit that does not bear it; reaches the scene but not the harness (or the other
 // way); Hunt adds damage to a strike that deals none; Veil halves a physical strike, or stacks
-// with Aegis; Ember fires twice for two kills, on a kill that was not made, or through Wounded;
+// with Spellward; Ember fires twice for two kills, on a kill that was not made, or through Wounded;
 // Forge makes an unaffordable art usable; Road's MOV outlives its phase or its battle.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import './harness/JourneyTestSetup.js';
@@ -481,7 +481,7 @@ describe.each(WORLDS)('Mark of the Ember through %s', (_label, makeWorld) => {
     expect(edric.currentHP).toBe(20);
   });
 
-  it('Silence does not block it (a Mark is not a skill), though it blocks Lifetaker', async () => {
+  it("Silence does not block it (a Mark is not a skill), though it blocks Reaper's Due", async () => {
     const edric = makeEdric({ markId: 'ember', skills: ['lifetaker'] });
     applyCondition(edric, 'silence', 3, { recoveryChance: 0 });
     const primary = makeFoe('Primary', 1, 10);
@@ -491,7 +491,7 @@ describe.each(WORLDS)('Mark of the Ember through %s', (_label, makeWorld) => {
     expect(edric.currentHP).toBe(20 + 5);
   });
 
-  it('stacks with an on-kill skill: Lifetaker (+10) and Ember (+5) both fire once', async () => {
+  it("stacks with an on-kill skill: Reaper's Due (+10) and Ember (+5) both fire once", async () => {
     const { edric } = await fight({ roll: 0.01, skills: ['lifetaker'] });
     expect(edric.currentHP).toBe(20 + 10 + 5);
   });
@@ -521,16 +521,16 @@ describe.each(WORLDS)('Mark of the Veil through %s', (_label, makeWorld) => {
     expect((await volley({ markId: 'hunt', roll: 0 })).edric.currentHP).toBe(40 - 7);
   });
 
-  it('with Aegis it still halves once: 7 -> 3, never 1', async () => {
-    // SKL 9: Aegis procs on a 0.01 roll, as Veil does.
+  it('with Spellward it still halves once: 7 -> 3, never 1', async () => {
+    // SKL 9: Spellward procs on a 0.01 roll, as Veil does.
     expect((await volley({ roll: 0.01, skills: ['aegis'] })).edric.currentHP).toBe(40 - 3);
-    // Aegis alone halves once too, so the Mark adds nothing on top of it.
+    // Spellward alone halves once too, so the Mark adds nothing on top of it.
     expect((await volley({ markId: null, roll: 0.01, skills: ['aegis'] })).edric.currentHP).toBe(
       40 - 3,
     );
   });
 
-  it('is reported as a defender-side activation, and Aegis is not reported over it', () => {
+  it('is reported as a defender-side activation, and Spellward is not reported over it', () => {
     const edric = makeEdric({ markId: 'veil', skills: ['aegis'] });
     const foe = makeFoe('Mage', 1, 40, { kind: 'tome' });
     const world = makeWorld([edric], [foe, bystander()], 0.01);

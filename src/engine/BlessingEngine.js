@@ -61,7 +61,7 @@ export const EARNED_REQUIRES_KEYS = Object.freeze(['eclipse']);
  * `act_deploy_cap_delta`, `act_hit_bonus` and `disable_personal_skills_until_act` name the act
  * they bite in, usually one already past) is no twist; these act on the run from the take on.
  * PR D3 adds the twisted cards' own types (engine/TwistedBoons.js): the Eclipse's faster gain and
- * the ban on Master Seals. A twist's burden may have no countdown of its own (`permanent`, or a
+ * the ban on Sovereign Seals. A twist's burden may have no countdown of its own (`permanent`, or a
  * Hunted's `actsAhead`): only a twist may, and no church lifts one (Burdens.isCleansable).
  * The act boss's trade cards (engine/TradeBoons.js, §6.8) add their costs, and a smaller army
  * (`deploy_cap_delta`, below 0 as a twist: The Chosen Few).

@@ -184,7 +184,7 @@ export function getAvailableLords(
 /**
  * Create a lord unit for boss recruit, leveled to targetLevel.
  * Gets lord meta bonuses but NOT starting equipment meta upgrades.
- * `recruitContext.consumables` is the catalog the lord's Vulnerary comes from.
+ * `recruitContext.consumables` is the catalog the lord's Poultice comes from.
  */
 export function createBossLordUnit(
   lordDef,
@@ -298,7 +298,7 @@ export function createBossLordUnit(
     normalizeEquippedFirst(unit);
   }
 
-  // Give a Vulnerary: the catalog's, with the uses this run's Vulneraries have.
+  // Give a Poultice: the catalog's, with the uses this run's Poultices have.
   const vulnerary = consumableTemplateFor(recruitContext?.consumables, VULNERARY_NAME, metaEffects);
   if (vulnerary) unit.consumables.push(ensureItemUid(structuredClone(vulnerary)));
 

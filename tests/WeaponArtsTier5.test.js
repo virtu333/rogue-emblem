@@ -163,7 +163,7 @@ const runHeadless = (battle, beats) =>
 const fire = () => structuredClone(gameData.weapons.find((w) => w.name === 'Fire'));
 const mageStats = { HP: 30, STR: 0, MAG: 20, SKL: 8, SPD: 8, DEF: 5, RES: 5, LCK: 5, MOV: 5 };
 
-/** The Burning Quake area step for one landed strike, as the pipeline builds it. */
+/** The Cinder Quake area step for one landed strike, as the pipeline builds it. */
 function quakeStep(source, primary) {
   return getPostCombatPipelineSteps({
     attacker: source,

@@ -1,5 +1,5 @@
 // Galeforce (docs/specs/aoe-weapon-arts.md §4, owner decision: full refresh): when
-// Oathstorm (Oathaxe's Galeforce Assault) kills its target, its user may move and act
+// Oathstorm (Oathaxe's Oathstorm) kills its target, its user may move and act
 // again, through the same continuation as Commander's Gambit (`refreshActor`). The ways
 // this can fail: the refresh fires on a miss, a survivor, a dead or rooted user, or
 // another art; it refreshes more than the user; it is lost or forged across a
@@ -204,7 +204,7 @@ describe('the refresh (completeResolvedAction)', () => {
     expect(scene._timelineFacts).toEqual(['Kael can act again.']);
   });
 
-  // The Galeforce Charm (engine/GaleforceCharm.js) on the same kill (the outside review of
+  // The Onrush Charm (engine/GaleforceCharm.js) on the same kill (the outside review of
   // PR #440): refreshes never stack. The other refresh wins and drops the charm's proc, so
   // a later Wait ends the turn instead of refreshing the unit a second time, and the use the
   // proc counted is handed back (the second proc of a battle leaves one left again).
@@ -226,9 +226,7 @@ describe('the refresh (completeResolvedAction)', () => {
       // The charm still has its second proc this battle.
       units[0].faction = 'player';
       units[0].stats = { HP: 20, SKL: 100 };
-      units[0].accessory = structuredClone(
-        data.accessories.find((a) => a.name === 'Galeforce Charm'),
-      );
+      units[0].accessory = structuredClone(data.accessories.find((a) => a.name === 'Onrush Charm'));
       expect(galeforceChance(units[0])).toBeGreaterThan(0);
       scene.turnManager.unitActed = vi.fn();
       Object.assign(scene, { _historyBeats: [], dimUnit: vi.fn() });
@@ -263,7 +261,7 @@ describe('the refresh (completeResolvedAction)', () => {
   });
 });
 
-describe('a Galeforce Assault in the scene (executeCombat)', () => {
+describe('a Oathstorm in the scene (executeCombat)', () => {
   async function fight(
     primaryHP,
     { art = galeforce, rooted = false, lastFoe = false, xp = null } = {},

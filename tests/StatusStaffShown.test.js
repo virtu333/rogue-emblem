@@ -1,6 +1,6 @@
 // A foe's status staff (Sleep / Silence) rides `unit.statusStaff`, beside its weapon and
 // outside its inventory. A playtester saw the Danger zone's violet outline after the Sleep
-// Staff was spent and could not find which foe still held a staff: a Silence Staff (2 uses)
+// Staff was spent and could not find which foe still held a staff: a Hush Staff (2 uses)
 // on another caster, one use left. Ways this can fail, one test each:
 //   * a resume after the cast refills the staff (the checkpoint drops `_usesSpent`), or a
 //     rewind to before it leaves the staff spent;
@@ -110,8 +110,8 @@ describe('a spent staff stays spent across a resume; a rewind before the cast re
     return scene;
   }
 
-  it('the checkpoint after a Sleep Staff cast restores it with no use left and no reach', () => {
-    const mage = armed(caster('Mage', 6, 4, 'Sleep Staff'));
+  it('the checkpoint after a Lullaby Staff cast restores it with no use left and no reach', () => {
+    const mage = armed(caster('Mage', 6, 4, 'Lullaby Staff'));
     spendStaffUse(mage.statusStaff); // executeEnemyStatusStaff's spend
     expect(statusStaffThreat(mage)).toBeNull();
     const scene = checkpointScene({ players: [armed(hero())], enemies: [mage] });
@@ -121,13 +121,13 @@ describe('a spent staff stays spent across a resume; a rewind before the cast re
     const restored = checkpointScene();
     new BattleSuspendController(restored).applyUnits(state);
     const back = restored.enemyUnits[0];
-    expect(back.statusStaff).toMatchObject({ name: 'Sleep Staff', uses: 1, _usesSpent: 1 });
+    expect(back.statusStaff).toMatchObject({ name: 'Lullaby Staff', uses: 1, _usesSpent: 1 });
     expect(statusStaffThreat(back)).toBeNull();
-    expect(statusStaffInfo(back).text).toBe('Sleep Staff · Range 3-5 · spent');
+    expect(statusStaffInfo(back).text).toBe('Lullaby Staff · Range 3-5 · spent');
   });
 
-  it('a Silence Staff cast once keeps its last use (and its reach) across the resume', () => {
-    const sage = armed(caster('Sage', 8, 2, 'Silence Staff'));
+  it('a Hush Staff cast once keeps its last use (and its reach) across the resume', () => {
+    const sage = armed(caster('Sage', 8, 2, 'Hush Staff'));
     spendStaffUse(sage.statusStaff);
     const scene = checkpointScene({ players: [armed(hero())], enemies: [sage] });
     const state = JSON.parse(JSON.stringify(captureBattleState(scene, { rngSeed: 7 })));
@@ -137,7 +137,7 @@ describe('a spent staff stays spent across a resume; a rewind before the cast re
   });
 
   it('a Vision snapshot taken before the cast brings the unspent staff back', () => {
-    const mage = armed(caster('Mage', 6, 4, 'Sleep Staff'));
+    const mage = armed(caster('Mage', 6, 4, 'Lullaby Staff'));
     const snapshot = serializeBattleUnit(mage); // what VisionRewindController keeps
     spendStaffUse(mage.statusStaff);
     const restored = structuredClone(snapshot);
@@ -196,12 +196,12 @@ describe('how many casters a battle fields', () => {
 
 describe('every place that lists a foe’s gear names its staff', () => {
   it('reads uses left and range, "spent" at 0, and nothing without a staff', () => {
-    const sage = caster('Sage', 8, 2, 'Silence Staff');
-    expect(statusStaffInfo(sage).text).toBe('Silence Staff · Range 3-7 · 2/2 uses');
+    const sage = caster('Sage', 8, 2, 'Hush Staff');
+    expect(statusStaffInfo(sage).text).toBe('Hush Staff · Range 3-7 · 2/2 uses');
     spendStaffUse(sage.statusStaff);
-    expect(statusStaffInfo(sage).text).toBe('Silence Staff · Range 3-7 · 1/2 uses');
+    expect(statusStaffInfo(sage).text).toBe('Hush Staff · Range 3-7 · 1/2 uses');
     spendStaffUse(sage.statusStaff);
-    expect(statusStaffInfo(sage).text).toBe('Silence Staff · Range 3-7 · spent');
+    expect(statusStaffInfo(sage).text).toBe('Hush Staff · Range 3-7 · spent');
     expect(statusStaffInfo(caster('Plain', 1, 1, null))).toBeNull();
   });
 
@@ -209,11 +209,11 @@ describe('every place that lists a foe’s gear names its staff', () => {
     const doc = { createElement: (tag) => ({ tag, className: '', textContent: '' }) };
     vi.stubGlobal('document', doc);
     try {
-      const line = statusStaffGearLine(caster('Mage', 6, 4, 'Sleep Staff'));
+      const line = statusStaffGearLine(caster('Mage', 6, 4, 'Lullaby Staff'));
       expect([line.tag, line.className, line.textContent]).toEqual([
         'p',
         'mb-gear',
-        'Sleep Staff · Range 3-5 · 1/1 uses',
+        'Lullaby Staff · Range 3-5 · 1/1 uses',
       ]);
       expect(statusStaffGearLine(caster('Plain', 1, 1, null))).toBeNull();
     } finally {
@@ -243,22 +243,22 @@ describe('every place that lists a foe’s gear names its staff', () => {
       overlay._drawGearTab(0, 0);
       return lines;
     };
-    const sage = { ...caster('Sage', 8, 2, 'Silence Staff'), inventory: [] };
+    const sage = { ...caster('Sage', 8, 2, 'Hush Staff'), inventory: [] };
     spendStaffUse(sage.statusStaff);
     expect(gear(sage).find((l) => /Staff/.test(l.text))).toEqual({
-      text: ' Silence Staff (1/2) Rng3-7',
+      text: ' Hush Staff (1/2) Rng3-7',
       color: UI_PALETTE.bad,
     });
     spendStaffUse(sage.statusStaff);
     expect(gear(sage).find((l) => /Staff/.test(l.text))).toEqual({
-      text: ' Silence Staff (spent) Rng3-7',
+      text: ' Hush Staff (spent) Rng3-7',
       color: UI_PALETTE.lineStrong,
     });
     const plain = { ...caster('Plain', 1, 1, null), inventory: [] };
     expect(gear(plain).some((l) => /Staff/.test(l.text))).toBe(false);
   });
 
-  // Playtest (2026-10-13): a Mage's Unit Details named its Silence Staff on the Stats tab,
+  // Playtest (2026-10-13): a Mage's Unit Details named its Hush Staff on the Stats tab,
   // but the Equipment tab listed only Wildfire, "Equipment · 1/5".
   it('the phone Unit Details Equipment tab lists and counts it: uses and range, then "spent"', () => {
     installFakeDom(vi);
@@ -288,19 +288,19 @@ describe('every place that lists a foe’s gear names its staff', () => {
       return { heading, cards };
     };
     try {
-      const mage = armed(caster('Mage', 6, 4, 'Silence Staff'));
+      const mage = armed(caster('Mage', 6, 4, 'Hush Staff'));
       let tab = gearTab(mage);
       expect(tab.heading).toBe('Equipment · 2/5');
       expect(tab.cards.map(([name]) => name)).toEqual(
-        expect.arrayContaining([expect.stringContaining('Wildfire'), 'Silence Staff']),
+        expect.arrayContaining([expect.stringContaining('Wildfire'), 'Hush Staff']),
       );
-      expect(tab.cards.find(([name]) => name === 'Silence Staff')[1]).toContain(
+      expect(tab.cards.find(([name]) => name === 'Hush Staff')[1]).toContain(
         'Status staff · Range 3-7 · 2/2 uses',
       );
       spendStaffUse(mage.statusStaff);
       spendStaffUse(mage.statusStaff);
       tab = gearTab(mage);
-      expect(tab.cards.find(([name]) => name === 'Silence Staff')[1]).toContain(
+      expect(tab.cards.find(([name]) => name === 'Hush Staff')[1]).toContain(
         'Status staff · Range 3-7 · spent',
       );
       tab = gearTab(armed(caster('Plain', 1, 1, null)));
@@ -342,7 +342,7 @@ function fogRow(width, hidden) {
 
 describe('the staff pip on the map', () => {
   it('shows for a staff with uses left, only while its caster is in view', () => {
-    const mage = caster('Mage', 6, 0, 'Sleep Staff');
+    const mage = caster('Mage', 6, 0, 'Lullaby Staff');
     expect(statusStaffPipShown(fogRow(12, new Set()), mage)).toBe(true);
     expect(statusStaffPipShown(fogRow(12, new Set(['6,0'])), mage)).toBe(false);
     expect(statusStaffPipShown(fogRow(12, new Set()), { ...mage, currentHP: 0 })).toBe(false);
@@ -380,7 +380,7 @@ describe('the staff pip on the map', () => {
 
   it('the scene draws a violet pip at the end of the row, hidden in fog', () => {
     const affix = gameData.affixes.affixes[0].id;
-    const mage = caster('Mage', 6, 0, 'Silence Staff', { affixes: [affix] });
+    const mage = caster('Mage', 6, 0, 'Hush Staff', { affixes: [affix] });
     const { scene, drawn } = pipScene(new Set());
     scene.updateAffixPips(mage);
     expect(mage.affixPips).toHaveLength(2);
@@ -395,7 +395,7 @@ describe('the staff pip on the map', () => {
   });
 
   it('the cast that spends the last use takes the pip away (a miss too)', async () => {
-    const mage = armed(caster('Mage', 6, 0, 'Sleep Staff'));
+    const mage = armed(caster('Mage', 6, 0, 'Lullaby Staff'));
     const target = armed({ ...hero(), col: 2, row: 0 });
     const { scene, drawn } = pipScene(new Set());
     Object.assign(scene, {

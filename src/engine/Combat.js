@@ -29,6 +29,7 @@ import { revivalStoneCount } from './RevivalStones.js';
 import { getUnitMark, getUnitMarkFor, markActivation, markProcs } from './MarkSystem.js';
 import { rangedReachBonusOf } from './WeaponReach.js';
 import { epicEffectiveness } from './EpicWeapons.js';
+import { skillDisplayName } from './SkillNames.js';
 import {
   perBattleMaxUses,
   tracksBattleUses as tracksDurabilityOrBattleUses,
@@ -245,7 +246,7 @@ function normalizeCombatDamageScale(value) {
 
 /**
  * A strike's damage after its side's `damageScale`, the last step of every damage reading (the
- * strike, its Luna reading, a counter, an art's follow-up): floored, and a blow that did damage
+ * strike, its Umbra reading, a counter, an art's follow-up): floored, and a blow that did damage
  * still does at least 1.
  */
 export function scaleDealtDamage(damage, mods) {
@@ -644,7 +645,7 @@ export function calculateBonusUses(mag) {
 
 /**
  * Bonus uses a staff gains from the healer's MAG: its own `useBonuses` steps when it
- * names them (the Warp Staff), else the shared thresholds (calculateBonusUses).
+ * names them (the Fold Staff), else the shared thresholds (calculateBonusUses).
  */
 export function staffMagBonusUses(staff, mag) {
   if (!Array.isArray(staff?.useBonuses)) return calculateBonusUses(mag);
@@ -760,7 +761,7 @@ export function settlePerBattleWeaponUses(attacker, defender, result) {
 // --- Staff range ---
 
 /**
- * Get effective range for a staff, accounting for MAG-based range bonuses (Physic) and the
+ * Get effective range for a staff, accounting for MAG-based range bonuses (Farcall) and the
  * run's reach (`opts.rangeBonus`: Saint's Reliquary, from StaffBlessings.staffRunOptions; never
  * a hand count), which lengthens the longest reach only.
  * @param {{ rangeBonus?: number }} [opts]
@@ -997,7 +998,7 @@ export function calculateDamage(
 /**
  * Lunar Brace's bonus (`foeDefShare`): floor(share × the foe's DEF) added to a physical
  * strike. "The foe's DEF" is exactly what that strike's damage formula subtracts: the
- * stat after Sunder or Luna's halving (`strikeDefense`), plus the terrain's DEF bonus, the
+ * stat after Sunder or Umbra's halving (`strikeDefense`), plus the terrain's DEF bonus, the
  * defender's DEF mods and its weapon's DEF bonus, never below 0. A strike against RES
  * (magic, a magic sword, an art that targets RES) gets nothing.
  */
@@ -1400,7 +1401,7 @@ const EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS = new Set([
   'gemini',
   'firstHitWard',
   // The Briar Cloak's prick rides the striker's `thornsReflect`, the Grudge Locket's Atk is
-  // a combat mod, and the Anchor Stone and Galeforce Charm never touch the exchange.
+  // a combat mod, and the Anchor Stone and Onrush Charm never touch the exchange.
   'meleeReflect',
   'grudgeAtk',
   'anchored',
@@ -1412,8 +1413,8 @@ const EXCHANGE_NEUTRAL_ACCESSORY_EFFECTS = new Set([
 
 /**
  * True when a unit's Mark can change the exchange's HP outcome: Hunt adds damage on a
- * strike, Veil halves a magic strike (docs/specs/phase3.md 3C). They are listed with Luna
- * and Aegis below, so the forecast hides its projection instead of promising an outcome
+ * strike, Veil halves a magic strike (docs/specs/phase3.md 3C). They are listed with Umbra
+ * and Spellward below, so the forecast hides its projection instead of promising an outcome
  * they could change. Forge, Ember and Road never act inside the exchange.
  */
 export function markChangesExchangeHp(unit, marksData) {
@@ -1630,7 +1631,7 @@ export function getCombatForecast(
     defCrit = calculateCritRate(defender, defWeapon, attacker) + (defMods?.critBonus || 0);
     defCrit = Math.max(0, Math.min(100, defCrit));
     if (isEntity(attacker)) defCrit = Math.floor(defCrit * ENTITY_CRIT_RATE_MULT);
-    // Quick Riposte: always double when defending above 50% HP
+    // Riposte: always double when defending above 50% HP
     const defArtActive = hasWeaponArtActivation(defMods);
     defDoubles =
       defMods?.quickRiposte ||
@@ -1868,7 +1869,7 @@ export function getCombatForecast(
 /**
  * Roll a single strike. Returns an event object for the animation system.
  * strikeSkills (optional): { striker, target, rollStrikeSkills, skillsData }
- *   — for per-hit effects like Sol, Luna, Lethality.
+ *   — for per-hit effects like Reclaim, Umbra, Fell Stroke.
  */
 function rollStrike(
   strikerName,
@@ -1962,8 +1963,8 @@ function rollStrike(
     huntSkipped = Boolean(skillResult.lethal);
   }
 
-  // A warded Voice (engine/Vigil.js) takes nothing, whatever rolled above (a crit, Luna, a
-  // Lethality proc, a skill that adds or sets damage such as Flare): the blow lands and is
+  // A warded Voice (engine/Vigil.js) takes nothing, whatever rolled above (a crit, Umbra, a
+  // Fell Stroke proc, a skill that adds or sets damage such as Immolation): the blow lands and is
   // turned aside here, before the Hunt, the target's defenses and its affixes, so nothing that
   // reads the damage (a skill's or a weapon's drain, Thorns, Teleporter) reacts to it.
   const warded = isWardedUnit(targetUnit);
@@ -1974,7 +1975,7 @@ function rollStrike(
 
   // Mark of the Hunt (3C): a strike-level chance of +damage on a strike that deals any, on the
   // battle's Math.random, after the on-attack procs. Not a skill: Silence does not stop it,
-  // and a Lethality kill does not need it.
+  // and a Fell Stroke kill does not need it.
   const hunt = huntSkipped
     ? null
     : getUnitMarkFor(strikeSkills?.striker, 'on-attack', strikeSkills?.marksData);
@@ -1983,7 +1984,7 @@ function rollStrike(
     mergeActivations([markActivation(hunt)]);
   }
 
-  // On-defend skills (Pavise, Aegis, Miracle, Intimidate): a warded blow never reaches them.
+  // On-defend skills (Shieldwall, Spellward, Reprieve, Intimidate): a warded blow never reaches them.
   if (!warded && strikeSkills?.rollDefenseSkills && finalDmg >= 0) {
     const isPhysicalAtk = strikeSkills.strikerWeaponPhysical;
     const defResult = strikeSkills.rollDefenseSkills(
@@ -1996,7 +1997,7 @@ function rollStrike(
       strikeSkills.targetProcMultiplier ?? 1,
       strikeSkills.targetProcStatBonus ?? null,
       // The Buckler wards this blow below (a blow of 0 or 1 leaves it ready, and kills no one
-      // above 1 HP either): Miracle stays for a blow the Buckler cannot take.
+      // above 1 HP either): Reprieve stays for a blow the Buckler cannot take.
       wardReady(targetUnit) && targetHP > 1,
     );
     if (defResult.modifiedDamage !== finalDmg) {
@@ -2074,13 +2075,13 @@ function rollStrike(
 
   if (!Number.isFinite(finalDmg)) finalDmg = 0;
   let hpAfter = Math.max(0, targetHP - finalDmg);
-  // Revival Stones (UnitHealth.absorbLethal): after the on-defend skills, Miracle and affixes
+  // Revival Stones (UnitHealth.absorbLethal): after the on-defend skills, Reprieve and affixes
   // had their say, a blow that still takes the bar to 0 breaks a stone instead and refills
   // it. The refill is the strike's own `targetHPAfter`, so every reader (applyStrikeHP, the
   // deed kill count, the loop's gating, the animation) sees a unit that stood. A unit with
   // no stones is untouched, and its event keeps the keys it always had.
   // Then the Unbroken Banner (an earned blessing): a player unit the blow would still fell
-  // stands at 1 HP. Miracle has had its say too, so a Miracle that left 1 HP spends no banner.
+  // stands at 1 HP. Reprieve has had its say too, so a Reprieve that left 1 HP spends no banner.
   // Without the blessing (`battleBlessings` null) nothing holds and no key is added.
   const absorbed = targetUnit
     ? absorbLethal(targetUnit, hpAfter, { blessings: battleBlessings })
@@ -2129,7 +2130,7 @@ function applyReflect(evt, strikerHP) {
 }
 
 /**
- * A strike's drain/Sol heal on the striker: none while Wounded, never past max HP.
+ * A strike's drain/Reclaim heal on the striker: none while Wounded, never past max HP.
  * Records the HP it heals to (`strikerHealTo`) and what it actually healed (`healed`).
  */
 function applyStrikeHeal(evt, striker, strikerHP) {
@@ -2318,7 +2319,7 @@ export function resolveCombat(
   const atkDoubles =
     !defPreventDouble && rAtkAs >= rDefAs + followUpSpeedThreshold(atkMods) - atkPursuitReduction;
   const defArtActive = hasWeaponArtActivation(defMods);
-  // Quick Riposte: always double when defending above 50% HP
+  // Riposte: always double when defending above 50% HP
   const defDoubles =
     defCanCounter &&
     (defMods?.quickRiposte ||
@@ -2455,7 +2456,7 @@ export function resolveCombat(
         }
       : null;
 
-  // Track Cancel follow-up negation by side.
+  // Track Stifle follow-up negation by side.
   let attackerFollowUpCancelled = false;
   let defenderFollowUpCancelled = false;
   const atkPerHitHeal = Math.max(0, Number(attacker?.accessory?.combatEffects?.perHitHeal) || 0);
@@ -2491,7 +2492,7 @@ export function resolveCombat(
     const strikeCritMult = isAttackingDefender ? atkCritMult : defCritMult;
     for (let i = 0; i < count && atkHP > 0 && defHP > 0 && !exchangeEnded; i++) {
       const targetHP = isAttackingDefender ? defHP : atkHP;
-      // Keen Eye: the attacker's first rolled strike of the combat (a Vantage defender's
+      // Keen Eye: the attacker's first rolled strike of the combat (a Forestall defender's
       // phase leaves it pending; brave, follow-up and bonus strikes roll at `hit`).
       let strikeHit = hit;
       let firstStrikeApplied = false;
@@ -2522,7 +2523,7 @@ export function resolveCombat(
       endExchangeOn(evt, targetSide);
       if (isAttackingDefender) {
         defHP = evt.targetHPAfter;
-        // Sol/Drain heal: striker heals HP
+        // Reclaim/Drain heal: striker heals HP
         atkHP = applyStrikeHeal(evt, attacker, atkHP);
         atkHP = applyReflect(evt, atkHP);
       } else {
@@ -2549,7 +2550,7 @@ export function resolveCombat(
         strikeSkills.isFirstHit = false;
       }
 
-      // Check Cancel on defend (negates the striker side's follow-up).
+      // Check Stifle on defend (negates the striker side's follow-up).
       if (!evt.miss && evt.skillActivations) {
         for (const sa of evt.skillActivations) {
           if (sa.id === 'cancel') {
@@ -2559,11 +2560,11 @@ export function resolveCombat(
         }
       }
 
-      // Adept/Aether: extra strike at full damage (one bonus strike per hit).
-      // Defense skills/affixes (Pavise, Aegis, Miracle, Shielded, Thorns, …) still
+      // Flurry/Corona: extra strike at full damage (one bonus strike per hit).
+      // Defense skills/affixes (Shieldwall, Spellward, Reprieve, Shielded, Thorns, …) still
       // apply; only on-attack procs are disabled so bonus strikes can't chain.
       if (evt.extraStrike && atkHP > 0 && defHP > 0 && !exchangeEnded) {
-        // Aether Luna: bonus strike at 1.5x damage
+        // Corona Umbra: bonus strike at 1.5x damage
         const bonusDmg = evt.aetherLuna ? Math.floor(dmg * 1.5) : dmg;
         const bonusTargetHP = isAttackingDefender ? defHP : atkHP;
         const bonusStrikeSkills = strikeSkills ? { ...strikeSkills, rollStrikeSkills: null } : null;
@@ -2622,7 +2623,7 @@ export function resolveCombat(
     }
   }
 
-  // Resolve strike count/damage overrides: art multiHit first, then Astra fallback.
+  // Resolve strike count/damage overrides: art multiHit first, then Constellation fallback.
   function strikePhase(
     aName,
     tName,
@@ -2729,10 +2730,13 @@ export function resolveCombat(
     if (f) markArtFollowUpStrikes(events, firstEvent);
   }
 
-  // Determine phase order — Vantage, Desperation modify order
+  // Determine phase order — Forestall, Death's Door modify order
   const defenderVantage = defCanCounter && (defMods?.vantage || false);
   const attackerDesperation = atkMods?.desperation || false;
   const defenderDesperation = defCanCounter && (defMods?.desperation || false);
+  // Skill events carry the skill's display name from skills.json (the banner and
+  // ProcVisualTheme look the skill back up by it); the fallback serves callers without data.
+  const skillEventName = (id) => skillDisplayName(id, skillCtx?.skillsData);
 
   // Teleport warp: returns the side that escaped (targetSide on the warp event), or null
   const warpedSide = () => {
@@ -2741,15 +2745,23 @@ export function resolveCombat(
   };
 
   if (defenderVantage) {
-    // Vantage: defender strikes first
-    events.push({ type: 'skill', name: 'Vantage', unit: defender.name });
+    // Forestall: defender strikes first
+    events.push({
+      type: 'skill',
+      name: skillEventName('vantage'),
+      unit: defender.name,
+    });
     defPhase();
     if (!warpedSide()) atkPhase();
     if (defDoubles && !defenderFollowUpCancelled && !warpedSide()) defPhase(true);
     if (atkDoubles && !attackerFollowUpCancelled && !warpedSide()) atkPhase(true);
   } else if (attackerDesperation && atkDoubles) {
-    // Desperation: all attacker hits before defender responds
-    events.push({ type: 'skill', name: 'Desperation', unit: attacker.name });
+    // Death's Door: all attacker hits before defender responds
+    events.push({
+      type: 'skill',
+      name: skillEventName('desperation'),
+      unit: attacker.name,
+    });
     atkPhase();
     if (!attackerFollowUpCancelled && !warpedSide()) atkPhase(true);
     if (defCanCounter && !warpedSide()) {
@@ -2757,10 +2769,14 @@ export function resolveCombat(
     }
     if (defDoubles && !defenderFollowUpCancelled && !warpedSide()) defPhase(true);
   } else if (defenderDesperation && defDoubles) {
-    // Defender-side Desperation: defender follow-up occurs before attacker follow-up
+    // Defender-side Death's Door: defender follow-up occurs before attacker follow-up
     atkPhase();
     if (atkHP > 0 && defHP > 0 && !exchangeEnded && !warpedSide()) {
-      events.push({ type: 'skill', name: 'Desperation', unit: defender.name });
+      events.push({
+        type: 'skill',
+        name: skillEventName('desperation'),
+        unit: defender.name,
+      });
       if (defCanCounter) {
         defPhase();
       }

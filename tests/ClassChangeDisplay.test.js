@@ -66,7 +66,7 @@ it('uses lord promotion bonuses and the same starter grant rule as the command',
   const unit = createLordUnit(lord, cls, data.weapons);
   unit.level = 10;
   const target = data.classes.find((c) => c.name === lord.promotedClass);
-  const item = { name: 'Master Seal', type: 'Consumable', effect: 'promote', uses: 1 };
+  const item = { name: 'Sovereign Seal', type: 'Consumable', effect: 'promote', uses: 1 };
   unit.consumables = [item];
   const before = structuredClone(unit);
   const text = classChangePreview(unit, item, target, data);

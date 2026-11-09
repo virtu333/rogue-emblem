@@ -78,7 +78,7 @@ export function promoteAtChurch(run, unit, nodeId, target, gameData) {
   // A deed's Oath is sworn at the altar too.
   const oath = applyPromotionOath(unit, gameData);
   // The rite promises the Iron weapon of each newly wielded type (and a lord's promotion
-  // weapon), as a Master Seal's promotion hands it over.
+  // weapon), as a Sovereign Seal's promotion hands it over.
   const grants = grantClassChangeWeapons(
     run,
     unit,

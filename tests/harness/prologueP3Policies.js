@@ -203,9 +203,9 @@ export function nearestEnemy(battle, u) {
     .sort((x, y) => x.d - y.d)[0]?.e;
 }
 
-/** A unit at 60% HP or less drinks its Vulnerary (P1's note), where it stands or at `to`. */
+/** A unit at 60% HP or less drinks its Poultice (P1's note), where it stands or at `to`. */
 export function drinkIfHurt(battle, u, to = u) {
-  const vul = (u.consumables || []).find((c) => c.name === 'Vulnerary');
+  const vul = (u.consumables || []).find((c) => c.name === 'Poultice');
   if (!vul || u.currentHP * 100 > u.stats.HP * 60) return false;
   healUnit(u, Number(vul.value) || 10);
   vul.uses = (vul.uses ?? 1) - 1;
@@ -272,7 +272,7 @@ export function walkToward(battle, u, tiles) {
 /**
  * The naive policy (§8), with P3's two taught moves: Edric walks to Sera and Talks
  * while she is green (the coach's first goal), and Sera heals an ally below 60% she
- * can reach (the heal note). Otherwise: drink the Vulnerary at 60%, strike the nearest
+ * can reach (the heal note). Otherwise: drink the Poultice at 60%, strike the nearest
  * enemy with the equipped weapon from the cheapest tile, else walk toward it. An
  * unarmed unit can't attack and waits where it stands.
  */

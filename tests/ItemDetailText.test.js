@@ -27,7 +27,7 @@ describe('itemDetailText', () => {
   });
 
   it('a consumable says what it does and its uses; a stone its forge', () => {
-    const vulnerary = structuredClone(data.consumables.find((c) => c.name === 'Vulnerary'));
+    const vulnerary = structuredClone(data.consumables.find((c) => c.name === 'Poultice'));
     const text = itemDetailText({ item: vulnerary }, data);
     expect(text).toMatch(/\(\d+\/\d+ uses?\)$|\(\d+ uses?\)$/);
     expect(

@@ -45,8 +45,8 @@ describe('the fork on the route map', () => {
     expect(node('prologue_2a').preview).toBe(entry('prologue_2a').preview);
     expect(node('prologue_2b').preview).toBe(entry('prologue_2b').preview);
     expect(node('prologue_2a').prologueStock).toEqual([
-      'Vulnerary',
-      'Vulnerary',
+      'Poultice',
+      'Poultice',
       'Iron Sword',
       'Iron Lance',
       'Javelin',
@@ -75,8 +75,8 @@ describe('buildPrologueShopStock', () => {
     );
     Math.random = realRandom;
     expect(stock.map((s) => s.item.name)).toEqual([
-      'Vulnerary',
-      'Vulnerary',
+      'Poultice',
+      'Poultice',
       'Iron Sword',
       'Iron Lance',
       'Javelin',
@@ -94,10 +94,10 @@ describe('buildPrologueShopStock', () => {
       'weapon',
       'weapon',
     ]);
-    // Two Vulneraries are two items (distinct uids), from the seeded stream.
+    // Two Poultices are two items (distinct uids), from the seeded stream.
     expect(stock[0].item.uid).toBeTruthy();
     expect(stock[0].item.uid).not.toBe(stock[1].item.uid);
-    const again = buildPrologueShopStock(['Vulnerary', 'Vulnerary'], data, {
+    const again = buildPrologueShopStock(['Poultice', 'Poultice'], data, {
       rng: createBattleRng(7),
     });
     // (A uid is a process counter plus the stream's draw: the draw part repeats.)
@@ -137,7 +137,7 @@ describe('P3: the replay roster and Sera', () => {
     expect(sera.level).toBe(prologue.units.Sera.level);
     expect(sera.weapon?.name).toBe('Glimmer');
     expect(sera.inventory.map((w) => w.name)).toEqual(['Glimmer', 'Heal']);
-    expect(sera.consumables.map((c) => c.name)).toEqual(['Vulnerary']);
+    expect(sera.consumables.map((c) => c.name)).toEqual(['Poultice']);
     for (const [stat, value] of Object.entries(prologue.units.Sera.stats))
       expect(sera.stats[stat], stat).toBe(value);
     expect([sera.hasMoved, sera.hasActed]).toEqual([false, false]);

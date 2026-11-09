@@ -619,7 +619,7 @@ const captureOwners = [
       other.col = actor.col + 1;
       other.row = actor.row;
       actor.consumables = [
-        { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
+        { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
         { name: 'Elixir', type: 'Consumable', effect: 'healFull', uses: 1 },
       ];
       scene.battleState = 'TRADING';
@@ -638,7 +638,7 @@ const captureOwners = [
       other.col = actor.col + 1;
       other.row = actor.row;
       actor.consumables = [
-        { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
+        { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 },
       ];
       other.consumables = [];
       scene.battleState = 'TRADING';

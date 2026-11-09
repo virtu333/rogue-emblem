@@ -107,7 +107,7 @@ test('reclass UI save reload deploy preserves learned skill, spent seal and usab
   await roster.getByRole('button', { name: 'Reclass', exact: true }).tap();
   const picker = page.getByRole('dialog', { name: 'Reclass Reload Veteran', exact: true });
   await picker.getByRole('button', { name: /^Myrmidon/ }).tap();
-  await expect(picker.locator('.re-choice-preview')).toContainText('Learn: Vantage');
+  await expect(picker.locator('.re-choice-preview')).toContainText('Learn: Forestall');
   await picker.getByRole('button', { name: 'Confirm', exact: true }).tap();
   await expect(picker).toHaveCount(0);
   await closeRoster(roster, 'Close', { tap: true });
@@ -218,7 +218,7 @@ for (const action of ['level up', 'promotion']) {
     const hud = page.getByRole('complementary', { name: 'Battle commands' });
     if (action === 'promotion') {
       await hud.getByRole('button', { name: 'Item', exact: true }).tap();
-      await hud.getByRole('button', { name: /^Master Seal/ }).tap();
+      await hud.getByRole('button', { name: /^Sovereign Seal/ }).tap();
     } else {
       // Target first: Attack goes straight to target selection.
       await hud.getByRole('button', { name: 'Attack', exact: true }).tap();
@@ -303,10 +303,10 @@ test('Canto completion survives normal saved-battle resume with village reward a
       u = s.playerUnits[0];
     if (!u.skills.includes('canto')) u.skills.push('canto');
     u.currentHP = Math.max(1, u.stats.HP - 10);
-    // A 3-use Vulnerary pinned by the fixture (the catalog's uses follow the meta upgrade):
+    // A 3-use Poultice pinned by the fixture (the catalog's uses follow the meta upgrade):
     // the item cost is checked as exactly one use, 3 -> 2.
     u.consumables = [
-      { ...structuredClone(s.gameData.consumables.find((i) => i.name === 'Vulnerary')), uses: 3 },
+      { ...structuredClone(s.gameData.consumables.find((i) => i.name === 'Poultice')), uses: 3 },
     ];
     s.updateHPBar(u);
     const tile = { col: u.col, row: u.row };
@@ -324,7 +324,7 @@ test('Canto completion survives normal saved-battle resume with village reward a
   await tapUnit(page, name);
   const hud = page.getByRole('complementary', { name: 'Battle commands' });
   await hud.getByRole('button', { name: 'Item', exact: true }).tap();
-  await hud.getByRole('button', { name: /^Vulnerary/ }).tap();
+  await hud.getByRole('button', { name: /^Poultice/ }).tap();
   await page.waitForFunction(
     () => window.__emblemRogueGame.scene.getScene('Battle').battleState === 'CANTO_MOVING',
   );

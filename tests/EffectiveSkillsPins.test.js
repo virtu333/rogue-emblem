@@ -42,7 +42,7 @@ const granted = (id, base = sword) => ({ ...base, _grantedSkill: id });
 afterEach(() => vi.restoreAllMocks());
 
 describe('a legendary weapon’s _grantedSkill, read today', () => {
-  it('Sol procs on a strike (Math.random stubbed to a certain proc)', () => {
+  it('Reclaim procs on a strike (Math.random stubbed to a certain proc)', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const attacker = unit({ weapon: granted('sol') });
     const r = rollStrikeSkills(attacker, 7, unit({ faction: 'enemy' }), skills);
@@ -50,7 +50,7 @@ describe('a legendary weapon’s _grantedSkill, read today', () => {
     expect(r.activated.map((a) => a.id)).toEqual(['sol']);
   });
 
-  it('Luna procs on a strike', () => {
+  it('Umbra procs on a strike', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const attacker = unit({ weapon: granted('luna') });
     const r = rollStrikeSkills(attacker, 7, unit({ faction: 'enemy' }), skills);
@@ -66,7 +66,7 @@ describe('a legendary weapon’s _grantedSkill, read today', () => {
     expect(r.activated).toEqual([]);
   });
 
-  it('Vantage applies its opening effect below half HP', () => {
+  it('Forestall applies its opening effect below half HP', () => {
     const u = unit({ weapon: granted('vantage'), currentHP: 5 });
     const foe = unit({ faction: 'enemy', col: 5 });
     const mods = getSkillCombatMods(u, foe, [u], [foe], skills, null, false);
@@ -74,14 +74,14 @@ describe('a legendary weapon’s _grantedSkill, read today', () => {
     expect(mods.activated.map((a) => a.id)).toEqual(['vantage']);
   });
 
-  it('Vantage does not apply above half HP', () => {
+  it('Forestall does not apply above half HP', () => {
     const u = unit({ weapon: granted('vantage'), currentHP: 20 });
     const foe = unit({ faction: 'enemy', col: 5 });
     const mods = getSkillCombatMods(u, foe, [u], [foe], skills, null, false);
     expect(mods.vantage).toBe(false);
   });
 
-  it('Wrath adds its crit below half HP', () => {
+  it('Seethe adds its crit below half HP', () => {
     const u = unit({ weapon: granted('wrath'), currentHP: 5 });
     const foe = unit({ faction: 'enemy', col: 5 });
     const mods = getSkillCombatMods(u, foe, [u], [foe], skills, null, false);
@@ -108,7 +108,7 @@ describe('a legendary weapon’s _grantedSkill, read today', () => {
     expect(rollDefenseSkills(defender, 10, true, skills).modifiedDamage).toBe(5);
   });
 
-  it('Astra is read from the weapon', () => {
+  it('Constellation is read from the weapon', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     expect(checkAstra(unit({ weapon: granted('astra') }), skills).triggered).toBe(true);
   });
@@ -148,7 +148,7 @@ describe('a legendary weapon’s _grantedSkill, read today', () => {
 });
 
 describe('a skill in unit.skills, read on every battle path', () => {
-  it('on-combat-start: Death Blow adds STR when initiating', () => {
+  it('on-combat-start: Onslaught adds STR when initiating', () => {
     const u = unit({ skills: ['death_blow'] });
     const foe = unit({ faction: 'enemy', col: 5 });
     expect(getSkillCombatMods(u, foe, [u], [foe], skills, null, true).atkBonus).toBe(6);
@@ -160,20 +160,20 @@ describe('a skill in unit.skills, read on every battle path', () => {
     expect(getTerrainCostReduction(unit(), skills)).toBe(0);
   });
 
-  it('on-attack: Sol procs from the list', () => {
+  it('on-attack: Reclaim procs from the list', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const r = rollStrikeSkills(unit({ skills: ['sol'] }), 7, unit({ faction: 'enemy' }), skills);
     expect(r.heal).toBe(7);
   });
 
-  it('on-defend: Pavise halves physical damage', () => {
+  it('on-defend: Shieldwall halves physical damage', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     expect(rollDefenseSkills(unit({ skills: ['pavise'] }), 10, true, skills).modifiedDamage).toBe(
       5,
     );
   });
 
-  it('Astra from the list', () => {
+  it('Constellation from the list', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     expect(checkAstra(unit({ skills: ['astra'] }), skills).triggered).toBe(true);
     expect(checkAstra(unit(), skills).triggered).toBe(false);

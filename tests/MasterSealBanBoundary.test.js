@@ -1,5 +1,5 @@
-// Kingmaker's Oath's twist (docs/specs/blessings-v3.md §6.2): "Master Seals can't be used:
-// promote only at a church". Every way a Master Seal (a `promote` consumable) can promote a unit
+// Kingmaker's Oath's twist (docs/specs/blessings-v3.md §6.2): "Sovereign Seals can't be used:
+// promote only at a church". Every way a Sovereign Seal (a `promote` consumable) can promote a unit
 // must ask the one rule, `TwistedBoons.classChangeItemBlock(run, item)`, and the reclass seals
 // (Infantry Seal, Mounted Seal: `reclass`) must never be caught by it.
 //
@@ -12,7 +12,7 @@
 //      in directly reaches without the menu).
 //
 // Ways this can fail, a test each:
-//   a. a path promotes with a Master Seal while the oath is held;
+//   a. a path promotes with a Sovereign Seal while the oath is held;
 //   b. a reclass seal is refused by the ban;
 //   c. a new file starts reading `promote` consumables without the rule (the scan), or the scan
 //      is blind (an allowlist entry that no longer matches).
@@ -51,7 +51,7 @@ function runWith({ oath }) {
   return rm;
 }
 const masterSeal = () => ({
-  name: 'Master Seal',
+  name: 'Sovereign Seal',
   type: 'Consumable',
   effect: 'promote',
   uses: 1,
@@ -69,7 +69,7 @@ function promotable(rm) {
   return unit;
 }
 
-describe('every Master Seal path asks the one rule', () => {
+describe('every Sovereign Seal path asks the one rule', () => {
   it('the roster sheet and the convoy: refused with the oath, allowed without', () => {
     // Failure (a): the sheet's Promote (bag or convoy card) promotes under the oath.
     for (const oath of [true, false]) {
@@ -131,7 +131,7 @@ describe('every Master Seal path asks the one rule', () => {
   });
 
   it('the reclass seals are never the ban: Infantry Seal and Mounted Seal pass', () => {
-    // Failure (b): the rule keys on "a seal" instead of a Master Seal's effect.
+    // Failure (b): the rule keys on "a seal" instead of a Sovereign Seal's effect.
     const rm = runWith({ oath: true });
     const reclass = data.consumables.filter((c) => c.effect === 'reclass');
     expect(reclass.map((c) => c.name).sort()).toEqual(['Infantry Seal', 'Mounted Seal']);
@@ -202,7 +202,7 @@ const PATHS = {
   },
 };
 
-describe('the scan: every file that reads a Master Seal is listed with its gate', () => {
+describe('the scan: every file that reads a Sovereign Seal is listed with its gate', () => {
   const files = [
     ...sourceFiles(join(ROOT, 'src')),
     ...sourceFiles(join(ROOT, 'tests/harness')),

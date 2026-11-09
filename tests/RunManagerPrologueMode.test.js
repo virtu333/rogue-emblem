@@ -92,7 +92,7 @@ describe('startPrologue', () => {
     expect(tower).toMatchObject({
       type: 'ruins',
       prologueLines: 'watchtower_vision',
-      prologueStock: ['Vulnerary', 'Vulnerary', 'Javelin', 'Steel Sword'],
+      prologueStock: ['Poultice', 'Poultice', 'Javelin', 'Steel Sword'],
     });
     expect(nodeOf(rm, 'prologue_3').edges).toEqual(['prologue_4']);
     expect(tower.edges).toEqual(['prologue_5']);
@@ -340,7 +340,7 @@ describe('the restart', () => {
     // Mid-battle: gold picked up, a village item, the convoy emptied, a reseed.
     rm.gold += 300;
     rm.convoy.weapons.length = 0;
-    rm.convoy.consumables.push({ name: 'Vulnerary', uid: 'picked-up', type: 'Consumable' });
+    rm.convoy.consumables.push({ name: 'Poultice', uid: 'picked-up', type: 'Consumable' });
     rm.rngSeed = 999;
     rm.visionChargesRemaining = 2;
     rm.setBattleCheckpoint({ recoveryKind: 'fatal_pending' });

@@ -354,7 +354,7 @@ describe('ability and stone sounds', () => {
     new AbilityTargetingController({ scene })._presentSteal({
       thief: { col: 0, row: 0 },
       carrier: { col: 1, row: 0 },
-      item: { name: 'Vulnerary' },
+      item: { name: 'Poultice' },
       destination: 'bag',
     });
     expect(playSFX.mock.calls).toEqual([['sfx_steal']]);

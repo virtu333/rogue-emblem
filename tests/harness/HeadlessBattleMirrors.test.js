@@ -50,7 +50,7 @@ describe('HeadlessBattle mirrors', () => {
       statusStaff: 'silence',
     });
     expect(sage.weapon.name).toBe('Breachbolt');
-    expect(sage.statusStaff?.name).toBe('Silence Staff');
+    expect(sage.statusStaff?.name).toBe('Hush Staff');
   });
 
   it('the Entity fights and blocks from its footprint, as in the scene', () => {
@@ -178,7 +178,7 @@ describe('HeadlessBattle mirrors', () => {
       row: target.row,
       statusStaff: 'sleep',
     });
-    expect(mage.statusStaff?.name).toBe('Sleep Staff');
+    expect(mage.statusStaff?.name).toBe('Lullaby Staff');
     const decisions = [];
     const decide = battle.aiController._decideAction.bind(battle.aiController);
     battle.aiController._decideAction = (...args) => {

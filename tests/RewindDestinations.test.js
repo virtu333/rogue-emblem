@@ -29,7 +29,7 @@ describe('summarizing a player activation', () => {
     const fact = summarizeActionFact(
       [
         { type: 'moved', actorId: 'u1', path: [] },
-        beat('attacked', 'u1', 'u3', { detail: 'Wrath Strike' }),
+        beat('attacked', 'u1', 'u3', { detail: 'Grim Stroke' }),
         beat('hit', 'u1', 'u3', { outcome: { damage: 7, miss: false, critical: false } }),
         beat('hit', 'u3', 'u1', { outcome: { damage: 4, miss: false, critical: false } }),
         beat('critically hit', 'u1', 'u3', {
@@ -48,11 +48,11 @@ describe('summarizing a player activation', () => {
       verb: 'attack',
       target: 'Knight',
       targetId: 'u3',
-      detail: 'Wrath Strike',
+      detail: 'Grim Stroke',
       outcome: { hits: 2, crits: 1, damage: 28, taken: 4 },
       ko: ['Knight'],
     });
-    expect(describeBefore(fact)).toBe('Before Edric’s Wrath Strike on Knight');
+    expect(describeBefore(fact)).toBe('Before Edric’s Grim Stroke on Knight');
     expect(actionOutcomeChips(fact).map((c) => c.text)).toEqual(['Crit 28', 'Took 4', 'KO']);
   });
 
@@ -87,17 +87,17 @@ describe('summarizing a player activation', () => {
     ],
     [[beat('danced for', 'u2', 'u4')], 'Before Sera’s dance on Patient', []],
     [
-      [beat('traded with', 'u2', 'u4', { detail: 'Vulnerary' })],
+      [beat('traded with', 'u2', 'u4', { detail: 'Poultice' })],
       'Before Sera’s trade with Patient',
       [],
     ],
-    [[beat('used', 'u2', null, { detail: 'Vulnerary' })], 'Before Sera’s Vulnerary', []],
+    [[beat('used', 'u2', null, { detail: 'Poultice' })], 'Before Sera’s Poultice', []],
     [
-      [beat('relocated', 'u2', 'u4', { detail: 'Warp Staff' })],
-      'Before Sera’s Warp Staff on Patient',
+      [beat('relocated', 'u2', 'u4', { detail: 'Fold Staff' })],
+      'Before Sera’s Fold Staff on Patient',
       [],
     ],
-    [[beat('cured', 'u2', 'u4', { detail: 'Restore' })], 'Before Sera’s cure on Patient', []],
+    [[beat('cured', 'u2', 'u4', { detail: 'Unbinding' })], 'Before Sera’s cure on Patient', []],
     [[beat('rallied', 'u2', 'u4'), beat('rallied', 'u2', 'u1')], 'Before Sera’s rally', []],
     [[beat('rooted', 'u2', 'u5')], 'Before Sera’s ensnare on Bandit', []],
     [[beat('shoved', 'u2', 'u4')], 'Before Sera’s shove on Patient', []],

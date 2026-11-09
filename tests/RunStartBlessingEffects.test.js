@@ -359,27 +359,27 @@ describe('stats and economy', () => {
   it('act_start_convoy_item: files the grant, pays this act into the convoy now', () => {
     const rm = freshRun();
     const convoy = rm.convoy.consumables.length;
-    const records = apply(rm, 'act_start_convoy_item', { itemName: 'Vulnerary', count: 2 });
-    expect(records[0].details).toEqual({ itemName: 'Vulnerary', count: 2 });
+    const records = apply(rm, 'act_start_convoy_item', { itemName: 'Poultice', count: 2 });
+    expect(records[0].details).toEqual({ itemName: 'Poultice', count: 2 });
     expect(records[0].stage).toBe('run_start');
     expect(rm.convoy.consumables.length).toBe(convoy + 2);
-    expect(rm.convoy.consumables.slice(-2).map((i) => i.name)).toEqual(['Vulnerary', 'Vulnerary']);
+    expect(rm.convoy.consumables.slice(-2).map((i) => i.name)).toEqual(['Poultice', 'Poultice']);
     expect(mods(rm).actStartGrants).toEqual([
-      { blessingId: ID, kind: 'item', itemName: 'Vulnerary', count: 2, paidActs: ['act1'] },
+      { blessingId: ID, kind: 'item', itemName: 'Poultice', count: 2, paidActs: ['act1'] },
     ]);
   });
 
   it('act_start_convoy_item: a blessing taken mid-run pays under the mid_run stage', () => {
     const rm = freshRun();
     rm.activeBlessings = [{ id: ID, rolledCost: null, midRun: true }];
-    const records = apply(rm, 'act_start_convoy_item', { itemName: 'Vulnerary', count: 1 });
+    const records = apply(rm, 'act_start_convoy_item', { itemName: 'Poultice', count: 1 });
     expect(records[0].stage).toBe('run_start');
     const payment = records.find((r) => r.eventType === 'effect_applied' && r !== records[0]);
     expect(payment?.stage).toBe('mid_run');
     // The same blessing held from the start pays under run_start.
     const held = freshRun();
     held.activeBlessings = [ID];
-    const heldRecords = apply(held, 'act_start_convoy_item', { itemName: 'Vulnerary', count: 1 });
+    const heldRecords = apply(held, 'act_start_convoy_item', { itemName: 'Poultice', count: 1 });
     const heldPayment = heldRecords.find((r) => r !== heldRecords[0]);
     expect(heldPayment?.stage).toBe('run_start');
   });
@@ -389,7 +389,7 @@ describe('stats and economy', () => {
       [{ itemName: 'Nope', count: 1 }, 'missing_consumable_template'],
       [{ itemName: 'Iron Sword', count: 1 }, 'missing_consumable_template'],
       [{ itemName: '', count: 1 }, 'missing_consumable_template'],
-      [{ itemName: 'Vulnerary', count: 0 }, 'invalid_act_start_item_count'],
+      [{ itemName: 'Poultice', count: 0 }, 'invalid_act_start_item_count'],
     ]) {
       const rm = freshRun();
       const record = applyOne(rm, 'act_start_convoy_item', params);
@@ -935,18 +935,18 @@ describe('gifts of items, skills and forging', () => {
   it('starting_consumable_all: one of the item to every unit with room', () => {
     const rm = freshRun();
     const before = Object.fromEntries(rm.roster.map((u) => [u.name, u.consumables.length]));
-    expect(applyOne(rm, 'starting_consumable_all', { name: 'Vulnerary' }).details).toEqual({
-      itemName: 'Vulnerary',
+    expect(applyOne(rm, 'starting_consumable_all', { name: 'Poultice' }).details).toEqual({
+      itemName: 'Poultice',
       grantedCount: 3,
       rosterSize: 3,
     });
     for (const u of rm.roster) {
       expect(u.consumables.length).toBe(before[u.name] + 1);
-      expect(u.consumables.at(-1).name).toBe('Vulnerary');
+      expect(u.consumables.at(-1).name).toBe('Poultice');
     }
     // Everyone fills to 3; a full bag takes nothing.
-    applyOne(rm, 'starting_consumable_all', { name: 'Vulnerary' });
-    expect(applyOne(rm, 'starting_consumable_all', { name: 'Vulnerary' }).details).toMatchObject({
+    applyOne(rm, 'starting_consumable_all', { name: 'Poultice' });
+    expect(applyOne(rm, 'starting_consumable_all', { name: 'Poultice' }).details).toMatchObject({
       grantedCount: 1,
     });
     expect(rm.roster.map((u) => u.consumables.length)).toEqual([3, 3, 3]);

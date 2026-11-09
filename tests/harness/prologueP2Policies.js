@@ -124,9 +124,9 @@ export function pathDistances(battle, u, target) {
   return (t) => range.get(key(t))?.cost ?? Infinity;
 }
 
-/** A unit at 60% HP or less drinks its Vulnerary: P1's note, and the coach's own goal. */
+/** A unit at 60% HP or less drinks its Poultice: P1's note, and the coach's own goal. */
 export function drinkIfHurt(battle, u) {
-  const vul = (u.consumables || []).find((c) => c.name === 'Vulnerary');
+  const vul = (u.consumables || []).find((c) => c.name === 'Poultice');
   if (!vul || u.currentHP * 100 > u.stats.HP * 60) return false;
   healUnit(u, Number(vul.value) || 10);
   u.consumables.splice(u.consumables.indexOf(vul), 1);
@@ -137,7 +137,7 @@ export function drinkIfHurt(battle, u) {
 /**
  * The naive policy (§8): strike the nearest enemy (by the road) that any tile in reach
  * allows, with the equipped weapon, from the cheapest such tile; else walk toward the
- * nearest enemy. No weapon choice, no terrain sense; the Vulnerary when hurt.
+ * nearest enemy. No weapon choice, no terrain sense; the Poultice when hurt.
  */
 export function naive(battle, u, tiles) {
   if (drinkIfHurt(battle, u)) return;

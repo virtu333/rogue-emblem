@@ -234,13 +234,13 @@ describe('result lines of the new kinds', () => {
   it('an accessory goes to the pool, not to a unit or the convoy', () => {
     const line = only({
       kind: 'item',
-      name: 'Seraph Robe',
+      name: "Sisters' Mantle",
       pooled: true,
       unit: null,
       toConvoy: false,
       worn: [],
     });
-    expect(line.text).toBe('Seraph Robe to the accessory pool');
+    expect(line.text).toBe("Sisters' Mantle to the accessory pool");
     expect(only({ kind: 'item', name: 'Iron Sword', unit: 'Hale', worn: [] }).text).toBe(
       'Iron Sword to Hale',
     );

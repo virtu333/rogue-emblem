@@ -9,7 +9,7 @@ import { isMarkActivation } from '../engine/MarkSystem.js';
  *
  * Categories:
  *   art     -- weapon arts (deliberate technique)        -> amber
- *   offense -- on-attack and on-kill procs (Luna, Sol, Lifetaker...) -> red
+ *   offense -- on-attack and on-kill procs (Umbra, Reclaim, Reaper's Due...) -> red
  *   defense -- on-defend procs + defensive enemy affixes -> blue
  *   mark    -- a recruit's Mark (Hunt, Veil; docs/specs/phase3.md 3C)  -> violet
  *   neutral -- everything else (combat-start stances...) -> cyan
@@ -100,7 +100,7 @@ export function themeFor(category) {
   return PROC_THEME[category] || PROC_THEME.neutral;
 }
 
-/** Classify a pre-combat 'skill' event (Astra, Vantage, Desperation) by display name. */
+/** Classify a pre-combat 'skill' event (Constellation, Forestall, Death's Door) by display name. */
 export function classifySkillEventName(name, skillsData) {
   const skill = (skillsData || []).find((s) => s.name === name);
   if (!skill) return PROC_CATEGORY.NEUTRAL;

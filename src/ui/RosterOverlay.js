@@ -1486,7 +1486,7 @@ export class RosterOverlay {
         } else if (item.effect === 'gold') {
           this._actionBtn(btnX, y, '[Use]', () => this._useGoldPouch(unit, item));
         } else if (item.effect === 'promote') {
-          // Kingmaker's Oath: no [Use] for a Master Seal (applyRosterClassChange refuses it too).
+          // Kingmaker's Oath: no [Use] for a Sovereign Seal (applyRosterClassChange refuses it too).
           if (
             !classChangeItemBlock(this.runManager, item) &&
             (specialCharacterRefusalText(this.gameData, unit, 'promote') ||

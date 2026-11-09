@@ -1,4 +1,4 @@
-// How many uses a Vulnerary has in a run: the one rule every acquisition path reads.
+// How many uses a Poultice has in a run: the one rule every acquisition path reads.
 //
 // consumables.json holds the base (the free healing is deliberately small). The Home Base
 // upgrade Apothecary's Recipe lifts it through the run's meta effects (`vulneraryUses`),
@@ -10,14 +10,14 @@
 //
 // Pure: no Phaser, no randomness, never mutates its inputs.
 
-export const VULNERARY_NAME = 'Vulnerary';
+export const VULNERARY_NAME = 'Poultice';
 
 function isVulnerary(item) {
   return item?.name === VULNERARY_NAME;
 }
 
 /**
- * The effective uses of a Vulnerary.
+ * The effective uses of a Poultice.
  * @param {number} baseUses - the catalog template's uses (consumables.json)
  * @param {{ vulneraryUses?: number }|null} [effects] - the run's meta effects
  * @returns {number}
@@ -29,8 +29,8 @@ export function vulneraryUsesFor(baseUses, effects = null) {
 }
 
 /**
- * The item as this run should acquire it: a Vulnerary takes the effective uses, anything
- * else (and a Vulnerary already at that many) comes back as the same object. Never
+ * The item as this run should acquire it: a Poultice takes the effective uses, anything
+ * else (and a Poultice already at that many) comes back as the same object. Never
  * mutates `item`, so a shared catalog template stays at its data value.
  * @template T
  * @param {T} item - a consumable template or instance
@@ -44,7 +44,7 @@ export function applyVulneraryRecipe(item, effects = null) {
 }
 
 /**
- * A consumables catalog as this run sees it: the Vulnerary entry carries the effective
+ * A consumables catalog as this run sees it: the Poultice entry carries the effective
  * uses. Hand this, not gameData.consumables, to anything that draws or stocks items.
  * @param {object[]} catalog - gameData.consumables
  * @param {{ vulneraryUses?: number }|null} [effects]

@@ -70,14 +70,14 @@ describe('BattleScene discovery hooks', () => {
     const meta = newMeta();
     const scene = Object.create(BattleScene.prototype);
     scene.registry = registryWith(meta);
-    const staff = weapon('Silence Staff');
+    const staff = weapon('Hush Staff');
     expect(staff).toBeTruthy();
     const enemy = { faction: 'enemy', name: 'Cleric', statusStaff: staff, weapon: null };
     // The rest of the cast needs a live scene; the record is made before any of it.
     await scene
       .executeEnemyStatusStaff(enemy, { faction: 'player', name: 'Edric' })
       .catch(() => {});
-    expect(meta.hasSeenItem('Silence Staff')).toBe(true);
+    expect(meta.hasSeenItem('Hush Staff')).toBe(true);
   });
 
   it('the battle checkpoint records what the run now holds', () => {

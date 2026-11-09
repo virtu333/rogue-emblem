@@ -14,7 +14,7 @@
 // the marks stand through the player's phase. At the start of the next enemy phase (after the
 // Vigil's step and the Entity's limbs) every player or NPC unit with a body tile on a mark takes
 // the slam (`slamDamage`: its STR, plates counted, plus `might`, less the victim's DEF; through
-// UnitHealth, so Miracle, a Revival Stone and the Unbroken Banner hold as for any blow); then the
+// UnitHealth, so Reprieve, a Revival Stone and the Unbroken Banner hold as for any blow); then the
 // next marks are planned. The two patterns alternate, the first `front`:
 //   front  a strip as wide as its body and HAMMERFALL_FRONT_DEPTH deep, on the side facing the
 //          nearest unit of the army (its first on a tie); none standing: below it

@@ -12,7 +12,7 @@
 // promotion (`unit.deeds.oath.skillId`, DeedSystem.applyPromotionOath) counts in the oath
 // pool (MAX_OATHS, one: a unit swears one Oath, ever), never one of the five, so swearing it
 // never benches a skill and never waits for a free slot. The kind is the unit's, not the
-// skill's (Colossus is a Warrior's innate and an Oath elsewhere): the unit-aware reads take
+// skill's (Juggernaut is a Warrior's innate and an Oath elsewhere): the unit-aware reads take
 // the unit (`slotKindFor`); `slotKindOf` stays the skill's own kind.
 //
 // The kind is read from skills.json, the one source (an id the data does not know counts as

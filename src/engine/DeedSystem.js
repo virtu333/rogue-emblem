@@ -205,7 +205,7 @@ export function recordCombat(result, attacker, defender, ctx = {}) {
       miracle.add(target);
   }
   // Brink: a wounded unit that ends the exchange on its last hit point (or
-  // was held up by Miracle). Starting at 1 HP and not being hit does not count.
+  // was held up by Reprieve). Starting at 1 HP and not being hit does not count.
   for (const unit of [attacker, defender]) {
     if (!isDeedUnit(unit) || !(Number(unit.currentHP) > 0)) continue;
     if (miracle.has(unit) || (woundedNow.has(unit) && Number(unit.currentHP) === 1))
@@ -732,7 +732,7 @@ const MAX_FALLEN_RECORDS = 64;
  * `{ name, unitUid?, battleDeeds?, bags? }`. `bags` is what it carried as it
  * fell (`{ inventory, consumables, weapon }`: item copies, `weapon` an index
  * into `inventory`, an item not carried there, or null), so its record keeps
- * the items it really had (a trade, a Vulnerary drunk) and each item's use
+ * the items it really had (a trade, a Poultice drunk) and each item's use
  * counts. Taken at its death, the last moment it can act; null for anyone
  * else. The battle keeps these with its other world state, so a Vision rewind
  * past the death drops the record and a resume keeps it. The accessory is not
@@ -848,7 +848,7 @@ export function commitFallenBattleDeeds(records, deedsData, ctx = {}, entrantOf 
  * Give a fallen unit's saved record (the roster entrant, serialized: what it
  * carried as it ENTERED the battle) what it did there before it fell: the
  * deeds `commitFallenBattleDeeds` folded in, and the bags it carried as it
- * fell (items traded away stay with their new owner, a drunk Vulnerary stays
+ * fell (items traded away stay with their new owner, a drunk Poultice stays
  * drunk, an item it was given comes with it). A record without bags (none was
  * taken) leaves the entry bags. Returns the unit.
  */

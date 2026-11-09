@@ -113,13 +113,13 @@ for (const size of SIZES) {
       await expect(market).toBeVisible();
       expect(await runState(page, id)).toMatchObject({ choice: 'scavenge', saved: 'scavenge' });
 
-      // Buy the stock's Vulnerary (the shop guarantees one) for its listed price.
+      // Buy the stock's Poultice (the shop guarantees one) for its listed price.
       const goldBefore = (await runState(page, id)).gold;
-      await market.locator('.shop-row').filter({ hasText: 'Vulnerary' }).first().click();
+      await market.locator('.shop-row').filter({ hasText: 'Poultice' }).first().click();
       const buy = market.getByRole('button', { name: /^Buy · \d+ G$/ });
       const price = Number((await buy.textContent()).match(/(\d+) G/)[1]);
       await buy.click();
-      const give = page.getByRole('dialog', { name: 'Give Vulnerary to', exact: true });
+      const give = page.getByRole('dialog', { name: 'Give Poultice to', exact: true });
       await give.locator('.re-btn--primary').click();
       await expect(give).toHaveCount(0);
       expect((await runState(page, id)).gold).toBe(goldBefore - price);

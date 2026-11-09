@@ -225,7 +225,7 @@ describe("Cutpurse's Luck: a player's Steal ignores the speed check", () => {
     ...extra,
   });
   const vulnerary = () => ({
-    ...structuredClone(data.consumables.find((c) => c.name === 'Vulnerary')),
+    ...structuredClone(data.consumables.find((c) => c.name === 'Poultice')),
     uid: 'itm_v',
   });
   const quick = () =>

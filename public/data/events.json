@@ -690,15 +690,15 @@
         {
           "id": "tend",
           "label": "Tend his wound",
-          "hint": "It costs a Vulnerary use. Gratitude is another matter.",
+          "hint": "It costs a Poultice use. Gratitude is another matter.",
           "requires": {
-            "consumable": "Vulnerary",
+            "consumable": "Poultice",
             "reason": "You have nothing to dress his wound with."
           },
           "effects": [
             {
               "type": "consume",
-              "name": "Vulnerary",
+              "name": "Poultice",
               "uses": 1
             }
           ],
@@ -1629,14 +1629,14 @@
                     },
                     {
                       "type": "item",
-                      "name": "Master Seal",
+                      "name": "Sovereign Seal",
                       "acts": [
                         "act3"
                       ]
                     },
                     {
                       "type": "item",
-                      "name": "Speedwing",
+                      "name": "Fleet Plume",
                       "acts": [
                         "act4"
                       ]
@@ -1978,15 +1978,15 @@
         {
           "id": "medicine",
           "label": "Give your medicine",
-          "hint": "A Vulnerary use for strangers. The gratitude is cheaper than the dose, and slower.",
+          "hint": "A Poultice use for strangers. The gratitude is cheaper than the dose, and slower.",
           "requires": {
-            "consumable": "Vulnerary",
+            "consumable": "Poultice",
             "reason": "You have no medicine left to give."
           },
           "effects": [
             {
               "type": "consume",
-              "name": "Vulnerary",
+              "name": "Poultice",
               "uses": 1
             }
           ],
@@ -2074,13 +2074,13 @@
               "label": "Give a second dose",
               "hint": "It is your medicine. They are watching it leave.",
               "requires": {
-                "consumable": "Vulnerary",
+                "consumable": "Poultice",
                 "reason": "You have no medicine left to give."
               },
               "effects": [
                 {
                   "type": "consume",
-                  "name": "Vulnerary",
+                  "name": "Poultice",
                   "uses": 1
                 }
               ],
@@ -2123,13 +2123,13 @@
               "label": "Give the last dose",
               "hint": "She will not forget which pack it came from.",
               "requires": {
-                "consumable": "Vulnerary",
+                "consumable": "Poultice",
                 "reason": "You have no medicine left to give."
               },
               "effects": [
                 {
                   "type": "consume",
-                  "name": "Vulnerary",
+                  "name": "Poultice",
                   "uses": 1
                 }
               ],

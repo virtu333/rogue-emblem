@@ -173,7 +173,7 @@ function appendHealthBarsBadge(line, unit) {
 
 /**
  * The unit card's line for a foe's status staff, or null. The staff is gear beside the
- * weapon, outside the inventory, so the card names it ("Silence Staff · Range 3-7 · 1/2
+ * weapon, outside the inventory, so the card names it ("Hush Staff · Range 3-7 · 1/2
  * uses"; "· spent" once used up): the caster behind the Danger zone's violet outline can be
  * found by tapping it. The card shows only a unit the player may inspect.
  */
@@ -796,7 +796,7 @@ export class MobileBattleHUD {
       } else side.append(el('p', 'mb-detail', skill.name));
     }
     if (hasEffectiveSkill(unit, 'miracle', { weapon }))
-      side.append(el('p', 'mb-detail', `Miracle: ${unit._miracleUsed ? 'used' : 'ready'}`));
+      side.append(el('p', 'mb-detail', `Reprieve: ${unit._miracleUsed ? 'used' : 'ready'}`));
     if (attacking && config.weaponArt) {
       const cost = this.scene._formatWeaponArtCostLabel(unit, config.weaponArt);
       const after = this.scene._getWeaponArtHpAfterCost(unit, config.weaponArt);

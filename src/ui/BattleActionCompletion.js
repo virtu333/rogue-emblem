@@ -34,7 +34,7 @@ export function completeBattleAction(scene, unit, { skipDim = false, session } =
   scene._historyActor = unit.battleEntityId;
   unit.hasActed = true;
   scene._villageController?.handleUnitActionEnd(unit);
-  // A Galeforce Charm that procced on this action's kill readies the unit again
+  // A Onrush Charm that procced on this action's kill readies the unit again
   // (engine/GaleforceCharm.js): before the save, so a resume finds it ready.
   const again = consumeGaleforce(unit);
   scene.selectedUnit = null;

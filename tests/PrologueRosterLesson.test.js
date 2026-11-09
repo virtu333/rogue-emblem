@@ -108,10 +108,10 @@ describe('the steps, each done by its real action', () => {
     expect(rosterLessonView(rm)).toMatchObject({ phase: 'offer', step: null, total: 2 });
     expect(isRosterLessonLive(rm)).toBe(true);
     expect(chooseRosterLessonMore(rm, true)).toMatchObject({ phase: 'more', step: 'trade', index: 1, total: 2 }); // prettier-ignore
-    // Trade: Edric's Vulnerary to Tamsin, unit to unit.
+    // Trade: Edric's Poultice to Tamsin, unit to unit.
     expect(rosterLessonView(rm)).toMatchObject({
       step: 'trade',
-      target: { available: true, unit: 'Tamsin', giver: 'Edric', item: 'Vulnerary' },
+      target: { available: true, unit: 'Tamsin', giver: 'Edric', item: 'Poultice' },
     });
     const edric = named(rm, 'Edric');
     const vulnerary = edric.consumables[0];
@@ -119,7 +119,7 @@ describe('the steps, each done by its real action', () => {
     const to = { holder: unitHolder(tamsin), bag: 'consumables' };
     expect(applyTrade({ context: 'roster', run: rm }, from, to).ok).toBe(true);
     for (const event of rosterTradeEvents(from, to, vulnerary)) observeRosterAction(rm, event);
-    expect(tamsin.consumables.map((c) => c.name)).toEqual(['Vulnerary']);
+    expect(tamsin.consumables.map((c) => c.name)).toEqual(['Poultice']);
     // Store: a spare in the convoy.
     expect(rosterLessonView(rm)).toMatchObject({ step: 'store', target: { available: true } });
     const spare = gaspar.inventory.find((w) => w !== gaspar.weapon);
@@ -158,7 +158,7 @@ describe('the steps, each done by its real action', () => {
   it('a trade and a store done during the core leave nothing to offer: the lesson ends with the core', () => {
     const rm = atFork();
     advanceRosterLesson(rm);
-    observeRosterAction(rm, { action: 'trade', from: 'Edric', to: 'Tamsin', item: 'Vulnerary' });
+    observeRosterAction(rm, { action: 'trade', from: 'Edric', to: 'Tamsin', item: 'Poultice' });
     observeRosterAction(rm, { action: 'store', unit: 'Gaspar', item: 'Iron Sword' });
     withdrawBow(rm);
     expect(step(rm)).toBe('equip');
@@ -170,7 +170,7 @@ describe('the steps, each done by its real action', () => {
   it('a step only completes on its own action: browsing, using an item or the wrong unit never counts', () => {
     const rm = atFork();
     advanceRosterLesson(rm);
-    expect(observeRosterAction(rm, { action: 'use', unit: 'Edric', item: 'Vulnerary' })).toEqual([]); // prettier-ignore
+    expect(observeRosterAction(rm, { action: 'use', unit: 'Edric', item: 'Poultice' })).toEqual([]); // prettier-ignore
     expect(observeRosterAction(rm, { action: 'withdraw', unit: 'Edric', item: 'Iron Lance' })).toEqual([]); // prettier-ignore
     expect(observeRosterAction(rm, { action: 'trade', from: 'Edric', to: 'Edric' })).toEqual([]);
     expect(step(rm)).toBe('withdraw');
@@ -188,14 +188,14 @@ describe('the steps, each done by its real action', () => {
 
   it('Withdraw completes only when a combat weapon she can wield reached her bag (review, 2026-10-04)', () => {
     const rm = atFork();
-    rm.addToConvoy(structuredClone(data.consumables.find((c) => c.name === 'Vulnerary')));
+    rm.addToConvoy(structuredClone(data.consumables.find((c) => c.name === 'Poultice')));
     rm.addToConvoy(weapon('Iron Lance'));
     advanceRosterLesson(rm);
     const tamsin = named(rm, 'Tamsin');
-    // A Vulnerary withdrawn to her is not the lesson.
-    const vulnerary = rm.getConvoyItems().consumables.find((c) => c.name === 'Vulnerary');
+    // A Poultice withdrawn to her is not the lesson.
+    const vulnerary = rm.getConvoyItems().consumables.find((c) => c.name === 'Poultice');
     expect(rosterItemAction(rm, tamsin, vulnerary, 'withdraw')).toBe('');
-    expect(observeRosterAction(rm, { action: 'withdraw', unit: 'Tamsin', item: 'Vulnerary' })).toEqual([]); // prettier-ignore
+    expect(observeRosterAction(rm, { action: 'withdraw', unit: 'Tamsin', item: 'Poultice' })).toEqual([]); // prettier-ignore
     // Nor a lance an Archer cannot wield.
     const lance = rm.getConvoyItems().weapons.find((w) => w.name === 'Iron Lance');
     expect(rosterItemAction(rm, tamsin, lance, 'withdraw')).toBe('');
@@ -220,7 +220,7 @@ describe('the steps, each done by its real action', () => {
     expect(gaspar.weapon?.name).toBe('Steel Lance');
     // The weapon he already fights with, re-equipped, is not a change of hands either
     // (the goal names his spare); a consumable can never be the equip.
-    expect(observeRosterAction(rm, { action: 'equip', unit: 'Edric', item: 'Vulnerary' })).toEqual([]); // prettier-ignore
+    expect(observeRosterAction(rm, { action: 'equip', unit: 'Edric', item: 'Poultice' })).toEqual([]); // prettier-ignore
     expect(observeRosterAction(rm, { action: 'equip', unit: 'Nobody', item: 'Iron Sword' })).toEqual([]); // prettier-ignore
     expect(step(rm)).toBe('equip');
     expect(equipSpare(rm)).toEqual(['equip']);
@@ -231,10 +231,10 @@ describe('the steps, each done by its real action', () => {
   it('a trade, a withdraw and a store made in the trade menu are read as such', () => {
     const tamsin = { name: 'Tamsin' };
     const edric = { name: 'Edric' };
-    const item = { name: 'Vulnerary' };
-    expect(rosterTradeEvents({ holder: unitHolder(edric) }, { holder: unitHolder(tamsin) }, item)).toEqual([{ action: 'trade', from: 'Edric', to: 'Tamsin', item: 'Vulnerary' }]); // prettier-ignore
-    expect(rosterTradeEvents({ holder: CONVOY_HOLDER }, { holder: unitHolder(tamsin) }, item)).toEqual([{ action: 'withdraw', unit: 'Tamsin', item: 'Vulnerary' }]); // prettier-ignore
-    expect(rosterTradeEvents({ holder: unitHolder(edric) }, { holder: CONVOY_HOLDER }, item)).toEqual([{ action: 'store', unit: 'Edric', item: 'Vulnerary' }]); // prettier-ignore
+    const item = { name: 'Poultice' };
+    expect(rosterTradeEvents({ holder: unitHolder(edric) }, { holder: unitHolder(tamsin) }, item)).toEqual([{ action: 'trade', from: 'Edric', to: 'Tamsin', item: 'Poultice' }]); // prettier-ignore
+    expect(rosterTradeEvents({ holder: CONVOY_HOLDER }, { holder: unitHolder(tamsin) }, item)).toEqual([{ action: 'withdraw', unit: 'Tamsin', item: 'Poultice' }]); // prettier-ignore
+    expect(rosterTradeEvents({ holder: unitHolder(edric) }, { holder: CONVOY_HOLDER }, item)).toEqual([{ action: 'store', unit: 'Edric', item: 'Poultice' }]); // prettier-ignore
     expect(rosterTradeEvents({ holder: unitHolder(edric) }, { holder: unitHolder(edric) }, item)).toEqual([]); // prettier-ignore
   });
 });
@@ -255,15 +255,15 @@ describe('the army decides what can be taught', () => {
     expect(rm.prologueRosterLesson.skipped).toEqual(['withdraw']);
   });
 
-  it('Edric spent his Vulnerary in P1 or P2: the trade points at any carried item, else it is skipped', () => {
+  it('Edric spent his Poultice in P1 or P2: the trade points at any carried item, else it is skipped', () => {
     const rm = atFork();
     advanceRosterLesson(rm);
     withdrawBow(rm);
     equipSpare(rm);
     chooseRosterLessonMore(rm, true);
     named(rm, 'Edric').consumables = [];
-    named(rm, 'Gaspar').consumables = [{ name: 'Vulnerary', type: 'Consumable', uses: 3 }];
-    expect(rosterLessonView(rm).target).toMatchObject({ giver: 'Gaspar', item: 'Vulnerary' });
+    named(rm, 'Gaspar').consumables = [{ name: 'Poultice', type: 'Consumable', uses: 3 }];
+    expect(rosterLessonView(rm).target).toMatchObject({ giver: 'Gaspar', item: 'Poultice' });
     for (const u of rm.roster) u.consumables = [];
     expect(rosterLessonView(rm).target).toMatchObject({ available: false, reason: 'no_spare_consumable' }); // prettier-ignore
     expect(advanceRosterLesson(rm).step).toBe('store');

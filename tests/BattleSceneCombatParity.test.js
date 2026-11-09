@@ -666,7 +666,7 @@ describe('Measured Step scene completion', () => {
 
   it('a noncombat item action retains Gaspar remaining movement', async () => {
     const { scene, unit } = movementScene(['measured_step'], 'old_knight');
-    const item = { name: 'Vulnerary', effect: 'heal', value: 10, uses: 3 };
+    const item = { name: 'Poultice', effect: 'heal', value: 10, uses: 3 };
     unit.currentHP -= 10;
     const hpBefore = unit.currentHP;
     unit.consumables = [item];

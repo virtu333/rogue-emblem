@@ -1,8 +1,8 @@
-// Regression tests for Miracle's lethality check (Wave 2 fix):
+// Regression tests for Reprieve's lethality check (Wave 2 fix):
 // resolveCombat tracks HP in locals during multi-strike rounds, so
-// defender.currentHP is stale by the second strike. Miracle must judge
+// defender.currentHP is stale by the second strike. Reprieve must judge
 // "would this strike kill?" against the LIVE hp passed by rollStrike —
-// the old code could let a doubled unit die straight through Miracle
+// the old code could let a doubled unit die straight through Reprieve
 // (under-fire) or burn the once-per-battle charge on a hit the unit
 // didn't survive anyway (waste).
 
@@ -28,7 +28,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('rollDefenseSkills Miracle liveHP', () => {
+describe('rollDefenseSkills Reprieve liveHP', () => {
   it('triggers from live HP when stale currentHP would miss the lethal strike', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0); // always proc (LCK 100)
     const defender = makeDefender(); // currentHP stale at 20
@@ -58,7 +58,7 @@ describe('rollDefenseSkills Miracle liveHP', () => {
   });
 });
 
-describe('resolveCombat Miracle on multi-strike rounds', () => {
+describe('resolveCombat Reprieve on multi-strike rounds', () => {
   it('saves a doubled defender on the lethal second strike', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0); // all hits land, all procs fire, no crits? 0 < crit → crit!
     // Math.random()=0 makes crits fire too; neutralize by zeroing SKL-driven crit below.
@@ -76,7 +76,7 @@ describe('resolveCombat Miracle on multi-strike rounds', () => {
     };
     // SPD gap >= 5 → attacker doubles. Each hit: 10 + might - 2 DEF.
     // LCK 30 keeps avoid below the attacker's hit (so strikes land with the
-    // mocked roll of 0) while still proccing Miracle (0 < 30).
+    // mocked roll of 0) while still proccing Reprieve (0 < 30).
     const defender = makeDefender({
       weapon: null,
       col: 1,
@@ -99,7 +99,7 @@ describe('resolveCombat Miracle on multi-strike rounds', () => {
 
     const strikes = result.events.filter((s) => s.type === 'strike' && !s.miss);
     expect(strikes.length).toBeGreaterThanOrEqual(2);
-    // Miracle must have fired on the lethal second strike: defender survives at 1 HP.
+    // Reprieve must have fired on the lethal second strike: defender survives at 1 HP.
     expect(result.defenderHP).toBe(1);
     expect(result.defenderDied).toBe(false);
     const miracleStrike = strikes.find((s) => s.skillActivations?.some((a) => a.id === 'miracle'));

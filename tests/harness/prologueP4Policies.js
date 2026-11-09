@@ -224,7 +224,7 @@ function recoverTile(battle, u, tiles) {
 /**
  * The naive play (§8): the nearest enemy with the equipped weapon from the cheapest
  * tile, plus what the notes say. Seize once Varro falls (the coach); heal an ally
- * under 60% (P3); the Vulnerary at 60% (P1); no strike whose counter could kill (P1's
+ * under 60% (P3); the Poultice at 60% (P1); no strike whose counter could kill (P1's
  * forecast); the commander pulls back at half HP (P3); Varro on the throne is struck
  * only from 2 tiles (the boss note), never in melee.
  */

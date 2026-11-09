@@ -1,4 +1,4 @@
-// Goddess Dance in the browser (docs/specs/phase3.md 3E): a Bard's once-per-battle refresh of
+// Dawn Dance in the browser (docs/specs/phase3.md 3E): a Bard's once-per-battle refresh of
 // every adjacent ally who has acted. The combat_actions lab's Dancer ("Support", (3,4)) is given
 // the skill; her three neighbours (Edric above, Patient to the left, Utility to the right) have
 // acted. Through the phone's Ability menu and confirm prompt, with a real effect, a spent use and
@@ -65,16 +65,16 @@ const units = (page) =>
     );
   });
 
-test('Goddess Dance: the prompt names who, Cancel spends nothing, Confirm refreshes every neighbour that acted', async ({
+test('Dawn Dance: the prompt names who, Cancel spends nothing, Confirm refreshes every neighbour that acted', async ({
   page,
 }) => {
   test.setTimeout(60_000); // a long, real-input flow on a software-rendered phone canvas
   const { hud, errors } = await boot(page);
   await tapTile(page, 3, 4); // Support, the dancer
   await hud.getByRole('button', { name: 'Ability', exact: true }).tap();
-  await expect(hud.getByRole('button', { name: /^Goddess Dance.*1\/1 uses left/s })).toBeEnabled();
-  await hud.getByRole('button', { name: /^Goddess Dance/ }).tap();
-  await expect(hud.getByRole('button', { name: 'Use Goddess Dance (3 allies)' })).toBeVisible();
+  await expect(hud.getByRole('button', { name: /^Dawn Dance.*1\/1 uses left/s })).toBeEnabled();
+  await hud.getByRole('button', { name: /^Dawn Dance/ }).tap();
+  await expect(hud.getByRole('button', { name: 'Use Dawn Dance (3 allies)' })).toBeVisible();
   await page.screenshot({ path: 'test-results/goddess-dance-prompt.png' });
 
   // Cancel: nothing refreshed, nothing spent.
@@ -87,8 +87,8 @@ test('Goddess Dance: the prompt names who, Cancel spends nothing, Confirm refres
     true,
   ]);
 
-  await hud.getByRole('button', { name: /^Goddess Dance/ }).tap();
-  await hud.getByRole('button', { name: 'Use Goddess Dance (3 allies)' }).tap();
+  await hud.getByRole('button', { name: /^Dawn Dance/ }).tap();
+  await hud.getByRole('button', { name: 'Use Dawn Dance (3 allies)' }).tap();
   await expect.poll(async () => (await units(page)).Support.acted).toBe(true);
   const after = await units(page);
   expect(after.Support.usage).toBe(1);
@@ -106,9 +106,7 @@ test('Goddess Dance: the prompt names who, Cancel spends nothing, Confirm refres
   expect(errors).toEqual([]);
 });
 
-test('with no neighbour who has acted, Goddess Dance is greyed with its reason', async ({
-  page,
-}) => {
+test('with no neighbour who has acted, Dawn Dance is greyed with its reason', async ({ page }) => {
   const { hud, errors } = await boot(page);
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
@@ -116,7 +114,7 @@ test('with no neighbour who has acted, Goddess Dance is greyed with its reason',
   });
   await tapTile(page, 3, 4);
   await hud.getByRole('button', { name: 'Ability', exact: true }).tap();
-  const row = hud.getByRole('button', { name: /^Goddess Dance/ });
+  const row = hud.getByRole('button', { name: /^Dawn Dance/ });
   await expect(row).toBeDisabled();
   await expect(row).toContainText('No valid targets');
   expect(errors).toEqual([]);

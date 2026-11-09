@@ -282,7 +282,7 @@ describe('staff cast count', () => {
     ctx.animateHeal = vi.fn(async () => {});
     ctx.awardScaledXP = vi.fn(() => {});
     const staff = {
-      name: 'Physic',
+      name: 'Farcall',
       type: 'Staff',
       rankRequired: 'Prof',
       range: '1-3',

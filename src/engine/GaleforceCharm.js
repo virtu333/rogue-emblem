@@ -1,4 +1,4 @@
-// GaleforceCharm.js — the Galeforce Charm (combatEffects `galeforce: { activation, perBattle }`).
+// GaleforceCharm.js — the Onrush Charm (combatEffects `galeforce: { activation, perBattle }`).
 // Pure but for its roll, which is the battle's Math.random (as a skill proc).
 //
 // When its wearer, a player unit, attacks on its own turn and kills, the charm may proc
@@ -15,7 +15,7 @@
 import { getActivationChance } from './SkillSystem.js';
 import { refreshUnitAction } from './ActionRefresh.js';
 
-export const GALEFORCE_NAME = 'Galeforce Charm';
+export const GALEFORCE_NAME = 'Onrush Charm';
 export const GALEFORCE_ACTIVATION = Object.freeze({ id: 'galeforce_charm', name: GALEFORCE_NAME });
 const DEFAULT_PER_BATTLE = 2;
 

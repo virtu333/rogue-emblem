@@ -390,7 +390,7 @@ export function getPostCombatPipelineSteps({
     }
   }
 
-  // On-kill skills (Lifetaker, Speedtaker): last, so a blast's or a ram's victims have
+  // On-kill skills (Reaper's Due, Quickening): last, so a blast's or a ram's victims have
   // fallen (and left their `areaCredits`) by the time the kill is read, and after
   // `art_kill_buff`. One step per side, whatever it killed; death is read at application.
   for (const side of SIDE_ORDER) {
@@ -407,7 +407,7 @@ export function getPostCombatPipelineSteps({
     });
   }
 
-  // The Galeforce Charm (GaleforceCharm.js): its wearer attacked and killed, after every kill
+  // The Onrush Charm (GaleforceCharm.js): its wearer attacked and killed, after every kill
   // above has been read. The roll and its limits are read at application.
   if (galeforceConfig(attacker)) {
     steps.push({ type: 'galeforce', sourceSide: 'attacker', targetSide: 'defender' });

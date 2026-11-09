@@ -2,7 +2,7 @@
 // item starts the prologue run), the guided steps gate the first select and the move
 // to the Fort, the core note reads over the thing it explains (the forecast's own
 // numbers), the reinforcement is a tip that never takes the rail (the Fort, the
-// Vulnerary beside the map; the triangle a line in the forecast itself), each marks
+// Poultice beside the map; the triangle a line in the forecast itself), each marks
 // the slot's hint only once read, and victory takes the run on to its route map while
 // recording only the lessons read. The Guidance setting thins it: Light drops the tips,
 // Off the notes and guided steps too.
@@ -26,7 +26,7 @@ async function tapTile(page, col, row) {
   );
   await page.touchscreen.tap(p.x, p.y);
 }
-test('a fresh prologue teaches the forecast as a note, the Fort, the triangle and the Vulnerary as tips, then goes on to the route', async ({
+test('a fresh prologue teaches the forecast as a note, the Fort, the triangle and the Poultice as tips, then goes on to the route', async ({
   page,
 }, info) => {
   const errors = [];
@@ -162,7 +162,7 @@ test('a fresh prologue teaches the forecast as a note, the Fort, the triangle an
   expect(await hintSeen('battle_triangle')).toBe(false);
   await forecast.getByRole('button', { name: 'Cancel', exact: true }).tap();
   await expect.poll(() => hintSeen('battle_triangle')).toBe(true);
-  // A hit that leaves Edric at 60% or less tips the Vulnerary with its real numbers.
+  // A hit that leaves Edric at 60% or less tips the Poultice with its real numbers.
   await page.evaluate(async () => {
     const s = window.__emblemRogueGame.scene.getScene('Battle'),
       edric = s.playerUnits[0];
@@ -170,7 +170,7 @@ test('a fresh prologue teaches the forecast as a note, the Fort, the triangle an
     void s._prologue.onCombatResolved(s.enemyUnits[0], edric, { initiator: 'enemy' });
   });
   const vulneraryTip = page.locator('.re-guide[data-guide="prologue:battle_consumable_supply"]');
-  await expect(vulneraryTip).toContainText('Item → Vulnerary heals 10 HP');
+  await expect(vulneraryTip).toContainText('Item → Poultice heals 10 HP');
   await expect(note).toHaveCount(0);
   await vulneraryTip.getByRole('button', { name: 'Got it', exact: true }).tap();
   await expect(vulneraryTip).toHaveCount(0);

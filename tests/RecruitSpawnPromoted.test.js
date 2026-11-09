@@ -104,7 +104,7 @@ describe('createRecruitUnit with promoted class data', () => {
 });
 
 describe('promoteUnit skill-cap reporting', () => {
-  // General innately learns Pavise (classInnate in skills.json).
+  // General innately learns Shieldwall (classInnate in skills.json).
   const general = gameData.classes.find((c) => c.name === 'General');
   const knight = gameData.classes.find((c) => c.name === 'Knight');
 
@@ -149,7 +149,7 @@ describe('promoteUnit skill-cap reporting', () => {
 
     const notice = formatDroppedSkillsNotice(unit.name, result.droppedSkills, gameData.skills);
     expect(notice).toContain(unit.name);
-    expect(notice).toContain('Pavise');
+    expect(notice).toContain('Shieldwall');
     expect(notice).toContain('kept on the bench');
     expect(unit.benchedSkills).toContain('pavise');
   });
@@ -161,7 +161,7 @@ describe('promoteUnit skill-cap reporting', () => {
 
   it('getSkillDisplayNames falls back to the raw id for unknown skills', () => {
     expect(getSkillDisplayNames(['pavise', 'not_a_skill'], gameData.skills)).toEqual([
-      'Pavise',
+      'Shieldwall',
       'not_a_skill',
     ]);
   });

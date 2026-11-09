@@ -29,7 +29,7 @@ function fixture(kind, failure = null) {
     gameData.weapons,
   );
   const seal = {
-    name: kind === 'promote' ? 'Master Seal' : 'Infantry Seal',
+    name: kind === 'promote' ? 'Sovereign Seal' : 'Infantry Seal',
     effect: kind === 'promote' ? 'promote' : 'reclass',
     ...(kind === 'promote' ? {} : { subEffect: 'infantry' }),
     uses: 1,

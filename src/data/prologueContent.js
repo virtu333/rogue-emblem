@@ -115,20 +115,20 @@ export const PROLOGUE_NOTES = Object.freeze({
     'Swords beat axes, axes beat lances, lances beat swords. These numbers include it.',
   battle_consumable_supply: (ctx) => {
     const item = ctx?.consumable;
-    const name = item?.name || 'Vulnerary';
+    const name = item?.name || 'Poultice';
     const effect =
       item?.effect === 'heal' && Number.isFinite(Number(item.value))
         ? `heals ${Number(item.value)} HP`
         : 'heals';
     return `Item → ${name} ${effect}.\nYou carry few, and they never come back: a consumable's uses are spent for good.`;
   },
-  // P2: Gaspar's kit has no Vulnerary; the army's is Edric's. Said only when the hurt
+  // P2: Gaspar's kit has no Poultice; the army's is Edric's. Said only when the hurt
   // unit carries nothing to heal with and an ally does (a tip: nothing when it can't help).
   p2_trade_vulnerary: (ctx) => {
     const who = ctx?.unit || 'Gaspar';
     const donor = ctx?.donor;
     if (ctx?.healing || !donor?.name) return null;
-    const item = donor.item || 'Vulnerary';
+    const item = donor.item || 'Poultice';
     return `${who} carries no ${item}, but ${donor.name} does. Move ${who} next to ${donor.name} and choose Trade to take it, then Item → ${item}: it heals him this same turn.`;
   },
   // P2, Old Hands (docs/specs/prologue-chapter.md §6 P2).
@@ -155,7 +155,7 @@ export const PROLOGUE_NOTES = Object.freeze({
     `Only the Soldier beside her can reach her this turn. Lords alone can Talk.`,
   p3_heal: (ctx) =>
     `${ctx?.npc || 'Sera'} heals with her staff: move next to ${ctx?.ally || 'a hurt ally'}, choose Staff.\n` +
-    'Staff uses refill after every battle; a Vulnerary is spent for good.',
+    'Staff uses refill after every battle; a Poultice is spent for good.',
   p3_plan_cancel: (ctx) =>
     `Nothing is in reach from here, so Attack is greyed out.\n${ctx?.touch ? 'Back' : 'Esc or right-click'} undoes the move: nothing is final until you confirm. Try a tile 2 away from a foe.`,
   p3_range: () =>

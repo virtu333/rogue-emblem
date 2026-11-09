@@ -136,7 +136,7 @@ function fixture(kind, failure = 0, world = 'shown') {
   }
   if (kind === 'rescue' || kind === 'warp') {
     staff = structuredClone(
-      data.weapons.find((w) => w.name === (kind === 'rescue' ? 'Rescue Staff' : 'Warp Staff')),
+      data.weapons.find((w) => w.name === (kind === 'rescue' ? 'Deliverance Staff' : 'Fold Staff')),
     );
     if (kind === 'rescue') target.row = 5;
   }
@@ -562,7 +562,7 @@ it.each(['removed actor', 'enemy actor', 'no proficiency', 'relocation as heal',
     expect(reportAsyncError).not.toHaveBeenCalled();
   },
 );
-it('Fortify settles each still-valid ally once even if a stale caller repeats targets', async () => {
+it('Canticle settles each still-valid ally once even if a stale caller repeats targets', async () => {
   const f = fixture('fortify');
   await f.scene.executeHealAll(f.actor, [f.target, f.target, f.other]);
   expect(f.target.currentHP).toBe(16);

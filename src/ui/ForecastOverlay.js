@@ -610,14 +610,14 @@ export class ForecastOverlay {
 
     y += canCycle ? 22 : 12;
 
-    // Skills + Miracle (combined on one line if both present)
+    // Skills + Reprieve (combined on one line if both present)
     const parts = [];
     if (info.skills?.length) {
       parts.push(info.skills.map((s) => s.name).join(', '));
     }
     if (hasEffectiveSkill(unit, 'miracle', { weapon })) {
       const used = unit._miracleUsed;
-      parts.push(`Miracle: ${used ? 'Used' : 'Ready'}`);
+      parts.push(`Reprieve: ${used ? 'Used' : 'Ready'}`);
     }
     if (parts.length) {
       const skillText = applyTextResolution(

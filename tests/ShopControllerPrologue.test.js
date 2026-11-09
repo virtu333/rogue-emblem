@@ -72,8 +72,8 @@ describe("Harrow's Market", () => {
       const base = catalogue.find((i) => i.name === entry.item.name).price;
       expect(entry.price, entry.item.name).toBe(actShopPrice(base, 'act1'));
     }
-    // The Vulnerary the spec promises is on the shelf, at an honest price.
-    expect(items.filter((e) => e.item.name === 'Vulnerary')).toHaveLength(2);
+    // The Poultice the spec promises is on the shelf, at an honest price.
+    expect(items.filter((e) => e.item.name === 'Poultice')).toHaveLength(2);
     expect(scene.applyDifficultyShopPricing).toHaveBeenCalledTimes(1);
   });
 

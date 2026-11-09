@@ -4,7 +4,7 @@
 // Ways this goes wrong, each caught below:
 //   data       a pool names a skill that does not exist, is personal or a class innate by
 //              accident, belongs to an enemy-only class, or is one that can never be lent
-//              (Dance, Shove, Pull, Lethality, Steal, Goddess Dance); a legendary left unmarked;
+//              (Dance, Shove, Pull, Fell Stroke, Steal, Dawn Dance); a legendary left unmarked;
 //              dead data from the abandoned Bond Ring family
 //   roll       a chance that ignores the act; a skill outside the act's pool; a legendary, a
 //              weapon or an already-bound item that rolls; a price that is not +50%; a roll
@@ -89,7 +89,7 @@ const A = ['luna', 'sol', 'lifetaker', 'speedtaker', 'pavise', 'aegis', 'renewal
 const S = ['astra', 'aether', 'miracle', 'blink', 'pass']; // Pass: Phase 3E, Act IV only (a Trickster innate, lent)
 const POOLS = { act1: [...C, ...B], act2: [...C, ...B], act3: [...B, ...A], act4: [...A, ...S] };
 const CHANCES = { act1: 0.03, act2: 0.05, act3: 0.06, act4: 0.08 };
-const LEGENDARY = ["Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Pursuit Ring', 'Galeforce Charm', 'Longarm Bracer']; // prettier-ignore
+const LEGENDARY = ["Mentor's Band", 'Mercury Sandals', 'Phalanx Band', 'Pursuit Ring', 'Onrush Charm', 'Longarm Bracer']; // prettier-ignore
 const NEVER = ['dance', 'shove', 'pull', 'lethality', 'steal', 'goddess_dance'];
 
 const catalog = (name) => structuredClone(data.accessories.find((a) => a.name === name));
@@ -268,8 +268,8 @@ describe('the data', () => {
         ).toMatch(/can never be lent/);
     });
 
-    it('Steal and Goddess Dance are barred before they exist, and once they do', () => {
-      const dance = { id: 'goddess_dance', name: 'Goddess Dance', trigger: 'action' };
+    it('Steal and Dawn Dance are barred before they exist, and once they do', () => {
+      const dance = { id: 'goddess_dance', name: 'Dawn Dance', trigger: 'action' };
       // Steal exists since Phase 3G (a Thief's innate): its id is barred in the shipped data.
       expect(broken((c) => c.poolByAct.act4.push('steal'))).toMatch(/never be lent/);
       if (!data.skills.some((skill) => skill.id === 'goddess_dance'))
@@ -413,7 +413,7 @@ describe('bindAccessorySkill', () => {
     for (const [name, base, after] of [
       ['Power Ring', 1500, 2250],
       ['Speed Ring', 2000, 3000],
-      ['Goddess Icon', 1000, 1500],
+      ['Fatethread Pendant', 1000, 1500],
     ]) {
       const item = catalog(name);
       expect(item.price, name).toBe(base);
@@ -458,7 +458,7 @@ describe('bindAccessorySkill', () => {
       skills: [
         ...skills,
         { id: 'steal', name: 'Steal', trigger: 'action' },
-        { id: 'goddess_dance', name: 'Goddess Dance', trigger: 'action' },
+        { id: 'goddess_dance', name: 'Dawn Dance', trigger: 'action' },
       ],
     };
     const barred = [...NEVER, 'zombie_drain', 'charisma', 'no_such_skill'];
@@ -850,7 +850,7 @@ describe('sources that never roll', () => {
 // ── In battle ───────────────────────────────────────────────────────────
 
 describe('a bound skill applies on the battle paths while the accessory is worn', () => {
-  it('combat start: Death Blow adds 6 attack when initiating, Wrath adds 30 crit below half HP', () => {
+  it('combat start: Onslaught adds 6 attack when initiating, Seethe adds 30 crit below half HP', () => {
     const u = wearing(accessoryLending('death_blow'));
     const f = foe();
     expect(getSkillCombatMods(u, f, [u], [f], skills, null, true).atkBonus).toBe(6);
@@ -859,7 +859,7 @@ describe('a bound skill applies on the battle paths while the accessory is worn'
     expect(getSkillCombatMods(hurt, f, [hurt], [f], skills, null, false).critBonus).toBe(30);
   });
 
-  it('on-attack and on-defend: Sol heals on a strike, Pavise halves a blow, Astra triggers', () => {
+  it('on-attack and on-defend: Reclaim heals on a strike, Shieldwall halves a blow, Constellation triggers', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const f = foe();
     expect(rollStrikeSkills(wearing(accessoryLending('sol')), 9, f, skills).heal).toBe(9);
@@ -1058,7 +1058,7 @@ describe('a lent skill is lent, not learned', () => {
     const u = wearing(accessoryLending('vantage'), { skills: ['wrath'] });
     expect(lentSkillLine(u, skills)).toEqual({
       id: 'vantage',
-      name: 'Vantage',
+      name: 'Forestall',
       text: skills.find((s) => s.id === 'vantage').description,
       known: false,
       label: 'Lent by accessory',
@@ -1125,16 +1125,16 @@ describe('saving', () => {
 // ── Names ───────────────────────────────────────────────────────────────
 
 describe('names and text', () => {
-  it('shows "Power Ring · Vantage" and keeps the identity name', () => {
+  it('shows "Power Ring · Forestall" and keeps the identity name', () => {
     const item = accessoryLending('vantage');
     expect(item.name).toBe('Power Ring');
-    expect(accessoryDisplayName(item, skills)).toBe('Power Ring · Vantage');
-    expect(itemDisplayName(item, skills)).toBe('Power Ring · Vantage');
-    expect(itemDisplayName(accessoryLending('death_blow', 'Boots'), skills)).toBe(
-      'Boots · Death Blow',
+    expect(accessoryDisplayName(item, skills)).toBe('Power Ring · Forestall');
+    expect(itemDisplayName(item, skills)).toBe('Power Ring · Forestall');
+    expect(itemDisplayName(accessoryLending('death_blow', "Courier's Boots"), skills)).toBe(
+      "Courier's Boots · Onslaught",
     );
     expect(itemDisplayName(accessoryLending('lifetaker', 'Magic Ring'), skills)).toBe(
-      'Magic Ring · Lifetaker',
+      "Magic Ring · Reaper's Due",
     );
   });
 
@@ -1164,9 +1164,11 @@ describe('names and text', () => {
   it('the card text says what it lends and what that does; a plain accessory says nothing of it', () => {
     const item = accessoryLending('vantage');
     const description = skills.find((s) => s.id === 'vantage').description;
-    expect(accessorySkillText(item, skills)).toBe(`Lends Vantage: ${description}`);
-    expect(formatAccessoryDetail(item, { skills })).toBe(`+2 STR | Lends Vantage: ${description}`);
-    expect(formatAccessoryDetail(item)).toBe('+2 STR | Lends Vantage');
+    expect(accessorySkillText(item, skills)).toBe(`Lends Forestall: ${description}`);
+    expect(formatAccessoryDetail(item, { skills })).toBe(
+      `+2 STR | Lends Forestall: ${description}`,
+    );
+    expect(formatAccessoryDetail(item)).toBe('+2 STR | Lends Forestall');
     expect(formatAccessoryDetail(catalog('Power Ring'), { skills })).toBe('+2 STR');
     expect(accessorySkillText(catalog('Power Ring'), skills)).toBe('');
   });

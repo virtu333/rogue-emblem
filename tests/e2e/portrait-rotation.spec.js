@@ -484,7 +484,7 @@ test('Home Base keeps its tab and Begin Run through a turn and back', async ({ p
 test('the Compendium keeps its tab, filter and entry through a turn and back', async ({ page }) => {
   const errors = pageErrors(page);
   await quietSettings(page);
-  // A save that has met Luna: the Compendium shows unmet skills as "???".
+  // A save that has met Umbra: the Compendium shows unmet skills as "???".
   await page.addInitScript(() => {
     localStorage.setItem(
       'emblem_rogue_slot_3_meta',
@@ -499,7 +499,7 @@ test('the Compendium keeps its tab, filter and entry through a turn and back', a
   await expect(book).toBeVisible();
   await book.getByRole('button', { name: 'Skills', exact: true }).tap();
   await book.getByRole('button', { name: 'Attack', exact: true }).tap();
-  const entry = book.locator('.re-row').filter({ hasText: /^Luna/ });
+  const entry = book.locator('.re-row').filter({ hasText: /^Umbra/ });
   await entry.scrollIntoViewIfNeeded();
   await entry.tap();
   // What the reader has chosen, whichever of list and detail the layout shows: the
@@ -520,7 +520,7 @@ test('the Compendium keeps its tab, filter and entry through a turn and back', a
       };
     });
   const upright = await chosen();
-  expect(upright).toMatchObject({ entry: 'Luna', detail: 'Luna', focusInside: true });
+  expect(upright).toMatchObject({ entry: 'Umbra', detail: 'Umbra', focusInside: true });
   for (const [size, isUpright] of [
     [SIDEWAYS, false],
     [UPRIGHT, true],
@@ -528,7 +528,7 @@ test('the Compendium keeps its tab, filter and entry through a turn and back', a
     await page.setViewportSize(size);
     await expectFollows(page, isUpright);
     const now = await chosen();
-    expect(now.entry, 'the chosen entry').toBe('Luna');
+    expect(now.entry, 'the chosen entry').toBe('Umbra');
     expect(now.focusInside, 'focus stays in the Compendium').toBe(true);
     // Where the tabs are drawn, they are the ones chosen (sideways they always are).
     if (now.tab !== null || !isUpright) expect(now.tab).toBe('Skills');

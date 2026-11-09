@@ -40,7 +40,7 @@ function cloneNamed(weapons, name) {
  * @param {object} enemy
  * @param {object} spawn
  * @param {{ weapons: object[], difficultyId?: string, consumables?: object[],
- *   battleKey?: string }} deps `consumables` is the run's catalog (a Vulnerary at the uses the
+ *   battleKey?: string }} deps `consumables` is the run's catalog (a Poultice at the uses the
  *   run gives it); `battleKey` keeps a carried item's uid apart between battles.
  */
 export function applyEnemySpawnGear(
@@ -86,7 +86,7 @@ export function applyEnemySpawnGear(
   if (spawn.statusStaff) {
     const staff = cloneNamed(
       weapons,
-      spawn.statusStaff === 'sleep' ? 'Sleep Staff' : 'Silence Staff',
+      spawn.statusStaff === 'sleep' ? 'Lullaby Staff' : 'Hush Staff',
     );
     if (staff) enemy.statusStaff = staff;
   }

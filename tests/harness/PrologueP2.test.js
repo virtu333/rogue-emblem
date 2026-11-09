@@ -4,7 +4,7 @@
 // (HeadlessBattle on the locked config, the roster buildPrologueRoster builds for a
 // replay). Three policies: the intended play (chip with the lance, finish with
 // Edric, never into a lethal counter), the naive play (attack the nearest enemy with
-// the equipped weapon, drink the Vulnerary when P1's note said so) and Gaspar alone.
+// the equipped weapon, drink the Poultice when P1's note said so) and Gaspar alone.
 import { afterEach, describe, expect, it } from 'vitest';
 import { restoreMathRandom } from '../../sim/lib/SeededRNG.js';
 import { getCombatForecast } from '../../src/engine/Combat.js';
@@ -87,7 +87,7 @@ describe('Prologue P2: Old Hands', () => {
     expect(config.villageTile).toEqual({ col: 3, row: 4, uncontested: true, reward: 'Iron Bow' });
     expect(config.hidePar).toBe(true);
     expect(battle.turnPar).toBeNull();
-    expect(config.loot.map((l) => l.item || `${l.gold}g`)).toEqual(['Iron Lance', 'Vulnerary', '150g']); // prettier-ignore
+    expect(config.loot.map((l) => l.item || `${l.gold}g`)).toEqual(['Iron Lance', 'Poultice', '150g']); // prettier-ignore
   });
 
   it('a kill earns Gaspar the minimum XP while the same kill grows Edric', () => {

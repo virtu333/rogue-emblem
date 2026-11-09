@@ -1,10 +1,10 @@
-// The on-kill trigger and its skills (docs/specs/phase3.md 3B): Lifetaker and Speedtaker.
+// The on-kill trigger and its skills (docs/specs/phase3.md 3B): Reaper's Due and Quickening.
 // Every fight runs the real combat and the real post-combat generator twice: through
 // BattleScene (`scene._postCombatWorld()`) and through the headless harness
 // (`battle._postCombatWorld()`), and both must agree. Numbers are worked by hand:
 //   Edric: STR 12, Test Blade 8 might, hit 100, SPD 9, HP 40 (20 when the fight starts).
 //   A foe with DEF 4 takes 12 + 8 - 4 = 16 from him, so 10 or 16 HP dies and 30 survives.
-//   Lifetaker heals floor(40 * 25 / 100) = 10. Speedtaker adds 1 SPD per kill, up to +5.
+//   Reaper's Due heals floor(40 * 25 / 100) = 10. Quickening adds 1 SPD per kill, up to +5.
 //   An armed foe (STR 5, Test Lance 5 might) has the weapon triangle on Edric's sword: it hits
 //   him for 5 + 5 - 7 + 1 = 4, and he hits it for 16 - 1 = 15 (a 10 HP foe still dies).
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -244,13 +244,13 @@ async function inBothWorlds(setup, act) {
 }
 
 // A Necromancer's Skeleton is an ordinary foe to the on-kill step (docs/specs/phase3.md 3I):
-// killing one fires Lifetaker once for the combat, as any kill does, and the Necromancer's
+// killing one fires Reaper's Due once for the combat, as any kill does, and the Necromancer's
 // cap of six raises bounds how often that can happen in a battle. (Mark of the Ember is the
 // same step; it is not in the game at this point.)
 describe.each(WORLDS)(
   'on-kill skills against a raised Skeleton, through %s',
   (_label, makeWorld) => {
-    it('Lifetaker heals once for the kill, and the Skeleton pays no gold', async () => {
+    it("Reaper's Due heals once for the kill, and the Skeleton pays no gold", async () => {
       const edric = makeEdric();
       const skeleton = makeFoe('Skeleton', 1, 10, {
         extra: { className: 'Skeleton', _raisedBy: 'u9' },
@@ -290,13 +290,13 @@ describe.each(WORLDS)('on-kill skills through %s', (_label, makeWorld) => {
     return { edric, primary, neighbour, world };
   };
 
-  it('Lifetaker heals floor(25% of max HP) on a kill', async () => {
+  it("Reaper's Due heals floor(25% of max HP) on a kill", async () => {
     const { edric, primary } = await fight({ primaryHP: 10 });
     expect(primary.currentHP).toBe(0);
     expect(edric.currentHP).toBe(20 + 10);
   });
 
-  it('Speedtaker adds 1 SPD and counts a stack on a kill', async () => {
+  it('Quickening adds 1 SPD and counts a stack on a kill', async () => {
     const { edric, primary } = await fight({
       edricOpts: { skills: ['speedtaker'] },
       primaryHP: 10,
@@ -305,7 +305,7 @@ describe.each(WORLDS)('on-kill skills through %s', (_label, makeWorld) => {
     expect(edric.stats.SPD).toBe(9 + 1);
     expect(edric._speedtakerStacks).toBe(1);
     expect(edric._battleDeltas).toEqual({ SPD: 1 });
-    expect(edric.currentHP).toBe(20); // Speedtaker does not heal
+    expect(edric.currentHP).toBe(20); // Quickening does not heal
   });
 
   it('a blow that does not kill fires nothing', async () => {
@@ -331,7 +331,7 @@ describe.each(WORLDS)('on-kill skills through %s', (_label, makeWorld) => {
     const foe = makeFoe('Raider', 1, 10, { armed: true });
     const world = makeWorld([edric], [foe, bystander()]);
     await world.enemyAttack(foe, edric);
-    // The raider hits for 4 (20 -> 16); Edric's counter (15) fells him; Lifetaker +10.
+    // The raider hits for 4 (20 -> 16); Edric's counter (15) fells him; Reaper's Due +10.
     expect(foe.currentHP).toBe(0);
     expect(edric.currentHP).toBe(16 + 10);
     expect(edric.stats.SPD).toBe(10);
@@ -357,7 +357,7 @@ describe.each(WORLDS)('on-kill skills through %s', (_label, makeWorld) => {
     });
     expect(primary.currentHP).toBe(14);
     expect(neighbour.currentHP).toBe(0);
-    // The art costs 1 HP (20 -> 19), then Lifetaker +10.
+    // The art costs 1 HP (20 -> 19), then Reaper's Due +10.
     expect(edric.currentHP).toBe(19 + 10);
     expect(edric.stats.SPD).toBe(10);
     expect(edric._speedtakerStacks).toBe(1);
@@ -419,12 +419,12 @@ describe.each(WORLDS)('on-kill skills through %s', (_label, makeWorld) => {
     expect(edric._speedtakerStacks).toBeUndefined();
   });
 
-  it('Lifetaker never overheals past max HP', async () => {
+  it("Reaper's Due never overheals past max HP", async () => {
     const { edric } = await fight({ edricOpts: { hp: 35 }, primaryHP: 10 });
     expect(edric.currentHP).toBe(40);
   });
 
-  it('Wounded blocks the Lifetaker heal, but not Speedtaker', async () => {
+  it("Wounded blocks the Reaper's Due heal, but not Quickening", async () => {
     const edric = makeEdric({ skills: ['lifetaker', 'speedtaker'] });
     applyCondition(edric, 'wounded', 3, { recoveryChance: 0 });
     const primary = makeFoe('Primary', 1, 10);
@@ -447,7 +447,7 @@ describe.each(WORLDS)('on-kill skills through %s', (_label, makeWorld) => {
   // Silence (docs/specs/phase3.md 3B): a Silenced unit's skills give nothing on a kill, as
   // in every other trigger, whether learned or lent by the weapon or the ring. Read at
   // application: the plain attack still lands and kills.
-  it('Silence blocks learned Lifetaker and Speedtaker, but the attack still kills', async () => {
+  it("Silence blocks learned Reaper's Due and Quickening, but the attack still kills", async () => {
     const edric = makeEdric({ skills: ['lifetaker', 'speedtaker'] });
     applyCondition(edric, 'silence', 3, { recoveryChance: 0 });
     const primary = makeFoe('Primary', 1, 10);
@@ -523,7 +523,7 @@ describe.each(WORLDS)('on-kill skills through %s', (_label, makeWorld) => {
   });
 });
 
-describe.each(WORLDS)('Speedtaker across a battle through %s', (_label, makeWorld) => {
+describe.each(WORLDS)('Quickening across a battle through %s', (_label, makeWorld) => {
   /** Edric fells `count` fresh foes, one per action. */
   const killMany = async (edric, world, count) => {
     for (let i = 0; i < count; i++) {
@@ -643,7 +643,7 @@ describe('the on-kill step in the real pipeline', () => {
   });
 
   it.each(WORLDS)(
-    'Lifetaker heals at least 1 on a tiny max HP (%s world shape)',
+    "Reaper's Due heals at least 1 on a tiny max HP (%s world shape)",
     async (_label, makeWorld) => {
       const attacker = hero(['lifetaker'], 1, 3); // floor(3 * 25 / 100) = 0, so 1
       const defender = makeFoe('Primary', 1, 0);
@@ -659,7 +659,7 @@ describe('the on-kill step in the real pipeline', () => {
       expect(beats).toContainEqual({
         kind: 'hint',
         unit: attacker,
-        text: 'Lifetaker +1',
+        text: "Reaper's Due +1",
         tone: 'heal',
       });
     },
@@ -745,7 +745,7 @@ describe('the on-kill step in the real pipeline', () => {
   });
 });
 
-describe('Edric and Lifetaker agree in both worlds on the same fight', () => {
+describe("Edric and Reaper's Due agree in both worlds on the same fight", () => {
   it('ends in the same state whichever world ran it', async () => {
     const results = await inBothWorlds(
       () => {
@@ -770,60 +770,63 @@ describe('Edric and Lifetaker agree in both worlds on the same fight', () => {
   });
 });
 
-// --- The passive and opening skills of 3B: Uncanny Blow, Warding Blow, Defiant ---
+// --- The passive and opening skills of 3B: Uncanny Blow, Warded Advance, Defiant ---
 // All three ride the generic on-combat-start path (SkillSystem.getSkillCombatMods).
 
-describe.each(WORLDS)('Uncanny Blow, Warding Blow and Defiant through %s', (_label, makeWorld) => {
-  const mods = (attacker, defender) => {
-    const world = makeWorld([attacker], [defender, bystander()]);
-    return world.buildSkillCtx(attacker, defender);
-  };
-
-  it('Uncanny Blow: +30 Hit when initiating, nothing when defending', () => {
-    const edric = makeEdric({ skills: ['uncanny_blow'] });
-    const foe = makeFoe('Foe', 1, 30);
-    expect(mods(edric, foe).atkMods.hitBonus).toBe(30);
-    // The same unit as the defender of an enemy's attack.
-    const raider = makeFoe('Raider', 1, 30);
-    const defended = mods(raider, edric);
-    expect(defended.defMods.hitBonus).toBe(0);
-    expect(defended.atkMods.hitBonus).toBe(0);
-  });
-
-  it('Warding Blow: +6 RES when initiating, nothing when defending', () => {
-    const edric = makeEdric({ skills: ['warding_blow'] });
-    const foe = makeFoe('Foe', 1, 30);
-    expect(mods(edric, foe).atkMods.resBonus).toBe(6);
-    const raider = makeFoe('Raider', 1, 30);
-    expect(mods(raider, edric).defMods.resBonus).toBe(0);
-  });
-
-  it('Defiant holds at a quarter of max HP and below, not above (HP 10: 2 holds, 3 does not)', () => {
-    const foe = makeFoe('Foe', 1, 30);
-    for (const [current, holds] of [
-      [2, true],
-      [3, false],
-    ]) {
-      const edric = makeEdric({ skills: ['defiant'], hp: current, maxHp: 10 });
-      const ctx = mods(edric, foe);
-      expect([current, ctx.atkMods.defBonus, ctx.atkMods.resBonus]).toEqual(
-        holds ? [current, 4, 4] : [current, 0, 0],
-      );
-    }
-  });
-
-  it('Defiant turns a lethal blow into a survivable one when defending', async () => {
-    // Edric at 10/40 HP (a quarter). The raider (STR 12, lance 5, triangle +1) hits him for
-    // 12 + 5 - 7 + 1 = 11, which fells him; with Defiant's +4 DEF it is 7, so he lives on 3.
-    const fightWith = async (skills) => {
-      const edric = makeEdric({ skills, hp: 10 });
-      const raider = makeFoe('Raider', 1, 30, { armed: true });
-      raider.stats.STR = 12;
-      const world = makeWorld([edric], [raider, bystander()]);
-      await world.enemyAttack(raider, edric);
-      return edric.currentHP;
+describe.each(WORLDS)(
+  'Uncanny Blow, Warded Advance and Defiant through %s',
+  (_label, makeWorld) => {
+    const mods = (attacker, defender) => {
+      const world = makeWorld([attacker], [defender, bystander()]);
+      return world.buildSkillCtx(attacker, defender);
     };
-    expect(await fightWith([])).toBe(0);
-    expect(await fightWith(['defiant'])).toBe(10 - 7);
-  });
-});
+
+    it('Uncanny Blow: +30 Hit when initiating, nothing when defending', () => {
+      const edric = makeEdric({ skills: ['uncanny_blow'] });
+      const foe = makeFoe('Foe', 1, 30);
+      expect(mods(edric, foe).atkMods.hitBonus).toBe(30);
+      // The same unit as the defender of an enemy's attack.
+      const raider = makeFoe('Raider', 1, 30);
+      const defended = mods(raider, edric);
+      expect(defended.defMods.hitBonus).toBe(0);
+      expect(defended.atkMods.hitBonus).toBe(0);
+    });
+
+    it('Warded Advance: +6 RES when initiating, nothing when defending', () => {
+      const edric = makeEdric({ skills: ['warding_blow'] });
+      const foe = makeFoe('Foe', 1, 30);
+      expect(mods(edric, foe).atkMods.resBonus).toBe(6);
+      const raider = makeFoe('Raider', 1, 30);
+      expect(mods(raider, edric).defMods.resBonus).toBe(0);
+    });
+
+    it('Defiant holds at a quarter of max HP and below, not above (HP 10: 2 holds, 3 does not)', () => {
+      const foe = makeFoe('Foe', 1, 30);
+      for (const [current, holds] of [
+        [2, true],
+        [3, false],
+      ]) {
+        const edric = makeEdric({ skills: ['defiant'], hp: current, maxHp: 10 });
+        const ctx = mods(edric, foe);
+        expect([current, ctx.atkMods.defBonus, ctx.atkMods.resBonus]).toEqual(
+          holds ? [current, 4, 4] : [current, 0, 0],
+        );
+      }
+    });
+
+    it('Defiant turns a lethal blow into a survivable one when defending', async () => {
+      // Edric at 10/40 HP (a quarter). The raider (STR 12, lance 5, triangle +1) hits him for
+      // 12 + 5 - 7 + 1 = 11, which fells him; with Defiant's +4 DEF it is 7, so he lives on 3.
+      const fightWith = async (skills) => {
+        const edric = makeEdric({ skills, hp: 10 });
+        const raider = makeFoe('Raider', 1, 30, { armed: true });
+        raider.stats.STR = 12;
+        const world = makeWorld([edric], [raider, bystander()]);
+        await world.enemyAttack(raider, edric);
+        return edric.currentHP;
+      };
+      expect(await fightWith([])).toBe(0);
+      expect(await fightWith(['defiant'])).toBe(10 - 7);
+    });
+  },
+);

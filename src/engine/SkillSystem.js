@@ -23,6 +23,9 @@ import { rangedReachBonusOf } from './WeaponReach.js';
 import { epicCombatMods, epicTurnStartEffects } from './EpicWeapons.js';
 import { GEMINI_ACTIVATION, geminiCombatMods } from './GeminiRing.js';
 import { GRUDGE_ACTIVATION, grudgeAtkBonus } from './AccessoryReactions.js';
+import { skillDisplayName } from './SkillNames.js';
+
+export { skillDisplayName };
 
 // The seven flat combat-mod keys shared by mastery perks and trait combatMods.
 const MOD_KEYS = [
@@ -433,7 +436,7 @@ export function getSkillCombatMods(
             mods.activated.push({ id: skill.id, name: skill.name });
           }
         }
-        // Generic on-combat-start stat bonuses (Guard, Death Blow, Darting Blow, etc.)
+        // Generic on-combat-start stat bonuses (Guard, Onslaught, Quickstep, etc.)
         const specialIds = new Set([
           'resolve',
           'wrath',
@@ -575,7 +578,10 @@ export function rollStrikeSkills(
     switch (skill.id) {
       case 'lethality':
         result.lethal = true;
-        result.activated.push({ id: 'lethality', name: 'Lethality' });
+        result.activated.push({
+          id: 'lethality',
+          name: skillDisplayName('lethality', skillsData),
+        });
         break;
 
       case 'adept':
@@ -585,7 +591,10 @@ export function rollStrikeSkills(
           combatState.adeptUsed.add(attacker);
         }
         result.extraStrike = true;
-        result.activated.push({ id: 'adept', name: 'Adept' });
+        result.activated.push({
+          id: 'adept',
+          name: skillDisplayName('adept', skillsData),
+        });
         break;
 
       case 'commanders_gambit':
@@ -598,7 +607,10 @@ export function rollStrikeSkills(
           percent: skill.effects?.healLowestAlly?.percent || 50,
           range: skill.effects?.healLowestAlly?.range || 3,
         };
-        result.activated.push({ id: 'divine_charge', name: 'Divine Charge' });
+        result.activated.push({
+          id: 'divine_charge',
+          name: skillDisplayName('divine_charge', skillsData),
+        });
         break;
 
       case 'seraph_strike': {
@@ -608,7 +620,10 @@ export function rollStrikeSkills(
         const normalDef = usesMagic(attacker.weapon) ? resStat : defStat;
         const defBonus = Math.max(0, normalDef - lowerDef);
         result.modifiedDamage = normalDamage + defBonus;
-        result.activated.push({ id: 'seraph_strike', name: 'Seraph Strike' });
+        result.activated.push({
+          id: 'seraph_strike',
+          name: skillDisplayName('seraph_strike', skillsData),
+        });
         break;
       }
 
@@ -626,17 +641,20 @@ export function rollStrikeSkills(
     result.heal = normalDamage;
     result.extraStrike = true;
     result.aetherLuna = true;
-    result.activated.push({ id: 'aether', name: 'Aether' });
+    result.activated.push({ id: 'aether', name: skillDisplayName('aether', skillsData) });
   } else if (selectedOffensiveProcId === 'flare') {
     result.modifiedDamage = normalDamage + (target.stats?.RES || 0);
     result.heal = result.modifiedDamage;
-    result.activated.push({ id: 'flare', name: 'Flare' });
+    result.activated.push({
+      id: 'flare',
+      name: skillDisplayName('flare', skillsData),
+    });
   } else if (selectedOffensiveProcId === 'luna') {
     result.luna = true;
-    result.activated.push({ id: 'luna', name: 'Luna' });
+    result.activated.push({ id: 'luna', name: skillDisplayName('luna', skillsData) });
   } else if (selectedOffensiveProcId === 'sol') {
     result.heal = normalDamage;
-    result.activated.push({ id: 'sol', name: 'Sol' });
+    result.activated.push({ id: 'sol', name: skillDisplayName('sol', skillsData) });
   }
 
   return result;
@@ -646,12 +664,12 @@ export function rollStrikeSkills(
 
 /**
  * Roll defensive skills after damage is calculated but before applying.
- * Handles Pavise (halve physical), Aegis (halve magical), Miracle (survive lethal at 1 HP).
+ * Handles Shieldwall (halve physical), Spellward (halve magical), Reprieve (survive lethal at 1 HP).
  * `liveHP` is the defender's HP at this point in combat resolution — during
  * multi-strike rounds defender.currentHP is stale (resolveCombat tracks HP in
- * locals), so Miracle's lethality check must use the live value when provided.
+ * locals), so Reprieve's lethality check must use the live value when provided.
  * Mark of the Veil (3C, `marksData`) halves a magic strike on its bearer before the skills
- * below; Aegis then cannot halve it again (one halving), though its own roll is still taken.
+ * below; Spellward then cannot halve it again (one halving), though its own roll is still taken.
  * `wardHolds`: the defender's Warden's Buckler will hold this blow to 1 and leave it standing.
  * Returns { modifiedDamage, miracleTriggered, activated: [{id, name}] }
  */
@@ -692,34 +710,46 @@ export function rollDefenseSkills(
     if (!skill || skill.trigger !== 'on-defend') continue;
 
     const chance = getActivationChance(defender, skill.activation, procMultiplier, procStatBonus);
-    // Pavise gets a minimum 5% proc floor so it stays relevant on low-SKL units
+    // Shieldwall gets a minimum 5% proc floor so it stays relevant on low-SKL units
     const effectiveChance = skill.id === 'pavise' ? Math.max(chance, 5) : chance;
     const roll = Math.random() * 100;
     if (roll >= effectiveChance) continue;
 
     if (skill.id === 'cancel') {
       result.cancelFollowUp = true;
-      result.activated.push({ id: 'cancel', name: 'Cancel' });
+      result.activated.push({
+        id: 'cancel',
+        name: skillDisplayName('cancel', skillsData),
+      });
     }
 
     if (skill.id === 'pavise' && isPhysicalAttack) {
       result.modifiedDamage = Math.floor(result.modifiedDamage / 2);
-      result.activated.push({ id: 'pavise', name: 'Pavise' });
+      result.activated.push({
+        id: 'pavise',
+        name: skillDisplayName('pavise', skillsData),
+      });
     }
 
     if (skill.id === 'aegis' && !isPhysicalAttack && !veilHalved) {
       result.modifiedDamage = Math.floor(result.modifiedDamage / 2);
-      result.activated.push({ id: 'aegis', name: 'Aegis' });
+      result.activated.push({
+        id: 'aegis',
+        name: skillDisplayName('aegis', skillsData),
+      });
     }
 
     if (skill.id === 'dragon_scale') {
       const reduction = skill.effects?.damageReduction || 3;
       result.modifiedDamage = Math.max(0, result.modifiedDamage - reduction);
-      result.activated.push({ id: 'dragon_scale', name: 'Dragon Scale' });
+      result.activated.push({
+        id: 'dragon_scale',
+        name: skillDisplayName('dragon_scale', skillsData),
+      });
     }
 
     // A ready Warden's Buckler on a defender above 1 HP already keeps this blow from killing
-    // (Combat.rollStrike wards it to 1 after these skills): Miracle is not spent on it.
+    // (Combat.rollStrike wards it to 1 after these skills): Reprieve is not spent on it.
     if (skill.id === 'miracle' && !defender._miracleUsed && !wardHolds) {
       const hp = Number.isFinite(liveHP) ? liveHP : defender.currentHP;
       const wouldDie = hp > 0 && hp <= result.modifiedDamage;
@@ -727,13 +757,19 @@ export function rollDefenseSkills(
         result.modifiedDamage = hp - 1;
         result.miracleTriggered = true;
         defender._miracleUsed = true;
-        result.activated.push({ id: 'miracle', name: 'Miracle' });
+        result.activated.push({
+          id: 'miracle',
+          name: skillDisplayName('miracle', skillsData),
+        });
       }
     }
 
     if (skill.id === 'intimidate' && skill.effects?.debuffAttacker) {
       result.debuffAttacker = skill.effects.debuffAttacker;
-      result.activated.push({ id: 'intimidate', name: 'Intimidate' });
+      result.activated.push({
+        id: 'intimidate',
+        name: skillDisplayName('intimidate', skillsData),
+      });
     }
   }
 
@@ -741,7 +777,7 @@ export function rollDefenseSkills(
 }
 
 /**
- * Check if Astra triggers for an attack phase.
+ * Check if Constellation triggers for an attack phase.
  * If triggered, the normal strike count is replaced with 5 at half damage.
  * Returns: { triggered, strikeCount, damageMult, name }
  */
@@ -756,7 +792,12 @@ export function checkAstra(attacker, skillsData, procMultiplier = 1, procStatBon
   const chance = getActivationChance(attacker, skill.activation, procMultiplier, procStatBonus);
   if (Math.random() * 100 >= chance) return { triggered: false };
 
-  return { triggered: true, strikeCount: 5, damageMult: 0.5, name: 'Astra' };
+  return {
+    triggered: true,
+    strikeCount: 5,
+    damageMult: 0.5,
+    name: skillDisplayName('astra', skillsData),
+  };
 }
 
 // --- Turn-start effects ---

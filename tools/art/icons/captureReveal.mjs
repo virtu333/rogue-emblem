@@ -15,7 +15,7 @@ const base = arg('base', 'http://127.0.0.1:3157/');
 const out = arg('out', 'References/items-art/captures');
 const exe = ['/opt/pw-browsers/chromium'].find((p) => fs.existsSync(p));
 const browser = await chromium.launch(exe ? { executablePath: exe } : {});
-const SPOILS = ['Keen Lance', "Gambler's Coin", 'Ragnarok', 'Energy Drop'];
+const SPOILS = ['Keen Lance', "Gambler's Coin", 'Ragnarok', 'Mightroot'];
 
 for (const v of [
   { name: '844x390', w: 844, h: 390, mobile: true, dpr: 2 },

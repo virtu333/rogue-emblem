@@ -6,7 +6,7 @@ import { presentationText } from '../utils/presentationText.js';
  *  - showStrikeProcChips: per-strike name chips floating above the unit the
  *    proc belongs to (striker for offense/arts, target for defense procs)
  *  - showSkillBanner: full-width sliding banner for pre-combat 'skill'
- *    events (Astra, Vantage, Desperation)
+ *    events (Constellation, Forestall, Death's Door)
  *  - showCutIn: diagonal cut-in for crits and Legendary weapon arts (DOM:
  *    the attacker's eyes strip, speed lines, the word in Cinzel; canvas
  *    strip as the no-DOM fallback), throttled so multi-strike exchanges

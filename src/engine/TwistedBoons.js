@@ -23,7 +23,7 @@
 //   eclipse_gain_multiplier_delta Darkened Dawn (twist): each victory's shadow gain grows by the
 //                                 share, in exact quarters with a saved carry (`scaledShadowGain`,
 //                                 the one helper the projection and the commit read).
-//   master_seals_forbidden        Kingmaker's Oath (twist): a Master Seal is refused on every path
+//   master_seals_forbidden        Kingmaker's Oath (twist): a Sovereign Seal is refused on every path
 //                                 (`classChangeItemBlock`); the reclass seals still work.
 // (Blood Covenant's and Hollow Sun's twists are burdens: engine/Burdens.js, `permanent` and
 // `actsAhead`.)
@@ -53,9 +53,9 @@ const MAX_LOOT_GOLD_DELTA = 2;
 export const ECLIPSE_GAIN_STEP = 0.25;
 const MAX_ECLIPSE_GAIN_QUARTERS = 8; // at most twice as fast, whatever is held
 
-/** The words a refused Master Seal shows (the roster sheet, the battle menu, the convoy). */
+/** The words a refused Sovereign Seal shows (the roster sheet, the battle menu, the convoy). */
 export const MASTER_SEAL_BANNED =
-  "Kingmaker's Oath: Master Seals can't be used. Promote at a church.";
+  "Kingmaker's Oath: Sovereign Seals can't be used. Promote at a church.";
 
 function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -110,7 +110,7 @@ export function twistedBoonModifierDefaults() {
     // units carried to the next victory (0-3), so 25% faster is exact over a run.
     eclipseGainDelta: 0,
     eclipseGainCarry: 0,
-    // Kingmaker's Oath: `{ bonus, stats }` while held, and its twist (no Master Seal).
+    // Kingmaker's Oath: `{ bonus, stats }` while held, and its twist (no Sovereign Seal).
     kingmakerPromotion: null,
     masterSealsForbidden: false,
     // Hollow Sun's Favor: the share gold loot cards gain.
@@ -234,13 +234,13 @@ export function kingmakerOf(run) {
   return isPlainObject(raw) ? parseKingmaker(raw) : null;
 }
 
-/** True while the run's twist forbids Master Seals (Kingmaker's Oath). */
+/** True while the run's twist forbids Sovereign Seals (Kingmaker's Oath). */
 export function masterSealsForbidden(run) {
   return modsOf(run).masterSealsForbidden === true;
 }
 
 /**
- * Why this class-change item cannot be used in this run ('' when it can): a Master Seal (a
+ * Why this class-change item cannot be used in this run ('' when it can): a Sovereign Seal (a
  * `promote` item) while Kingmaker's Oath forbids them. A reclass seal is never refused here. The
  * one rule every seal path reads (the roster sheet and the convoy through
  * RosterCommands.rosterClassChangeBlock, the battle's Promote command and item menu through
@@ -251,12 +251,12 @@ export function classChangeItemBlock(run, item) {
   return '';
 }
 
-/** The tag a shop row and a loot card show on a Master Seal while Kingmaker's Oath forbids it. */
+/** The tag a shop row and a loot card show on a Sovereign Seal while Kingmaker's Oath forbids it. */
 export const MASTER_SEAL_BANNED_TAG = "Can't be used: Kingmaker's Oath";
 
 /**
  * The short tag for an item the run refuses (`classChangeItemBlock`), '' when it can be used: the
- * shop's buy row and the loot card mark a Master Seal rather than leave it out (filtering it from a
+ * shop's buy row and the loot card mark a Sovereign Seal rather than leave it out (filtering it from a
  * loot draw would move the loot stream, and the twist is taken knowingly).
  */
 export function classChangeItemTag(run, item) {

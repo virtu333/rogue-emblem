@@ -45,7 +45,7 @@ describe('reviveStarterWeapon', () => {
     armed.inventory = [weapon('Steel Axe')];
     expect(reviveStarterWeapon(armed, data.weapons)).toBeNull();
     const cleric = make('Cleric');
-    cleric.inventory = [weapon('Mend')];
+    cleric.inventory = [weapon('Solace')];
     expect(reviveStarterWeapon(cleric, data.weapons)).toBeNull();
     // Five items it cannot fight with: no room for a sixth.
     const full = make('Fighter');

@@ -307,8 +307,8 @@ describe('the exchange ends when a stone breaks (Q1)', () => {
     expect(result.attackerHP).toBe(30);
   });
 
-  it('an Adept bonus strike is not rolled after the strike that broke the bar', () => {
-    // SPD 10 v 6: no doubling. 15 HP: the 15 damage breaks the bar. Adept would add a bonus
+  it('an Flurry bonus strike is not rolled after the strike that broke the bar', () => {
+    // SPD 10 v 6: no doubling. 15 HP: the 15 damage breaks the bar. Flurry would add a bonus
     // strike at full damage (15 -> 5 on the new bar); with no stone it procs as below.
     const atk = striker({ SPD: 10 }, { skills: ['adept'] });
     const withStone = boss({ hp: 15, stones: 1, stats: { SPD: 6 } });
@@ -322,13 +322,15 @@ describe('the exchange ends when a stone breaks (Q1)', () => {
     expect(open.defenderHP).toBe(0);
   });
 
-  it('Astra stops its flurry on the break (the remaining hits are not rolled)', () => {
-    // Astra: 5 hits at half damage = floor(15 / 2) = 7 each. 10 HP: 7 -> 3, then 7 breaks the bar.
+  it('Constellation stops its flurry on the break (the remaining hits are not rolled)', () => {
+    // Constellation: 5 hits at half damage = floor(15 / 2) = 7 each. 10 HP: 7 -> 3, then 7 breaks the bar.
     // Without the gate the three further hits (3 x 7 = 21) would fell the refilled 20 HP.
     const atk = striker({ SKL: 20 }, { skills: ['astra'] });
     const b = boss({ hp: 10, stones: 1, stats: { LCK: 10 } });
     const result = fight(atk, b, modsCtx(atk, b));
-    expect(result.events.filter((e) => e.type === 'skill').map((e) => e.name)).toEqual(['Astra']);
+    expect(result.events.filter((e) => e.type === 'skill').map((e) => e.name)).toEqual([
+      'Constellation',
+    ]);
     expect(strikes(result).map((e) => e.targetHPAfter)).toEqual([3, 20]);
     expect(result.defenderDied).toBe(false);
   });
@@ -353,13 +355,13 @@ describe('the exchange ends when a stone breaks (Q1)', () => {
     expect(strikes(control).some((e) => e.attackerSide === 'defender')).toBe(true);
   });
 
-  it('Desperation (all of the attacker’s hits first) ends at the break, with no counter', () => {
+  it("Death's Door (all of the attacker’s hits first) ends at the break, with no counter", () => {
     const atk = striker();
     const b = boss({ hp: 10, stones: 1 });
     const skillCtx = modsCtx(atk, b);
     skillCtx.atkMods = { ...skillCtx.atkMods, desperation: true };
     const result = fight(atk, b, skillCtx);
-    expect(result.events.some((e) => e.name === 'Desperation')).toBe(true);
+    expect(result.events.some((e) => e.name === "Death's Door")).toBe(true);
     expect(strikes(result)).toHaveLength(1);
     expect(result.attackerHP).toBe(30);
     // The control: on a bar that does not break, both of the attacker's hits come first.
@@ -372,7 +374,7 @@ describe('the exchange ends when a stone breaks (Q1)', () => {
     ]);
   });
 
-  it('the defender’s own Desperation phase is not announced once the bar broke', () => {
+  it("the defender’s own Death's Door phase is not announced once the bar broke", () => {
     // The boss defends (SPD 30 doubles the player at 19: 28 v 19 is not enough; give it more).
     const atk = striker({ SPD: 8 });
     const b = boss({ hp: 10, stones: 1, stats: { SPD: 40 } });
@@ -380,11 +382,11 @@ describe('the exchange ends when a stone breaks (Q1)', () => {
     skillCtx.defMods = { ...skillCtx.defMods, desperation: true };
     const result = fight(atk, b, skillCtx);
     expect(strikes(result)).toHaveLength(1);
-    expect(result.events.some((e) => e.name === 'Desperation')).toBe(false);
-    // The control: with a bar that holds, the boss's Desperation phase is announced.
+    expect(result.events.some((e) => e.name === "Death's Door")).toBe(false);
+    // The control: with a bar that holds, the boss's Death's Door phase is announced.
     const tall = boss({ hp: 100, stones: 0, stats: { HP: 100, SPD: 40 } });
     const control = fight(atk, tall, skillCtx);
-    expect(control.events.some((e) => e.name === 'Desperation')).toBe(true);
+    expect(control.events.some((e) => e.name === "Death's Door")).toBe(true);
   });
 
   it('a stoned attacker whose bar breaks on the counter does not strike again', () => {
@@ -429,9 +431,9 @@ describe('the exchange ends when a stone breaks (Q1)', () => {
   });
 });
 
-describe('Lethality (an instant kill) is a lethal blow like any other', () => {
+describe('Fell Stroke (an instant kill) is a lethal blow like any other', () => {
   it('takes a stone from a stoned boss instead of killing it', () => {
-    // Lethality procs on LCK / 3 % (10% here, certain at roll 0); the blow alone (15) would
+    // Fell Stroke procs on LCK / 3 % (10% here, certain at roll 0); the blow alone (15) would
     // leave the 20-HP boss at 5, so only the instant kill can fell the bar.
     const atk = striker({ LCK: 30 }, { skills: ['lethality'] });
     const b = boss({ hp: 20, stones: 1 });
@@ -444,10 +446,10 @@ describe('Lethality (an instant kill) is a lethal blow like any other', () => {
   });
 });
 
-describe('Miracle comes first', () => {
-  it('a Miracle that leaves 1 HP spends no stone; the next lethal blow breaks one', () => {
-    // 15 damage on 12 HP is lethal: Miracle (LCK 30, procs at roll 0) leaves 1 HP. Only
-    // then, with the Miracle spent, does a lethal blow take a stone.
+describe('Reprieve comes first', () => {
+  it('a Reprieve that leaves 1 HP spends no stone; the next lethal blow breaks one', () => {
+    // 15 damage on 12 HP is lethal: Reprieve (LCK 30, procs at roll 0) leaves 1 HP. Only
+    // then, with the Reprieve spent, does a lethal blow take a stone.
     const atk = striker({ SPD: 8 });
     const b = boss({ hp: 12, stones: 1, stats: { LCK: 30 }, extra: { skills: ['miracle'] } });
     const first = fight(atk, b, ctx());

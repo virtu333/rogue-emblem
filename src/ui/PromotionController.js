@@ -1,6 +1,6 @@
 import { speakSpecialCharacterRefusal } from '../engine/SpecialCharacterDialogue.js';
 import { observeHistoryAction } from './BattleHistoryRecorder.js';
-// PromotionController -- Master Seal promotion flow extracted from BattleScene.
+// PromotionController -- Sovereign Seal promotion flow extracted from BattleScene.
 // Owns target resolution, the promotion choice panel, applying the promotion,
 // and the banner/popup/dropped-skills sequencing. Cross-cutting seams
 // (showActionMenu, showBriefBanner, showPromotionBanner, finishUnitAction,
@@ -59,14 +59,14 @@ export class PromotionController {
       !Number.isFinite(seal.uses) ||
       seal.uses <= 0
     ) {
-      await scene.showBriefBanner('Master Seal required to promote.', UI_PALETTE.bad);
+      await scene.showBriefBanner('Sovereign Seal required to promote.', UI_PALETTE.bad);
       if (!isCurrentBattleSession(scene, session)) return false;
       scene.battleState = 'UNIT_ACTION_MENU';
       scene.showActionMenu(unit);
       return false;
     }
 
-    // Kingmaker's Oath: no Master Seal in this run, however it was offered (the item menu, a
+    // Kingmaker's Oath: no Sovereign Seal in this run, however it was offered (the item menu, a
     // seal handed in directly).
     const banned = classChangeItemBlock(scene.runManager, seal);
     const refusal =

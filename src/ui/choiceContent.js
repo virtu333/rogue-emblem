@@ -334,7 +334,7 @@ export function rewardForWhom(choice, run) {
       : { who: 'No weapon can take it', detail: 'Nothing carried qualifies', tone: 'bad' };
   }
   if (item.type === 'Consumable') {
-    // A Master Seal while Kingmaker's Oath forbids it: offered as ever (the loot stream never
+    // A Sovereign Seal while Kingmaker's Oath forbids it: offered as ever (the loot stream never
     // moves), marked so the card says it can't be used.
     const banned = classChangeItemTag(run, item);
     if (banned) return { who: banned, detail: 'Promote at a church instead', tone: 'bad' };

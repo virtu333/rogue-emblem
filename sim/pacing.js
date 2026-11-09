@@ -177,8 +177,8 @@ class PacingDriver extends RunSimulationDriver {
   }
 
   async _runBattleNode(node) {
-    // A real player tops up between fights (Vulneraries, staves, churches) and promotes
-    // with a Master Seal at level 15+; the harness player can do neither (sim:strategy
+    // A real player tops up between fights (Poultices, staves, churches) and promotes
+    // with a Sovereign Seal at level 15+; the harness player can do neither (sim:strategy
     // does the same), so without this HP attrition, not play style, sets the pace.
     const rm = this.runManager;
     for (const u of [...rm.roster].sort((a, b) => Number(b.isLord) - Number(a.isLord))) {

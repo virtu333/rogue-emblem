@@ -1123,6 +1123,37 @@ function startNgPlus(meta, seed = 21) {
   return rm;
 }
 
+describe('a kept item renamed since it was kept (the naming pass)', () => {
+  // The Barracks lives in the meta save, which the run save's item-name migration never walks:
+  // a Vulnerary kept before the pass must come back a Poultice, with the Poultice's words.
+  function metaKeepingAnOldName() {
+    metaWithBarracks();
+    const saved = JSON.parse(store[META_KEY]);
+    const edric = saved.ngPlus.barracks.find((r) => r.id === lordRecordId('Edric'));
+    edric.keptItems = [
+      { ...consumable('Poultice'), name: 'Vulnerary', lore: 'old words', uid: 'itm_kept_elixir' },
+    ];
+    store[META_KEY] = JSON.stringify(saved);
+    return freshMeta();
+  }
+
+  it('the Barracks reads it under its new name', () => {
+    const meta = metaKeepingAnOldName();
+    const edric = meta.getNgPlus().barracks.find((r) => r.id === lordRecordId('Edric'));
+    expect(edric.keptItems.map((i) => i.name)).toEqual(['Poultice']);
+  });
+
+  it('it joins the run as a Poultice with the catalog words, still one copy', () => {
+    const meta = metaKeepingAnOldName();
+    const rm = startNgPlus(meta);
+    const edric = rm.roster.find((u) => u.name === 'Edric');
+    const kept = edric.consumables.find((i) => i.uid === 'itm_kept_elixir');
+    expect(kept?.name).toBe('Poultice');
+    expect(kept.lore).toBe(consumable('Poultice').lore);
+    expect(instancesOf(rm, 'itm_kept_elixir')).toBe(1);
+  });
+});
+
 describe('a kept item has exactly one owner across the Barracks', () => {
   /** An NG+ run where the veteran's kept axe was traded to Edric before the win. */
   function tradedHeirloom({ vetFalls = false, toConvoy = false } = {}) {

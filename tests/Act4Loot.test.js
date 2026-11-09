@@ -69,7 +69,7 @@ describe('Act 4 reward identity', () => {
     expect(late.weights.legendaryWeapon).toBeGreaterThan(prior.weights.legendaryWeapon);
     expect(late.weights.forge).toBeGreaterThan(prior.weights.forge);
     expect(late.healing).not.toContain('Herb');
-    for (const name of ['Fortify', 'Sleep Staff', 'Silence Staff']) {
+    for (const name of ['Canticle', 'Lullaby Staff', 'Hush Staff']) {
       expect(late.weapons).toContain(name);
       expect(prior.weapons).not.toContain(name);
       expect(data.weapons.find((w) => w.name === name)?.type).toBe('Staff');

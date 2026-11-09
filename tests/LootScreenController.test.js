@@ -267,7 +267,7 @@ describe('LootScreenController', () => {
       {
         type: 'consumable',
         item: {
-          name: 'Vulnerary',
+          name: 'Poultice',
           type: 'Consumable',
           effect: 'heal',
           value: 10,
@@ -395,7 +395,7 @@ describe('LootScreenController', () => {
         {
           type: 'consumable',
           item: {
-            name: 'Vulnerary',
+            name: 'Poultice',
             type: 'Consumable',
             effect: 'heal',
             value: 10,
@@ -464,7 +464,7 @@ describe('LootScreenController', () => {
       consumableCard.emit('pointerdown', LEFT_CLICK);
 
       expect(scene.showConsumableUnitPicker).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'Vulnerary' }),
+        expect.objectContaining({ name: 'Poultice' }),
         controller.lootGroup,
         2,
       );
@@ -545,7 +545,7 @@ describe('LootScreenController', () => {
     });
 
     it('returns consumable detail lines for heal item', () => {
-      const item = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
+      const item = { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
       const result = LootScreenController.getCardDetailLines(
         stubScene,
         { type: 'consumable' },
@@ -558,7 +558,7 @@ describe('LootScreenController', () => {
     });
 
     it('reads "uses each" on a bundle card (each copy keeps its full uses)', () => {
-      const item = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
+      const item = { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
       const bundle = LootScreenController.getCardDetailLines(
         stubScene,
         { type: 'consumable', quantity: 3 },
@@ -595,7 +595,7 @@ describe('LootScreenController', () => {
 
     it('returns stat boost detail lines', () => {
       const item = {
-        name: 'Energy Drop',
+        name: 'Mightroot',
         type: 'Consumable',
         effect: 'statBoost',
         stat: 'STR',
@@ -674,17 +674,17 @@ describe('LootScreenController', () => {
     });
 
     it('returns text for consumable items', () => {
-      const item = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
+      const item = { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
       const result = LootScreenController.getTooltipText(stubScene, { type: 'consumable' }, item);
 
       expect(result).not.toBeNull();
-      expect(result).toContain('Vulnerary');
+      expect(result).toContain('Poultice');
       expect(result).toContain('10 HP');
       expect(result.split('\n')).toContain('3 uses');
     });
 
     it('bundle tooltips say each copy has its own uses', () => {
-      const item = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
+      const item = { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
       const result = LootScreenController.getTooltipText(
         stubScene,
         { type: 'consumable', quantity: 3 },
@@ -825,7 +825,7 @@ describe('LootScreenController', () => {
       ];
       const lootGroup = [makeDisplayObject()];
       const item = {
-        name: 'Energy Drop',
+        name: 'Mightroot',
         type: 'Consumable',
         effect: 'statBoost',
         stat: 'STR',
@@ -849,7 +849,7 @@ describe('LootScreenController', () => {
       const lootObj = makeDisplayObject();
       const lootGroup = [lootObj];
       const item = {
-        name: 'Energy Drop',
+        name: 'Mightroot',
         type: 'Consumable',
         effect: 'statBoost',
         stat: 'STR',
@@ -871,7 +871,7 @@ describe('LootScreenController', () => {
         { name: 'Edric', className: 'Lord', stats: {}, inventory: [], consumables: [] },
       ];
       const lootGroup = [makeDisplayObject()];
-      const item = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
+      const item = { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
 
       LootScreenController.renderConsumableUnitPicker(scene, item, lootGroup, 0);
 

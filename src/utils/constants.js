@@ -207,7 +207,7 @@ export const NODE_GOLD_MULTIPLIER = {
 };
 
 // Gold economy
-// A rolled Vulnerary loot reward comes as this many items (PendingBattleRewards).
+// A rolled Poultice loot reward comes as this many items (PendingBattleRewards).
 export const LOOT_VULNERARY_BUNDLE = 2;
 
 export const STARTING_GOLD = 200;
@@ -257,7 +257,7 @@ export const SHOP_ITEM_COUNT = { min: 8, max: 10 };
 export const RUINS_SHOP_ITEM_COUNT = { min: 5, max: 6 };
 export const RUINS_SHOP_ITEM_COUNT_FINAL = { min: 8, max: 10 };
 export const RUINS_SHOP_MARKUP = 1.25;
-// Basic medicine on every ordinary shop's shelf, in every act (Vulneraries leave
+// Basic medicine on every ordinary shop's shelf, in every act (Poultices leave
 // the healing pool from Act III): a hurt army always has a cheap heal to buy.
 // The Ruins' smaller shelf keeps one; a Merchant Caravan none.
 export const SHOP_GUARANTEED_VULNERARIES = 2;
@@ -491,8 +491,13 @@ export const RECRUIT_SKILL_POOL = [
   'death_blow',
   'darting_blow',
 ];
-export const STARTING_ACCESSORY_TIERS = [null, 'Goddess Icon', 'Speed Ring', "Veteran's Crest"];
-export const STARTING_STAFF_TIERS = ['Heal', 'Mend', 'Recover'];
+export const STARTING_ACCESSORY_TIERS = [
+  null,
+  'Fatethread Pendant',
+  'Speed Ring',
+  "Veteran's Crest",
+];
+export const STARTING_STAFF_TIERS = ['Heal', 'Solace', 'Remembrance'];
 
 /** Sera's starting staves at a Healer's Art tier: Heal always, plus the tier's staff. */
 export function startingStaffNames(tier) {

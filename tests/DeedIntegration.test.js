@@ -37,7 +37,7 @@ function withDeed(unit, battle) {
   return unit;
 }
 const fighter = (name = 'Garr') => createUnit(cls('Fighter'), 10, data.weapons, { name });
-// Three enemy phases held on a bridge: "Who Held the Bridge", Oath → Pavise.
+// Three enemy phases held on a bridge: "Who Held the Bridge", Oath → Shieldwall.
 const bridge = { heldPhases: 3, heldPlaces: ['Bridge', 'Bridge', 'Bridge'] };
 
 describe('serialization and saves', () => {
@@ -204,9 +204,9 @@ describe('serialization and saves', () => {
       expect(run.convoy.weapons.some((i) => i.uid === uid)).toBe(true);
     });
 
-    it('a Vulnerary it drank stays drunk; one it finished does not come back', () => {
+    it('a Poultice it drank stays drunk; one it finished does not come back', () => {
       const vulnerary = (uid, uses) => ({
-        ...structuredClone(data.consumables.find((c) => c.name === 'Vulnerary')),
+        ...structuredClone(data.consumables.find((c) => c.name === 'Poultice')),
         uid,
         uses,
       });
@@ -290,16 +290,16 @@ describe('victory records', () => {
 });
 
 describe('Oaths', () => {
-  it('roster Master Seal swears the Oath and reports it', () => {
+  it('roster Sovereign Seal swears the Oath and reports it', () => {
     const unit = withDeed(fighter(), bridge);
-    const seal = { name: 'Master Seal', type: 'Consumable', effect: 'promote', uses: 1 };
+    const seal = { name: 'Sovereign Seal', type: 'Consumable', effect: 'promote', uses: 1 };
     unit.consumables = [seal];
     const target = resolvePromotionTargets(unit, data.classes, data.lords)[0];
     const result = applyRosterClassChange({ roster: [unit] }, unit, seal, target, data);
     expect(result.ok).toBe(true);
     expect(unit.skills).toContain('pavise');
     expect(unit.deeds.oath).toMatchObject({ skillId: 'pavise', name: 'Oath of the Bridge' });
-    expect(result.notices).toContain('Oath of the Bridge: learned Pavise.');
+    expect(result.notices).toContain('Oath of the Bridge: learned Shieldwall.');
   });
 
   it('church promotion swears the Oath; at the skill cap it takes its own slot', () => {
@@ -309,12 +309,12 @@ describe('Oaths', () => {
     run.roster = [unit];
     const target = resolvePromotionTargets(unit, data.classes, data.lords)[0];
     const ok = promoteAtChurch(run, unit, 'c1', target, data);
-    expect(ok.message).toContain('Oath of the Bridge: learned Pavise.');
+    expect(ok.message).toContain('Oath of the Bridge: learned Shieldwall.');
     const full = withDeed(fighter('Bram'), bridge);
     full.skills = ['sol', 'luna', 'astra', 'vantage', 'wrath'];
     run.roster = [full];
     const capped = promoteAtChurch(run, full, 'c2', target, data);
-    expect(capped.message).toContain('Oath of the Bridge: learned Pavise.');
+    expect(capped.message).toContain('Oath of the Bridge: learned Shieldwall.');
     expect(capped.message).not.toContain('bench (all 5');
     expect(full.deeds.oath).toMatchObject({ skillId: 'pavise' });
     expect(full.deeds.waitingOath).toBeUndefined();
@@ -331,13 +331,13 @@ describe('Oaths', () => {
     expect(unit.deeds.oath).toBeUndefined();
     expect(sealedBeats(content).at(-1)).toEqual({
       kind: 'oath',
-      title: 'Pavise',
+      title: 'Shieldwall',
       detail: 'Oath of the Bridge',
       skillId: 'pavise',
     });
   });
 
-  it('battle Master Seal: the PromotionController applies the Oath with the promotion', async () => {
+  it('battle Sovereign Seal: the PromotionController applies the Oath with the promotion', async () => {
     vi.resetModules();
     const { PromotionController } = await import('../src/ui/PromotionController.js');
     const edric = createLordUnit(data.lords.find((l) => l.name === 'Edric'), data.classes, data.weapons); // prettier-ignore
@@ -396,7 +396,7 @@ describe('presentation content', () => {
       seal: 'H',
       ordinal: 'IV',
       note: '',
-      oath: 'Oath at promotion · Pavise',
+      oath: 'Oath at promotion · Shieldwall',
       count: '1 / 2',
     });
     expect(keen).toMatchObject({ appositive: false, count: '2 / 2' });

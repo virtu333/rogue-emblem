@@ -165,7 +165,7 @@ export function prologueCoachState(s) {
     const own = wounded.healItem;
     const detail =
       !known || own
-        ? `${wounded.name} is badly hurt. Select ${wounded.name}, then Item → ${own || 'Vulnerary'} — or pull back out of reach.`
+        ? `${wounded.name} is badly hurt. Select ${wounded.name}, then Item → ${own || 'Poultice'} — or pull back out of reach.`
         : donor
           ? `${wounded.name} is badly hurt and carries no ${donor.healItem}, but ${donor.name} does. Move ${wounded.name} next to ${donor.name}, choose Trade and take it, then Item → ${donor.healItem}. Or pull back out of reach.`
           : `${wounded.name} is badly hurt and has nothing to heal with. Pull back out of the red reach.`;

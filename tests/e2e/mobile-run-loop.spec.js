@@ -140,7 +140,7 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
     await page
       .getByRole('dialog', { name: 'Battle rewards' })
       .locator('.reward-card')
-      // Bundled rewards render as "Name ×N" (e.g. Vulnerary ×3 since 2f1c0fe).
+      // Bundled rewards render as "Name ×N" (e.g. Poultice ×3 since 2f1c0fe).
       .filter({
         has: page.getByText(
           new RegExp(`^${itemName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}( ×\\d+)?$`),
@@ -195,7 +195,7 @@ test('touch run: loadout, battle action, rewards, shop, equipment, next battle a
   await page
     .locator('.shop-row')
     .filter({ has: page.getByText(entry.name, { exact: true }) })
-    // Every shelf stocks two Vulneraries, so a name can match more than one row.
+    // Every shelf stocks two Poultices, so a name can match more than one row.
     .first()
     .tap();
   await page.locator('.shop-commit button').tap();

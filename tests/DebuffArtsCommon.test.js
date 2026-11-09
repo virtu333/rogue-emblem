@@ -12,11 +12,11 @@ import {
 const data = loadGameData();
 const artById = new Map(data.weaponArts.arts.map((art) => [art.id, art]));
 const DEBUFF_ARTS = {
-  sword_seal_speed: 'Seal Speed Scroll',
-  lance_shatter_slash: 'Shatter Slash Scroll',
-  bow_break_shot: 'Break Shot Scroll',
-  bow_waning_shot: 'Waning Shot Scroll',
-  bow_seal_magic: 'Seal Magic Scroll',
+  sword_seal_speed: 'Hamstring Scroll',
+  lance_shatter_slash: 'Guardsplitter Scroll',
+  bow_break_shot: 'Joint Shot Scroll',
+  bow_waning_shot: 'Sapping Shot Scroll',
+  bow_seal_magic: 'Rattle Scroll',
 };
 const TYPES = ['Sword', 'Lance', 'Bow'];
 const WEAPON_TYPE_OF = {

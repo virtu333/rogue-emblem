@@ -243,12 +243,12 @@ describe('events', () => {
 });
 
 describe('between battles', () => {
-  it('drinks a Vulnerary when hurt, learns a scroll and equips a ring', () => {
+  it('drinks a Poultice when hurt, learns a scroll and equips a ring', () => {
     const driver = makeDriver();
     const rm = driver.runManager;
     const unit = rm.roster[0];
     unit.consumables = [
-      structuredClone(rm.getConsumableCatalog().find((c) => c.name === 'Vulnerary')),
+      structuredClone(rm.getConsumableCatalog().find((c) => c.name === 'Poultice')),
     ];
     unit.currentHP = 1;
     const scroll = (gameData.weapons || []).find((w) => w.type === 'Scroll' && w.skillId);
@@ -342,7 +342,7 @@ describe('a Thief beside a carrier', () => {
         expect(tile, 'a free tile beside the Thief').not.toBeNull();
         Object.assign(carrier, tile);
         carrier.carriedItem = {
-          ...structuredClone(rm.getConsumableCatalog().find((c) => c.name === 'Vulnerary')),
+          ...structuredClone(rm.getConsumableCatalog().find((c) => c.name === 'Poultice')),
           uid: 'itm_forced_carry',
         };
         Object.assign(carrier.stats, { HP: 999, DEF: 99, RES: 99, SPD: carrierSpeed });
@@ -422,7 +422,7 @@ describe('the off switches', () => {
         const carrier = battle.enemyUnits[0];
         Object.assign(carrier, freeNeighbour(battle, thief.col, thief.row));
         carrier.carriedItem = {
-          ...structuredClone(rm.getConsumableCatalog().find((c) => c.name === 'Vulnerary')),
+          ...structuredClone(rm.getConsumableCatalog().find((c) => c.name === 'Poultice')),
           uid: 'itm_forced_carry',
         };
       },

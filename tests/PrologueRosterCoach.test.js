@@ -147,10 +147,10 @@ describe('the roster lesson in the sheet', () => {
     press(sheet, 'Show me', { within: strip(sheet) });
     expect(strip(sheet).dataset.step).toBe('trade');
     expect(strip(sheet).textContent).toContain('More · 1 of 2 · Trade');
-    expect(strip(sheet).textContent).toContain("Give Tamsin Edric's Vulnerary");
-    // Trade: Edric's Vulnerary → Tamsin through the trade menu.
+    expect(strip(sheet).textContent).toContain("Give Tamsin Edric's Poultice");
+    // Trade: Edric's Poultice → Tamsin through the trade menu.
     show(sheet, 'Edric', 'gear');
-    press(sheet, 'Trade…', { within: cardFor(sheet, 'Vulnerary') });
+    press(sheet, 'Trade…', { within: cardFor(sheet, 'Poultice') });
     sheet.picker.selected = tamsin;
     await sheet.picker.confirm();
     await vi.advanceTimersByTimeAsync(0);
@@ -158,7 +158,7 @@ describe('the roster lesson in the sheet', () => {
       sheet.picker.surface.root.querySelectorAll('.tm-row').find((el) => el.dataset.side === side && el.dataset.index === '0'); // prettier-ignore
     row('left').click();
     row('right').click();
-    expect(tamsin.consumables.map((c) => c.name)).toEqual(['Vulnerary']);
+    expect(tamsin.consumables.map((c) => c.name)).toEqual(['Poultice']);
     sheet.picker.destroy?.();
     sheet.picker = null;
     sheet.render();

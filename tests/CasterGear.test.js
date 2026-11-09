@@ -290,7 +290,7 @@ describe('carried into battle (EnemySpawnGear, harness as the scene)', () => {
     }
     expect(staff).not.toBeNull();
     expect(siege).not.toBeNull();
-    const staffName = staff.spawn.statusStaff === 'sleep' ? 'Sleep Staff' : 'Silence Staff';
+    const staffName = staff.spawn.statusStaff === 'sleep' ? 'Lullaby Staff' : 'Hush Staff';
     expect(staff.e.statusStaff?.name).toBe(staffName);
     expect(siege.e.weapon?.name).toBe('Breachbolt');
     expect(siege.e.inventory.length).toBeGreaterThan(1); // its own weapon kept behind

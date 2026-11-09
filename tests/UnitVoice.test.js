@@ -190,11 +190,11 @@ describe('UnitVoice', () => {
   it('skill lines name the learned skill', () => {
     let found = null;
     for (let seed = 0; seed < 20 && !found; seed++) {
-      const content = levelUpContent(recruit, gains({ HP: 1, STR: 1 }), ['Vantage']);
+      const content = levelUpContent(recruit, gains({ HP: 1, STR: 1 }), ['Forestall']);
       const hit = levelUpLine(recruit, content, ctx({ seed }));
       if (hit.source === 'skill') found = hit.line;
     }
-    expect(found).toBe('Learned Vantage.');
+    expect(found).toBe('Learned Forestall.');
   });
 
   it('spotlights the biggest gain of two or more', () => {

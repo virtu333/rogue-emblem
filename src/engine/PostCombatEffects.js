@@ -246,7 +246,7 @@ function* postCombatStep(
       yield* skillOnKill(step, sourceUnit, targetUnit, result, world);
       break;
     case 'galeforce':
-      // The Galeforce Charm: a kill on its wearer's own attack may ready it to act again.
+      // The Onrush Charm: a kill on its wearer's own attack may ready it to act again.
       if (!sourceUnit || sourceUnit.currentHP <= 0) break;
       if (!killedInCombat(sourceUnit, targetUnit, result)) break;
       if (rollGaleforce(sourceUnit))
@@ -286,7 +286,7 @@ function* postCombatStep(
   }
 }
 
-/** The most Speedtaker stacks a unit may hold when its skill names none. */
+/** The most Quickening stacks a unit may hold when its skill names none. */
 const DEFAULT_SPEEDTAKER_MAX = 5;
 
 /**
@@ -342,7 +342,7 @@ function* onKillMark(markId, unit, world) {
   yield { kind: 'hint', unit, text: `${mark.name} +${healed}`, tone: 'mark' };
 }
 
-/** Lifetaker: heal a share of max HP (floored, at least 1) through UnitHealth, so Wounded blocks it. */
+/** Reaper's Due: heal a share of max HP (floored, at least 1) through UnitHealth, so Wounded blocks it. */
 function* onKillHeal(skill, unit) {
   const percent = Number(skill.effects.healPercentMaxHp) || 0;
   if (percent <= 0) return;
@@ -353,7 +353,7 @@ function* onKillHeal(skill, unit) {
   yield { kind: 'hint', unit, text: `${skill.name} +${healed}`, tone: 'heal' };
 }
 
-/** Speedtaker: +SPD for the battle per kill up to a cap; the stacks ride `_speedtakerStacks`. */
+/** Quickening: +SPD for the battle per kill up to a cap; the stacks ride `_speedtakerStacks`. */
 function* onKillSpeed(skill, unit) {
   const gain = Math.trunc(Number(skill.effects.spdPerKill) || 0);
   if (gain <= 0) return;

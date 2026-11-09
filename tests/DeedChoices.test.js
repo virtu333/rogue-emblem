@@ -31,7 +31,7 @@ function earn(unit, battle) {
   commitBattleDeeds([unit], data.deeds, { battleKey: `choice:${++key}` });
   return unit;
 }
-// Held the Line (prestige 4, Oath: Pavise) and Keen Edge (prestige 2, Oath: Critical +15).
+// Held the Line (prestige 4, Oath: Shieldwall) and Keen Edge (prestige 2, Oath: Cold Eye).
 const bridgeAndCrits = { heldPhases: 3, heldPlaces: ['Bridge', 'Bridge', 'Bridge'], crits: 3 };
 const veteran = () =>
   earn(createUnit(fighterClass, 10, data.weapons, { name: 'Garr' }), bridgeAndCrits);
@@ -145,8 +145,8 @@ describe('the promotion chooser asks which Oath', () => {
     expect(options()).toHaveLength(0);
     dom.doc.querySelector('.gr-oath-toggle').click();
     expect(options().map((b) => b.textContent)).toEqual([
-      'Oath of the Bridge · Pavise',
-      'Oath of the Edge · Critical +15',
+      'Oath of the Bridge · Shieldwall',
+      'Oath of the Edge · Cold Eye',
     ]);
     expect(options()[0].getAttribute('aria-pressed')).toBe('true');
     options()[1].click();
@@ -157,7 +157,7 @@ describe('the promotion chooser asks which Oath', () => {
     expect(options().map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
     const cards = dom.doc.querySelectorAll('.gr-path-oath');
     expect(cards).toHaveLength(targets.length);
-    for (const card of cards) expect(card.textContent).toContain('Oath of the Edge · Critical +15');
+    for (const card of cards) expect(card.textContent).toContain('Oath of the Edge · Cold Eye');
     // Only a preview: nothing is learned until the promotion is confirmed.
     expect(unit.skills).not.toContain('crit_plus_15');
     chooser.destroy();
@@ -182,7 +182,7 @@ describe('the promotion chooser asks which Oath', () => {
     chooser.render();
     expect(dom.doc.querySelectorAll('.gr-oath-option')).toHaveLength(0);
     expect(dom.doc.querySelector('.gr-oath-note').textContent).toBe(
-      'A Swordmaster already has Critical +15, so this path swears Oath of the Bridge.',
+      'A Swordmaster already has Cold Eye, so this path swears Oath of the Bridge.',
     );
     chooser.selected = targets.find((c) => c.name === 'Duelist');
     chooser.render();
@@ -191,7 +191,7 @@ describe('the promotion chooser asks which Oath', () => {
     const pressed = dom.doc
       .querySelectorAll('.gr-oath-option')
       .filter((b) => b.getAttribute('aria-pressed') === 'true');
-    expect(pressed.map((b) => b.textContent)).toEqual(['Oath of the Edge · Critical +15']);
+    expect(pressed.map((b) => b.textContent)).toEqual(['Oath of the Edge · Cold Eye']);
     chooser.destroy();
   });
 
@@ -256,7 +256,7 @@ describe('the Compendium lists only deeds earned', () => {
     expect(entries).toHaveLength(2);
     expect(entries[0].name).toBe('Held the Line');
     expect(entries[0].referenceLines[0]).toBe('Title: Who Held the Line · ★★★★');
-    expect(entries[0].referenceLines[1]).toMatch(/^Oath: Pavise — /);
+    expect(entries[0].referenceLines[1]).toMatch(/^Oath: Shieldwall — /);
     const hidden = data.deeds.deeds.length - 1;
     expect(entries[1].name).toBe(`${hidden} more to find`);
     // No hidden deed leaks its name, title or story.

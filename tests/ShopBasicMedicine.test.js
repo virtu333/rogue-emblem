@@ -1,4 +1,4 @@
-// Basic medicine on the shelf: every ordinary shop stocks two Vulneraries in every
+// Basic medicine on the shelf: every ordinary shop stocks two Poultices in every
 // act (Act III and IV list none in their pools), the Ruins' smaller shelf one, a
 // Merchant Caravan none. Drives ShopController's real generation, first visit and
 // restock, so the option the Ruins pass is the one that reaches the shelf.
@@ -50,11 +50,11 @@ function makeScene(act) {
   };
 }
 
-const vulneraryRows = (items) => items.filter((entry) => entry.item?.name === 'Vulnerary');
+const vulneraryRows = (items) => items.filter((entry) => entry.item?.name === 'Poultice');
 
 describe('basic medicine on the shelf', () => {
   for (const act of ['act1', 'act3', 'act4']) {
-    it(`an ordinary ${act} shop opens with two Vulneraries`, () => {
+    it(`an ordinary ${act} shop opens with two Poultices`, () => {
       for (let i = 0; i < 15; i++) {
         const scene = makeScene(act);
         new ShopController(scene).handleShop({ id: `n_${act}` });
@@ -63,7 +63,7 @@ describe('basic medicine on the shelf', () => {
       }
     });
 
-    it(`the ${act} Ruins open with one Vulnerary`, () => {
+    it(`the ${act} Ruins open with one Poultice`, () => {
       for (let i = 0; i < 15; i++) {
         const scene = makeScene(act);
         new ShopController(scene).handleShop({ id: `r_${act}` }, { ruins: true });
@@ -76,7 +76,7 @@ describe('basic medicine on the shelf', () => {
 
   it('a fresh restock stocks the pair at a shop and the one at the Ruins', () => {
     // A shelf larger than the restock's first batch is topped up from a second
-    // batch: that batch's Vulneraries must not pile onto the pair.
+    // batch: that batch's Poultices must not pile onto the pair.
     for (const ruins of [false, true, false, true, false, true, false, true]) {
       const scene = makeScene('act3');
       const ctrl = new ShopController(scene);

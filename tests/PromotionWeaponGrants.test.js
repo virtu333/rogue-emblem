@@ -65,7 +65,7 @@ describe('church promotion grants', () => {
 });
 
 describe('seal promotion and reclass grants', () => {
-  it('Master Seal: Mage to Sage and Edric to Great Lord', () => {
+  it('Sovereign Seal: Mage to Sage and Edric to Great Lord', () => {
     for (const make of [mage, edric]) {
       const u = make();
       run.roster = [u];
@@ -74,7 +74,7 @@ describe('seal promotion and reclass grants', () => {
       expect(applyRosterClassChange(run, u, s, target(u), data).ok).toBe(true);
     }
   });
-  it('Master Seal grants match the church', () => {
+  it('Sovereign Seal grants match the church', () => {
     const u = mage();
     run.roster = [u];
     const s = seal('promote');
@@ -197,7 +197,7 @@ describe('full bag: the grant goes to the convoy', () => {
   const paladin = (u) =>
     resolvePromotionTargets(u, data.classes, data.lords).find((c) => c.name === 'Paladin');
 
-  it('a Master Seal promotion with five weapons sends the new Iron Sword to the convoy', () => {
+  it('a Sovereign Seal promotion with five weapons sends the new Iron Sword to the convoy', () => {
     const u = cavalier();
     run.roster = [u];
     fullOf(u, 'Iron Lance');

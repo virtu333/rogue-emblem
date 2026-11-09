@@ -80,7 +80,7 @@ test('buy NG+, pick who rides again, bring a veteran, and start NG+ on Black Sun
   await unlock.tap();
   await expect(page.locator('.mu-status')).toHaveText('New Game+ unlocked.');
 
-  // Who rides again: Bjorn keeps Vantage and the Steel Axe.
+  // Who rides again: Bjorn keeps Forestall and the Steel Axe.
   await page.locator('[data-focus="ride-u4"]').tap();
   await expect(page.locator('[data-focus="ride-u4"]')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('[data-focus="keep-skill-vantage"]').tap();
@@ -130,11 +130,11 @@ test('buy NG+, pick who rides again, bring a veteran, and start NG+ on Black Sun
   const vet = page.locator('[data-focus^="vet-vet:"]');
   await expect(vet).toContainText('Bjorn');
   await vet.tap();
-  // The Pack: Vantage starts equipped and the axe is held, every NG+ run, set once.
+  // The Pack: Forestall starts equipped and the axe is held, every NG+ run, set once.
   const packSkill = page.locator('[data-focus="pack-skill-vantage"]');
-  await expect(packSkill).toHaveText('Vantage · May wait on the bench');
+  await expect(packSkill).toHaveText('Forestall · May wait on the bench');
   await packSkill.tap();
-  await expect(packSkill).toHaveText('Vantage · Starts equipped');
+  await expect(packSkill).toHaveText('Forestall · Starts equipped');
   await expect(packSkill).toHaveAttribute('aria-pressed', 'true');
   await page.locator('[data-focus="pack-item-itm_e2e_axe"]').tap();
   await expect(page.locator('[data-focus="pack-item-itm_e2e_axe"]')).toHaveText('Steel Axe · Held');

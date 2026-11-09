@@ -5,7 +5,7 @@
 // for each such effect, every unit within its range of that tile (AffixSystem.deathburstVictims,
 // measured by combatDistance, so the Entity is caught beside any tile of its 3x3 body), allies
 // and foes alike, still standing when its turn comes, takes the effect's amount through
-// UnitHealth.damageUnitDetailed (no hit roll, no Miracle): a Revival Stone refills a bar and the
+// UnitHealth.damageUnitDetailed (no hit roll, no Reprieve): a Revival Stone refills a bar and the
 // Unbroken Banner holds a player unit at 1 (`world.battleBlessings`).
 //
 // A generator: each blow is yielded after its HP change and before the next victim is read, so

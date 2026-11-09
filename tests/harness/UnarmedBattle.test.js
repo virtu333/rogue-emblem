@@ -3,7 +3,7 @@
 //
 // Three kinds of "unarmed" are deployed next to an armed commander:
 //   bare      — inventory [], weapon null, no supplies
-//   supplies  — inventory [], weapon null, a Vulnerary
+//   supplies  — inventory [], weapon null, a Poultice
 //   staffOnly — only a Heal staff it has no rank for (weapon null)
 // The failures this guards against: a crash anywhere in a battle (menus, targeting,
 // the enemy phase, AI scoring, XP, deaths), an unarmed unit offered Attack or
@@ -25,7 +25,7 @@ function disarm(unit, kind, gameData) {
   unit.weapon = null;
   unit.consumables = [];
   if (kind === 'supplies') {
-    unit.consumables = [structuredClone(gameData.consumables.find((c) => c.name === 'Vulnerary'))];
+    unit.consumables = [structuredClone(gameData.consumables.find((c) => c.name === 'Poultice'))];
   }
   if (kind === 'staffOnly') {
     unit.proficiencies = unit.proficiencies.filter((p) => p.type !== 'Staff');

@@ -536,7 +536,7 @@ describe('enemies never get Pass, and a player’s Pass leaves their ranges alon
     expect(asked).toEqual(normal);
   });
 
-  it('a generated enemy Trickster keeps Darting Blow but never carries Pass, at any act or level', () => {
+  it('a generated enemy Trickster keeps Quickstep but never carries Pass, at any act or level', () => {
     const trickster = data.classes.find((c) => c.name === 'Trickster');
     for (const act of ['act1', 'act2', 'act3', 'act4', 'finalBoss'])
       for (const level of [1, 6, 10, 15, 20]) {

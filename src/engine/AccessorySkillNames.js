@@ -4,10 +4,11 @@
 // The light half of AccessorySkills.js, with no import beyond EffectiveSkills, so
 // utils/itemNames.js and the UI can read it without pulling in UnitManager. An accessory
 // with a bound skill keeps its identity name ("Power Ring"); its display name adds the skill,
-// "Power Ring · Vantage" (docs/specs/item-names.md). The bound skill is read only through
+// "Power Ring · Forestall" (docs/specs/item-names.md). The bound skill is read only through
 // `boundSkillOf` (EffectiveSkills).
 import { boundSkillOf } from './EffectiveSkills.js';
 import { geminiStatOf } from './GeminiRing.js';
+import { fallbackSkillName } from './SkillNames.js';
 
 /** The separator of the display grammar: "<accessory> · <skill>". */
 export const ACCESSORY_SKILL_SEPARATOR = ' · ';
@@ -22,21 +23,17 @@ export function hasAccessorySkill(item) {
   return accessorySkillOf(item) !== null;
 }
 
-/** The skill's catalog name, or the id set in words ("uncanny_blow" -> "Uncanny Blow"). */
+/** The skill's catalog name, else its name without the data (SkillNames.fallbackSkillName). */
 export function boundSkillName(id, skills = null) {
   if (typeof id !== 'string' || !id) return '';
   const entry = Array.isArray(skills) ? skills.find((skill) => skill?.id === id) : null;
   if (entry?.name) return entry.name;
-  return id
-    .split('_')
-    .filter(Boolean)
-    .map((word) => word[0].toUpperCase() + word.slice(1))
-    .join(' ');
+  return fallbackSkillName(id);
 }
 
 /**
- * The accessory's display name: "Power Ring · Vantage" when it carries a bound skill, its own
- * name otherwise ("Gemini Ring (SPD) · Vantage" for a Gemini Ring). Never an identity: icons
+ * The accessory's display name: "Power Ring · Forestall" when it carries a bound skill, its own
+ * name otherwise ("Gemini Ring (SPD) · Forestall" for a Gemini Ring). Never an identity: icons
  * and lookups keep reading `item.name`.
  */
 export function accessoryDisplayName(item, skills = null) {
@@ -47,7 +44,7 @@ export function accessoryDisplayName(item, skills = null) {
   return id ? `${name}${ACCESSORY_SKILL_SEPARATOR}${boundSkillName(id, skills)}` : name;
 }
 
-/** What the accessory's bound skill does, for its card: "Lends Vantage: <description>", or ''. */
+/** What the accessory's bound skill does, for its card: "Lends Forestall: <description>", or ''. */
 export function accessorySkillText(item, skills = null) {
   const id = accessorySkillOf(item);
   if (!id) return '';

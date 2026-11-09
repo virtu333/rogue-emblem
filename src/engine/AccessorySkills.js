@@ -6,7 +6,7 @@
 // instance's `price` is raised by `priceMultiplier` (shop price and sell value both read
 // `item.price`). Saves store whole accessory objects, so the field persists; the catalog entry
 // never carries it and the item's identity name never changes (`accessoryDisplayName` shows
-// "Power Ring · Vantage").
+// "Power Ring · Forestall").
 //
 // A bound skill is lent, not learned: EffectiveSkills reads it on every battle path while the
 // accessory is equipped, it never counts toward MAX_SKILLS, is never "known", and leaves with

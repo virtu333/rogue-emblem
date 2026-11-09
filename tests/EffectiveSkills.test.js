@@ -110,13 +110,13 @@ describe('effectiveSkills', () => {
 });
 
 describe('a bound skill is effective on every battle path', () => {
-  it('combat start: Death Blow lent by a weapon adds STR when initiating', () => {
+  it('combat start: Onslaught lent by a weapon adds STR when initiating', () => {
     const u = unit({ weapon: lends('death_blow') });
     const foe = unit({ faction: 'enemy', col: 5 });
     expect(getSkillCombatMods(u, foe, [u], [foe], skills, null, true).atkBonus).toBe(6);
   });
 
-  it('combat start: Wrath lent by an accessory adds crit below half HP', () => {
+  it('combat start: Seethe lent by an accessory adds crit below half HP', () => {
     const u = unit({ accessory: ring('wrath'), currentHP: 5 });
     const foe = unit({ faction: 'enemy', col: 5 });
     expect(getSkillCombatMods(u, foe, [u], [foe], skills, null, false).critBonus).toBe(30);
@@ -135,7 +135,7 @@ describe('a bound skill is effective on every battle path', () => {
     expect(getTurnStartEffects([heal], skills)).toEqual([]);
   });
 
-  it('on-attack: a ring’s Sol procs on a strike; a ring’s Pavise halves a blow', () => {
+  it('on-attack: a ring’s Reclaim procs on a strike; a ring’s Shieldwall halves a blow', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const foe = unit({ faction: 'enemy' });
     expect(rollStrikeSkills(unit({ accessory: ring('sol') }), 9, foe, skills).heal).toBe(9);

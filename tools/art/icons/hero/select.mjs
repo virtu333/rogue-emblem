@@ -27,7 +27,7 @@ const PICKS = {
   'barrier-ring': ['flash-t1', 'Re-prompted for a plain band.'],
   'skill-ring': ['flash-t1', 'Re-prompted for a plain band.'],
   'shield-ring': ['flash-t1', 'Re-prompted for a plain band.'],
-  'silence-staff': ['flash-t1', 'Re-prompted: no rainbow ring.'],
+  'hush-staff': ['flash-t1', 'Re-prompted: no rainbow ring.'],
   'gale-blade': ['flash-t1', 'Re-prompted: no wind ribbons.'],
   'silver-sword': ['flash-t1', 'Re-prompted: the first take striped the blade red and gold.'],
   'binding-imbuing-stone': ['flash-t1', 'Re-prompted: earth-brown snapped to gold; now olive.'],

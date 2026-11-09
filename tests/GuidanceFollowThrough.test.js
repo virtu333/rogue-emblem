@@ -199,7 +199,7 @@ describe('guide_first_shop: the first market says what a shop is, as its status 
     shopController(off).handleShop({ id: 'n1', type: 'shop' });
     expect(menus.at(-1).lines).toEqual(['flavor line']);
     const prologue = shopScene({ mode: 'prologue' });
-    shopController(prologue).handleShop({ id: 'prologue_2a', type: 'shop', prologueStock: ['Vulnerary'] }); // prettier-ignore
+    shopController(prologue).handleShop({ id: 'prologue_2a', type: 'shop', prologueStock: ['Poultice'] }); // prettier-ignore
     expect(menus.at(-1).lines).toEqual([PROLOGUE_SERVICE_LINES.shop]);
     expect(prologue.hints.hasSeen('guide_first_shop')).toBe(true);
   });

@@ -22,7 +22,7 @@ import { _resetInputFocus } from '../src/utils/inputFocus.js';
 const gameData = loadGameData();
 const cls = (name) => gameData.classes.find((c) => c.name === name);
 const ironBow = gameData.weapons.find((w) => w.name === 'Iron Bow');
-const vulnerary = gameData.consumables.find((c) => c.name === 'Vulnerary');
+const vulnerary = gameData.consumables.find((c) => c.name === 'Poultice');
 const named = (base, name) => ({ ...structuredClone(base), name, uid: `uid-${name}` });
 
 function eventsFor() {

@@ -91,7 +91,7 @@ const SCOPED_TIP_EVENTS = new Set(['afterMove', 'unitSelected']);
 // only while its unit is selected in one of these, on the player phase.
 const TIP_SCOPE_STATES = new Set(['UNIT_SELECTED', 'UNIT_MOVING', 'UNIT_ACTION_MENU']);
 
-/** The unit's first consumable that restores HP (a Vulnerary, an Elixir), or null. */
+/** The unit's first consumable that restores HP (a Poultice, an Elixir), or null. */
 function healingItem(unit) {
   return (
     (unit?.consumables || []).find((c) => c && (c.effect === 'heal' || c.effect === 'healFull')) ||
@@ -616,7 +616,7 @@ export class PrologueController {
     }
     if (DEFERRED_EVENTS.has(event.type)) {
       // It waits for a playable turn, and for an unread tip already up (one raised in
-      // the enemy phase, the Vulnerary's) to be read or to step aside: never replaces it.
+      // the enemy phase, the Poultice's) to be read or to step aside: never replaces it.
       void this.defer(
         async () => {
           this.openTip(id, text, event);

@@ -150,14 +150,14 @@ describe('Toppling Blow in the forecast and in combat', () => {
     ]);
   });
 
-  it('artFollowUpStrike adds the share only when its own mods carry it, Luna included', () => {
+  it('artFollowUpStrike adds the share only when its own mods carry it, Umbra included', () => {
     const s = swordsman();
     const d = colossus({ DEF: 10 });
     const none = artFollowUpStrike(s, s.weapon, d, null, null, { strikerMods: null });
     const withShare = artFollowUpStrike(s, s.weapon, d, null, null, { strikerMods: topple() });
     expect(none.damage).toBe(8);
     expect(withShare.damage).toBe(26);
-    // Luna halves DEF: 10 + 8 - 5 = 13; the share is the same 18.
+    // Umbra halves DEF: 10 + 8 - 5 = 13; the share is the same 18.
     expect(none.lunaDamage).toBe(13);
     expect(withShare.lunaDamage).toBe(31);
   });

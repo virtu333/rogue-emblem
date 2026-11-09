@@ -1,6 +1,6 @@
 // Siege casters and status-staff casters hold their post (docs/specs/dusk-pressure.md
 // §2c, engine/SiegeArtillery.js). An enemy Breachbolt caster with shots left, or one with
-// a Sleep / Silence Staff use left, never walks: it acts from where it stands (artillery
+// a Sleep / Hush Staff use left, never walks: it acts from where it stands (artillery
 // fires at the best target 3-10 away; a staff caster casts or strikes) or waits. The Danger
 // overlay, Threat Sight and the inspected reach draw the reach it will actually use.
 //
@@ -84,10 +84,10 @@ function sage(col, row, extra = {}) {
   };
 }
 
-/** A Mage with a Sleep Staff: it casts from its post and never walks. */
+/** A Mage with a Lullaby Staff: it casts from its post and never walks. */
 function mage(col, row, extra = {}) {
   const fire = weapon('Fire');
-  const staff = weapon('Sleep Staff');
+  const staff = weapon('Lullaby Staff');
   staff.statusEffect = 'sleep';
   return {
     ...sage(col, row),
@@ -267,7 +267,7 @@ describe('falling back to its orders', () => {
 
   it('a caster that also carries a status staff (an old per-spawn roll) only fires', async () => {
     const grid = makeGrid(25, 25);
-    const caster = sage(12, 12, { statusStaff: weapon('Silence Staff') });
+    const caster = sage(12, 12, { statusStaff: weapon('Hush Staff') });
     const target = foe('Target', 12, 7); // 5 away: in Silence (3-7) and siege range
     target.proficiencies = [{ type: 'Tome', rank: 'Prof' }]; // the staff's favourite
     const ctx = threatCtx(grid, [caster], [target]);
@@ -610,7 +610,7 @@ describe('a status-staff caster with a use left holds its post', () => {
   it('casts from its post at a unit in staff range, without stepping', async () => {
     const grid = makeGrid(25, 25);
     const caster = mage(12, 12);
-    const target = foe('Target', 12, 8); // 4 away: Sleep Staff reaches 3-5
+    const target = foe('Target', 12, 8); // 4 away: Lullaby Staff reaches 3-5
     const { casts, decisions } = await run(grid, caster, [target]);
     expect(casts).toEqual(['Target']);
     expect(decisions.get(caster).reason).toBe('status_staff');

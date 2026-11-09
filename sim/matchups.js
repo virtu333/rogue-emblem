@@ -8,7 +8,7 @@
 // defender may make a follow-up counter. Both are read from the engine's combat
 // forecast of the same exchange, taken before it resolves: attack speed (SPD less
 // weapon weight beyond STR/5, plus weapon, skill and accessory bonuses) at least 5
-// over the foe's, with the forecast's own exceptions (Pursuit Ring, Quick Riposte,
+// over the foe's, with the forecast's own exceptions (Pursuit Ring, Riposte,
 // weapon arts, preventEnemyDouble, a defender that cannot counter). A fight that ends
 // before the follow-up still counts. The forecast draws no randomness, so these
 // columns never shift the seeded win rates or damage.
@@ -107,8 +107,8 @@ function runMatchup(
     const atkTerrain = null;
     const defTerrain = null;
 
-    // Build skill context. The attacker initiates: without isInitiating, Death Blow,
-    // Darting Blow and the other initiating skills never fired in this sim.
+    // Build skill context. The attacker initiates: without isInitiating, Onslaught,
+    // Quickstep and the other initiating skills never fired in this sim.
     const atkMods = getSkillCombatMods(atk, def, [atk], [def], data.skills, atkTerrain, true);
     const defMods = getSkillCombatMods(def, atk, [def], [atk], data.skills, defTerrain);
     const skillCtx = {
@@ -240,9 +240,9 @@ printDoublesNote();
 
 installSeed(opts.seed);
 
-// Scenario 1: Swordmaster with Keen Sword + Wrath + crit_plus_15
+// Scenario 1: Swordmaster with Keen Sword + Seethe + crit_plus_15
 {
-  console.log('\n--- Swordmaster (Keen Sword + Wrath + Crit+15) vs Promoted Classes ---');
+  console.log('\n--- Swordmaster (Keen Sword + Seethe + Crit+15) vs Promoted Classes ---');
   const promotedEnemies = ['General', 'Paladin', 'Sage', 'Hero', 'Sniper'];
   const rows = promotedEnemies.map((defCls) => {
     const result = runMatchup(
@@ -267,16 +267,16 @@ installSeed(opts.seed);
   if (avgWR > 80) {
     issues.push({
       severity: 'CRITICAL',
-      label: 'Wrath + Keen Sword + Crit+15 is overpowered',
+      label: 'Seethe + Keen Sword + Crit+15 is overpowered',
       detail: `Swordmaster avg win rate ${avgWR.toFixed(1)}% vs promoted classes`,
-      suggestion: 'Consider reducing Wrath crit bonus from +30 to +20, or cap total crit at 80%',
+      suggestion: 'Consider reducing Seethe crit bonus from +30 to +20, or cap total crit at 80%',
     });
   }
 }
 
-// Scenario 2: Hero with Oathblade + Astra
+// Scenario 2: Hero with Oathblade + Constellation
 {
-  console.log('\n--- Hero (Oathblade + Astra) vs Promoted Classes ---');
+  console.log('\n--- Hero (Oathblade + Constellation) vs Promoted Classes ---');
   const promotedEnemies = ['General', 'Paladin', 'Sage', 'Swordmaster', 'Sniper'];
   const rows = promotedEnemies.map((defCls) => {
     const result = runMatchup('Hero', defCls, 5, opts.trials, ['astra'], [], 'Oathblade');
@@ -292,9 +292,10 @@ installSeed(opts.seed);
   if (avgWR > 85) {
     issues.push({
       severity: 'CRITICAL',
-      label: 'Brave + Astra stacking is game-breaking',
+      label: 'Brave + Constellation stacking is game-breaking',
       detail: `Hero avg win rate ${avgWR.toFixed(1)}% vs promoted classes`,
-      suggestion: 'Consider preventing Brave and Astra from stacking (Astra replaces Brave count)',
+      suggestion:
+        'Consider preventing Brave and Constellation from stacking (Constellation replaces Brave count)',
     });
   }
 }

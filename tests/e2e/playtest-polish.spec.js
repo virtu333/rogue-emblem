@@ -310,7 +310,7 @@ test.describe('desktop route rail widens with the window', () => {
 test.describe('reward bundle copy', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test('a Vulnerary ×2 card says "2 uses each"; a single item keeps "2 uses"', async ({
+  test('a Poultice ×2 card says "2 uses each"; a single item keeps "2 uses"', async ({
     page,
   }, info) => {
     await page.goto('/?devScene=battle&preset=battle_smoke&seed=42');
@@ -322,9 +322,9 @@ test.describe('reward bundle copy', () => {
       const s = window.__emblemRogueGame.scene.getScene('Battle');
       const rewards = s._lootController.mobileRewards;
       const vulnerary = structuredClone(
-        s.gameData.consumables.find((item) => item.name === 'Vulnerary'),
+        s.gameData.consumables.find((item) => item.name === 'Poultice'),
       );
-      // A rolled loot Vulnerary is a bundle of 2 (LOOT_VULNERARY_BUNDLE) of 2-use items.
+      // A rolled loot Poultice is a bundle of 2 (LOOT_VULNERARY_BUNDLE) of 2-use items.
       rewards.choices[0] = { type: 'consumable', item: vulnerary, quantity: 2 };
       rewards.choices[1] = { type: 'consumable', item: structuredClone(vulnerary) };
       rewards.selected = 0;
@@ -332,9 +332,9 @@ test.describe('reward bundle copy', () => {
     });
     const bundle = dialog.locator('.reward-card').nth(0);
     const single = dialog.locator('.reward-card').nth(1);
-    await expect(bundle.locator('.ch-reward-name')).toHaveText('Vulnerary ×2');
+    await expect(bundle.locator('.ch-reward-name')).toHaveText('Poultice ×2');
     await expect(bundle.locator('.ch-lines')).toContainText('2 uses each');
-    await expect(single.locator('.ch-reward-name')).toHaveText('Vulnerary');
+    await expect(single.locator('.ch-reward-name')).toHaveText('Poultice');
     await expect(single.locator('.ch-lines p')).toContainText(['2 uses']);
     await expect(single.locator('.ch-lines')).not.toContainText('each');
     await page.screenshot({ path: info.outputPath('reward-bundle.png') });

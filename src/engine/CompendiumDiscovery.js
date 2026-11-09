@@ -54,6 +54,9 @@ export function mergeDiscoveries(...records) {
   };
 }
 
+/** A catalog name as it reads today: an old name the naming pass renamed takes its new one. */
+const currentItemName = (name) => (Object.hasOwn(ITEM_RENAMES, name) ? ITEM_RENAMES[name] : name);
+
 /**
  * The catalog name an item instance answers to: its base name without a forge's "+N" or
  * a wear's "-N", without an imbue's adjective (one word: "Vampiric Iron Sword"), and
@@ -68,7 +71,7 @@ export function itemCatalogNames(item) {
     let name = stripItemNameSuffix(raw.trim());
     if (item._imbueId) name = name.replace(/^\S+\s+/, '');
     if (!name) continue;
-    names.add(Object.hasOwn(ITEM_RENAMES, name) ? ITEM_RENAMES[name] : name);
+    names.add(currentItemName(name));
   }
   return [...names];
 }
@@ -90,7 +93,8 @@ export function discoveriesInUpgrades(purchasedUpgrades) {
   const items = [];
   const skills = [];
   for (const key of Object.keys(purchasedUpgrades)) {
-    if (key.startsWith(SEEN_ITEM_KEY)) items.push(key.slice(SEEN_ITEM_KEY.length));
+    // A name saved before the naming pass renamed it answers to its new name (ITEM_RENAMES).
+    if (key.startsWith(SEEN_ITEM_KEY)) items.push(currentItemName(key.slice(SEEN_ITEM_KEY.length)));
     else if (key.startsWith(SEEN_SKILL_KEY)) skills.push(key.slice(SEEN_SKILL_KEY.length));
   }
   return { items: mergeSeen(items), skills: mergeSeen(skills) };

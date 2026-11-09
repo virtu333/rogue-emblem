@@ -1,6 +1,6 @@
-// Vulnerary uses: 2 from the catalog, 3 with Apothecary's Recipe (the `vulneraryUses`
+// Poultice uses: 2 from the catalog, 3 with Apothecary's Recipe (the `vulneraryUses`
 // meta effect), pinned at 3 in the prologue. One rule (engine/VulneraryRecipe.js) read by
-// every path that hands the army a Vulnerary; items already owned are never rewritten.
+// every path that hands the army a Poultice; items already owned are never rewritten.
 //
 // Expected uses are literals (2 / 3), never read back through the helper under test.
 
@@ -42,7 +42,7 @@ import { loadGameData } from './testData.js';
 const data = loadGameData();
 const WITH_RECIPE = { vulneraryUses: 3 };
 
-const vulneraries = (unit) => (unit.consumables || []).filter((c) => c.name === 'Vulnerary');
+const vulneraries = (unit) => (unit.consumables || []).filter((c) => c.name === 'Poultice');
 const usesOf = (items) => items.map((c) => c.uses);
 
 beforeEach(() => {
@@ -65,8 +65,8 @@ function startedRun(effects, options = {}) {
 }
 
 describe('the data', () => {
-  it('a Vulnerary has 2 uses and costs 300 (the price does not move with the Recipe)', () => {
-    const vulnerary = data.consumables.find((c) => c.name === 'Vulnerary');
+  it('a Poultice has 2 uses and costs 300 (the price does not move with the Recipe)', () => {
+    const vulnerary = data.consumables.find((c) => c.name === 'Poultice');
     expect(vulnerary.uses).toBe(2);
     expect(vulnerary.price).toBe(300);
   });
@@ -95,7 +95,7 @@ describe('the data', () => {
 });
 
 describe('the helper', () => {
-  const template = { name: 'Vulnerary', type: 'Consumable', uses: 2, price: 200 };
+  const template = { name: 'Poultice', type: 'Consumable', uses: 2, price: 200 };
 
   it('is 2 without the upgrade and 3 with it', () => {
     expect(vulneraryUsesFor(2, null)).toBe(2);
@@ -108,7 +108,7 @@ describe('the helper', () => {
     expect(vulneraryUsesFor(5, WITH_RECIPE)).toBe(5);
   });
 
-  it('lifts only the Vulnerary, never mutates the shared template', () => {
+  it('lifts only the Poultice, never mutates the shared template', () => {
     const lifted = applyVulneraryRecipe(template, WITH_RECIPE);
     expect(lifted.uses).toBe(3);
     expect(lifted.price).toBe(200);
@@ -122,21 +122,21 @@ describe('the helper', () => {
     const catalog = [template, { name: 'Elixir', type: 'Consumable', uses: 1 }];
     expect(consumableCatalogFor(catalog, WITH_RECIPE).map((c) => c.uses)).toEqual([3, 1]);
     expect(consumableCatalogFor(catalog, null).map((c) => c.uses)).toEqual([2, 1]);
-    expect(consumableTemplateFor(catalog, 'Vulnerary', WITH_RECIPE).uses).toBe(3);
+    expect(consumableTemplateFor(catalog, 'Poultice', WITH_RECIPE).uses).toBe(3);
     expect(consumableTemplateFor(catalog, 'Missing', WITH_RECIPE)).toBeNull();
     expect(consumableCatalogFor(undefined, WITH_RECIPE)).toEqual([]);
   });
 });
 
 describe('starting kits', () => {
-  it('every starting lord has a 2-use Vulnerary; the commander extra is 2 too', () => {
+  it('every starting lord has a 2-use Poultice; the commander extra is 2 too', () => {
     const run = startedRun({ extraVulnerary: 1 });
     const [commander, partner] = run.roster;
     expect(usesOf(vulneraries(commander))).toEqual([2, 2]);
     expect(usesOf(vulneraries(partner))).toEqual([2]);
   });
 
-  it("with Apothecary's Recipe every starting Vulnerary has 3 uses", () => {
+  it("with Apothecary's Recipe every starting Poultice has 3 uses", () => {
     const run = startedRun({ extraVulnerary: 1, vulneraryUses: 3 });
     const [commander, partner] = run.roster;
     expect(usesOf(vulneraries(commander))).toEqual([3, 3]);
@@ -148,7 +148,7 @@ describe('starting kits', () => {
     expect(vulneraries(run.roster[0])[0].price).toBe(300);
   });
 
-  it('an extra starter (Field Supplies II) gets a Vulnerary with the run uses', () => {
+  it('an extra starter (Field Supplies II) gets a Poultice with the run uses', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const plain = startedRun({ extraStartingUnitTier: 1, recruitStartingVulnerary: 1 });
     expect(usesOf(vulneraries(plain.roster[3]))).toEqual([2]);
@@ -171,7 +171,7 @@ describe('starting kits', () => {
     for (const c of upgraded) expect(usesOf(vulneraries(c.unit))).toEqual([3]);
   });
 
-  it('a boss lord recruit carries a Vulnerary with the run uses', () => {
+  it('a boss lord recruit carries a Poultice with the run uses', () => {
     const lordDef = data.lords.find((l) => l.name === 'Kira');
     const classData = data.classes.find((c) => c.name === lordDef.class);
     const make = (effects) =>
@@ -184,7 +184,7 @@ describe('starting kits', () => {
 });
 
 describe('blessings', () => {
-  it('Field Medic gives every unit a Vulnerary with the run uses', () => {
+  it('Field Medic gives every unit a Poultice with the run uses', () => {
     for (const [effects, expected] of [
       [null, 2],
       [WITH_RECIPE, 3],
@@ -193,7 +193,7 @@ describe('blessings', () => {
       const beforeCounts = run.roster.map((u) => vulneraries(u).length);
       run._applySingleRunStartBlessingEffect('field_medic', {
         type: 'starting_consumable_all',
-        params: { name: 'Vulnerary' },
+        params: { name: 'Poultice' },
       });
       run.roster.forEach((unit, i) => {
         const added = vulneraries(unit).slice(beforeCounts[i]);
@@ -221,7 +221,7 @@ describe('blessings', () => {
     }
   });
 
-  it('an extra-consumable blessing that names the Vulnerary uses the run uses too', () => {
+  it('an extra-consumable blessing that names the Poultice uses the run uses too', () => {
     for (const [effects, expected] of [
       [null, 2],
       [WITH_RECIPE, 3],
@@ -231,7 +231,7 @@ describe('blessings', () => {
       const before = vulneraries(lord).length;
       run._applySingleRunStartBlessingEffect('test', {
         type: 'extra_consumable',
-        params: { itemName: 'Vulnerary', value: 1 },
+        params: { itemName: 'Poultice', value: 1 },
       });
       expect(usesOf(vulneraries(lord).slice(before))).toEqual([expected]);
     }
@@ -263,8 +263,8 @@ describe('shops', () => {
     ]) {
       const run = startedRun(effects);
       const stock = openShop(run);
-      const entry = stock.find((e) => e.item.name === 'Vulnerary');
-      expect(entry, 'a shop always stocks a Vulnerary').toBeTruthy();
+      const entry = stock.find((e) => e.item.name === 'Poultice');
+      expect(entry, 'a shop always stocks a Poultice').toBeTruthy();
       expect(entry.item.uses).toBe(expected);
       expect(entry.price).toBe(300); // 3 uses or 2, the same price
       run.gold = 1000;
@@ -278,7 +278,7 @@ describe('shops', () => {
   it('a reroll draws from the same catalog', () => {
     const run = startedRun(WITH_RECIPE);
     const stock = openShop(run);
-    expect(usesOf(stock.filter((e) => e.item.name === 'Vulnerary').map((e) => e.item))).toEqual([
+    expect(usesOf(stock.filter((e) => e.item.name === 'Poultice').map((e) => e.item))).toEqual([
       3, 3,
     ]);
   });
@@ -308,13 +308,12 @@ describe('loot and villages', () => {
         metaEffects: effects,
       });
       vi.restoreAllMocks();
-      for (const choice of record.choices)
-        if (choice.item?.name === 'Vulnerary') found.push(choice);
+      for (const choice of record.choices) if (choice.item?.name === 'Poultice') found.push(choice);
     }
     return found;
   }
 
-  it('a rolled Vulnerary reward carries the run uses and comes two at a time', () => {
+  it('a rolled Poultice reward carries the run uses and comes two at a time', () => {
     const plain = lootedVulneraries(null);
     expect(plain.length).toBeGreaterThan(0);
     for (const choice of plain) {
@@ -329,7 +328,7 @@ describe('loot and villages', () => {
     }
   });
 
-  it('a village reward Vulnerary carries the run uses', () => {
+  it('a village reward Poultice carries the run uses', () => {
     for (const [effects, expected] of [
       [null, 2],
       [WITH_RECIPE, 3],
@@ -337,7 +336,7 @@ describe('loot and villages', () => {
       const run = startedRun(effects);
       const catalog = run.getConsumableCatalog();
       const item = rollVillageRewardItem('act1', data.lootTables, catalog, () => 0);
-      expect(item.name).toBe('Vulnerary');
+      expect(item.name).toBe('Poultice');
       expect(item.uses).toBe(expected);
 
       const delivered = [];
@@ -370,7 +369,7 @@ describe('loot and villages', () => {
       expect(
         controller.handleUnitActionEnd({ faction: 'player', col: 4, row: 6, currentHP: 20 }),
       ).toBe(true);
-      expect(delivered[0].name).toBe('Vulnerary');
+      expect(delivered[0].name).toBe('Poultice');
       expect(delivered[0].uses).toBe(expected);
       vi.restoreAllMocks();
     }
@@ -393,7 +392,7 @@ function stub() {
 describe('the prologue', () => {
   const prologue = data.prologue;
 
-  it('every authored Vulnerary has 3 uses (the prologue applies no meta effects)', () => {
+  it('every authored Poultice has 3 uses (the prologue applies no meta effects)', () => {
     const roster = buildPrologueRoster(prologue, data, prologue.chapters[0]);
     const all = roster.flatMap(vulneraries);
     expect(all.length).toBeGreaterThan(0);
@@ -402,22 +401,22 @@ describe('the prologue', () => {
     expect(usesOf(vulneraries(edric))).toEqual([3]);
   });
 
-  it('authored loot and stock Vulneraries have 3 uses', () => {
+  it('authored loot and stock Poultices have 3 uses', () => {
     const lootChapter = prologue.chapters.find((c) =>
-      (c.loot || []).some((l) => l.item === 'Vulnerary'),
+      (c.loot || []).some((l) => l.item === 'Poultice'),
     );
     const choices = buildPrologueLootChoices(lootChapter.loot, data);
-    expect(choices.find((c) => c.item?.name === 'Vulnerary').item.uses).toBe(3);
-    const stockNode = prologue.route.nodes.find((n) => (n.stock || []).includes('Vulnerary'));
+    expect(choices.find((c) => c.item?.name === 'Poultice').item.uses).toBe(3);
+    const stockNode = prologue.route.nodes.find((n) => (n.stock || []).includes('Poultice'));
     const stock = buildPrologueShopStock(stockNode.stock, data);
-    const entries = stock.filter((e) => e.item.name === 'Vulnerary');
+    const entries = stock.filter((e) => e.item.name === 'Poultice');
     expect(entries.length).toBeGreaterThan(0);
     expect(usesOf(entries.map((e) => e.item)).every((u) => u === 3)).toBe(true);
   });
 
-  it("a chapter's authored Vulnerary reward keeps its authored bundle of 3 (not the rolled 2)", () => {
+  it("a chapter's authored Poultice reward keeps its authored bundle of 3 (not the rolled 2)", () => {
     const lootChapter = prologue.chapters.find((c) =>
-      (c.loot || []).some((l) => l.item === 'Vulnerary' && l.quantity === 3),
+      (c.loot || []).some((l) => l.item === 'Poultice' && l.quantity === 3),
     );
     expect(lootChapter, 'a chapter authors a bundle of 3').toBeTruthy();
     const run = new RunManager(data, null);
@@ -427,18 +426,18 @@ describe('the prologue', () => {
       goldEarned: 0,
       completionGoldAward: 0,
     });
-    const choice = record.choices.find((c) => c.item?.name === 'Vulnerary');
+    const choice = record.choices.find((c) => c.item?.name === 'Poultice');
     expect(choice.quantity).toBe(3);
     expect(choice.item.uses).toBe(3);
   });
 
-  it('the prologue run acquires 3-use Vulneraries whatever the meta says', () => {
+  it('the prologue run acquires 3-use Poultices whatever the meta says', () => {
     const run = new RunManager(data, null);
     run.startPrologue(data);
-    expect(run.getConsumableTemplate('Vulnerary').uses).toBe(3);
+    expect(run.getConsumableTemplate('Poultice').uses).toBe(3);
     expect(usesOf(vulneraries(run.roster[0]))).toEqual([3]);
     const standard = new RunManager(data, null);
-    expect(standard.getConsumableTemplate('Vulnerary').uses).toBe(2);
+    expect(standard.getConsumableTemplate('Poultice').uses).toBe(2);
   });
 
   it('the data says so and the validator holds it', () => {
@@ -452,7 +451,7 @@ describe('the prologue', () => {
 });
 
 describe('saves', () => {
-  it('a 3-use Vulnerary from a run saved before the change loads unchanged', () => {
+  it('a 3-use Poultice from a run saved before the change loads unchanged', () => {
     const run = startedRun(null);
     const old = vulneraries(run.roster[0])[0];
     old.uses = 3;
@@ -463,32 +462,32 @@ describe('saves', () => {
     expect(kept.price).toBe(300);
   });
 
-  it('a half-used Vulnerary keeps its remaining uses through a save', () => {
+  it('a half-used Poultice keeps its remaining uses through a save', () => {
     const run = startedRun(WITH_RECIPE);
     vulneraries(run.roster[0])[0].uses = 1;
     const loaded = RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), data);
     expect(vulneraries(loaded.roster[0])[0].uses).toBe(1);
   });
 
-  it("the run remembers Apothecary's Recipe: a loaded run still acquires 3-use Vulneraries", () => {
+  it("the run remembers Apothecary's Recipe: a loaded run still acquires 3-use Poultices", () => {
     const run = startedRun(WITH_RECIPE);
     const loaded = RunManager.fromJSON(JSON.parse(JSON.stringify(run.toJSON())), data);
-    expect(loaded.getConsumableTemplate('Vulnerary').uses).toBe(3);
-    expect(loaded.getConsumableCatalog().find((c) => c.name === 'Vulnerary').uses).toBe(3);
+    expect(loaded.getConsumableTemplate('Poultice').uses).toBe(3);
+    expect(loaded.getConsumableCatalog().find((c) => c.name === 'Poultice').uses).toBe(3);
     const plain = RunManager.fromJSON(JSON.parse(JSON.stringify(startedRun(null).toJSON())), data);
-    expect(plain.getConsumableTemplate('Vulnerary').uses).toBe(2);
+    expect(plain.getConsumableTemplate('Poultice').uses).toBe(2);
   });
 
   it('a run saved before the effect existed acquires the catalog uses, and loads', () => {
     const saved = JSON.parse(JSON.stringify(startedRun({ extraVulnerary: 1 }).toJSON()));
     expect(saved.metaEffects.vulneraryUses).toBeUndefined();
     const loaded = RunManager.fromJSON(saved, data);
-    expect(loaded.getConsumableTemplate('Vulnerary').uses).toBe(2);
+    expect(loaded.getConsumableTemplate('Poultice').uses).toBe(2);
   });
 
   it('serializing a unit and the shared catalog never write back to the data', () => {
     const run = startedRun(WITH_RECIPE);
     serializeUnit(run.roster[0]);
-    expect(data.consumables.find((c) => c.name === 'Vulnerary').uses).toBe(2);
+    expect(data.consumables.find((c) => c.name === 'Poultice').uses).toBe(2);
   });
 });

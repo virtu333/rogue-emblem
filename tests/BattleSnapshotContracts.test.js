@@ -461,7 +461,7 @@ describe('deed progress (Deeds & Epithets)', () => {
     const s = scene();
     s.gameData.deeds = { deeds: [] };
     const ally = unit('Mira');
-    ally.consumables = [{ uid: 'Mira-vul', name: 'Vulnerary', type: 'Consumable', uses: 3 }];
+    ally.consumables = [{ uid: 'Mira-vul', name: 'Poultice', type: 'Consumable', uses: 3 }];
     s.playerUnits.push(ally);
     const [hero, mira] = s.playerUnits;
     const [foe] = s.enemyUnits;
@@ -519,7 +519,7 @@ describe('deed progress (Deeds & Epithets)', () => {
   it('a unit felled outside a combat (a Ballista bolt, a burst) is swept through the death record', async () => {
     const s = scene();
     const ally = unit('Mira');
-    ally.consumables = [{ uid: 'Mira-vul', name: 'Vulnerary', type: 'Consumable', uses: 1 }];
+    ally.consumables = [{ uid: 'Mira-vul', name: 'Poultice', type: 'Consumable', uses: 1 }];
     s.playerUnits.push(ally);
     s._fallenBattleRecords = [];
     // The damage settled elsewhere (no killer to name); the sweep finds her at 0 HP.

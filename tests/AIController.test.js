@@ -943,7 +943,7 @@ describe('AIController', () => {
         row: 5,
         className: 'Mage',
         statusStaff: {
-          name: 'Sleep Staff',
+          name: 'Lullaby Staff',
           type: 'Staff',
           statusEffect: 'sleep',
           range: '3-5',
@@ -977,7 +977,7 @@ describe('AIController', () => {
         row: 5,
         className: 'Mage',
         statusStaff: {
-          name: 'Sleep Staff',
+          name: 'Lullaby Staff',
           type: 'Staff',
           statusEffect: 'sleep',
           range: '3-5',
@@ -1010,7 +1010,7 @@ describe('AIController', () => {
         row: 5,
         className: 'Mage',
         statusStaff: {
-          name: 'Sleep Staff',
+          name: 'Lullaby Staff',
           type: 'Staff',
           statusEffect: 'sleep',
           range: '3-5',
@@ -1038,7 +1038,7 @@ describe('AIController', () => {
         row: 5,
         className: 'Mage',
         statusStaff: {
-          name: 'Sleep Staff',
+          name: 'Lullaby Staff',
           type: 'Staff',
           statusEffect: 'sleep',
           range: '3-5',
@@ -1070,7 +1070,7 @@ describe('AIController', () => {
         row: 5,
         className: 'Mage',
         statusStaff: {
-          name: 'Sleep Staff',
+          name: 'Lullaby Staff',
           type: 'Staff',
           statusEffect: 'sleep',
           range: '3-5',
@@ -1105,7 +1105,7 @@ describe('AIController', () => {
         row: 5,
         className: 'Mage',
         statusStaff: {
-          name: 'Sleep Staff',
+          name: 'Lullaby Staff',
           type: 'Staff',
           statusEffect: 'sleep',
           range: '3-5',

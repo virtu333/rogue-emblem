@@ -139,7 +139,7 @@ test('battle trade transfers once and commits movement; rewind confirmation is n
     s.updateUnitPosition(b);
     b.consumables = [];
     a.consumables = [
-      { name: 'Test Vulnerary', type: 'Consumable', effect: 'heal', uses: 3, value: 10 },
+      { name: 'Test Poultice', type: 'Consumable', effect: 'heal', uses: 3, value: 10 },
     ];
     s.selectUnit(a);
     s.showBattleTradeUI(a, b);
@@ -147,10 +147,10 @@ test('battle trade transfers once and commits movement; rewind confirmation is n
   const trade = page.getByRole('dialog', { name: 'Trade items', exact: true });
   const tab = trade.getByRole('tab', { name: /^Supplies/ });
   if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.tap();
-  await trade.getByRole('button', { name: 'Test Vulnerary', exact: true }).tap();
-  // Every free slot on the other side reads "Give Test Vulnerary to ⟨b⟩, slot N".
+  await trade.getByRole('button', { name: 'Test Poultice', exact: true }).tap();
+  // Every free slot on the other side reads "Give Test Poultice to ⟨b⟩, slot N".
   await trade
-    .getByRole('button', { name: /^Give Test Vulnerary to / })
+    .getByRole('button', { name: /^Give Test Poultice to / })
     .first()
     .tap();
   expect(

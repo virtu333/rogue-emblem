@@ -1,6 +1,6 @@
 // ActionAbilitySystem — pure helpers for utility abilities: "action"-trigger
 // skills carrying structured `actionAbility` data (Blink, Rally Cry, Healing
-// Circle, Ensnare, Smite, Transfuse, Great Sacrifice, Goddess Dance, Blink Strike).
+// Circle, Ensnare, Smite, Transfuse, Great Sacrifice, Dawn Dance, Blink Strike).
 // Battle actions that appear in the Ability submenu of the unit action menu. No Phaser
 // dependencies.
 //
@@ -450,12 +450,12 @@ export function settleGreatSacrifice(user, ability, allies) {
   return { user, amount, paid, userBefore, userAfter: user.currentHP, targets };
 }
 
-// --- Goddess Dance (refresh_adjacent): refresh every adjacent ally who has acted ---
+// --- Dawn Dance (refresh_adjacent): refresh every adjacent ally who has acted ---
 
 /**
  * The allies a dancer can refresh: next to it (the four neighbouring tiles), alive, having
  * acted, and not dancers themselves (a dancer's own turn is its own). This is Dance's rule
- * (BattleScene.findDanceTargets reads it too), and Goddess Dance refreshes all of them.
+ * (BattleScene.findDanceTargets reads it too), and Dawn Dance refreshes all of them.
  * "Dancer" is read through effective skills, so a Dance an accessory lends counts.
  * @param {object} unit the dancer
  * @param {object[]} units the player's army
@@ -490,7 +490,7 @@ export function refreshActedAlly(ally) {
 }
 
 /**
- * Goddess Dance, settled: every target is refreshed (the caller spends the use, as for
+ * Dawn Dance, settled: every target is refreshed (the caller spends the use, as for
  * Healing Circle, and records the deeds and XP).
  */
 export function settleGoddessDance(targets) {

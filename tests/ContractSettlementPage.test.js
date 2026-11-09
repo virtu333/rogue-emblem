@@ -51,14 +51,14 @@ function fillArmy(run) {
   for (const unit of run.roster) {
     while (unit.inventory.length < 5) unit.inventory.push(structuredClone(unit.inventory[0]));
     while (unit.consumables.length < 3)
-      unit.consumables.push(run.getConsumableTemplate('Vulnerary'));
+      unit.consumables.push(run.getConsumableTemplate('Poultice'));
   }
   const caps = run.getConvoyCapacities();
   run.convoy.weapons = Array.from({ length: caps.weapons }, () =>
     structuredClone(run.gameData.weapons[0]),
   );
   run.convoy.consumables = Array.from({ length: caps.consumables }, () =>
-    run.getConsumableTemplate('Vulnerary'),
+    run.getConsumableTemplate('Poultice'),
   );
 }
 

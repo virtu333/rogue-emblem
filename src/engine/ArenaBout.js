@@ -5,7 +5,7 @@
 // the next. It ends when one falls or after `maxRounds` (colosseum.json
 // arena.maxRounds): a draw. The entrant never dies: a lethal blow leaves it at 1 HP
 // and the bout is lost. Skill mods are rebuilt every round, so a skill that reads HP
-// (Wrath, a below-half accessory) acts on the fighter as it stands now.
+// (Seethe, a below-half accessory) acts on the fighter as it stands now.
 //
 // estimateArenaOdds plays the same bout many times on copies, on its own seeded
 // stream, and puts Math.random back afterwards: showing odds never moves the run's

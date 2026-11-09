@@ -322,7 +322,7 @@ it('promotion rejects missing uses at validation, with a fixture that otherwise 
   expect(await controller.executePromotion(unit, seal)).toBe(false);
   expect(unit).toEqual(before);
   expect(scene.showBriefBanner).toHaveBeenCalledWith(
-    'Master Seal required to promote.',
+    'Sovereign Seal required to promote.',
     expect.anything(),
   );
   expect(resolve).not.toHaveBeenCalled();
@@ -450,7 +450,7 @@ it('Promote menu observes a rejected promotion operation', async () => {
   );
 });
 
-it('the inventory Master Seal row observes a rejected promotion operation', async () => {
+it('the inventory Sovereign Seal row observes a rejected promotion operation', async () => {
   const { scene, unit, seal } = promotionFixture();
   const report = vi.spyOn(errorReporter, 'reportAsyncError').mockImplementation(() => {});
   const rejection = new Error('inventory promotion rejected');

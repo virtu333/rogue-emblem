@@ -243,7 +243,7 @@ test('a real consumable action survives quota, Retry and Save & Exit without rep
   await page.evaluate(() => {
     const s = window.__emblemRogueGame.scene.getScene('Battle');
     const actor = s.playerUnits[0];
-    const item = { name: 'Vulnerary', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
+    const item = { name: 'Poultice', type: 'Consumable', effect: 'heal', value: 10, uses: 3 };
     actor.currentHP = 1;
     actor.consumables = [item];
     actor.skills = []; // Ordinary completion, with no extra Canto choice.

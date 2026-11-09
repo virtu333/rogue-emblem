@@ -214,7 +214,7 @@ describe('executeHealAll error recovery', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const scene = makeScene();
     const staff = {
-      name: 'Fortify',
+      name: 'Canticle',
       type: 'Staff',
       healBase: 10,
       range: '1',
@@ -245,7 +245,7 @@ describe('executePromotion error recovery', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const scene = makeScene();
     const unit = makeUnit({ name: 'Knight' });
-    const seal = { name: 'Master Seal', effect: 'promote', uses: 1 };
+    const seal = { name: 'Sovereign Seal', effect: 'promote', uses: 1 };
     unit.consumables = [seal];
     resolvePromotionTargetsMock.mockImplementation(() => {
       throw new Error('targets boom');
@@ -265,7 +265,7 @@ describe('executePromotion error recovery', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const scene = makeScene();
     const unit = makeUnit({ name: 'Knight' });
-    const seal = { name: 'Master Seal', effect: 'promote', uses: 1 };
+    const seal = { name: 'Sovereign Seal', effect: 'promote', uses: 1 };
     unit.consumables = [seal];
     resolvePromotionTargetsMock.mockReturnValue([
       { name: 'General', promotionBonuses: { HP: 3, DEF: 2 } },

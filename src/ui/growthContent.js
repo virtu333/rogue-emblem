@@ -157,7 +157,7 @@ export function promotionRoleLine(unit, cls, ranks = [], classes = []) {
  * @param {{ churchRun?: object|null }} [options] - `churchRun`: the run whose church performs the
  *   promotion; its Kingmaker's Oath adds its bonus here exactly as `promoteAtChurch` does
  *   (TwistedBoons.applyKingmakerBonus on the class's canonical bonuses), so the preview and the
- *   rite show the stats the unit gets. Left out (a Master Seal, a battle's Promote), none applies.
+ *   rite show the stats the unit gets. Left out (a Sovereign Seal, a battle's Promote), none applies.
  *   `run`: the run whose convoy takes a starter weapon the bag cannot (`churchRun` serves too);
  *   with neither, a grant past the bag reads as lost.
  */

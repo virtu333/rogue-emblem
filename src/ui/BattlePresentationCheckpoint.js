@@ -250,7 +250,7 @@ export function completeResolvedAction(scene, continuation, { session } = {}) {
       )
         continue;
       observeHistoryAction(scene, 'refreshed', unit, ally, `Commander's Gambit`);
-      // The shared refresh: a Galeforce Charm proc on this kill is used up by it.
+      // The shared refresh: a Onrush Charm proc on this kill is used up by it.
       refreshUnitAction(ally);
       safeBattlePresentation('Gambit tint', () => restUnitAppearance(scene, ally), { scene });
     }

@@ -37,6 +37,7 @@ import { TurnManager } from '../src/engine/TurnManager.js';
 import { RunManager } from '../src/engine/RunManager.js';
 import { getEntryState, hydrateBattleTimeline } from '../src/engine/BattleTimeline.js';
 import { loadGameData } from './testData.js';
+import { renameItemsDeep } from '../src/engine/ItemNameMigration.js';
 import { installSeed, restoreMathRandom } from '../sim/lib/SeededRNG.js';
 
 const FIXTURE = new URL('./fixtures/saves/pre344-five-abilities-midbattle.json', import.meta.url);
@@ -108,10 +109,13 @@ function armyOf(scene) {
 
 /**
  * A JSON copy with every unit's loadout lists removed (what the migration may touch), and the
- * commander flag the load has always re-stamped from `commanderEntityId`.
+ * commander flag the load has always re-stamped from `commanderEntityId`. Item names are said as
+ * today (the item-name migration also runs on this pre-rename save: Vulnerary is a Poultice).
  */
 function withoutLoadout(value) {
-  return JSON.parse(JSON.stringify(value), (key, v) =>
+  const copy = JSON.parse(JSON.stringify(value));
+  renameItemsDeep(copy, data);
+  return JSON.parse(JSON.stringify(copy), (key, v) =>
     v && typeof v === 'object' && !Array.isArray(v) && 'battleEntityId' in v
       ? Object.fromEntries(
           Object.entries(v).filter(
@@ -149,7 +153,9 @@ describe('a save from before the ability slots, suspended mid-battle', () => {
     const before = raw.battleInProgress;
     expect(checkpoint.rngState).toEqual(before.checkpoint.rngState);
     expect(checkpoint.decisionRngState).toEqual(before.checkpoint.decisionRngState);
-    expect(run.battleInProgress.entryBattleState).toEqual(before.entryBattleState);
+    expect(withoutLoadout(run.battleInProgress.entryBattleState)).toEqual(
+      withoutLoadout(before.entryBattleState),
+    );
     expect(withoutLoadout(checkpoint)).toEqual(withoutLoadout(before.checkpoint));
     expect(scene._battleRng.getState()).toEqual(before.checkpoint.rngState);
   });

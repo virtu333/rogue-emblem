@@ -77,7 +77,7 @@ function strike(attacker, defender, artId, units, { random = () => 0.01, world }
 }
 
 describe('Splash v2: each victim takes its own blow', () => {
-  // Burning Quake: Fire (4 might) + the art's +10 Hit; area ×0.6. MAG 20.
+  // Cinder Quake: Fire (4 might) + the art's +10 Hit; area ×0.6. MAG 20.
   const mage = () => unit('Mage', 'player', 1, 1, { MAG: 20, SKL: 20 }, { weapon: weapon('Fire') });
 
   it("a neighbour identical to the primary takes today's splash: 0.6 × the non-crit hit", () => {

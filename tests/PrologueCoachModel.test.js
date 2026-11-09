@@ -143,16 +143,16 @@ describe('Prologue coach: protecting a hurt unit names what it can heal with', (
   const gaspar = (healItem) => ({ name: 'Gaspar', acted: false, hp: 9, maxHp: 30, healItem });
   const edric = (healItem) => ({ name: 'Edric', acted: false, hp: 20, maxHp: 20, healItem });
 
-  it('its own Vulnerary: Item', () => {
-    const state = hurt([edric(null), gaspar('Vulnerary')]);
+  it('its own Poultice: Item', () => {
+    const state = hurt([edric(null), gaspar('Poultice')]);
     expect(state).toMatchObject({ id: 'protect', goal: 'Protect Gaspar' });
-    expect(state.detail).toContain('Select Gaspar, then Item → Vulnerary');
+    expect(state.detail).toContain('Select Gaspar, then Item → Poultice');
   });
 
   it("none of its own but an ally's: Trade for it, then Item (never 'Item' it lacks)", () => {
-    const state = hurt([edric('Vulnerary'), gaspar(null)]);
+    const state = hurt([edric('Poultice'), gaspar(null)]);
     expect(state.detail).toBe(
-      'Gaspar is badly hurt and carries no Vulnerary, but Edric does. Move Gaspar next to Edric, choose Trade and take it, then Item → Vulnerary. Or pull back out of reach.',
+      'Gaspar is badly hurt and carries no Poultice, but Edric does. Move Gaspar next to Edric, choose Trade and take it, then Item → Poultice. Or pull back out of reach.',
     );
   });
 

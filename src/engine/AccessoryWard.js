@@ -1,12 +1,12 @@
 // AccessoryWard.js — the Warden's Buckler's ward (combatEffects `firstHitWard`). Pure.
 //
 // Once a battle, the first blow that lands on the wearer and would deal more than 1 damage
-// deals 1 instead (a crit or a Lethality too). Combat.rollStrike asks `wardStrike` after the
+// deals 1 instead (a crit or a Fell Stroke too). Combat.rollStrike asks `wardStrike` after the
 // on-defend skills and affixes have had their say and before drain and the Revival Stones
 // read the blow, so a warded blow is a 1-damage blow to everything after it. A blow that
 // already deals 0 or 1 leaves the ward ready.
 //
-// The ward is spent on the unit (`_wardSpent`), like Miracle and the Phoenix Brooch: the
+// The ward is spent on the unit (`_wardSpent`), like Reprieve and the Phoenix Brooch: the
 // battle checkpoint keeps it (BattleUnitState), a Vision rewind restores it, a fresh battle
 // and the run save clear it (BattleScene.resetUnitForBattle, UnitSerialization), and an
 // arena bout starts with it ready. Only strikes in a combat exchange meet it: area and line

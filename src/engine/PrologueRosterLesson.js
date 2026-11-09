@@ -9,7 +9,7 @@
 //             practice is another unit's spare: Gaspar's sword)
 // Then, only if the player asks for more (the offer: "Show me" or "Done"), two
 // optional goals:
-//   trade     a unit-to-unit trade (Edric's Vulnerary to the newcomer)
+//   trade     a unit-to-unit trade (Edric's Poultice to the newcomer)
 //   store     put a carried item in the convoy
 // A goal met another way counts (a newcomer armed before the lesson has withdrawn; a
 // trade made during the core). A goal the army can't do right now (nobody carries a
@@ -232,7 +232,7 @@ export function chooseRosterLessonMore(run, accept) {
  * `from` gives `item` to `to`). Completes every step the action is (any order: a goal
  * met early counts), then settles the next one. A step completes only when the army's
  * state shows the skill the copy promises (review, 2026-10-04): Withdraw once a combat
- * weapon the newcomer can wield reached her bag (a Vulnerary, or a lance she can't
+ * weapon the newcomer can wield reached her bag (a Poultice, or a lance she can't
  * use, is not the lesson), Equip once the named unit really fights with the named
  * weapon. Returns the steps it completed. Mutates the run's ledger; the caller saves.
  */

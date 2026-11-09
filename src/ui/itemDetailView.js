@@ -135,7 +135,7 @@ export function appendItemDetail(
   if (keys) title.append(keys);
   const requirement = shopRequirementLabel(item);
   if (requirement) title.append(el('p', requirement, 'shop-meta'));
-  // A Master Seal under Kingmaker's Oath: sold and dropped, but it can't be used.
+  // A Sovereign Seal under Kingmaker's Oath: sold and dropped, but it can't be used.
   const banned = run ? classChangeItemTag(run, item) : '';
   if (banned) title.append(el('p', banned, 'shop-meta'));
   // A whetstone under Smith's Exile: offered, but it forges nothing.

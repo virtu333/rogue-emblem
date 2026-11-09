@@ -22,7 +22,7 @@ function isActor(scene, unit) {
 }
 /**
  * A dancer's refresh, drawn on the ally (presentation only): the dimming of a unit that has
- * acted lifts, with a heal chime, a buff glint and a sparkle. Dance and Goddess Dance share it.
+ * acted lifts, with a heal chime, a buff glint and a sparkle. Dance and Dawn Dance share it.
  */
 export function presentRefreshSparkle(scene, ally) {
   safeBattlePresentation('dance refresh graphic', () => restUnitAppearance(scene, ally), { scene });

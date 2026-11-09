@@ -315,7 +315,7 @@ describe('a real combat through the scene and the harness', () => {
 });
 
 describe('every non-combat lethal source breaks a stone', () => {
-  // A mage's Burning Quake splashes its neighbour for 0.6 x 20 = 12 (the PostCombatEffects
+  // A mage's Cinder Quake splashes its neighbour for 0.6 x 20 = 12 (the PostCombatEffects
   // and AreaWeaponArts tests work the same numbers).
   const art = data.weaponArts.arts.find((a) => a.id === 'magic_burning_quake');
   const fire = structuredClone(data.weapons.find((w) => w.name === 'Fire'));

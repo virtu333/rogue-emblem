@@ -88,7 +88,7 @@ const dirtyV2 = () => ({
       tally: { kills: 14.9, bossKills: 2, crits: -3, healed: '120', battles: 0, refreshes: 4 },
       stats: [41.7, -2, 22, 1500, 12, 9, 11, 7],
       weapon: `  ${LONG}  `,
-      items: ['Elfire', '', 7, null, 'Vulnerary', 'A', 'B', 'C', 'D', 'E', 'F'],
+      items: ['Elfire', '', 7, null, 'Poultice', 'A', 'B', 'C', 'D', 'E', 'F'],
       accessory: 'Speed Ring',
       skills: ['charisma', 'Bad Id', 'charisma', 'vantage', 'a', 'b', 'c', 'd', 'e', 'f', 'g'],
       deeds: ['bossbane', 'x', 'y', 'z', 'w', 'v', 'u', 'BAD'],
@@ -116,7 +116,7 @@ describe('victory records v2', () => {
       tally: { kills: 14, bossKills: 2, healed: 120 },
       stats: [41, 0, 22, 999, 12, 9, 11, 7],
       weapon: 'X'.repeat(80),
-      items: ['Elfire', 'Vulnerary', 'A', 'B', 'C', 'D', 'E'], // 7 = 4 more weapons + 3 supplies
+      items: ['Elfire', 'Poultice', 'A', 'B', 'C', 'D', 'E'], // 7 = 4 more weapons + 3 supplies
       accessory: 'Speed Ring',
       skills: ['charisma', 'vantage', 'a', 'b', 'c', 'd', 'e', 'f'], // MAX_SKILLS + MAX_ABILITIES, ids only, no repeats
       deeds: ['bossbane', 'x', 'y', 'z', 'w', 'v'],
@@ -461,7 +461,7 @@ describe('a won run writes a v2 record', () => {
     const spare = { name: 'Iron Sword', type: 'Sword', uid: 'w-iron' };
     lead.inventory = [spare, sword];
     lead.weapon = sword;
-    lead.consumables = [{ name: 'Vulnerary', type: 'Consumable', uid: 'c-1' }];
+    lead.consumables = [{ name: 'Poultice', type: 'Consumable', uid: 'c-1' }];
     lead.accessory = { name: 'Speed Ring' };
     lead.skills = ['charisma', 'sol'];
     lead.stats = { HP: 42, STR: 19, MAG: 2, SKL: 17, SPD: 15, DEF: 12, RES: 6, LCK: 11, MOV: 5 };
@@ -494,7 +494,7 @@ describe('a won run writes a v2 record', () => {
       tally: { kills: 14, bossKills: 2, crits: 3, battles: 9 },
       stats: [42, 19, 2, 17, 15, 12, 6, 11],
       weapon: 'Steel Sword +2',
-      items: ['Iron Sword', 'Vulnerary'],
+      items: ['Iron Sword', 'Poultice'],
       accessory: 'Speed Ring',
       skills: ['charisma', 'sol'],
       deeds: ['bossbane', 'veteran', 'keen_edge'], // the title, then newest
@@ -552,9 +552,9 @@ describe('victory records content', () => {
     expect(fellAtText(undefined)).toBe('Fell on the march');
     expect(recordStatRows({ stats: [42, 19, 2, 17, 15, 12, 6, 11] }).map((r) => `${r.label} ${r.value}`)).toEqual(['HP 42', 'STR 19', 'MAG 2', 'SKL 17', 'SPD 15', 'DEF 12', 'RES 6', 'LCK 11']); // prettier-ignore
     expect(recordStatRows({})).toEqual([]);
-    expect(recordGear({ weapon: 'Steel Sword', items: ['Vulnerary'], accessory: 'Speed Ring' })).toEqual([
+    expect(recordGear({ weapon: 'Steel Sword', items: ['Poultice'], accessory: 'Speed Ring' })).toEqual([
       { name: 'Steel Sword', kind: 'weapon' },
-      { name: 'Vulnerary', kind: 'item' },
+      { name: 'Poultice', kind: 'item' },
       { name: 'Speed Ring', kind: 'accessory' },
     ]); // prettier-ignore
     expect(recordSkills({ skills: ['charisma', 'gone_skill'] }, data.skills).map((s) => s.name)).toEqual(['Charisma', 'Gone Skill']); // prettier-ignore

@@ -245,7 +245,7 @@ describe('the harness pays area credits', () => {
     expect(flanked.granted).toEqual([['Edric', alone.granted[0][1] + 24]]);
   });
 
-  it('a Burning Quake that fells a neighbour pays its kill credit with the primary', () => {
+  it('a Cinder Quake that fells a neighbour pays its kill credit with the primary', () => {
     const battle = new HeadlessBattle(data, { act: 'act1', objective: 'rout' });
     battle.turnPar = 99;
     const hero = unit('Mage', 5, { xp: 0 });

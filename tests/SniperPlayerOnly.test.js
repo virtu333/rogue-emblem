@@ -1,7 +1,7 @@
 // Sniper buffs are for the player's Snipers only (playtest 2026-09-29, triage row 8):
-// Death Blow as a level-1 class skill, and a Recurve Bow for a recruited Sniper.
+// Onslaught as a level-1 class skill, and a Recurve Bow for a recruited Sniper.
 // Ways it can go wrong, each caught below:
-//   - a unit that promotes into Sniper (church, Master Seal) never learns Death Blow,
+//   - a unit that promotes into Sniper (church, Sovereign Seal) never learns Onslaught,
 //     because promotion lands on level 1 and nothing checks level-1 class skills;
 //   - an enemy Sniper learns it (map enemies, Colosseum challengers);
 //   - a recruited Sniper still arrives with the Longbow, or without the Recurve equipped;
@@ -35,12 +35,12 @@ function archer(level = 10) {
   return unit;
 }
 
-describe('Sniper: Death Blow from level 1, for the player only', () => {
+describe('Sniper: Onslaught from level 1, for the player only', () => {
   it('the class data teaches death_blow at level 1', () => {
     expect(sniper.learnableSkills).toEqual([{ skillId: 'death_blow', level: 1 }]);
   });
 
-  it('a church promotion into Sniper learns Death Blow at once', () => {
+  it('a church promotion into Sniper learns Onslaught at once', () => {
     const run = new RunManager(data);
     run.gold = 10000;
     const unit = archer();
@@ -52,7 +52,7 @@ describe('Sniper: Death Blow from level 1, for the player only', () => {
     expect(unit.skills).toContain('death_blow');
   });
 
-  it('a Master Seal promotion into Sniper learns it, and the rite shows it', () => {
+  it('a Sovereign Seal promotion into Sniper learns it, and the rite shows it', () => {
     const unit = archer();
     const content = promotionPathContent(unit, sniper, data);
     expect(content.skills.map((s) => s.id)).toContain('death_blow');

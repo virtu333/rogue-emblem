@@ -259,7 +259,7 @@ describe('ColosseumOverlay', () => {
       stats: { HP: 20, STR: 10, MAG: 0, SKL: 8, SPD: 9, DEF: 6, RES: 3, LCK: 5, MOV: 5 },
       currentHP: 20,
     });
-    const robe = structuredClone(gameData.accessories.find((a) => a.name === 'Seraph Robe'));
+    const robe = structuredClone(gameData.accessories.find((a) => a.name === "Sisters' Mantle"));
     equipAccessory(unit, robe);
     unit.currentHP = 1;
     unequipAccessory(unit); // 1/20, owes 5
