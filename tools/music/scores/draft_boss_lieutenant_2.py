@@ -32,13 +32,15 @@ more over a B, and so becomes the dominant of E minor) | E 53-60 (the tune
 a step up; Sera answers with his own falling line on B, B-E-D-B, which
 holds the E his scale does not) | build 61-64. Loop 5-64, 60 bars, 86 s.
 
-No enrage layer yet (the shipped one, his shadow arriving before him, would
-be laid over A, A' and the player's strains exactly as now).
+Enrage (the shipped idea, kept): he is a beat ahead. His tritone shadow comes
+before his sign in A and A', now also on short trumpets, and in the player's
+strains his glass plays the player's tune a beat early.
 """
 
 from engine.patterns import chart, drums, pad
 from engine.score import Score
 
+from scores import _enrage
 from scores._battle import Battle
 from scores.battle_act1 import MEL_A
 
@@ -321,4 +323,22 @@ def build():
     b.riser(B + 6, beats=8)
     b.riser(X + 6, beats=8)
     b.riser(BUILD + 2, beats=8)
+
+    # ================================================================ enrage: he is a beat ahead
+    # the shipped layer (his shadow before his sign; the player's tune a beat early in
+    # his glass), and a voice a phone can hear: muted trumpets on the early shadow
+    v = 'enrage_lieutenant'
+    his = [b.sections[k] for k in ('A', 'A2')]
+    _enrage.lieutenant(b, [], [b.sections[k] for k in ('D', 'E')])
+    shadow = s.parts['lt_early_shadow']  # celesta: a tritone up (same notes, in its range)
+    early = b.extra(v, 'lt_early_tpt', 'trumpets', role='counter', art='stac', gain=1)
+    src = s.parts['lead_violins']
+    for bar, _ in his:
+        a, z = s.bar(bar), s.bar(bar + 8)
+        for n in list(src.notes):
+            if a - 1e-9 <= n.start < z - 1e-9:
+                early.note(n.start - 1.0, n.pitch - 6, min(n.dur, 0.5), vel=min(1.0, n.vel * 0.9),
+                           art='stac')
+                shadow.note(n.start - 1.0, n.pitch + 6, n.dur, vel=min(1.0, n.vel * 0.85))
+    b.variant_lufs[v] = -12.4
     return b.finish()

@@ -32,6 +32,9 @@ the fifth bar: it also falls in the middle of each phrase.
 Form (bars): intro 1-4 (a ping in the dark, the hammer lifting like a
 drawbridge) | S1 5-14 | S2 15-24 | S3 25-34 | S4 35-44. Loop 5-44, 40 bars.
 
+Enrage: the hammer also falls on the far end of the swing, the third beat
+of every bar of the tune, with no mark.
+
 In the game the four strains could be four mixes on one timeline, chosen by
 the plates the Guardian has left, the way the Entity's hum follows its HP.
 """
@@ -276,4 +279,28 @@ def build():
     roll.expr((3, 0.2), (4.97, 1.0), (5, 1.0))
     scrape = b.part('scrape', 'orch_perc', role='accent', gain=-2)
     drums(scrape, 2, {'gong_scrape': 'x'}, step=4.0, vel=0.55)
+
+    # ================================================================ enrage: both ends of the swing
+    # the hammer also falls where the bass swings to the G-flat, the third beat of
+    # every bar of the tune, unmarked
+    v = 'enrage_iron_guardian'
+    e_tbn = b.extra(v, 'ig_tbn', 'trombones', role='section', gain=2)
+    e_tuba = b.extra(v, 'ig_tuba', 'tuba', role='low', gain=1)
+    e_hn = b.extra(v, 'ig_hn', 'horns', role='section', gain=0)
+    e_taiko = b.extra(v, 'ig_taiko', 'taiko', role='drums', gain=4)
+    e_perc = b.extra(v, 'ig_perc', 'orch_perc', role='accent', gain=2)
+    for si, strain in enumerate(STRAINS):
+        for bar in _tune_bars(strain):
+            t = s.bar(bar) + 2.0
+            w = 0.8 + 0.03 * si
+            for p in ('Gb2', 'Gb3', 'Db4'):
+                e_tbn.note(t, p, 1.0, vel=w, rearticulate=True)
+            e_tuba.note(t, 'Gb1', 1.0, vel=w, rearticulate=True)
+            for p in ('C4', 'G4'):
+                e_hn.note(t, p, 1.0, vel=w - 0.06, rearticulate=True)
+            e_taiko.note(t, 'C2', 1.0, vel=min(1.0, w + 0.1))
+            e_taiko.note(t - 0.5, 'C2', 0.5, vel=w - 0.25)
+            e_perc.note(t, 36, 2.0, vel=w)
+            e_perc.note(t, 67, 1.0, vel=w - 0.15)
+    b.variant_lufs[v] = -12.7
     return b.finish()
