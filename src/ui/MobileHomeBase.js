@@ -303,7 +303,7 @@ export class MobileHomeBase {
         list.append(node('p', 'mu-help mh-more-lords', 'More lords join as you meet them.'));
       // Upright only (CSS): the camp fills the room left under the court.
       list.style.setProperty('--mh-rows', String(Math.ceil(met.length / 2) + (more ? 1 : 0)));
-      const camp = this.camp?.element(selection.commander, selection.partner);
+      const camp = this.camp?.element();
       if (camp) list.append(camp);
     } else {
       const name = lord?.name;

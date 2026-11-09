@@ -7,6 +7,7 @@ import { TILE_SIZE } from '../src/utils/constants.js';
 import {
   planRange,
   planPath,
+  PATH_STYLE,
   dashSegments,
   lighten,
   RANGE_STYLE,
@@ -103,6 +104,67 @@ describe('planPath', () => {
       // The ribbon starts on the unit's own tile.
       expect(plan.points[0]).toEqual(points[0]);
     }
+  });
+});
+
+describe('the walk thread', () => {
+  const path = [centre(3, 3), centre(2, 3), centre(2, 2), centre(2, 1), centre(3, 1)];
+  const plan = planPath(path);
+  const corners = ([x, y, w, h]) => [
+    [x, y],
+    [x + w - 1, y],
+    [x, y + h - 1],
+    [x + w - 1, y + h - 1],
+  ];
+  /** Every corner pixel of `r` lies in some rectangle of `layer`. */
+  const covered = (r, layer) =>
+    corners(r).every(([px, py]) =>
+      layer.some(([X, Y, W, H]) => px >= X && px < X + W && py >= Y && py < Y + H),
+    );
+
+  it('is whole pixels, and stays on the tiles it passes', () => {
+    const tiles = path.map((p) => [p.x - S / 2, p.y - S / 2, S, S]);
+    for (const layer of [plan.ink, plan.body, plan.shade, plan.core]) {
+      expect(layer.length).toBeGreaterThan(0);
+      for (const r of layer) {
+        for (const v of r) expect(Number.isInteger(v)).toBe(true);
+        expect(r[2] > 0 && r[3] > 0).toBe(true);
+        // every corner of the rectangle lies on some tile of the path
+        const [x, y, w, h] = r;
+        for (const [px, py] of [
+          [x, y],
+          [x + w - 1, y],
+          [x, y + h - 1],
+          [x + w - 1, y + h - 1],
+        ])
+          expect(tiles.some(([X, Y]) => px >= X && px < X + S && py >= Y && py < Y + S)).toBe(true);
+      }
+    }
+  });
+
+  it('inks every part of the thread: body, stitches and core each lie inside the ink', () => {
+    for (const r of plan.body) expect(covered(r, plan.ink)).toBe(true);
+    for (const r of [...plan.shade, ...plan.core]) expect(covered(r, plan.body)).toBe(true);
+    // and the ink shows all round: no body pixel on the ink's own outer edge
+    for (const r of plan.body) {
+      const [x, y, w, h] = r;
+      expect(covered([x - 1, y - 1, w + 2, h + 2], plan.ink)).toBe(true);
+    }
+  });
+
+  it('ends in a head wider than the thread that narrows to its tip', () => {
+    const end = path[path.length - 1]; // the last step runs right
+    const head = plan.body.filter(([x, , w]) => w === 2 && x >= end.x - PATH_STYLE.head);
+    const heights = head.sort((a, b) => a[0] - b[0]).map((r) => r[3]);
+    expect(Math.max(...heights)).toBeGreaterThan(PATH_STYLE.width * 2);
+    expect(heights[heights.length - 1]).toBeLessThan(PATH_STYLE.width);
+    for (let i = 2; i < heights.length; i++) expect(heights[i]).toBeLessThan(heights[i - 1]);
+  });
+
+  it('stitches the whole length at an even spacing, round the corners too', () => {
+    const steps = path.length - 1;
+    const expected = (steps * S) / PATH_STYLE.stitchEvery;
+    expect(Math.abs(plan.shade.length - expected)).toBeLessThanOrEqual(2);
   });
 });
 

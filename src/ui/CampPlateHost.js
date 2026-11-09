@@ -1,12 +1,12 @@
 // CampPlateHost.js — the Home Base camp plate's DOM host (art: art/keyart/campPlate.js).
-// One persistent, inert box the lords list re-appends on every render; the plate is repainted
-// only when the commander or partner changes. Decoration: any failure leaves an empty box.
+// One persistent, inert box the lords list re-appends on every render; the plate is painted
+// once and kept. Decoration: any failure leaves an empty box.
 
 import { mountKeyArtBackdrop } from '../art/keyart/keyArtBackdrop.js';
 import { createCampScene } from '../art/keyart/campPlate.js';
 
 /** Below this height (CSS px) the camp cannot be read, so the box stays empty. */
-export const CAMP_MIN_HEIGHT = 84;
+export const CAMP_MIN_HEIGHT = 56;
 
 function systemReducedMotion() {
   try {
@@ -22,12 +22,12 @@ export class CampPlateHost {
     this.getSettings = getSettings;
     this.el = null;
     this.backdrop = null;
-    this.key = null;
+    this.mounted = false;
     this.observer = null;
   }
 
-  /** The box to append; (re)mounts the plate when the pair changes. */
-  element(commander, partner) {
+  /** The box to append; mounts the plate the first time. */
+  element() {
     if (!this.el) {
       this.el = document.createElement('div');
       this.el.className = 'mh-camp';
@@ -37,21 +37,19 @@ export class CampPlateHost {
         this.observer.observe(this.el);
       }
     }
-    const key = `${commander || ''}|${partner || ''}`;
-    if (key !== this.key) {
-      this._unmount();
-      this.key = key;
-      this.el.dataset.pair = key;
+    if (!this.mounted) {
+      this.mounted = true;
       try {
         const reduced = !!this.getSettings()?.getReduceMotion?.() || systemReducedMotion();
         if (typeof globalThis.requestAnimationFrame === 'function')
           this.backdrop = mountKeyArtBackdrop(this.el, {
             fit: 'compose',
-            target: 104,
+            // The act vistas' pixel size on a phone held upright.
+            target: 137,
             maxSide: 300,
             fps: 18,
             reducedMotion: reduced,
-            createScene: (o) => createCampScene({ ...o, commander, partner }),
+            createScene: (o) => createCampScene(o),
           });
       } catch {
         this.backdrop = null;
@@ -73,7 +71,7 @@ export class CampPlateHost {
       /* decoration */
     }
     this.backdrop = null;
-    this.key = null;
+    this.mounted = false;
     this.el?.replaceChildren();
     this.el?.classList.remove('re-keyart-ready');
   }

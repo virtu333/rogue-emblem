@@ -34,6 +34,12 @@ import {
   circlePixels,
   curvePixels,
   bezier,
+  fillSky,
+  fillLayer,
+  stamp,
+  hollowSun,
+  stars,
+  profile,
 } from './plateKit.js';
 
 const INK = PALETTE.ink.map(pack);
@@ -75,96 +81,6 @@ export function vistaLayout(W, H) {
       : { x0: 0, x1: W, y1: Math.round(H * 0.2) },
   };
 }
-
-// ---------------------------------------------------------------------------
-// Painting helpers
-// ---------------------------------------------------------------------------
-
-/** Fill the whole plate from a ramp: `level(x, y)` is a continuous ramp position. */
-function fillSky(R, ramp, level) {
-  for (let y = 0; y < R.h; y++)
-    for (let x = 0; x < R.w; x++) R.px[y * R.w + x] = pick(ramp, level(x, y), x, y);
-}
-
-/**
- * A silhouette layer: everything under `top[x]` down to `bottom`. `base` is the ramp
- * position of its body; `rim` is added to the top pixel(s) on slopes facing `light`
- * (-1 left, +1 right, 0 both); `haze` lifts it toward the ramp's far end with depth.
- */
-function fillLayer(R, top, ramp, o = {}) {
-  const {
-    base = 0,
-    rim = 0,
-    rimDepth = 1,
-    light = 0,
-    haze = 0,
-    hazeSpan = 30,
-    bottom = R.h,
-    grain = 0,
-    seed = 0,
-  } = o;
-  for (let x = 0; x < R.w; x++) {
-    const y0 = Math.round(top[x]);
-    const slope = top[Math.min(R.w - 1, x + 1)] - top[Math.max(0, x - 1)];
-    const lit = light === 0 || slope * light > 0.15 ? 1 : slope * light < -0.15 ? 0 : 0.5;
-    for (let y = Math.max(0, y0); y < bottom; y++) {
-      const d = y - y0;
-      let L = base + haze * smooth(0, hazeSpan, d);
-      if (d < rimDepth) L += rim * lit;
-      if (grain) L += (hash2(x, y, seed) - 0.5) * grain;
-      R.px[y * R.w + x] = pick(ramp, L, x, y);
-    }
-  }
-}
-
-/** Draw rows of characters; `map` gives a packed colour per character ('.' and ' ' skip). */
-function stamp(R, rows, x0, y0, map) {
-  for (let j = 0; j < rows.length; j++)
-    for (let i = 0; i < rows[j].length; i++) {
-      const c = map[rows[j][i]];
-      if (c !== undefined) R.set(x0 + i, y0 + j, c);
-    }
-}
-
-/** The Hollow Sun: a black disc, a thin ring, and a dithered corona with streamers. */
-function hollowSun(R, noise, cx, cy, r, o = {}) {
-  const { ring = EMB[4], hot = EMB[5], corona = [INK[9], INK[10]], reach = r * 1.6 } = o;
-  const span = Math.ceil(r + reach + 2);
-  for (let y = cy - span; y <= cy + span; y++)
-    for (let x = cx - span; x <= cx + span; x++) {
-      const d = Math.hypot(x - cx, y - cy);
-      if (d <= r - 0.5) {
-        R.set(x, y, INK[0]);
-        continue;
-      }
-      const a = Math.atan2(y - cy, x - cx);
-      const stream = 0.35 + 0.9 * noise.n1(a * 2.6 + 9) ** 2;
-      const v = Math.exp(-(d - r) / (reach * 0.42 * stream));
-      if (v > bayer(x, y) * 1.15 + 0.08) R.set(x, y, v > 0.62 ? corona[1] : corona[0]);
-    }
-  for (const [dx, dy] of circlePixels(r)) R.set(cx + dx, cy + dy, ring);
-  // The diamond-ring bead on the lower-left rim.
-  const bx = Math.round(cx + Math.cos(2.5) * r);
-  const by = Math.round(cy + Math.sin(2.5) * r);
-  R.set(bx, by, hot);
-  R.set(bx - 1, by, hot);
-  R.set(bx, by + 1, hot);
-}
-
-/** A few dim stars where the sky is dark (never inside the title zone's centre line). */
-function stars(R, rng, count, yMax, colours) {
-  for (let i = 0; i < count; i++) {
-    const x = Math.floor(rng() * R.w);
-    const y = Math.floor(rng() * yMax);
-    R.set(x, y, colours[i % colours.length]);
-  }
-}
-
-const profile = (W, fn) => {
-  const out = new Float32Array(W);
-  for (let x = 0; x < W; x++) out[x] = fn(x);
-  return out;
-};
 
 // ---------------------------------------------------------------------------
 // Act I — Border Marches · Ember Dusk
@@ -423,14 +339,14 @@ function paintAct2(R, ctx) {
   fillLayer(R, far, RAIN_STONE, { base: 5.6, haze: 0.9, hazeSpan: 12 });
 
   // The aqueduct: tall arches marching in from the left, broken before the far bank.
-  const AH = clamp(Math.round(H * 0.17), 28, 66);
+  const AH = clamp(Math.round(H * (wide ? 0.22 : 0.17)), 28, 66);
   const deckY = hz - AH;
   const pitch = Math.round(AH * 0.62);
   const pierW = Math.max(4, Math.round(AH * 0.13));
   const endX = Math.round(W * (wide ? 0.6 : 0.72));
   const ground = hz + 4;
   const body = (x, y, lit) =>
-    pick(RAIN_STONE, lit ? 4.3 : 3.1 + smooth(0, AH, y - deckY) * 1.2, x, y);
+    pick(RAIN_STONE, lit ? 4.1 : 1.5 + smooth(0, AH, y - deckY) * 1.1, x, y);
   for (let x = -pitch; x < endX; x++) {
     const k = Math.floor((x + pitch) / pitch);
     const lx = (((x + pitch) % pitch) + pitch) % pitch;
@@ -990,13 +906,20 @@ function paintDeep(R, ctx) {
   const vp = { x: Math.round(W / 2), y: Math.round(H * (wide ? 0.455 : 0.47)) };
   const n = DEEP_GLOW.length - 1;
   const reach = wide ? W * 0.2 : W * 0.52;
+  // A wide card carries its title right over the hall: the light dies away above the pit,
+  // so the lintels behind the words are shapes in the dark, not a glare.
+  const dim = (y) => (wide ? 0.3 + 0.7 * smooth(H * 0.16, vp.y * 0.96, y) : 1);
   fillSky(R, DEEP_GLOW, (x, y) => {
     const d = Math.hypot(
       (x - vp.x) * (wide ? 0.62 : 0.9),
       (y - vp.y) * (wide ? (y < vp.y ? 1.5 : 1.05) : y < vp.y ? 0.8 : 0.7),
     );
     const fog = (noise.fbm2(x * 0.025, y * 0.04, 3) - 0.5) * 1.1;
-    return clamp((n + 0.6) * Math.exp(-d / reach) + fog * Math.exp(-d / (reach * 2.2)), 0, n);
+    return clamp(
+      ((n + 0.6) * Math.exp(-d / reach) + fog * Math.exp(-d / (reach * 2.2))) * dim(y),
+      0,
+      n,
+    );
   });
 
   // The stair: we stand at its head; the treads narrow down into the light.
@@ -1048,7 +971,8 @@ function paintDeep(R, ctx) {
           const flute = inner > 1 && (inner + 1) % 4 === 0 ? -0.5 : 0;
           const rim = inner === 0 ? 2.4 : inner === 1 ? 1 : 0;
           const fall = Math.exp(-Math.abs(y - vp.y) / (H * 0.3));
-          R.set(x, y, pick(DEEP_GLOW, clamp(body + rim * fall * (0.4 + near) + flute, 0, n), x, y));
+          const L = (body + rim * fall * (0.4 + near)) * dim(y) + flute;
+          R.set(x, y, pick(DEEP_GLOW, clamp(L, 0, n), x, y));
         }
         // plinth and capital
         for (const [ya, yb] of [
@@ -1056,8 +980,9 @@ function paintDeep(R, ctx) {
           [top, top + Math.max(1, Math.round(6 / z))],
         ])
           for (let y = Math.max(0, ya); y < Math.min(H, yb); y++) {
-            R.set(x, y, pick(DEEP_GLOW, clamp(body + 0.5, 0, n), x, y));
-            if (inner === 0) R.set(x - side, y, pick(DEEP_GLOW, clamp(body + 0.3, 0, n), x, y));
+            const L = (body + 0.5) * dim(y);
+            R.set(x, y, pick(DEEP_GLOW, clamp(L, 0, n), x, y));
+            if (inner === 0) R.set(x - side, y, pick(DEEP_GLOW, clamp(L - 0.2, 0, n), x, y));
           }
       }
     }
@@ -1065,7 +990,11 @@ function paintDeep(R, ctx) {
     const lh = Math.max(1, Math.round(9 / z));
     for (let y = Math.max(0, top - lh); y < Math.max(0, top); y++)
       for (let x = Math.max(0, Math.round(vp.x - off - w)); x < Math.min(W, vp.x + off + w); x++)
-        R.set(x, y, pick(DEEP_GLOW, clamp(body + (y === top - 1 ? 1.2 * near : 0), 0, n), x, y));
+        R.set(
+          x,
+          y,
+          pick(DEEP_GLOW, clamp((body + (y === top - 1 ? 1.2 * near : 0)) * dim(y), 0, n), x, y),
+        );
   });
 
   // Chains from the dark.

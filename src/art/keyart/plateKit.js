@@ -278,3 +278,96 @@ export function bezier(p0, p1, p2, p3) {
     ];
   };
 }
+
+const INK = PALETTE.ink.map(pack);
+const EMB = PALETTE.ember.map(pack);
+
+// ---------------------------------------------------------------------------
+// Painting helpers shared by the vistas and the camp plate
+// ---------------------------------------------------------------------------
+
+/** Fill the whole plate from a ramp: `level(x, y)` is a continuous ramp position. */
+export function fillSky(R, ramp, level) {
+  for (let y = 0; y < R.h; y++)
+    for (let x = 0; x < R.w; x++) R.px[y * R.w + x] = pick(ramp, level(x, y), x, y);
+}
+
+/**
+ * A silhouette layer: everything under `top[x]` down to `bottom`. `base` is the ramp
+ * position of its body; `rim` is added to the top pixel(s) on slopes facing `light`
+ * (-1 left, +1 right, 0 both); `haze` lifts it toward the ramp's far end with depth.
+ */
+export function fillLayer(R, top, ramp, o = {}) {
+  const {
+    base = 0,
+    rim = 0,
+    rimDepth = 1,
+    light = 0,
+    haze = 0,
+    hazeSpan = 30,
+    bottom = R.h,
+    grain = 0,
+    seed = 0,
+  } = o;
+  for (let x = 0; x < R.w; x++) {
+    const y0 = Math.round(top[x]);
+    const slope = top[Math.min(R.w - 1, x + 1)] - top[Math.max(0, x - 1)];
+    const lit = light === 0 || slope * light > 0.15 ? 1 : slope * light < -0.15 ? 0 : 0.5;
+    for (let y = Math.max(0, y0); y < bottom; y++) {
+      const d = y - y0;
+      let L = base + haze * smooth(0, hazeSpan, d);
+      if (d < rimDepth) L += rim * lit;
+      if (grain) L += (hash2(x, y, seed) - 0.5) * grain;
+      R.px[y * R.w + x] = pick(ramp, L, x, y);
+    }
+  }
+}
+
+/** Draw rows of characters; `map` gives a packed colour per character ('.' and ' ' skip). */
+export function stamp(R, rows, x0, y0, map) {
+  for (let j = 0; j < rows.length; j++)
+    for (let i = 0; i < rows[j].length; i++) {
+      const c = map[rows[j][i]];
+      if (c !== undefined) R.set(x0 + i, y0 + j, c);
+    }
+}
+
+/** The Hollow Sun: a black disc, a thin ring, and a dithered corona with streamers. */
+export function hollowSun(R, noise, cx, cy, r, o = {}) {
+  const { ring = EMB[4], hot = EMB[5], corona = [INK[9], INK[10]], reach = r * 1.6 } = o;
+  const span = Math.ceil(r + reach + 2);
+  for (let y = cy - span; y <= cy + span; y++)
+    for (let x = cx - span; x <= cx + span; x++) {
+      const d = Math.hypot(x - cx, y - cy);
+      if (d <= r - 0.5) {
+        R.set(x, y, INK[0]);
+        continue;
+      }
+      const a = Math.atan2(y - cy, x - cx);
+      const stream = 0.35 + 0.9 * noise.n1(a * 2.6 + 9) ** 2;
+      const v = Math.exp(-(d - r) / (reach * 0.42 * stream));
+      if (v > bayer(x, y) * 1.15 + 0.08) R.set(x, y, v > 0.62 ? corona[1] : corona[0]);
+    }
+  for (const [dx, dy] of circlePixels(r)) R.set(cx + dx, cy + dy, ring);
+  // The diamond-ring bead on the lower-left rim.
+  const bx = Math.round(cx + Math.cos(2.5) * r);
+  const by = Math.round(cy + Math.sin(2.5) * r);
+  R.set(bx, by, hot);
+  R.set(bx - 1, by, hot);
+  R.set(bx, by + 1, hot);
+}
+
+/** A few dim stars where the sky is dark (never inside the title zone's centre line). */
+export function stars(R, rng, count, yMax, colours) {
+  for (let i = 0; i < count; i++) {
+    const x = Math.floor(rng() * R.w);
+    const y = Math.floor(rng() * yMax);
+    R.set(x, y, colours[i % colours.length]);
+  }
+}
+
+export const profile = (W, fn) => {
+  const out = new Float32Array(W);
+  for (let x = 0; x < W; x++) out[x] = fn(x);
+  return out;
+};

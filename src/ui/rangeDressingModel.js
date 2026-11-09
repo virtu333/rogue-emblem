@@ -3,7 +3,8 @@
 // A range (move, attack, heal, a staff's or an ability's tiles) is one region, not a
 // pile of squares: a wash, a soft inner band along its border, a bright rim with a dark
 // under-stroke, and faint seams between its tiles so they can still be counted. A walk
-// preview is one ribbon through the tile centres that ends in an arrowhead. Everything
+// preview is one gold thread through the tile centres, knotted at the unit and ending in a
+// barbed head. Everything
 // here is rectangles and points in world pixels; RangeDressing.js draws them.
 
 /** Rim and band sizes, in world pixels (a tile is 32). */
@@ -22,13 +23,23 @@ export const RANGE_STYLE = Object.freeze({
   revealMs: 110,
 });
 
+/**
+ * The walk preview is a gold thread (the game's motif: the veil's thread, the loom): an
+ * ember body with a pale core and stitches across it, inked all round so it reads on any
+ * ground, a knot on the unit's tile and a barbed head on the destination.
+ */
 export const PATH_STYLE = Object.freeze({
   width: 6,
   outline: 2,
-  head: 9,
+  coreWidth: 2,
+  head: 12,
+  knot: 5,
+  stitchEvery: 8,
   slideDash: 5,
   slideGap: 4,
-  body: 0xf4ecdb,
+  body: 0xdca044,
+  shade: 0xa3621f,
+  core: 0xfff0bd,
   slide: 0x8fe6ff,
   ink: 0x0e0c14,
 });
@@ -116,29 +127,112 @@ export function planRange(centres, size, style = RANGE_STYLE, { quiet = [], besi
   return plan;
 }
 
+/** The axis step (-1, 0 or 1 each way) from a to b; a diagonal takes its longer side. */
+function axisStep(a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  return Math.abs(dx) >= Math.abs(dy)
+    ? { x: Math.sign(dx) || 1, y: 0 }
+    : { x: 0, y: Math.sign(dy) };
+}
+
+/** A band `w` wide from a to b (grid steps are axis-aligned), its ends squared off. */
+function bandRect(a, b, w) {
+  const x = Math.round(Math.min(a.x, b.x) - w / 2);
+  const y = Math.round(Math.min(a.y, b.y) - w / 2);
+  return [x, y, Math.round(Math.abs(b.x - a.x) + w), Math.round(Math.abs(b.y - a.y) + w)];
+}
+
+/** A slab across the direction `d`: from `k0` to `k1` along it from `at`, `half` each side. */
+function slab(at, d, k0, k1, half) {
+  if (d.x)
+    return [
+      Math.round(at.x + Math.min(k0 * d.x, k1 * d.x)),
+      Math.round(at.y - half),
+      Math.abs(k1 - k0),
+      half * 2,
+    ];
+  return [
+    Math.round(at.x - half),
+    Math.round(at.y + Math.min(k0 * d.y, k1 * d.y)),
+    half * 2,
+    Math.abs(k1 - k0),
+  ];
+}
+
+/** The head's rows from its base to its tip: a barb, then a stepped point. */
+function headRows(size) {
+  const rows = [];
+  for (let k = 0; k < size; k += 2)
+    rows.push([k, k === 0 ? Math.round(size * 0.5) : Math.max(1, size - 1 - k)]);
+  return rows;
+}
+
 /**
- * The ribbon for a walk: the points it passes (tile centres, the unit's own tile first)
- * and the arrowhead at its end. A path of fewer than two points has no ribbon.
- * @returns {null | { points: {x:number,y:number}[], head: {x:number,y:number}[] }}
+ * The thread for a walk: the points it passes (tile centres, the unit's own tile first; the
+ * last is the head's base), the head's outline triangle (tip, then its two base corners),
+ * and what to draw, back to front, as rectangles: `ink`, `body`, `shade` (the stitches),
+ * `core`. A path of fewer than two points has no thread.
+ * @returns {null | { points: {x:number,y:number}[], head: {x:number,y:number}[],
+ *   ink: number[][], body: number[][], shade: number[][], core: number[][] }}
  */
 export function planPath(points, style = PATH_STYLE) {
   const pts = (points || []).filter((p) => Number.isFinite(p?.x) && Number.isFinite(p?.y));
   if (pts.length < 2) return null;
   const end = pts[pts.length - 1];
-  const prev = pts[pts.length - 2];
-  const len = Math.hypot(end.x - prev.x, end.y - prev.y) || 1;
-  const dx = (end.x - prev.x) / len;
-  const dy = (end.y - prev.y) / len;
+  const d = axisStep(pts[pts.length - 2], end);
   const h = style.head;
-  // The shaft stops at the arrowhead's base; the head's tip sits just past the centre.
-  const tip = { x: end.x + dx * (h * 0.55), y: end.y + dy * (h * 0.55) };
-  const base = { x: tip.x - dx * h, y: tip.y - dy * h };
+  const { width: w, outline: o, coreWidth: c } = style;
+  // The head's tip sits just past the tile's centre; the shaft stops at the head's base.
+  const lead = Math.round(h * 0.55);
+  const base = { x: end.x + d.x * (lead - h), y: end.y + d.y * (lead - h) };
+  const tip = { x: base.x + d.x * h, y: base.y + d.y * h };
+  const wide = Math.round(h * 0.8);
   const head = [
     tip,
-    { x: base.x - dy * h * 0.8, y: base.y + dx * h * 0.8 },
-    { x: base.x + dy * h * 0.8, y: base.y - dx * h * 0.8 },
+    { x: base.x - d.y * wide, y: base.y + d.x * wide },
+    { x: base.x + d.y * wide, y: base.y - d.x * wide },
   ];
-  return { points: [...pts.slice(0, -1), base], head };
+  const shaft = [...pts.slice(0, -1), base];
+  const plan = { points: shaft, head, ink: [], body: [], shade: [], core: [] };
+
+  for (let i = 1; i < shaft.length; i++) {
+    plan.ink.push(bandRect(shaft[i - 1], shaft[i], w + o * 2));
+    plan.body.push(bandRect(shaft[i - 1], shaft[i], w));
+    plan.core.push(bandRect(shaft[i - 1], shaft[i], c));
+  }
+  // Stitches: short bars across the body, evenly along the whole thread.
+  let run = 0;
+  let next = style.stitchEvery - 2;
+  for (let i = 1; i < shaft.length; i++) {
+    const a = shaft[i - 1];
+    const b = shaft[i];
+    const len = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
+    if (!len) continue;
+    const step = axisStep(a, b);
+    for (; next < run + len - 1; next += style.stitchEvery) {
+      const at = { x: a.x + step.x * (next - run), y: a.y + step.y * (next - run) };
+      plan.shade.push(slab(at, step, 0, 2, w / 2));
+    }
+    run += len;
+  }
+  for (const [k, half] of headRows(h)) {
+    plan.ink.push(slab(base, d, k - o, k + 2 + o, half + o));
+    plan.body.push(slab(base, d, k, k + 2, half));
+  }
+  plan.core.push(slab(base, d, 0, h - 4, c / 2));
+  // The knot on the unit's own tile: a small diamond the thread is tied to.
+  const start = shaft[0];
+  const diamond = (r, into) => {
+    for (let j = -r; j <= r; j++) {
+      const half = r - Math.abs(j);
+      into.push([Math.round(start.x - half), Math.round(start.y + j), half * 2 + 1, 1]);
+    }
+  };
+  diamond(style.knot + o, plan.ink);
+  diamond(style.knot, plan.body);
+  diamond(1, plan.core);
+  return plan;
 }
 
 /** Dashes along a polyline: [[x1, y1, x2, y2], ...]. */
