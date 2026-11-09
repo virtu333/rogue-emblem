@@ -186,7 +186,9 @@ test('art pauses while covered or hidden, freezes under reduced motion and is re
   await page.getByRole('button', { name: 'Skip to the first run', exact: true }).tap();
   await waitForScene(page, 'NodeMap');
   await expect(page.locator('.re-title')).toHaveCount(0);
-  await expect(page.locator('.re-keyart-canvas')).toHaveCount(0);
+  // The route map's act card paints its own vista (.ce-vista) with the same helper: the
+  // title's canvas is the one that must be gone.
+  await expect(page.locator('.re-keyart-canvas:not(.ce-vista .re-keyart-canvas)')).toHaveCount(0);
 });
 
 test.describe('desktop', () => {
