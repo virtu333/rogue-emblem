@@ -6,9 +6,11 @@ import {
   MUSIC,
   MUSIC_LAYERS,
   getBossEnrageLayer,
+  hasOwnBossTheme,
   getBossMusicKey,
   getMusicLoop,
 } from '../src/utils/musicConfig.js';
+import { selectBattleMusic } from '../src/engine/BattleMusicSelection.js';
 import { MUSIC_LOOPS } from '../src/utils/musicLoops.js';
 import { MUSIC_STINGERS } from '../src/utils/musicStingers.js';
 
@@ -19,13 +21,27 @@ const STINGER_DIR = join(ROOT, 'assets', 'audio', 'stingers');
 const PUBLIC_STINGER_DIR = join(ROOT, 'public', 'assets', 'audio', 'stingers');
 const enemies = JSON.parse(readFileSync(join(ROOT, 'data', 'enemies.json'), 'utf8'));
 
-// Every boss, with the act it is fought in, and the enrage layer of its theme.
-const bossEnrage = Object.entries(enemies.bosses).flatMap(([act, list]) =>
-  list.map((boss) => {
-    const theme = getBossMusicKey(boss.name, act);
-    return { name: boss.name, act, theme, layer: getBossEnrageLayer(theme, boss.name) };
-  }),
-);
+const setPieces = JSON.parse(readFileSync(join(ROOT, 'data', 'setPieces.json'), 'utf8'));
+
+// A set piece's named captains (the Iron Guardian): a boss of an event battle, in no act's list.
+const setPieceCaptains = new Set();
+JSON.stringify(setPieces, (key, value) => {
+  if (key === 'captain' && value && typeof value.name === 'string')
+    setPieceCaptains.add(value.name);
+  return value;
+});
+
+// Every boss, with the act it is fought in, and the enrage layer of its theme: the acts'
+// bosses, and a set piece's captain that has a theme by name (it is fought in any act).
+const bossEnrage = [
+  ...Object.entries(enemies.bosses).flatMap(([act, list]) =>
+    list.map((boss) => ({ name: boss.name, act })),
+  ),
+  ...[...setPieceCaptains].filter(hasOwnBossTheme).map((name) => ({ name, act: 'act1' })),
+].map(({ name, act }) => {
+  const theme = getBossMusicKey(name, act);
+  return { name, act, theme, layer: getBossEnrageLayer(theme, name) };
+});
 
 function collectKeys(value, out = new Set()) {
   if (typeof value === 'string') out.add(value);
@@ -194,12 +210,34 @@ describe('music library', () => {
     expect(new Set(eliteKeys).size).toBe(4);
   });
 
+  it('eclipsed battles walk two themes: consecutive rows of a path never repeat one', () => {
+    const pool = MUSIC.battleSituation.eclipsed;
+    expect(pool).toEqual(['music_battle_eclipsed', 'music_battle_eclipsed_2']);
+    for (const act of ['act1', 'act2', 'act3', 'act4']) {
+      for (const seed of [1, 42, 9001]) {
+        const at = (row) =>
+          selectBattleMusic(
+            { act, seed, row, nodeKey: `${act}|${row}|5`, isEclipsed: true, isElite: true },
+            MUSIC,
+          );
+        for (let row = 1; row < 8; row++) {
+          expect(at(row).reason).toBe('eclipsed');
+          expect(pool).toContain(at(row).key);
+          expect(at(row).key, `${act} seed ${seed} rows ${row}, ${row + 1}`).not.toBe(
+            at(row + 1).key,
+          );
+        }
+      }
+    }
+  });
+
   it('every boss gets a theme of its own, wherever it is fought', () => {
-    const bossNames = new Set(
-      Object.values(enemies.bosses)
+    const bossNames = new Set([
+      ...Object.values(enemies.bosses)
         .flat()
         .map((b) => b.name),
-    );
+      ...setPieceCaptains,
+    ]);
     // no two bosses fight to the same theme (an act's theme belongs to one of its bosses)
     const byTheme = new Map();
     for (const { name, theme } of bossEnrage) {

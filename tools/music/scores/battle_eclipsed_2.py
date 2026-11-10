@@ -1,8 +1,7 @@
-"""Eclipsed battles, a second theme — "The Other Half of the Sky" (a listening draft).
+"""Eclipsed battles, a second theme — "The Other Half of the Sky".
 
-DRAFT: not in the game. A second theme for nodes the Eclipse has taken,
-written for the music review: Totality is the only one today and plays in
-about a quarter of Nightfall's field battles.
+The second theme for nodes the Eclipse has taken (Totality,
+scores/battle_eclipsed.py, is the first; the two share the `eclipsed` pool).
 
 Totality is the light going out: slow, and the bell's call (D, then A) is
 never answered. This is the other thing an eclipse is: two bodies lining
@@ -33,8 +32,7 @@ Loop 5-44, 40 bars, 76 s.
 Both layers (see scores/_battle.py): the full mix has the kit, the bass
 guitar on the shadow, brass and men's voices; the calm mix is one wind on
 the tune and one cello line on the shadow over harp and the bell. (The calm
-layer uses harp, not the grand piano the other calm beds have: this draft
-was rendered without sfizz.)
+layer uses harp, not the grand piano the other calm beds have.)
 """
 
 from engine.patterns import drums
@@ -43,8 +41,7 @@ from engine.theory import pitch
 
 from scores._battle import Battle
 
-DRAFT = True
-KEY = 'draft_battle_eclipsed_2'
+KEY = 'music_battle_eclipsed_2'
 
 # the tune, D dorian: the call (D, A) and where it goes. It ends on E.
 TUNE = """
@@ -94,13 +91,9 @@ def pulse(src, dst, a, z, shift=0, vel=0.7):
 
 
 def build():
-    s = Score('draft_battle_eclipsed_2', tonic='D', bpm=126, intro_bars=4, loop_bars=40,
-              title='The Other Half of the Sky (draft)', seed=4409)
+    s = Score('battle_eclipsed_2', tonic='D', bpm=126, intro_bars=4, loop_bars=40,
+              title='The Other Half of the Sky', seed=4409)
     s.reverb = dict(rt60=2.8, predelay_ms=28, wet_db=-0.5)
-    # the registry's own strings, brass and choir (the house libraries need sfizz)
-    s.palette = {k: 'legacy' for k in ('violins', 'violins2', 'violas', 'celli', 'basses',
-                                       'horns', 'trumpets', 'trombones', 'choir', 'oohs',
-                                       'solo_violin', 'oboe', 'celesta')}
     b = Battle(s, calm_lufs=-17.0, full_lufs=-14.0)
 
     def span(bar, n=8):

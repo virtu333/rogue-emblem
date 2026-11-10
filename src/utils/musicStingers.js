@@ -33,6 +33,7 @@ export const MUSIC_STINGERS = {
     duration: 4.884,
   },
   boss_iron_captain: { keyed: false, tonics: [], notesEnd: 4.138, duration: 4.962 },
+  boss_iron_guardian: { keyed: false, tonics: [], notesEnd: 5.217, duration: 7.159 },
   boss_iron_wall: { keyed: false, tonics: [], notesEnd: 5.0, duration: 6.626 },
   boss_knight_commander: { keyed: false, tonics: [], notesEnd: 3.636, duration: 5.387 },
   boss_lieutenant_card: { keyed: false, tonics: [], notesEnd: 4.8, duration: 6.281 },

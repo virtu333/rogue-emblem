@@ -1,10 +1,9 @@
-"""The Iron Guardian's card (a draft, not in the game) — the mark and the fall.
+"""The Iron Guardian's card — the mark and the fall.
 
 A ping in the dark says where; a ratchet winds while the low brass lean on
 the tritone; the hammer lands on the next downbeat, both bare fifths at
 once. Written in D like every stinger; heard in C, the key of "No Word to
-Stop". The leading underscore keeps it out of `build.py --stingers` until
-it is wired in: build it by name.
+Stop".
 """
 
 from engine.patterns import drums

@@ -1,5 +1,5 @@
 {
-  "revision": "3064f60d8eecdda64729c869b94b948fa0553c85b0c00a74abf59d3dcbcb2283",
+  "revision": "3766b430d5aea0a6eaf825f32f2380de12cce96c87a4fe30fa5d41c2500f658c",
   "entries": {
     "music_battle_act1": {
       "url": "assets/audio/versioned/music/music_battle_act1-23150bcd27b5efe1e43dbfbd97cb631e96cf859162b45e3693170f2548a8f7c7.mp3",
@@ -215,6 +215,16 @@
       "url": "assets/audio/versioned/music/music_battle_eclipsed-19248dd4ba5e6ae27d9a54a9a55a5c4016c7dd06f37017728bc31023f809b7aa.mp3",
       "sha256": "19248dd4ba5e6ae27d9a54a9a55a5c4016c7dd06f37017728bc31023f809b7aa",
       "timeline": "af51c7b2b917201a110906286fea3dfb0578b68e7188acde097b1db47005e751"
+    },
+    "music_battle_eclipsed_2": {
+      "url": "assets/audio/versioned/music/music_battle_eclipsed_2-ad436a5381fd6297bb5d6ad6f35dccfdcef7812655342f5d541049287f664c35.mp3",
+      "sha256": "ad436a5381fd6297bb5d6ad6f35dccfdcef7812655342f5d541049287f664c35",
+      "timeline": "c802d53f82027d4951adfd246120f62f06573fff3889cc44873669b08ad923eb"
+    },
+    "music_battle_eclipsed_2_calm": {
+      "url": "assets/audio/versioned/music/music_battle_eclipsed_2_calm-6bac6c8b845ca732ff14566dc3d009a66f4c3abbad7a2d55199c76463c14cad3.mp3",
+      "sha256": "6bac6c8b845ca732ff14566dc3d009a66f4c3abbad7a2d55199c76463c14cad3",
+      "timeline": "c802d53f82027d4951adfd246120f62f06573fff3889cc44873669b08ad923eb"
     },
     "music_battle_eclipsed_calm": {
       "url": "assets/audio/versioned/music/music_battle_eclipsed_calm-080abbd51623bc76770ce59aed5044dbc46d58aecb4372e2cfcbb6a6b59d72ac.mp3",
@@ -446,6 +456,16 @@
       "sha256": "be4ff0759486aca1de7f4fb5108523199bc1282c7af367ce3fb2e05f063bc0f2",
       "timeline": "b8b1260b76f0a0691b00480f34bfcf699758e9e9e2b17cd8d150d3ec8d8f12d3"
     },
+    "music_boss_iron_guardian": {
+      "url": "assets/audio/versioned/music/music_boss_iron_guardian-cb73b99e5f97edaba9008bd12a6030e15bfad6f6b9c4f9a5340c0b8543e2600a.mp3",
+      "sha256": "cb73b99e5f97edaba9008bd12a6030e15bfad6f6b9c4f9a5340c0b8543e2600a",
+      "timeline": "b5d4f3861cf9abac24b642ae8adaa0b7f5277271d11347dbb8decb4be0169638"
+    },
+    "music_boss_iron_guardian_enrage_iron_guardian": {
+      "url": "assets/audio/versioned/music/music_boss_iron_guardian_enrage_iron_guardian-836683c1b6109d8a0c474c25b0a605560cc00a2fe62da580806646fd0eb5b273.mp3",
+      "sha256": "836683c1b6109d8a0c474c25b0a605560cc00a2fe62da580806646fd0eb5b273",
+      "timeline": "b5d4f3861cf9abac24b642ae8adaa0b7f5277271d11347dbb8decb4be0169638"
+    },
     "music_boss_iron_wall": {
       "url": "assets/audio/versioned/music/music_boss_iron_wall-767ccd412edc7667a819dfb3d816e5ea962932c8a16d51e151139641787736cc.mp3",
       "sha256": "767ccd412edc7667a819dfb3d816e5ea962932c8a16d51e151139641787736cc",
@@ -467,14 +487,14 @@
       "timeline": "ae18500d778ca0cc967629ac826ed88aa4f187737b44f6a112b2210f34ceb53c"
     },
     "music_boss_lieutenant": {
-      "url": "assets/audio/versioned/music/music_boss_lieutenant-5014dad891d99c688d95ed2307d2ba83f580c5a2519d8474a57f0671af020229.mp3",
-      "sha256": "5014dad891d99c688d95ed2307d2ba83f580c5a2519d8474a57f0671af020229",
-      "timeline": "aaa370e5330396d6c5d084d5a3c0a31caf03c6aa85632b414bd5cace543e608b"
+      "url": "assets/audio/versioned/music/music_boss_lieutenant-3909ec9cca8eef0bb3214d0922e3c206bd97b7440cd17141a9bc6ddedac8ca07.mp3",
+      "sha256": "3909ec9cca8eef0bb3214d0922e3c206bd97b7440cd17141a9bc6ddedac8ca07",
+      "timeline": "d735613b3a000771aa3c20a9342adc10cdd534089d48e5ebb25b7b1e32f502b5"
     },
     "music_boss_lieutenant_enrage_lieutenant": {
-      "url": "assets/audio/versioned/music/music_boss_lieutenant_enrage_lieutenant-0b8225b68ae7a34b6e9ceb7e29b581834e2ce7cad4a4f07e42fef9d0d58cf221.mp3",
-      "sha256": "0b8225b68ae7a34b6e9ceb7e29b581834e2ce7cad4a4f07e42fef9d0d58cf221",
-      "timeline": "aaa370e5330396d6c5d084d5a3c0a31caf03c6aa85632b414bd5cace543e608b"
+      "url": "assets/audio/versioned/music/music_boss_lieutenant_enrage_lieutenant-45f9e49a661e407c93ef9f46749d8f0ce34f7409d02378f689918fa9f1293a19.mp3",
+      "sha256": "45f9e49a661e407c93ef9f46749d8f0ce34f7409d02378f689918fa9f1293a19",
+      "timeline": "d735613b3a000771aa3c20a9342adc10cdd534089d48e5ebb25b7b1e32f502b5"
     },
     "music_boss_warchief": {
       "url": "assets/audio/versioned/music/music_boss_warchief-6026045865e1f77bfc62e51ff0ea38ebed7b9fd7888ebb95f2399bdde0bbf453.mp3",
@@ -845,6 +865,10 @@
     "stinger_boss_iron_captain": {
       "url": "assets/audio/versioned/stingers/stinger_boss_iron_captain-b7b1d1a193b75cd749414677eb070cdf635a3a57cf8bf8193dfdf49ae90ac466.mp3",
       "sha256": "b7b1d1a193b75cd749414677eb070cdf635a3a57cf8bf8193dfdf49ae90ac466"
+    },
+    "stinger_boss_iron_guardian": {
+      "url": "assets/audio/versioned/stingers/stinger_boss_iron_guardian-542a91142221df03b30ef9f5798ed570dd0a092fedd05e55ce12978385fc6d99.mp3",
+      "sha256": "542a91142221df03b30ef9f5798ed570dd0a092fedd05e55ce12978385fc6d99"
     },
     "stinger_boss_iron_wall": {
       "url": "assets/audio/versioned/stingers/stinger_boss_iron_wall-5eac88ffb43ccb390ad7bffec2c33becbe3a123e3a0f0330a3336b0b2e161da1.mp3",

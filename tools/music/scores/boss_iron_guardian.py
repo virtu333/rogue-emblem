@@ -1,7 +1,7 @@
-"""The Iron Guardian — "No Word to Stop" (a listening draft).
+"""The Iron Guardian — "No Word to Stop".
 
-DRAFT: not in the game. A theme for the Sunken Mine's keeper, written for the
-music review (the Guardian has no theme or boss card of its own today).
+The Sunken Mine's keeper: its fight is an event battle, and plays this
+because the Guardian is named in musicConfig's `bossByName`.
 
 "Whoever buried the hall left it a keeper and no word to stop. It has not
 stopped." Black iron the size of a doorway; it never moves; it marks where
@@ -35,8 +35,8 @@ drawbridge) | S1 5-14 | S2 15-24 | S3 25-34 | S4 35-44. Loop 5-44, 40 bars.
 Enrage: the hammer also falls on the far end of the swing, the third beat
 of every bar of the tune, with no mark.
 
-In the game the four strains could be four mixes on one timeline, chosen by
-the plates the Guardian has left, the way the Entity's hum follows its HP.
+Not built: the four strains as four mixes on one timeline, chosen by the
+plates the Guardian has left, the way the Entity's hum follows its HP.
 """
 
 from engine.patterns import drums
@@ -45,8 +45,7 @@ from engine.theory import pitch
 
 from scores._battle import Battle
 
-DRAFT = True
-KEY = 'draft_boss_iron_guardian'
+KEY = 'music_boss_iron_guardian'
 
 # the rusted call: four bars, twice (written at the trombones' octave)
 T1 = 'C3q. G3e Gb3h | F3q. C4e Bb3h | C4q. G3e Gb3q Db4q | C4h Bb3q Gb3q |'
@@ -71,14 +70,11 @@ def _breathe(part, bars, lo=0.8):
 
 
 def build():
-    s = Score('draft_boss_iron_guardian', tonic='C', bpm=92, intro_bars=4, loop_bars=40,
-              title='No Word to Stop (draft)', seed=2203)
+    s = Score('boss_iron_guardian', tonic='C', bpm=92, intro_bars=4, loop_bars=40,
+              title='No Word to Stop', seed=2203)
     s.reverb = dict(rt60=3.2, predelay_ms=34, wet_db=-1.0, damp=0.55)
     s.master = dict(lufs=-13.5, glue_ratio=1.6, eq=[('peak', 250, 0.8, -2.5),
                                                     ('peak', 2500, 1.0, 1.5)])
-    # the registry's own strings, brass and choir (the house libraries need sfizz)
-    s.palette = {k: 'legacy' for k in ('violins', 'violins2', 'violas', 'celli', 'basses',
-                                       'horns', 'trumpets', 'trombones', 'choir', 'oohs')}
     b = Battle(s, full_lufs=-13.5, adaptive=False)
 
     # ================================================================ the pendulum
@@ -267,7 +263,8 @@ def build():
     drone.expr((1, 0.3), (4.9, 1.0))
     lift = b.part('lift', 'trombones', role='section', gain=0)
     lift_tuba = b.part('lift_tuba', 'tuba', role='low', gain=-1)
-    lift.at(2).play('@mp C2w~ | C2h Db2h | D2q Eb2q E2q F2e Gb2e |')
+    # the house trombones stop at E2: the rise an octave up, whole (the tuba holds the floor)
+    lift.at(2).play('@mp C3w~ | C3h Db3h | D3q Eb3q E3q F3e Gb3e |')
     lift_tuba.at(2).play('@mp C2w~ | C2h Db2h | D2q Eb2q E2q F2e Gb2e |')
     lift.expr((2, 0.3), (4, 0.6), (4.97, 1.0))
     lift_tuba.expr((2, 0.3), (4, 0.6), (4.97, 1.0))

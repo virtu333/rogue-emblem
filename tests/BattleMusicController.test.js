@@ -152,6 +152,25 @@ describe('BattleMusicController', () => {
     );
   });
 
+  it('plays a themed boss wherever it is fought: the Iron Guardian in its event battle', () => {
+    const { audio, scene } = makeScene();
+    const ctrl = new BattleMusicController(scene, { bossEnraged: () => false });
+    // the Guardian's hall is an event battle on a castle map: the scene's isBoss is false
+    const context = { biome: 'castle', seed: 7, row: 3, nodeKey: 'act2|3|99' };
+    const key = ctrl.create({ act: 'act2', isBoss: false, bossName: 'The Iron Guardian', context });
+    expect(key).toBe('music_boss_iron_guardian');
+    expect(audio.playMusic).toHaveBeenCalledWith(key, scene, 800, {
+      layers: { enrage: 'music_boss_iron_guardian_enrage_iron_guardian' },
+    });
+    expect(ctrl.onBossEnrage()).toBe(true);
+    expect(audio.setMusicIntensity).toHaveBeenLastCalledWith('enrage', expect.any(Number));
+    // a captain with no theme of its own leaves a non-boss battle to its field themes
+    const field = ctrl.create({ act: 'act2', isBoss: false, bossName: 'The Toll-Keeper', context });
+    expect(Object.values(MUSIC.bossByName)).not.toContain(field);
+    expect(Object.values(MUSIC.boss)).not.toContain(field);
+    expect(MUSIC_LAYERS[field]).toBeTruthy();
+  });
+
   it('releases previous music first in tutorial mode and survives a throwing danger probe', () => {
     const { audio, scene } = makeScene();
     const ctrl = new BattleMusicController(scene, {
