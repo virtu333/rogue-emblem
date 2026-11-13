@@ -65,4 +65,40 @@ describe("a Voice's ward with the Buckler and the Briar Cloak", () => {
     const open = resolveCombat(unit('A'), sword, plain, sword, 1, null, null);
     expect(open.events.find((e) => e.target === 'V' && !e.miss).reflectDamage).toBe(5);
   });
+  // The other direction: the warded Voice is the striker and the wearer is its target. The
+  // ward covers damage from anything, so the cloak's prick never reaches the Voice either.
+  it('a warded Voice that strikes a Briar Cloak wearer takes no prick, on its counter or its own attack', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const wearer = () => unit('A', { accessory: accessory('Briar Cloak') });
+
+    // The wearer attacks; the Voice's counter lands beside the cloak.
+    const countering = unit('V', { warded: true });
+    const fc = getCombatForecast(wearer(), sword, countering, sword, 1, null, null);
+    expect(fc.defender.thornsReflect).toBe(0);
+    expect(fc.defender).not.toHaveProperty('briar');
+    const first = resolveCombat(wearer(), sword, countering, sword, 1, null, null);
+    const counters = first.events.filter((e) => e.attacker === 'V' && !e.miss);
+    expect(counters.length).toBeGreaterThan(0);
+    for (const e of counters) {
+      expect(e.reflectDamage).toBe(0);
+      expect(e.strikerHPAfter).toBeUndefined();
+      expect((e.skillActivations || []).map((a) => a.id)).not.toContain('briar_cloak');
+    }
+    expect(first.defenderHP).toBe(30);
+
+    // The Voice attacks on its own phase.
+    const striking = unit('V', { warded: true });
+    const ofc = getCombatForecast(striking, sword, wearer(), sword, 1, null, null);
+    expect(ofc.attacker.thornsReflect).toBe(0);
+    expect(ofc.attacker).not.toHaveProperty('briar');
+    const second = resolveCombat(striking, sword, wearer(), sword, 1, null, null);
+    expect(second.events.some((e) => e.attacker === 'V' && !e.miss)).toBe(true);
+    expect(second.attackerHP).toBe(30);
+
+    // Control: an unwarded striker is pricked for the cloak's 5 on its first landed blow.
+    const open = resolveCombat(unit('V'), sword, wearer(), sword, 1, null, null);
+    const blow = open.events.find((e) => e.attacker === 'V' && !e.miss);
+    expect(blow.reflectDamage).toBe(5);
+    expect(blow.strikerHPAfter).toBe(25);
+  });
 });

@@ -222,3 +222,31 @@ describe('the forecast includes Thorns', () => {
     expect(forecastProjection(f)).toBeNull();
   });
 });
+
+describe("Thorns against a Voice's ward", () => {
+  it('a warded striker takes nothing back from Thorns, in the forecast or the exchange', () => {
+    const foe = () =>
+      unit({
+        name: 'F',
+        faction: 'enemy',
+        affixes: ['thorns'],
+        stats: { ...unit().stats, HP: 30 },
+        currentHP: 30,
+      });
+    const warded = unit({ name: 'A', warded: true });
+    const f = getCombatForecast(warded, sword(), foe(), null, 1, plain, plain, ctx());
+    expect(f.attacker.thornsReflect).toBe(0);
+    const held = fight(warded, sword(), foe(), null);
+    const blows = strikesBy(held, 'attacker').filter((e) => !e.miss);
+    expect(blows.length).toBeGreaterThan(0);
+    for (const e of blows) expect(e.reflectDamage).toBe(0);
+    expect(held.attackerHP).toBe(20);
+
+    // Control: the same striker unwarded pays Thorns for the blow.
+    const open = unit({ name: 'A' });
+    const of = getCombatForecast(open, sword(), foe(), null, 1, plain, plain, ctx());
+    expect(of.attacker.thornsReflect).toBeGreaterThan(0);
+    const paid = fight(open, sword(), foe(), null);
+    expect(paid.attackerHP).toBe(20 - of.attacker.thornsReflect);
+  });
+});

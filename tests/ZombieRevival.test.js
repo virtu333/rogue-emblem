@@ -15,6 +15,8 @@ import {
   filterClassPoolByDifficulty,
 } from '../src/utils/constants.js';
 import { buildRisenUnit, createRemains, leavesRemains } from '../src/engine/ZombieRemains.js';
+import { applyImbue } from '../src/engine/ImbueSystem.js';
+import { applyForge } from '../src/engine/ForgeSystem.js';
 import { loadGameData } from './testData.js';
 
 const gameData = loadGameData();
@@ -67,6 +69,24 @@ describe('Zombie remains creation logic', () => {
       expect(leavesRemains(unit, { weapon: { type: 'Sword', name } })).toBe(false);
     }
     expect(leavesRemains(unit, { weapon: { type: 'Sword', name: 'Steel Sword' } })).toBe(true);
+  });
+
+  it('an imbued Daybreak is still Daybreak: every imbue, forged on top or not', () => {
+    const unit = { className: 'Zombie', _revived: false, isBoss: false };
+    const imbues = gameData.imbues.imbues || gameData.imbues;
+    expect(imbues.length).toBeGreaterThan(0);
+    for (const imbue of imbues) {
+      const blade = structuredClone(gameData.weapons.find((w) => w.name === 'Daybreak'));
+      expect(applyImbue(blade, imbue).success).toBe(true);
+      expect(blade.name).not.toBe('Daybreak'); // the imbue's word is in the shown name
+      expect(leavesRemains(unit, { weapon: blade })).toBe(false);
+      applyForge(blade, 'might');
+      expect(leavesRemains(unit, { weapon: blade })).toBe(false);
+    }
+    // Control: an imbue alone ends nothing. The same imbue on another sword leaves remains.
+    const steel = structuredClone(gameData.weapons.find((w) => w.name === 'Steel Sword'));
+    expect(applyImbue(steel, imbues[0]).success).toBe(true);
+    expect(leavesRemains(unit, { weapon: steel })).toBe(true);
   });
 
   it('already revived zombie leaves none', () => {

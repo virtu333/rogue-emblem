@@ -116,7 +116,12 @@ export function calculateKillReward(enemy, killer = null, options = {}) {
   const bountyRaw = Number.isFinite(Number(combatEffects?.goldPerKill))
     ? Number(combatEffects.goldPerKill)
     : Number(combatEffects?.bountyGoldOnKill);
-  const bountyBonus = Math.max(0, Math.trunc(bountyRaw || 0));
+  // The bounty is flat (late pressure and a multiplier above 1 never move it), but a foe worth
+  // less than a full kill pays that share of it, as the toll below: a conjured unit's 0, a
+  // decayed reinforcement's part.
+  const bountyBonus = Math.floor(
+    Math.max(0, Math.trunc(bountyRaw || 0)) * Math.min(1, rewardMultiplier),
+  );
   // Tollkeeper's Knife (an Epic weapon's `killGold` rule): the killer's held weapon takes a toll,
   // scaled as the kill's own gold is (a conjured unit's 0, a decayed reinforcement's share), so a
   // summoned or endless foe is never a toll road.
