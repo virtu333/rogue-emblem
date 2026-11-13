@@ -128,6 +128,25 @@ describe('LootSystem', () => {
       expect(reward).toBe(Math.floor(calculateKillGold(enemy) * 2 * 3) + 500);
     });
 
+    it('a foe worth a share of a kill pays that share of the bounty: none for a conjured unit', () => {
+      const enemy = { faction: 'enemy', level: 8, isBoss: false };
+      const killer = { accessory: { combatEffects: { goldPerKill: 300 } } };
+      const base = calculateKillGold(enemy);
+      // A conjured unit (reward multiplier 0) pays nothing at all.
+      expect(calculateKillReward(enemy, killer, { rewardMultiplier: 0 })).toBe(0);
+      // A decayed wave's foe pays its share of both parts.
+      expect(calculateKillReward(enemy, killer, { rewardMultiplier: 0.5 })).toBe(
+        Math.floor(base * 0.5) + 150,
+      );
+      expect(calculateKillReward(enemy, killer, { rewardMultiplier: 0.1 })).toBe(
+        Math.floor(base * 0.1) + 30,
+      );
+      // Late pressure cuts the kill's own gold, never the bounty.
+      expect(calculateKillReward(enemy, killer, { pressureGoldMultiplier: 0.5 })).toBe(
+        Math.floor(base * 0.5) + 300,
+      );
+    });
+
     it('supports legacy bounty alias and ignores non-enemy targets', () => {
       const enemy = { faction: 'enemy', level: 2, isBoss: false };
       const killer = { accessory: { combatEffects: { bountyGoldOnKill: 250 } } };

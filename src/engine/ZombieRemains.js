@@ -27,7 +27,7 @@
 // kill the player made themselves).
 
 import { ZOMBIE_CLASSES } from '../utils/constants.js';
-import { stripItemNameSuffix } from '../utils/itemNames.js';
+import { weaponCatalogNames } from '../utils/itemNames.js';
 import { getAttackRange, getAttackWeapons } from './AttackOptions.js';
 
 /** Enemy phases between the fall and the rise. */
@@ -44,8 +44,9 @@ export function leavesRemains(unit, killer = null) {
   if (unit._revived || unit.isBoss) return false;
   const weapon = killer?.weapon;
   if (weapon?.type === 'Light') return false;
-  // Daybreak is a sword, but its light ends the undead for good like Light magic.
-  return !(weapon?.name && LIGHT_BANE_WEAPONS.has(stripItemNameSuffix(weapon.name)));
+  // Daybreak is a sword, but its light ends the undead for good like Light magic: forged, worn
+  // or imbued (an imbue puts its adjective before the name), it is still Daybreak.
+  return !(weapon && weaponCatalogNames(weapon).some((name) => LIGHT_BANE_WEAPONS.has(name)));
 }
 
 /** The record left on `tile` by a fallen `unit`. `seen`: the player saw it fall. */

@@ -1689,20 +1689,27 @@ export function getCombatForecast(
   // HP projection includes it when this context resolves on-defend affixes (as
   // battles do); otherwise, or without the affix data, the projection stays hidden.
   const affixesResolve = Boolean(skillCtx?.rollStrikeSkills && skillCtx?.rollDefenseAffixes);
+  // A warded striker takes nothing back (applyReflect), from Thorns or the cloak below.
   const atkThornsPct =
-    affixesResolve && affixNotes.defender.some((note) => note.affixId === 'thorns')
+    affixesResolve &&
+    !isWardedUnit(attacker) &&
+    affixNotes.defender.some((note) => note.affixId === 'thorns')
       ? getThornsReflectPct(defender, skillCtx?.affixData)
       : 0;
   const defThornsPct =
-    affixesResolve && affixNotes.attacker.some((note) => note.affixId === 'thorns')
+    affixesResolve &&
+    !isWardedUnit(defender) &&
+    affixNotes.attacker.some((note) => note.affixId === 'thorns')
       ? getThornsReflectPct(attacker, skillCtx?.affixData)
       : 0;
   const notesHideProjection = (notes, thornsPct) =>
     notes.some((note) => note.affixId !== 'thorns' || !(thornsPct > 0));
   // Briar Cloak: a flat prick on each landed blow from beside its wearer (AccessoryReactions).
-  // A warded Voice's blows taken never reach its cloak (rollStrike).
-  const atkBriar = isWardedUnit(defender) ? 0 : briarReflectOf(defender, distance === 1);
-  const defBriar = isWardedUnit(attacker) ? 0 : briarReflectOf(attacker, distance === 1);
+  // A warded Voice's blows taken never reach its cloak (rollStrike), and its own blows never
+  // draw a prick from the cloak of the unit it strikes (applyReflect).
+  const eitherWarded = isWardedUnit(attacker) || isWardedUnit(defender);
+  const atkBriar = eitherWarded ? 0 : briarReflectOf(defender, distance === 1);
+  const defBriar = eitherWarded ? 0 : briarReflectOf(attacker, distance === 1);
 
   // Read-only display metadata. Resolution order and RNG are untouched.
   const forecast = {
@@ -2116,8 +2123,18 @@ function rollStrike(
  * striker's HP after the reflection and records it on the event (`strikerHPAfter`),
  * so the result's final HP and every strike's presentation agree.
  */
-function applyReflect(evt, strikerHP) {
+function applyReflect(evt, striker, strikerHP) {
   if (!(evt.reflectDamage > 0) || !(strikerHP > 0)) return strikerHP;
+  // A warded Voice takes no damage from anything: not the Thorns or the Briar Cloak of the
+  // unit it strikes either.
+  if (isWardedUnit(striker)) {
+    evt.reflectDamage = 0;
+    if (Array.isArray(evt.skillActivations))
+      evt.skillActivations = evt.skillActivations.filter(
+        (a) => a.id !== 'thorns' && a.id !== BRIAR_ACTIVATION.id,
+      );
+    return strikerHP;
+  }
   const after = Math.max(1, strikerHP - evt.reflectDamage);
   evt.strikerHPAfter = after;
   // What the striker actually lost (Thorns never takes the last HP).
@@ -2525,11 +2542,11 @@ export function resolveCombat(
         defHP = evt.targetHPAfter;
         // Reclaim/Drain heal: striker heals HP
         atkHP = applyStrikeHeal(evt, attacker, atkHP);
-        atkHP = applyReflect(evt, atkHP);
+        atkHP = applyReflect(evt, attacker, atkHP);
       } else {
         atkHP = evt.targetHPAfter;
         defHP = applyStrikeHeal(evt, defender, defHP);
-        defHP = applyReflect(evt, defHP);
+        defHP = applyReflect(evt, defender, defHP);
       }
       // Sleep: wake on damage
       if (!evt.miss && evt.damage > 0) {
@@ -2591,11 +2608,11 @@ export function resolveCombat(
         if (isAttackingDefender) {
           defHP = bonusEvt.targetHPAfter;
           atkHP = applyStrikeHeal(bonusEvt, attacker, atkHP);
-          atkHP = applyReflect(bonusEvt, atkHP);
+          atkHP = applyReflect(bonusEvt, attacker, atkHP);
         } else {
           atkHP = bonusEvt.targetHPAfter;
           defHP = applyStrikeHeal(bonusEvt, defender, defHP);
-          defHP = applyReflect(bonusEvt, defHP);
+          defHP = applyReflect(bonusEvt, defender, defHP);
         }
         // Propagate side effects recorded on the copied context back to the original
         if (bonusStrikeSkills?._debuffAttackerData && !strikeSkills._debuffAttackerData) {
