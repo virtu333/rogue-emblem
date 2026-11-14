@@ -20,6 +20,7 @@ import {
   ENTITY_FINALE,
   MUSIC,
   getBossEnrageLayer,
+  hasOwnBossTheme,
   getBossMusicKey,
   getMusicKey,
   getMusicLayers,
@@ -121,6 +122,9 @@ export default class BattleMusicController {
     intensityFadeMs = 0,
   } = {}) {
     let key;
+    // A boss with a theme of its own is heard wherever it is fought: the Iron Guardian's
+    // hall is an event battle, never a boss node.
+    isBoss = isBoss || hasOwnBossTheme(bossName);
     if (isBoss) key = getBossMusicKey(bossName, act);
     else {
       key =

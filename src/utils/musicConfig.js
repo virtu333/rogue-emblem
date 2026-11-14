@@ -64,7 +64,8 @@ export const MUSIC = {
   // A boss with a theme of its own plays it wherever it is fought. The act's theme
   // above belongs to the boss it was written for (Act I the Iron Captain, Act II
   // the Dark Rider, Act III the Blade Lord) and plays for a boss without one (the
-  // prologue's captain).
+  // prologue's captain). A boss named here is heard at any battle that fields it,
+  // a boss node or not: the Iron Guardian's hall is an event battle (hasOwnBossTheme).
   bossByName: {
     Warchief: 'music_boss_warchief',
     'Knight Commander': 'music_boss_knight_commander',
@@ -74,6 +75,7 @@ export const MUSIC = {
     'The Lieutenant': 'music_boss_lieutenant',
     'The Emperor': 'music_boss_emperor',
     'The Entity': 'music_boss_entity',
+    'The Iron Guardian': 'music_boss_iron_guardian',
   },
 
   // Escape maps (get out before the dark closes): One More Crossing on the
@@ -104,7 +106,9 @@ export const MUSIC = {
   // eclipsed nodes, a village under attack, a recruit to rescue, an elite
   // company (each act fields its own), a caravan to protect, a map in fog.
   battleSituation: {
-    eclipsed: 'music_battle_eclipsed',
+    // Totality (the light going out) and The Other Half of the Sky (two bodies lining
+    // up): a pool, walked by node row, so two eclipsed fights in a row differ
+    eclipsed: ['music_battle_eclipsed', 'music_battle_eclipsed_2'],
     village: 'music_battle_village',
     // the two rescues alternate act by act
     rescue: {
@@ -180,6 +184,7 @@ export const MUSIC_LAYERS = {
   music_battle_fog: { calm: 'music_battle_fog_calm' },
   music_battle_fog_2: { calm: 'music_battle_fog_2_calm' },
   music_battle_eclipsed: { calm: 'music_battle_eclipsed_calm' },
+  music_battle_eclipsed_2: { calm: 'music_battle_eclipsed_2_calm' },
   music_battle_castle: { calm: 'music_battle_castle_calm' },
   music_battle_swamp: { calm: 'music_battle_swamp_calm' },
   music_battle_village: { calm: 'music_battle_village_calm' },
@@ -207,6 +212,7 @@ export const BOSS_CARD_CUES = {
   'The Emperor': 'boss_emperor_card',
   'The Lieutenant': 'boss_lieutenant_card',
   'The Entity': null,
+  'The Iron Guardian': 'boss_iron_guardian',
 };
 
 // The Entity's finale. The first time the Entity is wounded (or turn pressure
@@ -290,6 +296,11 @@ export function getBossMusicKey(bossName, act) {
     return MUSIC.bossByName[bossName];
   }
   return getMusicKey('boss', act);
+}
+
+/** Whether a boss has a theme written for it by name (played wherever it is fought). */
+export function hasOwnBossTheme(bossName) {
+  return typeof bossName === 'string' && Object.hasOwn(MUSIC.bossByName, bossName);
 }
 
 /**

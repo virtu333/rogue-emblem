@@ -472,6 +472,28 @@
     "title": "Totality",
     "tonic": "D"
   },
+  "music_battle_eclipsed_2": {
+    "duration": 88.41,
+    "loopEnd": 87.809524,
+    "loopStart": 11.619048,
+    "lufs": -14.0,
+    "peakDb": -1.39,
+    "score": "battle_eclipsed_2",
+    "seamDb": -51.7,
+    "title": "The Other Half of the Sky",
+    "tonic": "D"
+  },
+  "music_battle_eclipsed_2_calm": {
+    "duration": 88.41,
+    "loopEnd": 87.809524,
+    "loopStart": 11.619048,
+    "lufs": -17.0,
+    "peakDb": -4.53,
+    "score": "battle_eclipsed_2",
+    "seamDb": -53.8,
+    "title": "The Other Half of the Sky",
+    "tonic": "D"
+  },
   "music_battle_eclipsed_calm": {
     "duration": 107.933,
     "loopEnd": 107.333333,
@@ -978,6 +1000,28 @@
     "title": "All of Us Across",
     "tonic": "D"
   },
+  "music_boss_iron_guardian": {
+    "duration": 119.383,
+    "loopEnd": 118.782608,
+    "loopStart": 14.434785,
+    "lufs": -13.5,
+    "peakDb": -1.09,
+    "score": "boss_iron_guardian",
+    "seamDb": -75.9,
+    "title": "No Word to Stop",
+    "tonic": "C"
+  },
+  "music_boss_iron_guardian_enrage_iron_guardian": {
+    "duration": 119.383,
+    "loopEnd": 118.782608,
+    "loopStart": 14.434785,
+    "lufs": -12.74,
+    "peakDb": -1.09,
+    "score": "boss_iron_guardian",
+    "seamDb": -77.7,
+    "title": "No Word to Stop",
+    "tonic": "C"
+  },
   "music_boss_iron_wall": {
     "duration": 90.314,
     "loopEnd": 89.714286,
@@ -1023,24 +1067,24 @@
     "tonic": "Bb"
   },
   "music_boss_lieutenant": {
-    "duration": 73.171,
-    "loopEnd": 72.571429,
-    "loopStart": 9.714286,
-    "lufs": -13.2,
-    "peakDb": -1.7,
-    "score": "boss_lieutenant",
-    "seamDb": -86.4,
-    "title": "Every Future You Could Reach",
-    "tonic": "D"
-  },
-  "music_boss_lieutenant_enrage_lieutenant": {
-    "duration": 73.171,
-    "loopEnd": 72.571429,
+    "duration": 96.029,
+    "loopEnd": 95.428571,
     "loopStart": 9.714286,
     "lufs": -13.2,
     "peakDb": -1.09,
     "score": "boss_lieutenant",
-    "seamDb": -87.0,
+    "seamDb": -88.3,
+    "title": "Every Future You Could Reach",
+    "tonic": "D"
+  },
+  "music_boss_lieutenant_enrage_lieutenant": {
+    "duration": 96.029,
+    "loopEnd": 95.428571,
+    "loopStart": 9.714286,
+    "lufs": -12.41,
+    "peakDb": -1.09,
+    "score": "boss_lieutenant",
+    "seamDb": -88.9,
     "title": "Every Future You Could Reach",
     "tonic": "D"
   },

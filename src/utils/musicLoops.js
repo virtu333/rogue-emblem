@@ -128,6 +128,18 @@ export const MUSIC_LOOPS = {
     duration: 107.933,
     tonic: 'D',
   },
+  music_battle_eclipsed_2: {
+    loopStart: 11.619048,
+    loopEnd: 87.809524,
+    duration: 88.41,
+    tonic: 'D',
+  },
+  music_battle_eclipsed_2_calm: {
+    loopStart: 11.619048,
+    loopEnd: 87.809524,
+    duration: 88.41,
+    tonic: 'D',
+  },
   music_battle_eclipsed_calm: {
     loopStart: 10.666667,
     loopEnd: 107.333333,
@@ -284,6 +296,18 @@ export const MUSIC_LOOPS = {
     duration: 82.247,
     tonic: 'D',
   },
+  music_boss_iron_guardian: {
+    loopStart: 14.434785,
+    loopEnd: 118.782608,
+    duration: 119.383,
+    tonic: 'C',
+  },
+  music_boss_iron_guardian_enrage_iron_guardian: {
+    loopStart: 14.434785,
+    loopEnd: 118.782608,
+    duration: 119.383,
+    tonic: 'C',
+  },
   music_boss_iron_wall: { loopStart: 12.571429, loopEnd: 89.714286, duration: 90.314, tonic: 'Db' },
   music_boss_iron_wall_enrage_iron_wall: {
     loopStart: 12.571429,
@@ -303,11 +327,11 @@ export const MUSIC_LOOPS = {
     duration: 85.126,
     tonic: 'Bb',
   },
-  music_boss_lieutenant: { loopStart: 9.714286, loopEnd: 72.571429, duration: 73.171, tonic: 'D' },
+  music_boss_lieutenant: { loopStart: 9.714286, loopEnd: 95.428571, duration: 96.029, tonic: 'D' },
   music_boss_lieutenant_enrage_lieutenant: {
     loopStart: 9.714286,
-    loopEnd: 72.571429,
-    duration: 73.171,
+    loopEnd: 95.428571,
+    duration: 96.029,
     tonic: 'D',
   },
   music_boss_warchief: { loopStart: 9.526327, loopEnd: 79.0, duration: 79.6, tonic: 'D' },

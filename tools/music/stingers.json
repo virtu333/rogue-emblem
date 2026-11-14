@@ -353,6 +353,21 @@
     "title": "Iron Captain",
     "tonics": []
   },
+  "boss_iron_guardian": {
+    "duration": 7.159,
+    "files": {
+      "stinger_boss_iron_guardian": {
+        "duration": 7.159,
+        "lufs": -17.0,
+        "notesEnd": 5.217,
+        "peakDb": -2.76
+      }
+    },
+    "keyed": false,
+    "notesEnd": 5.217,
+    "title": "The Iron Guardian",
+    "tonics": []
+  },
   "boss_iron_wall": {
     "duration": 6.626,
     "files": {

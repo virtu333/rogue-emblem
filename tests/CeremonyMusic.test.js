@@ -64,8 +64,14 @@ describe('ceremony cue catalogue', () => {
         .flat()
         .map((b) => b.name),
     );
+    // a set piece's named captain may have a card cue too (the Iron Guardian)
+    const captains = new Set();
+    JSON.stringify(gameData.setPieces, (key, value) => {
+      if (key === 'captain' && value && typeof value.name === 'string') captains.add(value.name);
+      return value;
+    });
     for (const [name, cue] of Object.entries(BOSS_CARD_CUES)) {
-      expect(bossNames.has(name), `${name} is a boss`).toBe(true);
+      expect(bossNames.has(name) || captains.has(name), `${name} is a boss`).toBe(true);
       if (cue === null) continue;
       expect(MUSIC_STINGERS[cue], `${cue} is rendered`).toBeTruthy();
     }
